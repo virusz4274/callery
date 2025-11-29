@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import type { CallRecording } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -14,14 +15,27 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { MoreHorizontal, Play, Download, Trash2, FileText } from 'lucide-react';
+import { MoreHorizontal, Play, Download, Trash2, FileText, Loader2 } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingDetailsDialog } from './recording-details-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deleteRecordings } from '@/app/actions/delete-recordings';
 
 type RecordingsTableProps = {
   recordings: CallRecording[];
@@ -33,6 +47,12 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [activeRecording, setActiveRecording] = useState<CallRecording | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [recordingsToDelete, setRecordingsToDelete] = useState<{ id: string, filePath: string }[]>([]);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
+
 
   const totalPages = Math.ceil(recordings.length / ITEMS_PER_PAGE);
   const paginatedRecordings = recordings.slice(
@@ -72,9 +92,52 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
     setActiveRecording(null);
   }
 
+  const handleDeleteRequest = (recs: CallRecording[]) => {
+    if (recs.length === 0) return;
+    setRecordingsToDelete(recs.map(r => ({ id: r.id, filePath: r.filePath })));
+    setShowDeleteConfirm(true);
+  }
+
+  const executeDelete = () => {
+    startDeleteTransition(async () => {
+      const result = await deleteRecordings(recordingsToDelete);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message,
+        });
+        setSelectedRows(new Set());
+        router.refresh();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message,
+        });
+      }
+      setShowDeleteConfirm(false);
+      setRecordingsToDelete([]);
+    });
+  }
+  
+  const selectedRecordings = recordings.filter(r => selectedRows.has(r.id));
+
   return (
     <>
       <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {selectedRows.size > 0 
+              ? `${selectedRows.size} of ${recordings.length} row(s) selected.`
+              : `Total ${recordings.length} recordings.`}
+          </div>
+          {selectedRows.size > 0 && (
+             <Button variant="destructive" size="sm" onClick={() => handleDeleteRequest(selectedRecordings)} disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Delete ({selectedRows.size})
+            </Button>
+          )}
+        </div>
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
           <Table>
             <TableHeader>
@@ -82,7 +145,7 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
                 <TableHead className="w-[40px]">
                   <Checkbox 
                     onCheckedChange={handleSelectAll}
-                    checked={selectedRows.size > 0 && selectedRows.size === recordings.length}
+                    checked={recordings.length > 0 && selectedRows.size === recordings.length}
                     aria-label="Select all rows"
                   />
                 </TableHead>
@@ -130,10 +193,11 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => openDialog(rec)}><Play /> Play</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => openDialog(rec)}><FileText /> View Transcript</DropdownMenuItem>
-                          <DropdownMenuItem><Download /> Download</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 /> Delete</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openDialog(rec)}><Play className="mr-2"/> Play Audio</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openDialog(rec)}><FileText className="mr-2"/> View Transcript</DropdownMenuItem>
+                          <DropdownMenuItem><Download className="mr-2"/> Download</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDeleteRequest([rec])}><Trash2 className="mr-2"/> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -150,10 +214,7 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
           </Table>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {selectedRows.size} of {recordings.length} row(s) selected.
-            </div>
+          <div className="flex items-center justify-end">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -184,6 +245,26 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
           onOpenChange={(isOpen) => !isOpen && closeDialog()}
         />
       )}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {recordingsToDelete.length} recording(s). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={executeDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
