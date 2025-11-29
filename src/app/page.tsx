@@ -1,3 +1,8 @@
+import { AppLayout } from '@/components/app-layout';
+import { recordings, contacts } from '@/lib/data';
+
 export default function Home() {
-  return <></>;
+  return (
+    <AppLayout allRecordings={recordings} allContacts={contacts} />
+  );
 }
