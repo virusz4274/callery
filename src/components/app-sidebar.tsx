@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useTransition } from 'react';
@@ -117,9 +118,8 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
       <SidebarContent className="p-0">
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="/" passHref legacyBehavior>
+            <Link href="/">
               <SidebarMenuButton 
-                as="a"
                 onClick={(e) => handleFilterClick(e, { type: null, value: null })} 
                 isActive={pathname === '/' && !currentFilter.type}
               >
@@ -129,8 +129,8 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
             </Link>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <Link href="/contacts" passHref legacyBehavior>
-               <SidebarMenuButton as="a" isActive={pathname === '/contacts'}>
+            <Link href="/contacts">
+               <SidebarMenuButton isActive={pathname === '/contacts'}>
                 <Users />
                 Contacts
               </SidebarMenuButton>
