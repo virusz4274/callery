@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
@@ -15,19 +15,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ChevronRight, Users, LayoutDashboard } from 'lucide-react';
+import { ChevronRight, Users, LayoutDashboard, Search } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import type { Contact as ContactType } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { Input } from './ui/input';
 
 type AppHeaderProps = {
-  allContacts: ContactType[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 };
 
-export function AppHeader({ allContacts }: AppHeaderProps) {
+export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
-  const router = useRouter();
 
   const breadcrumbs = useMemo(() => {
     const pathSegments = pathname.split('/').filter(Boolean);
@@ -40,9 +40,13 @@ export function AppHeader({ allContacts }: AppHeaderProps) {
 
       return { href, name, isLast, Icon };
     });
+    const baseCrumbs = pathname === '/' ? [] : [
+      { href: '/', name: 'Dashboard', isLast: false, Icon: LayoutDashboard }
+    ];
+    
     return [
-      { href: '/', name: 'Dashboard', isLast: pathname === '/', Icon: LayoutDashboard },
-      ...crumbs
+        ...baseCrumbs,
+        ...crumbs
     ];
   }, [pathname]);
 
@@ -68,7 +72,16 @@ export function AppHeader({ allContacts }: AppHeaderProps) {
       </nav>
 
       <div className="ml-auto flex items-center gap-4">
-        {/* Global Search can be implemented here if needed */}
+        <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                type="search"
+                placeholder="Search recordings..."
+                className="w-full bg-background pl-8"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+            />
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
