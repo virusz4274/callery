@@ -24,11 +24,12 @@ export async function ingestFiles(): Promise<IngestResult> {
     }
 
     const processedFiles = [];
+    const errors = [];
 
     for (const file of files) {
       const parsed = parseFilename(file);
       if (!parsed) {
-        console.warn(`Skipping file with unkown format: ${file}`);
+        console.warn(`Skipping file with unknown format: ${file}`);
         continue;
       }
       
@@ -38,20 +39,36 @@ export async function ingestFiles(): Promise<IngestResult> {
       
       const contactDirName = contact.replace(/[^a-zA-Z0-9-]/g, '_');
       const targetDir = path.join(recordingsDir, contactDirName, year, month);
-      await fs.mkdir(targetDir, { recursive: true });
       
-      const originalPath = path.join(injestDir, file);
-      const newFileName = `${contactDirName}_${dateStr}_${timeStr}.${extension}`;
-      const newPath = path.join(targetDir, newFileName);
-      
-      await fs.rename(originalPath, newPath);
-      
-      processedFiles.push({
-          contactName: isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : null,
-          phoneNumber: !isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : 'N/A',
-          date: date.toISOString(),
-          filePath: path.relative(path.join(process.cwd(), 'public'), newPath),
-      });
+      try {
+        await fs.mkdir(targetDir, { recursive: true });
+        
+        const originalPath = path.join(injestDir, file);
+        const newFileName = `${contactDirName}_${dateStr}_${timeStr}.${extension}`;
+        const newPath = path.join(targetDir, newFileName);
+        
+        await fs.rename(originalPath, newPath);
+        
+        processedFiles.push({
+            contactName: isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : null,
+            phoneNumber: !isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : 'N/A',
+            date: date.toISOString(),
+            filePath: path.relative(path.join(process.cwd(), 'public'), newPath),
+        });
+      } catch(moveError) {
+         console.error(`Failed to move file ${file}:`, moveError);
+         if (moveError instanceof Error) {
+            errors.push(`Error processing ${file}: ${moveError.message}`);
+         }
+      }
+    }
+    
+    if (errors.length > 0) {
+      return { 
+        processedCount: processedFiles.length, 
+        newRecordings: processedFiles,
+        error: `Some files could not be processed: ${errors.join(', ')}`
+      };
     }
 
     return {
@@ -66,7 +83,7 @@ export async function ingestFiles(): Promise<IngestResult> {
     return {
       processedCount: 0,
       newRecordings: [],
-      error: error instanceof Error ? error.message : 'An unknown error occurred.',
+      error: error instanceof Error ? error.message : 'An unknown error occurred during ingestion.',
     };
   }
 }
@@ -82,26 +99,23 @@ function parseFilename(filename: string) {
     const extension = path.extname(mainPart).substring(1);
     const nameWithoutExt = mainPart.substring(0, mainPart.length - extension.length -1);
     
-    // Use a regular expression to handle contact names with spaces
-    const match = nameWithoutExt.match(/(.+)_(_?\d{6})_(\d{6})$/);
+    const match = nameWithoutExt.match(/(.+)_(\d{6})_(\d{6})$/);
 
     if (!match) {
         return null;
     }
 
     const contact = match[1];
-    const dateStr = match[2].replace(/^_/, ''); // remove leading underscore if present
+    const dateStr = match[2].replace(/^_/, ''); 
     const timeStr = match[3];
 
     if (!dateStr || !timeStr || !contact) return null;
   
     try {
-      // Assuming YYMMDD format
       const year = 2000 + parseInt(dateStr.substring(0, 2));
-      const month = parseInt(dateStr.substring(2, 4)) - 1; // Month is 0-indexed in JS
+      const month = parseInt(dateStr.substring(2, 4)) - 1; 
       const day = parseInt(dateStr.substring(4, 6));
   
-      // Assuming HHMMSS format
       const hours = parseInt(timeStr.substring(0, 2));
       const minutes = parseInt(timeStr.substring(2, 4));
       const seconds = parseInt(timeStr.substring(4, 6));
@@ -114,7 +128,7 @@ function parseFilename(filename: string) {
   
       return { contact, date, extension, dateStr, timeStr };
     } catch (e) {
-      console.error(`Error parsing date/time for ${filename}`, e);
+      console.error(`Error parsing date/time for ${filename}:`, e);
       return null;
     }
 }

@@ -2,11 +2,10 @@
 "use client"
 
 import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, Mic, MoreVertical, Search, ChevronRight } from 'lucide-react';
+import { Phone, Mic, MoreVertical, ChevronRight, Search } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type ContactsPageProps = {
   allContacts: Contact[];
@@ -26,8 +25,9 @@ type ContactsPageProps = {
 };
 
 export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
 
   const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
     if (rec.contactName) {
@@ -75,24 +75,17 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
       <Card>
         <CardHeader>
           <CardTitle className="mb-2">Contacts</CardTitle>
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-             <Input
-                type="search"
-                placeholder="Search contacts..."
-                className="pl-9 w-full md:w-1/2 lg:w-1/3"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-             />
+           <div className="text-sm text-muted-foreground">
+            Showing {sortedAndFilteredContacts.length} of {allContacts.length} contacts.
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
           <div className="flex flex-col pr-8">
             {Object.keys(groupedContacts).length > 0 ? (
-                Object.keys(groupedContacts).map(letter => (
+                Object.entries(groupedContacts).map(([letter, contacts]) => (
                 <div key={letter} id={`letter-group-${letter}`} className="pt-4">
                   <h3 className="text-lg font-semibold px-4 pb-2">{letter}</h3>
-                  {groupedContacts[letter].map((contact, index) => {
+                  {contacts.map((contact, index) => {
                     const avatar = PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length];
                     return (
                       <React.Fragment key={contact.phoneNumber}>
@@ -133,7 +126,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
                               <ChevronRight className="h-4 w-4 text-muted-foreground sm:hidden" />
                           </div>
                         </div>
-                        {index < groupedContacts[letter].length - 1 && <Separator className="ml-16"/>}
+                        {index < contacts.length - 1 && <Separator className="ml-16"/>}
                       </React.Fragment>
                     )
                   })}
@@ -141,7 +134,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
               ))
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>No contacts found.</p>
+                    <p>No contacts found matching your search.</p>
                 </div>
             )}
           </div>

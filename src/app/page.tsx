@@ -1,28 +1,35 @@
+
 "use client"
-import React, { useState, useMemo } from 'react';
-import type { CallRecording, Contact } from '@/lib/types';
+
+import React, { Suspense, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { RecordingsDashboard } from '@/components/recordings-dashboard';
 import { recordings, contacts } from '@/lib/data';
-import { useSearchParams } from 'next/navigation';
 
+function DashboardPage() {
+  const searchParams = useSearchParams();
 
-export default function Home() {
-    const searchParams = useSearchParams();
-    const filterType = searchParams.get('filterType');
-    const filterValue = searchParams.get('filterValue');
-    const searchQuery = searchParams.get('q') || '';
+  const filter = useMemo(() => ({
+    type: searchParams.get('filterType'),
+    value: searchParams.get('filterValue'),
+  }), [searchParams]);
 
-    const filter = useMemo(() => ({
-        type: filterType,
-        value: filterValue,
-    }), [filterType, filterValue]);
+  const searchQuery = searchParams.get('q') || '';
 
   return (
     <RecordingsDashboard 
-        allRecordings={recordings}
-        allContacts={contacts}
-        searchQuery={searchQuery}
-        filter={filter}
+      allRecordings={recordings}
+      allContacts={contacts}
+      searchQuery={searchQuery}
+      filter={filter}
     />
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardPage />
+    </Suspense>
   );
 }

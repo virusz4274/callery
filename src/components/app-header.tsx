@@ -1,10 +1,10 @@
 
 "use client";
 
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,81 +15,60 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, ChevronRight, Users, Clock, Contact, LayoutDashboard } from 'lucide-react';
+import { ChevronRight, Users, LayoutDashboard } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import type { Contact as ContactType } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 type AppHeaderProps = {
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  currentFilter: { type: string | null; value: string | null };
   allContacts: ContactType[];
 };
 
-export function AppHeader({ searchQuery, onSearchChange, currentFilter, allContacts }: AppHeaderProps) {
+export function AppHeader({ allContacts }: AppHeaderProps) {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
+  const router = useRouter();
 
-  const getBreadcrumb = () => {
-    if (pathname === '/contacts') {
-      return (
-        <>
-          <ChevronRight className="h-4 w-4" />
-          <Link href="/contacts" className="flex items-center gap-2 hover:underline">
-            <Users className="h-4 w-4" />
-            <span className="font-medium text-foreground">Contacts</span>
-          </Link>
-        </>
-      )
-    }
+  const breadcrumbs = useMemo(() => {
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const crumbs = pathSegments.map((segment, index) => {
+      const href = '/' + pathSegments.slice(0, index + 1).join('/');
+      const name = segment.charAt(0).toUpperCase() + segment.slice(1);
+      const isLast = index === pathSegments.length - 1;
+      let Icon = null;
+      if (name === 'Contacts') Icon = Users;
 
-    if (currentFilter.type) {
-      let icon = <Clock className="h-4 w-4"/>;
-      let value = currentFilter.value;
-      let link = `/?filterType=${currentFilter.type}&filterValue=${encodeURIComponent(currentFilter.value || '')}`;
-
-      if (currentFilter.type === 'contact') {
-        const isKnownContact = allContacts.some(c => c.name === currentFilter.value)
-        icon = isKnownContact ? <Contact className="h-4 w-4"/> : <Users className="h-4 w-4"/>;
-      }
-      
-      return (
-        <>
-          <ChevronRight className="h-4 w-4" />
-          <Link href={link} className="flex items-center gap-2 hover:underline">
-            {icon}
-            <span className="font-medium text-foreground">{value}</span>
-          </Link>
-        </>
-      )
-    }
-    return null;
-  }
+      return { href, name, isLast, Icon };
+    });
+    return [
+      { href: '/', name: 'Dashboard', isLast: pathname === '/', Icon: LayoutDashboard },
+      ...crumbs
+    ];
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
 
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/" className="flex items-center gap-2 font-medium text-foreground hover:underline">
-          <LayoutDashboard className="h-4 w-4" />
-          Dashboard
-        </Link>
-        {getBreadcrumb()}
-      </div>
+      <nav className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+        {breadcrumbs.map((crumb, index) => (
+          <React.Fragment key={crumb.href}>
+            {index > 0 && <ChevronRight className="h-4 w-4" />}
+            <Link
+              href={crumb.href}
+              className={`flex items-center gap-2 ${
+                crumb.isLast ? 'font-semibold text-foreground' : 'hover:text-foreground'
+              }`}
+            >
+              {crumb.Icon && <crumb.Icon className="h-4 w-4" />}
+              {crumb.name}
+            </Link>
+          </React.Fragment>
+        ))}
+      </nav>
 
       <div className="ml-auto flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search recordings..."
-            className="pl-9 w-48 md:w-64"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-        </div>
-
+        {/* Global Search can be implemented here if needed */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
