@@ -32,7 +32,7 @@ export async function ingestFiles(): Promise<IngestResult> {
         continue;
       }
       
-      const { contact, date, extension } = parsed;
+      const { contact, date, extension, dateStr, timeStr } = parsed;
       const year = date.getFullYear().toString();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       
@@ -41,7 +41,7 @@ export async function ingestFiles(): Promise<IngestResult> {
       await fs.mkdir(targetDir, { recursive: true });
       
       const originalPath = path.join(injestDir, file);
-      const newFileName = `call_${date.getTime()}.${extension}`;
+      const newFileName = `${contactDirName}_${dateStr}_${timeStr}.${extension}`;
       const newPath = path.join(targetDir, newFileName);
       
       await fs.rename(originalPath, newPath);
@@ -112,7 +112,7 @@ function parseFilename(filename: string) {
           return null;
       }
   
-      return { contact, date, extension };
+      return { contact, date, extension, dateStr, timeStr };
     } catch (e) {
       console.error(`Error parsing date/time for ${filename}`, e);
       return null;
