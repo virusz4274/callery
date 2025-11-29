@@ -12,7 +12,7 @@ type IngestResult = {
 // Main function to ingest files
 export async function ingestFiles(): Promise<IngestResult> {
   const injestDir = path.join(process.cwd(), 'injest');
-  const recordingsDir = path.join(process.cwd(), 'recordings');
+  const recordingsDir = path.join(process.cwd(), 'public', 'recordings');
 
   try {
     await fs.mkdir(injestDir, { recursive: true });
@@ -50,7 +50,7 @@ export async function ingestFiles(): Promise<IngestResult> {
           contactName: isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : null,
           phoneNumber: !isNaN(parseInt(contact.replace(/\+/g, ''))) ? contact : 'N/A',
           date: date.toISOString(),
-          filePath: path.relative(process.cwd(), newPath),
+          filePath: path.relative(path.join(process.cwd(), 'public'), newPath),
       });
     }
 
