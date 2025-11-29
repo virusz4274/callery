@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useMemo, useTransition } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarHeader,
@@ -17,22 +19,22 @@ import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Archive, Clock, Contact, Phone, Users, FileUp, Loader2 } from 'lucide-react';
-import type { CallRecording, Contact as ContactType } from '@/lib/types';
+import { Archive, Clock, Users, FileUp, Loader2, LayoutDashboard, Phone } from 'lucide-react';
+import type { CallRecording } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ingestFiles } from '@/app/actions/ingest-files';
 
 type AppSidebarProps = {
   onFilterChange: (filter: { type: string | null; value: string | null }) => void;
   allRecordings: CallRecording[];
-  allContacts: ContactType[];
   currentFilter: { type: string | null, value: string | null };
 };
 
-export function AppSidebar({ onFilterChange, allRecordings, allContacts, currentFilter }: AppSidebarProps) {
+export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: AppSidebarProps) {
   const { toast } = useToast();
   const [isSyncing, startSyncTransition] = useTransition();
   const [isIngesting, startIngestTransition] = useTransition();
+  const pathname = usePathname();
 
   const handleSync = () => {
     startSyncTransition(() => {
@@ -89,12 +91,13 @@ export function AppSidebar({ onFilterChange, allRecordings, allContacts, current
     });
     return hierarchy;
   }, [allRecordings]);
-  
-  const unknownNumbers = useMemo(() => {
-    const knownNumbers = new Set(allContacts.map(c => c.phoneNumber));
-    const unknown = new Set(allRecordings.filter(r => !knownNumbers.has(r.phoneNumber)).map(r => r.phoneNumber));
-    return Array.from(unknown);
-  }, [allRecordings, allContacts]);
+
+  const resetFilterAndNavigate = (e: React.MouseEvent, href: string) => {
+    e.preventDefault();
+    onFilterChange({ type: null, value: null });
+    window.history.pushState({}, '', href);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
 
   return (
     <Sidebar>
@@ -107,39 +110,44 @@ export function AppSidebar({ onFilterChange, allRecordings, allContacts, current
       <SidebarContent className="p-0">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => onFilterChange({ type: null, value: null })} isActive={!currentFilter.type}>
-              <Archive />
-              All Recordings
-            </SidebarMenuButton>
+            <Link href="/" passHref legacyBehavior>
+              <SidebarMenuButton 
+                as="a"
+                onClick={() => onFilterChange({ type: null, value: null })} 
+                isActive={pathname === '/' && !currentFilter.type}
+              >
+                <LayoutDashboard />
+                Dashboard
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <Link href="/contacts" passHref legacyBehavior>
+               <SidebarMenuButton as="a" isActive={pathname === '/contacts'}>
+                <Users />
+                Contacts
+              </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <Accordion type="multiple" defaultValue={['contacts', 'dates']} className="w-full">
+        <Accordion type="multiple" defaultValue={['recordings-nav']} className="w-full">
           <SidebarGroup>
-            <AccordionItem value="contacts" className="border-none">
+            <AccordionItem value="recordings-nav" className="border-none">
               <AccordionTrigger className="px-2 hover:no-underline hover:bg-sidebar-accent rounded-md">
                 <SidebarGroupLabel className="p-0 h-auto font-semibold text-sidebar-foreground">
-                  <Users className="mr-2"/>
-                  Contacts
+                  <Archive className="mr-2"/>
+                  Recordings
                 </SidebarGroupLabel>
               </AccordionTrigger>
               <AccordionContent className="pt-2">
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {allContacts.map(contact => (
-                      <SidebarMenuItem key={contact.phoneNumber}>
-                        <SidebarMenuButton 
-                          onClick={() => onFilterChange({ type: 'contact', value: contact.name })}
-                          isActive={currentFilter.type === 'contact' && currentFilter.value === contact.name}
-                          size="sm"
-                          className="font-normal"
-                        >
-                          <Contact />
-                          {contact.name}
+                      <SidebarMenuItem>
+                        <SidebarMenuButton onClick={() => onFilterChange({ type: null, value: null })} isActive={pathname ==='/' && !currentFilter.type} size="sm">
+                          All Recordings
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    ))}
-                    {unknownNumbers.length > 0 && (
                       <SidebarMenuItem>
                         <SidebarMenuButton 
                           onClick={() => onFilterChange({ type: 'contact', value: 'Unknown' })}
@@ -151,40 +159,38 @@ export function AppSidebar({ onFilterChange, allRecordings, allContacts, current
                           Unknown Numbers
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    )}
                   </SidebarMenu>
-                </SidebarGroupContent>
-              </AccordionContent>
-            </AccordionItem>
-          </SidebarGroup>
-          <SidebarGroup>
-            <AccordionItem value="dates" className="border-none">
-              <AccordionTrigger className="px-2 hover:no-underline hover:bg-sidebar-accent rounded-md">
-                <SidebarGroupLabel className="p-0 h-auto font-semibold text-sidebar-foreground">
-                  <Clock className="mr-2"/>
-                  Dates
-                </SidebarGroupLabel>
-              </AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <SidebarGroupContent>
                    <Accordion type="multiple" className="w-full">
                     {Object.entries(dateHierarchy).sort((a,b) => parseInt(b[0]) - parseInt(a[0])).map(([year, months]) => (
                       <AccordionItem value={year} key={year} className="border-none">
                         <AccordionTrigger className="py-1 px-2 text-sm hover:no-underline text-sidebar-foreground/80 hover:text-sidebar-foreground">
-                          {year}
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            {year}
+                          </div>
                         </AccordionTrigger>
                         <AccordionContent>
                            <SidebarMenu>
                             {Array.from(months).map(month => (
                                <SidebarMenuItem key={month}>
-                                <SidebarMenuButton 
-                                  onClick={() => onFilterChange({ type: 'date', value: `${month} ${year}` })}
-                                  isActive={currentFilter.type === 'date' && currentFilter.value === `${month} ${year}`}
-                                  size="sm"
-                                  className="font-normal"
-                                >
-                                  {month}
-                                </SidebarMenuButton>
+                                <Link href="/" passHref legacyBehavior>
+                                  <SidebarMenuButton 
+                                    as="a"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      onFilterChange({ type: 'date', value: `${month} ${year}` });
+                                      if (pathname !== '/') {
+                                        window.history.pushState({}, '', '/');
+                                        window.dispatchEvent(new PopStateEvent('popstate'));
+                                      }
+                                    }}
+                                    isActive={currentFilter.type === 'date' && currentFilter.value === `${month} ${year}`}
+                                    size="sm"
+                                    className="font-normal"
+                                  >
+                                    {month}
+                                  </SidebarMenuButton>
+                                </Link>
                               </SidebarMenuItem>
                             ))}
                           </SidebarMenu>

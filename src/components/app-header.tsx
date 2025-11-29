@@ -1,5 +1,7 @@
 "use client";
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,31 +14,60 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, ChevronRight, Users, Clock } from 'lucide-react';
+import { Search, ChevronRight, Users, Clock, Contact } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { Contact as ContactType } from '@/lib/types';
 
 type AppHeaderProps = {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   currentFilter: { type: string | null; value: string | null };
+  allContacts: ContactType[];
 };
 
-export function AppHeader({ searchQuery, onSearchChange, currentFilter }: AppHeaderProps) {
+export function AppHeader({ searchQuery, onSearchChange, currentFilter, allContacts }: AppHeaderProps) {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
+  const pathname = usePathname();
+
+  const getBreadcrumb = () => {
+    if (pathname === '/contacts') {
+      return (
+        <>
+          <ChevronRight className="h-4 w-4" />
+          <Users className="h-4 w-4" />
+          <span className="font-medium text-foreground">Contacts</span>
+        </>
+      )
+    }
+    if (currentFilter.type) {
+      let icon = <Clock className="h-4 w-4"/>;
+      let value = currentFilter.value;
+
+      if (currentFilter.type === 'contact') {
+        const isKnownContact = allContacts.some(c => c.name === currentFilter.value)
+        icon = isKnownContact ? <Contact className="h-4 w-4"/> : <Users className="h-4 w-4"/>;
+      }
+      
+      return (
+        <>
+          <ChevronRight className="h-4 w-4" />
+          {icon}
+          <span className="font-medium text-foreground">{value}</span>
+        </>
+      )
+    }
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">CallOrganizer</span>
-        {currentFilter.type && (
-          <>
-            <ChevronRight className="h-4 w-4" />
-            {currentFilter.type === 'contact' ? <Users className="h-4 w-4"/> : <Clock className="h-4 w-4"/>}
-            <span className="font-medium text-foreground">{currentFilter.value}</span>
-          </>
-        )}
+        <Link href="/" className="font-medium text-foreground hover:underline">
+          CallOrganizer
+        </Link>
+        {getBreadcrumb()}
       </div>
 
       <div className="ml-auto flex items-center gap-4">

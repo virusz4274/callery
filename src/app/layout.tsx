@@ -1,6 +1,9 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
+import { AppLayout } from '@/components/app-layout';
+import { recordings, contacts } from '@/lib/data';
+
 
 export const metadata: Metadata = {
   title: 'CallOrganizer',
@@ -20,7 +23,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <AppLayout allRecordings={recordings} allContacts={contacts}>
+          {children}
+        </AppLayout>
         <Toaster />
       </body>
     </html>
