@@ -1,12 +1,10 @@
 "use client";
-import React, { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { CallRecording, Contact } from '@/lib/types';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppHeader } from '@/components/app-header';
-import { RecordingsDashboard } from '@/components/recordings-dashboard';
-import { ContactsPage } from '@/components/contacts-page';
 
 type AppLayoutProps = {
   allRecordings: CallRecording[];
@@ -15,17 +13,38 @@ type AppLayoutProps = {
 };
 
 export function AppLayout({ allRecordings, allContacts, children }: AppLayoutProps) {
-    const [filter, setFilter] = useState<{ type: string | null; value: string | null }>({ type: null, value: null });
-    const [searchQuery, setSearchQuery] = useState('');
+    const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+    const filter = {
+      type: searchParams.get('filterType'),
+      value: searchParams.get('filterValue'),
+    };
+    
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (searchQuery) {
+            params.set('q', searchQuery);
+        } else {
+            params.delete('q');
+        }
+        // use replace to avoid adding to history
+        router.replace(`${pathname}?${params.toString()}`);
+    }, [searchQuery, pathname, router, searchParams]);
 
     const onFilterChange = (newFilter: { type: string | null; value: string | null }) => {
-        setFilter(newFilter);
-        // If a filter is applied, we assume the user wants to see the recordings dashboard
-        if (newFilter.type && pathname !== '/') {
-            window.history.pushState({}, '', '/');
-            window.dispatchEvent(new PopStateEvent('popstate'));
+        const params = new URLSearchParams();
+        if (newFilter.type && newFilter.value) {
+            params.set('filterType', newFilter.type);
+            params.set('filterValue', newFilter.value);
         }
+        if (searchQuery) {
+            params.set('q', searchQuery);
+        }
+        
+        router.push(`/?${params.toString()}`);
     };
     
     return (

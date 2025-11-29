@@ -2,7 +2,7 @@
 
 import React, { useMemo, useTransition } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Sidebar,
   SidebarHeader,
@@ -35,6 +35,7 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
   const [isSyncing, startSyncTransition] = useTransition();
   const [isIngesting, startIngestTransition] = useTransition();
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleSync = () => {
     startSyncTransition(() => {
@@ -65,9 +66,9 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
         }
         toast({
           title: "Ingest Complete",
-          description: `${result.processedCount} new file(s) ingested successfully.`,
+          description: `${result.processedCount} new file(s) ingested successfully. Refreshing...`,
         });
-        // Here you would typically refresh the recordings list
+        router.refresh();
       } catch (error) {
         toast({
           variant: "destructive",
@@ -89,14 +90,20 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
       }
       hierarchy[year].add(month);
     });
+    // Sort months chronologically within each year
+    for (const year in hierarchy) {
+        const months = Array.from(hierarchy[year]);
+        months.sort((a, b) => {
+            return new Date(`01 ${b} 2000`) .getTime() - new Date(`01 ${a} 2000`).getTime()
+        });
+        hierarchy[year] = new Set(months);
+    }
     return hierarchy;
   }, [allRecordings]);
 
-  const resetFilterAndNavigate = (e: React.MouseEvent, href: string) => {
+  const handleFilterClick = (e: React.MouseEvent, filter: { type: string | null; value: string | null }) => {
     e.preventDefault();
-    onFilterChange({ type: null, value: null });
-    window.history.pushState({}, '', href);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    onFilterChange(filter);
   };
 
   return (
@@ -113,7 +120,7 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
             <Link href="/" passHref legacyBehavior>
               <SidebarMenuButton 
                 as="a"
-                onClick={() => onFilterChange({ type: null, value: null })} 
+                onClick={(e) => handleFilterClick(e, { type: null, value: null })} 
                 isActive={pathname === '/' && !currentFilter.type}
               >
                 <LayoutDashboard />
@@ -144,13 +151,17 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
                 <SidebarGroupContent>
                   <SidebarMenu>
                       <SidebarMenuItem>
-                        <SidebarMenuButton onClick={() => onFilterChange({ type: null, value: null })} isActive={pathname ==='/' && !currentFilter.type} size="sm">
+                        <SidebarMenuButton 
+                          onClick={(e) => handleFilterClick(e, { type: null, value: null })} 
+                          isActive={pathname ==='/' && !currentFilter.type} 
+                          size="sm"
+                        >
                           All Recordings
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                       <SidebarMenuItem>
                         <SidebarMenuButton 
-                          onClick={() => onFilterChange({ type: 'contact', value: 'Unknown' })}
+                          onClick={(e) => handleFilterClick(e, { type: 'contact', value: 'Unknown' })}
                           isActive={currentFilter.type === 'contact' && currentFilter.value === 'Unknown'}
                           size="sm"
                           className="font-normal"
@@ -173,24 +184,14 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
                            <SidebarMenu>
                             {Array.from(months).map(month => (
                                <SidebarMenuItem key={month}>
-                                <Link href="/" passHref legacyBehavior>
                                   <SidebarMenuButton 
-                                    as="a"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      onFilterChange({ type: 'date', value: `${month} ${year}` });
-                                      if (pathname !== '/') {
-                                        window.history.pushState({}, '', '/');
-                                        window.dispatchEvent(new PopStateEvent('popstate'));
-                                      }
-                                    }}
+                                    onClick={(e) => handleFilterClick(e, { type: 'date', value: `${month} ${year}` })}
                                     isActive={currentFilter.type === 'date' && currentFilter.value === `${month} ${year}`}
                                     size="sm"
                                     className="font-normal"
                                   >
                                     {month}
                                   </SidebarMenuButton>
-                                </Link>
                               </SidebarMenuItem>
                             ))}
                           </SidebarMenu>

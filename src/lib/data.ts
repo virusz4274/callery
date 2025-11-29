@@ -23,7 +23,7 @@ const generateRecording = (id: number, daysAgo: number, phoneNumber: string, dur
   };
 };
 
-export const recordings: CallRecording[] = [
+const unsortedRecordings: CallRecording[] = [
   generateRecording(1, 2, '+1-202-555-0182', 185, "Hey Alice, just following up on our meeting from yesterday. I think we have a solid plan..."),
   generateRecording(2, 3, '+1-202-555-0111', 45, "Hi, I'm calling about the recent advertisement. Can you provide more details?"),
   generateRecording(3, 5, '+1-202-555-0191', 320, "Bob, it's about the quarterly report. I need your slides by end of day tomorrow at the latest."),
@@ -40,3 +40,5 @@ export const recordings: CallRecording[] = [
   generateRecording(14, 80, '+1-202-555-0191', 180, "Bob, thanks for sending over the documents. I've reviewed them and have a few comments."),
   generateRecording(15, 100, '+1-202-555-0155', 65, "Hi, your package has been delivered. You can find it at your front door. Thank you."),
 ];
+
+export const recordings: CallRecording[] = unsortedRecordings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
