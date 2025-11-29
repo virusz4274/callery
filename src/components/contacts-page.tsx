@@ -2,10 +2,11 @@
 "use client"
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, Mic, MoreVertical, Search } from 'lucide-react';
+import { Phone, Mic, MoreVertical, Search, ChevronRight } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
 
 type ContactsPageProps = {
   allContacts: Contact[];
@@ -25,6 +27,7 @@ type ContactsPageProps = {
 
 export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
 
   const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
     if (rec.contactName) {
@@ -63,6 +66,10 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
     }
   };
 
+  const handleContactClick = (contactName: string) => {
+    router.push(`/?filterType=contact&filterValue=${encodeURIComponent(contactName)}`);
+  }
+
   return (
     <div className="relative">
       <Card>
@@ -89,7 +96,10 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
                     const avatar = PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length];
                     return (
                       <React.Fragment key={contact.phoneNumber}>
-                        <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                        <div 
+                          className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handleContactClick(contact.name)}
+                        >
                           <div className="flex items-center gap-4">
                             <Avatar className="w-10 h-10">
                               {avatar && <Image src={avatar.imageUrl} alt={contact.name} width={40} height={40} data-ai-hint={avatar.imageHint} className="rounded-full object-cover"/>}
@@ -108,18 +118,19 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
                                 <Mic className="w-4 h-4"/>
                                 <span>{recordingsByContact[contact.name] || 0} recordings</span>
                              </div>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                             <DropdownMenu onOpenChange={(e) => e.stopPropagation()}>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                    <Button variant="ghost" size="icon">
                                       <MoreVertical className="h-4 w-4" />
                                       <span className="sr-only">Actions</span>
                                    </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                   <DropdownMenuItem>View Recordings</DropdownMenuItem>
+                                   <DropdownMenuItem onClick={() => handleContactClick(contact.name)}>View Recordings</DropdownMenuItem>
                                    <DropdownMenuItem>Edit Contact</DropdownMenuItem>
                                 </DropdownMenuContent>
                              </DropdownMenu>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground sm:hidden" />
                           </div>
                         </div>
                         {index < groupedContacts[letter].length - 1 && <Separator className="ml-16"/>}
