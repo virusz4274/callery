@@ -30,7 +30,6 @@ export function AppLayout({ allRecordings, allContacts, children }: AppLayoutPro
         } else {
             params.delete('q');
         }
-        // use replace to avoid adding to history
         router.replace(`${pathname}?${params.toString()}`);
     }, [searchQuery, pathname, router, searchParams]);
 
@@ -57,9 +56,6 @@ export function AppLayout({ allRecordings, allContacts, children }: AppLayoutPro
                 />
                 <SidebarInset>
                     <AppHeader 
-                        searchQuery={searchQuery} 
-                        onSearchChange={setSearchQuery} 
-                        currentFilter={filter}
                         allContacts={allContacts}
                     />
                     <main className="p-4 sm:p-6 lg:p-8 flex-1">

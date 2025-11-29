@@ -91,7 +91,6 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
       }
       hierarchy[year].add(month);
     });
-    // Sort months chronologically within each year
     for (const year in hierarchy) {
         const months = Array.from(hierarchy[year]);
         months.sort((a, b) => {
@@ -110,10 +109,10 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <Logo className="size-8 text-sidebar-primary" />
           <h1 className="text-lg font-semibold text-sidebar-foreground">CallOrganizer</h1>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent className="p-0">
         <SidebarMenu>
@@ -130,7 +129,7 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
           </SidebarMenuItem>
           <SidebarMenuItem>
             <Link href="/contacts">
-               <SidebarMenuButton isActive={pathname === '/contacts'}>
+               <SidebarMenuButton isActive={pathname.startsWith('/contacts')}>
                 <Users />
                 Contacts
               </SidebarMenuButton>
