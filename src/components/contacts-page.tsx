@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -27,7 +27,11 @@ type ContactsPageProps = {
 export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const searchQuery = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
 
   const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
     if (rec.contactName) {

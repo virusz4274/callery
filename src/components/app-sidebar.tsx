@@ -105,6 +105,8 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
     e.preventDefault();
     onFilterChange(filter);
   };
+  
+  const isDashboardActive = pathname === '/' && !currentFilter.type;
 
   return (
     <Sidebar>
@@ -117,10 +119,9 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
       <SidebarContent className="p-0">
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="/">
+            <Link href="/" onClick={(e) => handleFilterClick(e, { type: null, value: null })}>
               <SidebarMenuButton 
-                onClick={(e) => handleFilterClick(e, { type: null, value: null })} 
-                isActive={pathname === '/' && !currentFilter.type}
+                isActive={isDashboardActive}
               >
                 <LayoutDashboard />
                 Dashboard
@@ -152,7 +153,7 @@ export function AppSidebar({ onFilterChange, allRecordings, currentFilter }: App
                       <SidebarMenuItem>
                         <SidebarMenuButton 
                           onClick={(e) => handleFilterClick(e, { type: null, value: null })} 
-                          isActive={pathname ==='/' && !currentFilter.type} 
+                          isActive={isDashboardActive} 
                           size="sm"
                         >
                           All Recordings
