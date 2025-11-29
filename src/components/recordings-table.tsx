@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MoreHorizontal, Play, Download, Trash2, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { ClientFormattedDate } from './client-formatted-date';
 
 type RecordingsTableProps = {
   recordings: CallRecording[];
@@ -107,7 +107,9 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
                     <div className="font-medium">{formatDuration(rec.duration)}</div>
                     <div className="text-sm text-muted-foreground truncate max-w-xs">{rec.transcriptSnippet}</div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{format(new Date(rec.date), 'PPp')}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <ClientFormattedDate date={rec.date} formatString="PPp" />
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
