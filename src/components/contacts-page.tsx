@@ -80,7 +80,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
-          <div className="flex flex-col h-[60vh] overflow-y-auto pr-8">
+          <div className="flex flex-col pr-8">
             {Object.keys(groupedContacts).length > 0 ? (
                 Object.keys(groupedContacts).map(letter => (
                 <div key={letter} id={`letter-group-${letter}`} className="pt-4">
