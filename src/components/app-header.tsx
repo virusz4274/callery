@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, ChevronRight, Users, Clock, Contact } from 'lucide-react';
+import { Search, ChevronRight, Users, Clock, Contact, LayoutDashboard } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import type { Contact as ContactType } from '@/lib/types';
 
@@ -34,14 +35,18 @@ export function AppHeader({ searchQuery, onSearchChange, currentFilter, allConta
       return (
         <>
           <ChevronRight className="h-4 w-4" />
-          <Users className="h-4 w-4" />
-          <span className="font-medium text-foreground">Contacts</span>
+          <Link href="/contacts" className="flex items-center gap-2 hover:underline">
+            <Users className="h-4 w-4" />
+            <span className="font-medium text-foreground">Contacts</span>
+          </Link>
         </>
       )
     }
+
     if (currentFilter.type) {
       let icon = <Clock className="h-4 w-4"/>;
       let value = currentFilter.value;
+      let link = `/?filterType=${currentFilter.type}&filterValue=${encodeURIComponent(currentFilter.value || '')}`;
 
       if (currentFilter.type === 'contact') {
         const isKnownContact = allContacts.some(c => c.name === currentFilter.value)
@@ -51,8 +56,10 @@ export function AppHeader({ searchQuery, onSearchChange, currentFilter, allConta
       return (
         <>
           <ChevronRight className="h-4 w-4" />
-          {icon}
-          <span className="font-medium text-foreground">{value}</span>
+          <Link href={link} className="flex items-center gap-2 hover:underline">
+            {icon}
+            <span className="font-medium text-foreground">{value}</span>
+          </Link>
         </>
       )
     }
@@ -64,8 +71,9 @@ export function AppHeader({ searchQuery, onSearchChange, currentFilter, allConta
       <SidebarTrigger className="md:hidden" />
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/" className="font-medium text-foreground hover:underline">
-          CallOrganizer
+        <Link href="/" className="flex items-center gap-2 font-medium text-foreground hover:underline">
+          <LayoutDashboard className="h-4 w-4" />
+          Dashboard
         </Link>
         {getBreadcrumb()}
       </div>
