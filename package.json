@@ -8,7 +8,7 @@
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "NODE_ENV=production next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,7 +44,7 @@
     "firebase": "^11.9.1",
     "genkit": "^1.20.0",
     "lucide-react": "^0.475.0",
-    "next": "^16.0.0-rc.0",
+    "next": "16.0.5",
     "patch-package": "^8.0.0",
     "react": "^19.0.0-rc-f994737d14-20240522",
     "react-day-picker": "^8.10.1",
@@ -59,6 +59,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint-config-next": "16.0.5",
     "genkit-cli": "^1.20.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",

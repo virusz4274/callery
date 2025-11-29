@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useTransition } from 'react';
 import {
   Sidebar,
   SidebarHeader,
@@ -17,9 +17,10 @@ import { Logo } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Archive, Clock, Contact, Phone, Users, FileUp } from 'lucide-react';
+import { Archive, Clock, Contact, Phone, Users, FileUp, Loader2 } from 'lucide-react';
 import type { CallRecording, Contact as ContactType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { ingestFiles } from '@/app/actions/ingest-files';
 
 type AppSidebarProps = {
   onFilterChange: (filter: { type: string | null; value: string | null }) => void;
@@ -30,18 +31,49 @@ type AppSidebarProps = {
 
 export function AppSidebar({ onFilterChange, allRecordings, allContacts, currentFilter }: AppSidebarProps) {
   const { toast } = useToast();
+  const [isSyncing, startSyncTransition] = useTransition();
+  const [isIngesting, startIngestTransition] = useTransition();
 
   const handleSync = () => {
-    toast({
-      title: "Syncing Contacts",
-      description: "Checking for updates with Google Contacts...",
-    });
-    setTimeout(() => {
+    startSyncTransition(() => {
       toast({
-        title: "Sync Complete",
-        description: "Your contacts are up to date.",
+        title: "Syncing Contacts",
+        description: "Checking for updates with Google Contacts...",
       });
-    }, 2000);
+      setTimeout(() => {
+        toast({
+          title: "Sync Complete",
+          description: "Your contacts are up to date.",
+        });
+      }, 2000);
+    });
+  };
+  
+  const handleIngest = () => {
+    startIngestTransition(async () => {
+      toast({
+        title: "Ingesting files...",
+        description: "Checking /injest/ for new audio files.",
+      });
+      try {
+        const result = await ingestFiles();
+        console.log('Ingest result:', result);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        toast({
+          title: "Ingest Complete",
+          description: `${result.processedCount} new file(s) ingested successfully.`,
+        });
+        // Here you would typically refresh the recordings list
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Ingest Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+        });
+      }
+    });
   };
 
   const dateHierarchy = useMemo(() => {
@@ -168,17 +200,12 @@ export function AppSidebar({ onFilterChange, allRecordings, allContacts, current
       </SidebarContent>
       <SidebarFooter>
         <Separator className="mb-2" />
-        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={() => {
-            toast({
-              title: "Ingesting files...",
-              description: "Checking /ingest/ for new audio files.",
-            });
-        }}>
-            <FileUp />
-            Ingest Files
+        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent" onClick={handleIngest} disabled={isIngesting}>
+          {isIngesting ? <Loader2 className="animate-spin" /> : <FileUp />}
+          Ingest Files
         </Button>
-        <Button variant="default" className="w-full bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90" onClick={handleSync}>
-          <Users />
+        <Button variant="default" className="w-full bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90" onClick={handleSync} disabled={isSyncing}>
+          {isSyncing ? <Loader2 className="animate-spin" /> : <Users />}
           Sync Contacts
         </Button>
       </SidebarFooter>
