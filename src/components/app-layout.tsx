@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
+import { MobileNav } from './mobile-nav';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -13,6 +15,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
+    const isMobile = useIsMobile();
 
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     
@@ -37,9 +40,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
             />
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 pb-24 md:pb-6">
                 {children}
             </main>
+            {isMobile && <MobileNav />}
         </div>
     );
 }
