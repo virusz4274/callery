@@ -88,6 +88,7 @@ export function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data Management</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="payment">Billing</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="space-y-6">
             <Card>
@@ -306,6 +307,17 @@ export function SettingsPage() {
                  <CardFooter>
                     <Button>Save Preferences</Button>
                 </CardFooter>
+            </Card>
+        </TabsContent>
+         <TabsContent value="payment">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Billing & Subscription</CardTitle>
+                    <CardDescription>Manage your subscription and view payment history.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center text-center p-12">
+                     <p className="text-muted-foreground">Payment integration coming soon.</p>
+                </CardContent>
             </Card>
         </TabsContent>
       </Tabs>
