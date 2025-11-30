@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useTransition } from 'react';
@@ -35,7 +36,7 @@ import { MoreHorizontal, Play, Download, Trash2, FileText, Loader2 } from 'lucid
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingDetailsDialog } from './recording-details-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { deleteRecordings } from '@/app/actions/delete-recordings';
+import { deleteRecordings } from '@/lib/actions/delete-recordings';
 
 type RecordingsTableProps = {
   recordings: CallRecording[];

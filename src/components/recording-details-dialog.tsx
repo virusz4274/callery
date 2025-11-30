@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CallRecording } from '@/lib/types';
@@ -37,7 +38,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
         <div className="grid gap-4 py-4">
           <div className="space-y-4">
             <audio controls className="w-full" key={recording.id}>
-              <source src={`${recording.filePath}`} type="audio/mpeg" />
+              <source src={`/${recording.filePath}`} type="audio/mpeg" />
               Your browser does not support the audio element.
             </audio>
             
