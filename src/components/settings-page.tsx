@@ -2,15 +2,16 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ingestFiles } from '@/app/actions/ingest-files';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Separator } from '@/components/ui/separator';
 import { GoogleIcon } from '@/components/icons/google-icon';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export function SettingsPage() {
     const [isIngesting, startIngestTransition] = useTransition();
@@ -46,13 +47,35 @@ export function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your application settings and data sources.</p>
+        <p className="text-muted-foreground">Manage your account and application settings.</p>
       </div>
-      <Tabs defaultValue="data" className="w-full">
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data Management</TabsTrigger>
         </TabsList>
+        <TabsContent value="profile">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Profile Settings</CardTitle>
+                    <CardDescription>Update your personal information.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input id="name" defaultValue="Your Name" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input id="password" type="password" placeholder="Enter a new password" />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button>Save Changes</Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
         <TabsContent value="general">
             <Card>
                 <CardHeader>
