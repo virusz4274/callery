@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
@@ -35,6 +35,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const navItems = [
     { href: '/', name: 'Recordings', icon: LayoutDashboard },
     { href: '/contacts', name: 'Contacts', icon: Users },
+    { href: '/files', name: 'Files', icon: Folder },
   ];
 
   const handleSettingsClick = () => {

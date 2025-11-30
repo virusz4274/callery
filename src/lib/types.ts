@@ -1,3 +1,4 @@
+
 export type CallRecording = {
   id: string;
   contactName: string | null;
@@ -11,4 +12,13 @@ export type CallRecording = {
 export type Contact = {
   name: string;
   phoneNumber: string;
+};
+
+export type FileSystemNode = {
+  id: string;
+  name: string;
+  type: 'folder' | 'file';
+  lastModified: string; // ISO string
+  size?: string;
+  children?: FileSystemNode[];
 };
