@@ -1,10 +1,9 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,10 +14,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ChevronRight, Users, LayoutDashboard, Search } from 'lucide-react';
+import { Users, LayoutDashboard, Search } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import type { Contact as ContactType } from '@/lib/types';
 import { Input } from './ui/input';
+import { Logo } from './icons';
+import { cn } from '@/lib/utils';
 
 type AppHeaderProps = {
   searchQuery: string;
@@ -29,45 +29,31 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
 
-  const breadcrumbs = useMemo(() => {
-    const pathSegments = pathname.split('/').filter(Boolean);
-    const crumbs = pathSegments.map((segment, index) => {
-      const href = '/' + pathSegments.slice(0, index + 1).join('/');
-      const name = segment.charAt(0).toUpperCase() + segment.slice(1);
-      const isLast = index === pathSegments.length - 1;
-      let Icon = null;
-      if (name === 'Contacts') Icon = Users;
-
-      return { href, name, isLast, Icon };
-    });
-    const baseCrumbs = pathname === '/' ? [] : [
-      { href: '/', name: 'Dashboard', isLast: false, Icon: LayoutDashboard }
-    ];
-    
-    return [
-        ...baseCrumbs,
-        ...crumbs
-    ];
-  }, [pathname]);
+  const navItems = [
+    { href: '/', name: 'Recordings', icon: LayoutDashboard },
+    { href: '/contacts', name: 'Contacts', icon: Users },
+  ];
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-      <SidebarTrigger className="md:hidden" />
-
-      <nav className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-        {breadcrumbs.map((crumb, index) => (
-          <React.Fragment key={crumb.href}>
-            {index > 0 && <ChevronRight className="h-4 w-4" />}
-            <Link
-              href={crumb.href}
-              className={`flex items-center gap-2 ${
-                crumb.isLast ? 'font-semibold text-foreground' : 'hover:text-foreground'
-              }`}
+       <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
+          <Logo className="size-6 text-primary" />
+          <span className="sr-only">CallOrganizer</span>
+        </Link>
+      
+      <nav className="hidden md:flex items-center gap-2 text-sm font-medium">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground",
+                pathname === item.href && "bg-muted text-foreground"
+            )}
             >
-              {crumb.Icon && <crumb.Icon className="h-4 w-4" />}
-              {crumb.name}
-            </Link>
-          </React.Fragment>
+            <item.icon className="h-4 w-4" />
+            {item.name}
+          </Link>
         ))}
       </nav>
 
