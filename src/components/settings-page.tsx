@@ -191,6 +191,31 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+           <Card>
+                <CardHeader>
+                    <CardTitle>Automatic Deletion Policy</CardTitle>
+                    <CardDescription>Automatically delete old recordings to manage storage space.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                        <Label htmlFor="deletion-policy">Delete recordings older than</Label>
+                        <Select defaultValue="never">
+                            <SelectTrigger id="deletion-policy">
+                                <SelectValue placeholder="Select a policy" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="never">Never</SelectItem>
+                                <SelectItem value="3m">3 Months</SelectItem>
+                                <SelectItem value="6m">6 Months</SelectItem>
+                                <SelectItem value="1y">1 Year</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+                 <CardFooter>
+                    <Button>Save Policy</Button>
+                </CardFooter>
+            </Card>
         </TabsContent>
       </Tabs>
     </div>
