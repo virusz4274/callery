@@ -2,7 +2,6 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AppLayout } from '@/components/app-layout';
-import { recordings, contacts } from '@/lib/data';
 import { Suspense } from 'react';
 
 
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
 
 function RootLayoutContent({ children }: { children: React.ReactNode }) {
   return (
-    <AppLayout allRecordings={recordings} allContacts={contacts}>
+    <AppLayout>
       {children}
     </AppLayout>
   );
