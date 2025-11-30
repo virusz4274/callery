@@ -18,6 +18,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     const isMobile = useIsMobile();
 
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+    const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
     
     useEffect(() => {
         const currentQuery = searchParams.get('q') || '';
@@ -43,7 +44,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 pb-24 md:pb-6">
                 {children}
             </main>
-            {isMobile && <MobileNav />}
+            {isMobile && !showHamburger && <MobileNav />}
         </div>
     );
 }
