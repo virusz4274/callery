@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, Mic, MoreVertical, ChevronRight, Search } from 'lucide-react';
+import { Phone, Mic, MoreVertical, ChevronRight } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 type ContactsPageProps = {
@@ -27,11 +26,7 @@ type ContactsPageProps = {
 export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-
-  useEffect(() => {
-    setSearchQuery(searchParams.get('q') || '');
-  }, [searchParams]);
+  const searchQuery = searchParams.get('q') || '';
 
   const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
     if (rec.contactName) {
@@ -45,8 +40,12 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
   }, {} as Record<string, number>), [allRecordings]);
 
   const sortedAndFilteredContacts = useMemo(() => {
+    const searchLower = searchQuery.toLowerCase();
     return allContacts
-      .filter(contact => contact.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .filter(contact => 
+        contact.name.toLowerCase().includes(searchLower) ||
+        contact.phoneNumber.includes(searchLower)
+      )
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [allContacts, searchQuery]);
 

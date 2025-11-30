@@ -17,23 +17,28 @@ export function AppLayout({ children }: AppLayoutProps) {
     const [isPending, startTransition] = useTransition();
     const isMobile = useIsMobile();
 
+    // Initialize state from URL search params
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
     
+    // Effect to update URL when searchQuery changes
     useEffect(() => {
-        const currentQuery = searchParams.get('q') || '';
-        if(searchQuery !== currentQuery) {
-            const params = new URLSearchParams(searchParams.toString());
-            if (searchQuery) {
-                params.set('q', searchQuery);
-            } else {
-                params.delete('q');
-            }
-            startTransition(() => {
-                router.replace(`${pathname}?${params.toString()}`);
-            });
+        const params = new URLSearchParams(searchParams.toString());
+        if (searchQuery) {
+            params.set('q', searchQuery);
+        } else {
+            params.delete('q');
         }
-    }, [searchQuery, pathname, router, searchParams]);
+        // Use replace to avoid adding to history
+        startTransition(() => {
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        });
+    }, [searchQuery]);
+
+    // Effect to clear search when pathname changes
+    useEffect(() => {
+        setSearchQuery('');
+    }, [pathname]);
     
     return (
         <div className="flex min-h-screen w-full flex-col bg-background">

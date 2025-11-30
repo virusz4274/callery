@@ -46,6 +46,15 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
     router.push('/settings');
   };
 
+  const getSearchPlaceholder = () => {
+    if (pathname === '/contacts') {
+      return 'Search contacts...';
+    }
+    return 'Search recordings...';
+  }
+
+  const isSearchablePage = ['/', '/contacts'].includes(pathname);
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
        <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:text-base mr-4">
@@ -103,17 +112,21 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-                type="search"
-                placeholder="Search recordings..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-            />
-        </div>
-         <ThemeSwitcher />
+        {isSearchablePage && (
+          <div className="relative ml-auto flex-1 md:grow-0">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                  type="search"
+                  placeholder={getSearchPlaceholder()}
+                  className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+              />
+          </div>
+        )}
+         <div className={cn(!isSearchablePage && "ml-auto")}>
+            <ThemeSwitcher />
+         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
