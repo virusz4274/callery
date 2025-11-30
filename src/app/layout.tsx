@@ -38,7 +38,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense>
             <RootLayoutContent>
               {children}
             </RootLayoutContent>

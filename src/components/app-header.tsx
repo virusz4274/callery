@@ -47,20 +47,20 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-       <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-          <Logo className="size-6 text-primary" />
+    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+       <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:text-base">
+          <Logo className="h-6 w-6 text-primary" />
           <span className="sr-only">CallOrganizer</span>
         </Link>
       
-      <nav className="hidden md:flex items-center gap-2 text-sm font-medium">
+      <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground",
-                pathname === item.href && "bg-muted text-foreground"
+                "flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground",
+                pathname === item.href && "text-foreground"
             )}
             >
             <item.icon className="h-4 w-4" />
@@ -69,13 +69,13 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-4">
-        <div className="relative w-full max-w-sm">
+      <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
+        <div className="relative ml-auto flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
                 type="search"
                 placeholder="Search recordings..."
-                className="w-full bg-background pl-8"
+                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
             />
