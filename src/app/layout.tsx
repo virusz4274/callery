@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AppLayout } from '@/components/app-layout';
 import { Suspense } from 'react';
+import { ThemeProvider } from '@/components/theme-provider';
 
 
 export const metadata: Metadata = {
@@ -31,12 +32,19 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <Suspense fallback={<div>Loading...</div>}>
-          <RootLayoutContent>
-            {children}
-          </RootLayoutContent>
-        </Suspense>
-        <Toaster />
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+          <Suspense fallback={<div>Loading...</div>}>
+            <RootLayoutContent>
+              {children}
+            </RootLayoutContent>
+          </Suspense>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
