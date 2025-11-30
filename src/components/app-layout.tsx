@@ -33,7 +33,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         startTransition(() => {
             router.replace(`${pathname}?${params.toString()}`, { scroll: false });
         });
-    }, [searchQuery]);
+    }, [searchQuery, pathname, router, searchParams]);
 
     // Effect to clear search when pathname changes
     useEffect(() => {
@@ -53,3 +53,5 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
     );
 }
+
+    
