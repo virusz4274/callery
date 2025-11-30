@@ -51,6 +51,9 @@ export function SettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
 
+    const showAutoTranscribe = process.env.NEXT_PUBLIC_FEATURE_AUTO_TRANSCRIBE_ENABLED === 'true';
+    const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
+
     const handleIngest = () => {
         startIngestTransition(async () => {
             const result = await ingestFiles();
@@ -88,7 +91,7 @@ export function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
+          {showBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
         </TabsList>
         <TabsContent value="profile" className="space-y-6">
             <Card>
@@ -200,28 +203,30 @@ export function SettingsPage() {
                 </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Processing</CardTitle>
-              <CardDescription>
-                Manage how your recordings are transcribed and analyzed.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="auto-transcribe" className="text-base">Auto-Transcribe New Recordings</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically generate a transcript when a new recording is ingested. This may incur costs.
-                  </p>
+          {showAutoTranscribe && (
+            <Card>
+                <CardHeader>
+                <CardTitle>Data Processing</CardTitle>
+                <CardDescription>
+                    Manage how your recordings are transcribed and analyzed.
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                    <Label htmlFor="auto-transcribe" className="text-base">Auto-Transcribe New Recordings</Label>
+                    <p className="text-sm text-muted-foreground">
+                        Automatically generate a transcript when a new recording is ingested. This may incur costs.
+                    </p>
+                    </div>
+                    <Switch id="auto-transcribe" disabled />
                 </div>
-                <Switch id="auto-transcribe" defaultChecked/>
-              </div>
-            </CardContent>
-             <CardFooter>
-                <Button>Save Settings</Button>
-            </CardFooter>
-          </Card>
+                </CardContent>
+                <CardFooter>
+                    <Button disabled>Save Settings</Button>
+                </CardFooter>
+            </Card>
+          )}
            <Card>
                 <CardHeader>
                     <CardTitle>Storage Management</CardTitle>
@@ -303,19 +308,21 @@ export function SettingsPage() {
                 </CardFooter>
             </Card>
         </TabsContent>
-         <TabsContent value="billing">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Billing & Subscription</CardTitle>
-                    <CardDescription>Manage your subscription, view payment history, and download invoices.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg">
-                     <p className="text-lg font-medium">Pro Plan</p>
-                     <p className="text-muted-foreground">You are currently on the Pro plan.</p>
-                     <Button variant="outline" className="mt-4">Manage Subscription</Button>
-                </CardContent>
-            </Card>
-        </TabsContent>
+        {showBilling && (
+            <TabsContent value="billing">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Billing & Subscription</CardTitle>
+                        <CardDescription>Manage your subscription, view payment history, and download invoices.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg">
+                        <p className="text-lg font-medium">Pro Plan</p>
+                        <p className="text-muted-foreground">You are currently on the Pro plan.</p>
+                        <Button variant="outline" className="mt-4" disabled>Manage Subscription</Button>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        )}
       </Tabs>
     </div>
   );
