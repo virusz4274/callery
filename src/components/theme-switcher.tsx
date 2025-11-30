@@ -15,6 +15,7 @@ export function ThemeSwitcher() {
   }, []);
 
   if (!mounted) {
+    // Render a placeholder on the server and during hydration
     return (
         <div className="flex items-center gap-2" style={{width: '93px', height: '28px'}}>
              <Sun className="h-5 w-5" />
