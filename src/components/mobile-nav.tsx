@@ -17,15 +17,15 @@ export function MobileNav() {
   ]
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
-      <nav className="flex items-center justify-around p-2">
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background md:hidden">
+      <nav className="flex items-center justify-between px-2 pt-2 pb-1">
         {navItems.map((item) => (
           <Link
             key={item.name}
             href={item.href}
             className={cn(
-              "flex flex-col items-center gap-1 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-              pathname === item.href && "text-primary bg-accent"
+              "flex flex-col items-center gap-1 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-1/5",
+              pathname === item.href && "text-primary bg-accent/50"
             )}
           >
             <item.icon className="h-5 w-5" />
