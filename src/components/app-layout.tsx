@@ -32,12 +32,12 @@ export function AppLayout({ children }: AppLayoutProps) {
     }, [searchQuery, pathname, router, searchParams]);
     
     return (
-        <div className="min-h-screen w-full bg-background flex flex-col">
+        <div className="flex min-h-screen w-full flex-col bg-background">
             <AppHeader 
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
             />
-            <main className="p-4 sm:p-6 lg:p-8 flex-1">
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
                 {children}
             </main>
         </div>
