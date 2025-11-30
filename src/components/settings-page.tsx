@@ -55,10 +55,10 @@ export function SettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data Management</TabsTrigger>
         </TabsList>
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Profile Settings</CardTitle>
+                    <CardTitle>Profile Information</CardTitle>
                     <CardDescription>Update your personal information.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -67,12 +67,31 @@ export function SettingsPage() {
                         <Input id="name" defaultValue="Your Name" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input id="password" type="password" placeholder="Enter a new password" />
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" readOnly defaultValue="user@example.com" className="bg-muted/50 cursor-not-allowed"/>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button>Save Changes</Button>
+                    <Button>Save Profile</Button>
+                </CardFooter>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Password Management</CardTitle>
+                    <CardDescription>Change your account password.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <Input id="new-password" type="password" placeholder="Enter a new password" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input id="confirm-password" type="password" placeholder="Confirm your new password" />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button>Change Password</Button>
                 </CardFooter>
             </Card>
         </TabsContent>
