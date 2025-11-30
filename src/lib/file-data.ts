@@ -14,6 +14,13 @@ export const fileSystemData: FileSystemNode = {
   type: 'folder',
   lastModified: twoDaysAgo.toISOString(),
   children: [
+     {
+      id: 'folder-injest',
+      name: 'injest',
+      type: 'folder',
+      lastModified: today.toISOString(),
+      children: [],
+    },
     {
       id: 'folder-alice',
       name: 'Alice_Johnson',
