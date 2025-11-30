@@ -13,6 +13,8 @@ import { GoogleIcon } from '@/components/icons/google-icon';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from './ui/progress';
+import { Switch } from './ui/switch';
 
 const timezones = [
   { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -191,6 +193,37 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Transcription Settings</CardTitle>
+              <CardDescription>
+                Manage how your recordings are transcribed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-transcribe" className="text-base">Auto-Transcribe New Recordings</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically generate a transcript when a new recording is ingested.
+                  </p>
+                </div>
+                <Switch id="auto-transcribe" defaultChecked/>
+              </div>
+            </CardContent>
+             <CardFooter>
+                <Button>Save Settings</Button>
+            </CardFooter>
+          </Card>
+           <Card>
+                <CardHeader>
+                    <CardTitle>Storage Usage</CardTitle>
+                    <CardDescription>You are currently using 4.2 GB of 15 GB.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Progress value={(4.2 / 15) * 100} className="w-full" />
+                </CardContent>
+            </Card>
            <Card>
                 <CardHeader>
                     <CardTitle>Automatic Deletion Policy</CardTitle>
