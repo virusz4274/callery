@@ -33,6 +33,8 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+
   const navItems = [
     { href: '/', name: 'Recordings', icon: LayoutDashboard },
     { href: '/contacts', name: 'Contacts', icon: Users },
@@ -67,35 +69,37 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
         ))}
       </nav>
 
-        <Sheet>
-            <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Toggle navigation menu</span>
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-                <nav className="grid gap-6 text-lg font-medium">
-                    <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
-                        <Logo className="h-6 w-6 text-primary" />
-                        <span className="sr-only">CallOrganizer</span>
-                    </Link>
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                                "flex items-center gap-4 text-muted-foreground hover:text-foreground",
-                                pathname === item.href && "text-foreground"
-                            )}
-                        >
-                            <item.icon className="h-5 w-5" />
-                            {item.name}
+        {showHamburger && (
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                        <Menu className="h-5 w-5" />
+                        <span className="sr-only">Toggle navigation menu</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left">
+                    <nav className="grid gap-6 text-lg font-medium">
+                        <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                            <Logo className="h-6 w-6 text-primary" />
+                            <span className="sr-only">CallOrganizer</span>
                         </Link>
-                    ))}
-                </nav>
-            </SheetContent>
-        </Sheet>
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                    "flex items-center gap-4 text-muted-foreground hover:text-foreground",
+                                    pathname === item.href && "text-foreground"
+                                )}
+                            >
+                                <item.icon className="h-5 w-5" />
+                                {item.name}
+                            </Link>
+                        ))}
+                    </nav>
+                </SheetContent>
+            </Sheet>
+        )}
 
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
