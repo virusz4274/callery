@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from './ui/progress';
 import { Switch } from './ui/switch';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const timezones = [
   { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -86,6 +87,7 @@ export function SettingsPage() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data Management</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="space-y-6">
             <Card>
@@ -247,6 +249,62 @@ export function SettingsPage() {
                 </CardContent>
                  <CardFooter>
                     <Button>Save Policy</Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
+        <TabsContent value="notifications" className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Activity Digest</CardTitle>
+                    <CardDescription>Receive a summary of your call activity.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <RadioGroup defaultValue="off">
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="off" id="r1" />
+                            <Label htmlFor="r1">Off</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="weekly" id="r2" />
+                            <Label htmlFor="r2">Weekly</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="monthly" id="r3" />
+                            <Label htmlFor="r3">Monthly</Label>
+                        </div>
+                    </RadioGroup>
+                </CardContent>
+                 <CardFooter>
+                    <Button>Save Preferences</Button>
+                </CardFooter>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Data Ingestion Alerts</CardTitle>
+                    <CardDescription>Get notified about the status of manual data ingestion.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                        <Label htmlFor="ingest-success" className="text-base">Notify on success</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Receive an email when file ingestion completes successfully.
+                        </p>
+                        </div>
+                        <Switch id="ingest-success" />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                        <Label htmlFor="ingest-fail" className="text-base">Notify on failure</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Receive an email if any files fail to ingest.
+                        </p>
+                        </div>
+                        <Switch id="ingest-fail" defaultChecked/>
+                    </div>
+                </CardContent>
+                 <CardFooter>
+                    <Button>Save Preferences</Button>
                 </CardFooter>
             </Card>
         </TabsContent>
