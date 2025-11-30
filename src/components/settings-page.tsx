@@ -79,21 +79,21 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and application settings.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
       </div>
       <Tabs defaultValue="profile" className="w-full">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="data">Data Management</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="payment">Billing</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Profile Information</CardTitle>
+                    <CardTitle>Profile</CardTitle>
                     <CardDescription>Update your personal information.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -112,8 +112,8 @@ export function SettingsPage() {
             </Card>
              <Card>
                 <CardHeader>
-                    <CardTitle>Password Management</CardTitle>
-                    <CardDescription>Change your account password.</CardDescription>
+                    <CardTitle>Password</CardTitle>
+                    <CardDescription>Change your account password. For security, you will be logged out after a successful password change.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -130,13 +130,13 @@ export function SettingsPage() {
                 </CardFooter>
             </Card>
         </TabsContent>
-        <TabsContent value="general">
+        <TabsContent value="general" className="space-y-6">
              <Card>
                 <CardHeader>
                     <CardTitle>Localization</CardTitle>
-                    <CardDescription>Set your preferred timezone for date and time display.</CardDescription>
+                    <CardDescription>Set your preferred language and timezone for date and time display.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     <div className="grid w-full max-w-sm items-center gap-1.5">
                         <Label htmlFor="timezone">Timezone</Label>
                         <Select>
@@ -161,46 +161,50 @@ export function SettingsPage() {
         <TabsContent value="data" className="space-y-6">
            <Card>
             <CardHeader>
-              <CardTitle>Contact Syncing</CardTitle>
+              <CardTitle>Data Sources</CardTitle>
               <CardDescription>
-                Connect your Google Account to automatically sync your contacts.
+                Manage where your call data comes from. Connect your Google account or manually upload recordings.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button>
-                <GoogleIcon className="mr-2 h-4 w-4" />
-                Connect with Google
-              </Button>
+            <CardContent className="space-y-4">
+               <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                        <Label className="text-base">Sync Google Contacts</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Automatically match phone numbers to your Google Contacts.
+                        </p>
+                    </div>
+                    <Button variant="outline">
+                        <GoogleIcon className="mr-2 h-4 w-4" />
+                        Connect
+                    </Button>
+                </div>
+                 <div className="rounded-lg border p-4">
+                    <div className="space-y-1">
+                        <Label className="text-base">Manual Data Ingestion</Label>
+                         <p className="text-sm text-muted-foreground pb-2">
+                           Place your recording files in the `/injest` directory and click the button below to process them.
+                        </p>
+                    </div>
+                     <Button onClick={handleIngest} disabled={isIngesting} variant="outline">
+                        {isIngesting ? (
+                            <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                            </>
+                        ) : (
+                            'Process New Recordings'
+                        )}
+                        </Button>
+                        {isIngesting && <p className="text-sm text-muted-foreground mt-2">Please wait, this may take a moment...</p>}
+                </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Manual Data Ingestion</CardTitle>
+              <CardTitle>Data Processing</CardTitle>
               <CardDescription>
-                Place your recording files in the `/injest` directory at the root of the project and click the button below to process them.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Button onClick={handleIngest} disabled={isIngesting} variant="outline">
-                  {isIngesting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    'Process New Recordings'
-                  )}
-                </Button>
-                {isIngesting && <p className="text-sm text-muted-foreground">Please wait, this may take a moment...</p>}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Transcription Settings</CardTitle>
-              <CardDescription>
-                Manage how your recordings are transcribed.
+                Manage how your recordings are transcribed and analyzed.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -208,7 +212,7 @@ export function SettingsPage() {
                 <div className="space-y-0.5">
                   <Label htmlFor="auto-transcribe" className="text-base">Auto-Transcribe New Recordings</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatically generate a transcript when a new recording is ingested.
+                    Automatically generate a transcript when a new recording is ingested. This may incur costs.
                   </p>
                 </div>
                 <Switch id="auto-transcribe" defaultChecked/>
@@ -220,21 +224,18 @@ export function SettingsPage() {
           </Card>
            <Card>
                 <CardHeader>
-                    <CardTitle>Storage Usage</CardTitle>
-                    <CardDescription>You are currently using 4.2 GB of 15 GB.</CardDescription>
+                    <CardTitle>Storage Management</CardTitle>
+                    <CardDescription>Manage your storage usage and data retention policies.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Progress value={(4.2 / 15) * 100} className="w-full" />
-                </CardContent>
-            </Card>
-           <Card>
-                <CardHeader>
-                    <CardTitle>Automatic Deletion Policy</CardTitle>
-                    <CardDescription>Automatically delete old recordings to manage storage space.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid w-full max-w-sm items-center gap-1.5">
-                        <Label htmlFor="deletion-policy">Delete recordings older than</Label>
+                <CardContent className="space-y-4">
+                    <div>
+                        <Label>Storage Usage</Label>
+                         <p className="text-sm text-muted-foreground pb-2">You are currently using 4.2 GB of 15 GB.</p>
+                        <Progress value={(4.2 / 15) * 100} className="w-full" />
+                    </div>
+                    <div className="grid w-full max-w-sm items-center gap-1.5 pt-2">
+                        <Label htmlFor="deletion-policy">Automatic Deletion Policy</Label>
+                         <p className="text-sm text-muted-foreground pb-1">Automatically delete old recordings to manage storage space.</p>
                         <Select defaultValue="never">
                             <SelectTrigger id="deletion-policy">
                                 <SelectValue placeholder="Select a policy" />
@@ -256,47 +257,40 @@ export function SettingsPage() {
         <TabsContent value="notifications" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Activity Digest</CardTitle>
-                    <CardDescription>Receive a summary of your call activity.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <RadioGroup defaultValue="off">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="off" id="r1" />
-                            <Label htmlFor="r1">Off</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="weekly" id="r2" />
-                            <Label htmlFor="r2">Weekly</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="monthly" id="r3" />
-                            <Label htmlFor="r3">Monthly</Label>
-                        </div>
-                    </RadioGroup>
-                </CardContent>
-                 <CardFooter>
-                    <Button>Save Preferences</Button>
-                </CardFooter>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Data Ingestion Alerts</CardTitle>
-                    <CardDescription>Get notified about the status of manual data ingestion.</CardDescription>
+                    <CardTitle>Email Notifications</CardTitle>
+                    <CardDescription>Choose which email notifications you want to receive.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                        <Label className="text-base">Activity Digest</Label>
+                        <p className="text-sm text-muted-foreground pb-2">Receive a summary of your call activity.</p>
+                        <RadioGroup defaultValue="weekly" className="flex space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="off" id="r1" />
+                                <Label htmlFor="r1">Off</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="weekly" id="r2" />
+                                <Label htmlFor="r2">Weekly</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="monthly" id="r3" />
+                                <Label htmlFor="r3">Monthly</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                        <Label htmlFor="ingest-success" className="text-base">Notify on success</Label>
+                        <Label htmlFor="ingest-success" className="text-base">Ingestion Success</Label>
                         <p className="text-sm text-muted-foreground">
                             Receive an email when file ingestion completes successfully.
                         </p>
                         </div>
-                        <Switch id="ingest-success" />
+                        <Switch id="ingest-success" defaultChecked/>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                        <Label htmlFor="ingest-fail" className="text-base">Notify on failure</Label>
+                        <Label htmlFor="ingest-fail" className="text-base">Ingestion Failure</Label>
                         <p className="text-sm text-muted-foreground">
                             Receive an email if any files fail to ingest.
                         </p>
@@ -305,18 +299,20 @@ export function SettingsPage() {
                     </div>
                 </CardContent>
                  <CardFooter>
-                    <Button>Save Preferences</Button>
+                    <Button>Save Notifications</Button>
                 </CardFooter>
             </Card>
         </TabsContent>
-         <TabsContent value="payment">
+         <TabsContent value="billing">
             <Card>
                 <CardHeader>
                     <CardTitle>Billing & Subscription</CardTitle>
-                    <CardDescription>Manage your subscription and view payment history.</CardDescription>
+                    <CardDescription>Manage your subscription, view payment history, and download invoices.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center text-center p-12">
-                     <p className="text-muted-foreground">Payment integration coming soon.</p>
+                <CardContent className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg">
+                     <p className="text-lg font-medium">Pro Plan</p>
+                     <p className="text-muted-foreground">You are currently on the Pro plan.</p>
+                     <Button variant="outline" className="mt-4">Manage Subscription</Button>
                 </CardContent>
             </Card>
         </TabsContent>
