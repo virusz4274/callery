@@ -11,19 +11,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Moon, Sun, Monitor } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Moon, Sun } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { Switch } from '@/components/ui/switch';
 
 type AppHeaderProps = {
   searchQuery: string;
@@ -31,7 +28,7 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
   const router = useRouter();
@@ -43,6 +40,10 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
   const handleSettingsClick = () => {
     router.push('/settings');
+  };
+
+  const handleThemeChange = (checked: boolean) => {
+    setTheme(checked ? 'dark' : 'light');
   };
 
   return (
@@ -79,6 +80,15 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
                 onChange={(e) => onSearchChange(e.target.value)}
             />
         </div>
+         <div className="flex items-center gap-2">
+            <Sun className="h-5 w-5" />
+            <Switch
+                checked={theme === 'dark'}
+                onCheckedChange={handleThemeChange}
+                aria-label="Toggle dark mode"
+            />
+            <Moon className="h-5 w-5" />
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
@@ -93,24 +103,6 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
-             <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                    <span>Theme</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => setTheme('light')}>
-                            <Sun className="mr-2" /> Light
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setTheme('dark')}>
-                            <Moon className="mr-2" /> Dark
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setTheme('system')}>
-                            <Monitor className="mr-2" /> System
-                        </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Logout</DropdownMenuItem>
           </DropdownMenuContent>
