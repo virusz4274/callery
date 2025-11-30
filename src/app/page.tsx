@@ -1,10 +1,11 @@
 
+
 "use client"
 
 import React, { Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { RecordingsDashboard } from '@/components/recordings-dashboard';
-import { recordings, contacts } from '@/lib/data';
+import { RecordingsDashboard } from '@/components/pages/recordings-dashboard';
+import { recordings, contacts } from '@/lib/data/data';
 
 function DashboardPage() {
   const searchParams = useSearchParams();
