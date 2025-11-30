@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -14,13 +15,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Moon, Sun } from 'lucide-react';
+import { Users, LayoutDashboard, Search } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
-import { Switch } from '@/components/ui/switch';
+import { ThemeSwitcher } from './theme-switcher';
 
 type AppHeaderProps = {
   searchQuery: string;
@@ -28,7 +28,6 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
-  const { theme, setTheme } = useTheme();
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
   const router = useRouter();
@@ -40,10 +39,6 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
   const handleSettingsClick = () => {
     router.push('/settings');
-  };
-
-  const handleThemeChange = (checked: boolean) => {
-    setTheme(checked ? 'dark' : 'light');
   };
 
   return (
@@ -80,15 +75,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
                 onChange={(e) => onSearchChange(e.target.value)}
             />
         </div>
-         <div className="flex items-center gap-2">
-            <Sun className="h-5 w-5" />
-            <Switch
-                checked={theme === 'dark'}
-                onCheckedChange={handleThemeChange}
-                aria-label="Toggle dark mode"
-            />
-            <Moon className="h-5 w-5" />
-        </div>
+         <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
