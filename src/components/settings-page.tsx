@@ -86,7 +86,7 @@ export function SettingsPage() {
         <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
       </div>
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
@@ -327,3 +327,5 @@ export function SettingsPage() {
     </div>
   );
 }
+
+    
