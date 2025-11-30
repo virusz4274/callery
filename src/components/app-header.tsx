@@ -3,7 +3,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,11 +28,16 @@ type AppHeaderProps = {
 export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
   const pathname = usePathname();
+  const router = useRouter();
 
   const navItems = [
     { href: '/', name: 'Recordings', icon: LayoutDashboard },
     { href: '/contacts', name: 'Contacts', icon: Users },
   ];
+
+  const handleSettingsClick = () => {
+    router.push('/settings');
+  };
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -80,7 +85,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Logout</DropdownMenuItem>
