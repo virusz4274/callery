@@ -14,6 +14,7 @@ import { ClientFormattedDate } from '@/components/client-formatted-date';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
 
 type UserDetailsPageProps = {
   user: Contact;

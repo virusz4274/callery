@@ -1,7 +1,7 @@
 
 import { contacts, recordings } from '@/lib/data/data';
 import { invoices } from '@/lib/data/invoice-data';
-import { UserDetailsPage } from '@/components/admin/user-details-page';
+import { UserDetailsPage } from '@/components/pages/admin/user-details-page';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
