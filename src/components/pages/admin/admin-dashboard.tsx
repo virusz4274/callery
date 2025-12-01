@@ -5,7 +5,7 @@ import React from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Phone, HardDrive, BarChart } from 'lucide-react';
-import { UserManagementTable } from './user-management-table';
+import { UserManagementTable } from '@/components/admin/user-management-table';
 
 type AdminDashboardProps = {
     allUsers: Contact[];
