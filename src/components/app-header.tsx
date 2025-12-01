@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -16,7 +15,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
@@ -34,6 +33,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const router = useRouter();
 
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+  const isAuthenticated = true; // Placeholder for auth logic
 
   const navItems = [
     { href: '/', name: 'Recordings', icon: LayoutDashboard },
@@ -128,24 +128,34 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
          <div className={cn(!isSearchablePage && "ml-auto")}>
             <ThemeSwitcher />
          </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8">
-                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="User avatar" data-ai-hint={userAvatar.imageHint}/>}
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+        
+        {isAuthenticated ? (
+            <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar className="h-8 w-8">
+                    {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="User avatar" data-ai-hint={userAvatar.imageHint}/>}
+                    <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
+                <DropdownMenuItem>Support</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
+        ) : (
+             <Button asChild variant="outline">
+                <Link href="/login">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                </Link>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        )}
       </div>
     </header>
   );
