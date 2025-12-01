@@ -18,7 +18,7 @@ import { MoreVertical, Search } from 'lucide-react';
 import { ManagePlanDialog } from './manage-plan-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -30,19 +30,15 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
   const [userToManage, setUserToManage] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const { toast } = useToast();
+  const router = useRouter();
 
   const handleManagePlanClick = (user: Contact) => {
     setUserToManage(user);
   };
   
-  const handleActionClick = (message: string) => {
-    toast({
-        title: 'Action Triggered',
-        description: message,
-    });
+  const handleNavigation = (path: string) => {
+    router.push(path);
   };
-
 
   const closeDialog = () => {
     setUserToManage(null);
@@ -62,6 +58,8 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredUsers, currentPage]);
+  
+  const nameToSlug = (name: string) => name.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <>
@@ -87,11 +85,9 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
         <CardContent>
             <div className="space-y-4">
             {paginatedUsers.length > 0 ? paginatedUsers.map((user) => {
-                const avatar =
-                PlaceHolderImages[
-                    allUsers.findIndex((c) => c.phoneNumber === user.phoneNumber) %
-                    PlaceHolderImages.length
-                ];
+                const userIndex = allUsers.findIndex((c) => c.phoneNumber === user.phoneNumber);
+                const avatar = userIndex !== -1 ? PlaceHolderImages[userIndex % PlaceHolderImages.length] : undefined;
+                const userSlug = nameToSlug(user.name);
                 return (
                 <div
                     key={user.phoneNumber}
@@ -138,8 +134,8 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleActionClick(`Showing details for ${user.name}...`)}>View User Details</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleActionClick(`Viewing payment history for ${user.name}...`)}>View Payment History</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleNavigation(`/admin/users/${userSlug}`)}>View User Details</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleNavigation(`/admin/users/${userSlug}?tab=payment-history`)}>View Payment History</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => handleManagePlanClick(user)}>
                         Manage Plan
