@@ -4,7 +4,7 @@
 import React from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Phone, HardDrive, BarChart, MoreVertical } from 'lucide-react';
+import { Users, Phone, HardDrive, BarChart, MoreVertical, Mic } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
@@ -103,6 +103,10 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                                         <div>
                                             <p className="font-medium text-right">{user.storageUsed.toFixed(2)} GB</p>
                                             <p className="text-muted-foreground text-right">Storage</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-right">{user.transcriptionUsed} min</p>
+                                            <p className="text-muted-foreground text-right">Transcription</p>
                                         </div>
                                      </div>
                                     <DropdownMenu>
