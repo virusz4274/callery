@@ -2,10 +2,10 @@
 import type { CallRecording, Contact } from '../types';
 
 export const contacts: Contact[] = [
-  { name: 'Alice Johnson', phoneNumber: '+1-202-555-0182', plan: 'Pro', storageUsed: 4.2, transcriptionUsed: 125 },
-  { name: 'Bob Williams', phoneNumber: '+1-202-555-0191', plan: 'Pro', storageUsed: 8.1, transcriptionUsed: 450 },
-  { name: 'Charlie Brown', phoneNumber: '+1-202-555-0143', plan: 'Free', storageUsed: 0.05, transcriptionUsed: 10 },
-  { name: 'Diana Miller', phoneNumber: '+1-202-555-0167', plan: 'Free', storageUsed: 0.09, transcriptionUsed: 2 },
+  { name: 'Alice Johnson', phoneNumber: '+1-202-555-0182', plan: 'Pro', storageUsed: 4.2, transcriptionUsed: 125, storageAllocation: 5, transcriptionAllocation: 500 },
+  { name: 'Bob Williams', phoneNumber: '+1-202-555-0191', plan: 'Pro', storageUsed: 8.1, transcriptionUsed: 450, storageAllocation: 10, transcriptionAllocation: 500 },
+  { name: 'Charlie Brown', phoneNumber: '+1-202-555-0143', plan: 'Free', storageUsed: 0.05, transcriptionUsed: 10, storageAllocation: 0.1, transcriptionAllocation: 15 },
+  { name: 'Diana Miller', phoneNumber: '+1-202-555-0167', plan: 'Free', storageUsed: 0.09, transcriptionUsed: 2, storageAllocation: 0.1, transcriptionAllocation: 15 },
 ];
 
 const contactMap = new Map(contacts.map(c => [c.phoneNumber, c.name]));

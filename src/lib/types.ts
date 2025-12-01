@@ -15,6 +15,8 @@ export type Contact = {
   plan: 'Free' | 'Pro';
   storageUsed: number; // in GB
   transcriptionUsed: number; // in minutes
+  storageAllocation: number; // in GB
+  transcriptionAllocation: number; // in minutes
 };
 
 export type FileSystemNode = {

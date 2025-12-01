@@ -71,11 +71,11 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
                   <p className="text-muted-foreground text-right">Plan</p>
                 </div>
                 <div>
-                  <p className="font-medium text-right">{user.storageUsed.toFixed(2)} GB</p>
+                  <p className="font-medium text-right">{user.storageUsed.toFixed(2)} / {user.storageAllocation} GB</p>
                   <p className="text-muted-foreground text-right">Storage</p>
                 </div>
                 <div>
-                  <p className="font-medium text-right">{user.transcriptionUsed} min</p>
+                  <p className="font-medium text-right">{user.transcriptionUsed} / {user.transcriptionAllocation} min</p>
                   <p className="text-muted-foreground text-right">Transcription</p>
                 </div>
               </div>
