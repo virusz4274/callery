@@ -1,5 +1,5 @@
 
-import { AdminDashboard } from '@/components/pages/admin-dashboard';
+import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { contacts, recordings } from '@/lib/data/data';
 
 export default function AdminPage() {
