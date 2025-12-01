@@ -4,12 +4,12 @@
 import React from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Phone, HardDrive, Clock, BarChart } from 'lucide-react';
-import { ClientFormattedDate } from '../client-formatted-date';
+import { Users, Phone, HardDrive, BarChart, MoreVertical } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
+import { Button } from '../ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 type AdminDashboardProps = {
     allUsers: Contact[];
@@ -23,8 +23,6 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
     const totalRecordings = allRecordings.length;
     const avgCallDuration = totalRecordings > 0 ? Math.round(allRecordings.reduce((acc, r) => acc + r.duration, 0) / totalRecordings) : 0;
     
-    const recentRecordings = allRecordings.slice(0, 5);
-
     return (
         <div className="space-y-6">
              <div>
@@ -75,68 +73,45 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                 </Card>
             </div>
             
-            <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Recordings</CardTitle>
-                        <CardDescription>A live feed of the most recent recordings from all users.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <div className="rounded-lg border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Contact</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Duration</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {recentRecordings.map(rec => (
-                                <TableRow key={rec.id}>
-                                  <TableCell>
-                                    <div className="font-medium">{rec.contactName || 'Unknown'}</div>
-                                    <div className="text-sm text-muted-foreground">{rec.phoneNumber}</div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <ClientFormattedDate date={rec.date} formatString="PPp" />
-                                  </TableCell>
-                                  <TableCell className="text-right">{Math.floor(rec.duration / 60)}m {rec.duration % 60}s</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Users</CardTitle>
-                        <CardDescription>A list of all registered users in the system.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {allUsers.map(user => {
-                                const avatar = PlaceHolderImages[allUsers.findIndex(c => c.phoneNumber === user.phoneNumber) % PlaceHolderImages.length];
-                                return (
-                                    <div key={user.phoneNumber} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <Avatar>
-                                                 {avatar && <Image src={avatar.imageUrl} alt={user.name} width={40} height={40} data-ai-hint={avatar.imageHint} className="rounded-full object-cover"/>}
-                                                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p className="font-semibold">{user.name}</p>
-                                                <p className="text-sm text-muted-foreground">{user.phoneNumber}</p>
-                                            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>User Management</CardTitle>
+                    <CardDescription>A list of all registered users in the system.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {allUsers.map(user => {
+                            const avatar = PlaceHolderImages[allUsers.findIndex(c => c.phoneNumber === user.phoneNumber) % PlaceHolderImages.length];
+                            return (
+                                <div key={user.phoneNumber} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar>
+                                                {avatar && <Image src={avatar.imageUrl} alt={user.name} width={40} height={40} data-ai-hint={avatar.imageHint} className="rounded-full object-cover"/>}
+                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold">{user.name}</p>
+                                            <p className="text-sm text-muted-foreground">{user.phoneNumber}</p>
                                         </div>
                                     </div>
-                                )
-                            })}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreVertical className="h-4 w-4" />
+                                                <span className="sr-only">Actions</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem>View Details</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive">Disable User</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
