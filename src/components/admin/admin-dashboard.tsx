@@ -69,15 +69,7 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                 </Card>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>User Management</CardTitle>
-                    <CardDescription>A list of all registered users in the system.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <UserManagementTable allUsers={allUsers} />
-                </CardContent>
-            </Card>
+            <UserManagementTable allUsers={allUsers} />
         </div>
     );
 }
