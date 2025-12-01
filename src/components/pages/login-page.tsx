@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GoogleIcon } from '@/components/icons/google-icon';
+import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 
@@ -18,10 +19,16 @@ export function LoginPage() {
           <CardDescription>Sign in to access your call recordings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button variant="outline" className="w-full">
-            <GoogleIcon className="mr-2 h-5 w-5" />
-            Sign in with Google
-          </Button>
+            <div className="space-y-2">
+                <Button variant="outline" className="w-full">
+                    <GoogleIcon className="mr-2 h-5 w-5" />
+                    Sign in with Google
+                </Button>
+                <Button variant="outline" className="w-full">
+                    <AppleIcon className="mr-2 h-5 w-5" />
+                    Sign in with Apple
+                </Button>
+            </div>
           <div className="flex items-center gap-4">
             <Separator className="flex-1" />
             <span className="text-xs text-muted-foreground">OR</span>
