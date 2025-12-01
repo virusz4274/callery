@@ -18,6 +18,7 @@ import { MoreVertical, Search } from 'lucide-react';
 import { ManagePlanDialog } from './manage-plan-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -29,11 +30,19 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
   const [userToManage, setUserToManage] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const { toast } = useToast();
 
-  const handleManagePlanClick = (user: Contact, e: Event) => {
-    e.stopPropagation();
+  const handleManagePlanClick = (user: Contact) => {
     setUserToManage(user);
   };
+  
+  const handleActionClick = (message: string) => {
+    toast({
+        title: 'Action Triggered',
+        description: message,
+    });
+  };
+
 
   const closeDialog = () => {
     setUserToManage(null);
@@ -129,10 +138,10 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View User Details</DropdownMenuItem>
-                        <DropdownMenuItem>View Payment History</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleActionClick(`Showing details for ${user.name}...`)}>View User Details</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleActionClick(`Viewing payment history for ${user.name}...`)}>View Payment History</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={(e) => handleManagePlanClick(user, e)}>
+                        <DropdownMenuItem onSelect={() => handleManagePlanClick(user)}>
                         Manage Plan
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
