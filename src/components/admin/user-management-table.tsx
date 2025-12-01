@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -128,10 +129,13 @@ export function UserManagementTable({ allUsers }: UserManagementTableProps) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem>View User Details</DropdownMenuItem>
+                        <DropdownMenuItem>View Payment History</DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={(e) => handleManagePlanClick(user, e)}>
                         Manage Plan
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive focus:text-destructive">
                         Disable User
                         </DropdownMenuItem>
