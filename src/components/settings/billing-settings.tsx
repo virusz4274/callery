@@ -5,7 +5,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { invoices } from '@/lib/data/invoice-data';
 import { ClientFormattedDate } from '../client-formatted-date';
-import { Download } from 'lucide-react';
 import Link from 'next/link';
 
 export function BillingSettings() {
@@ -45,34 +44,29 @@ export function BillingSettings() {
         <Card>
             <CardHeader>
                 <CardTitle>Billing History</CardTitle>
-                <CardDescription>View and download your past invoices.</CardDescription>
+                <CardDescription>View your past invoices.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="rounded-lg border">
                     <Table>
                         <TableHeader>
                         <TableRow>
+                            <TableHead>Invoice ID</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Amount</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                            <TableHead className="text-right">Invoice</TableHead>
+                            <TableHead className="text-right">Status</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {invoices.map((invoice) => (
                             <TableRow key={invoice.id}>
+                                <TableCell className="font-medium">{invoice.id}</TableCell>
                                 <TableCell>
                                     <ClientFormattedDate date={invoice.date} formatString="MMMM dd, yyyy" />
                                 </TableCell>
                                 <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant={invoice.status === 'Paid' ? 'secondary' : 'destructive'}>{invoice.status}</Badge>
-                                </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download
-                                    </Button>
+                                    <Badge variant={invoice.status === 'Paid' ? 'secondary' : 'destructive'}>{invoice.status}</Badge>
                                 </TableCell>
                             </TableRow>
                         ))}
