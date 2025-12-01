@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useTransition } from 'react';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UploadCloud, File, X } from 'lucide-react';
-import { uploadRecordings } from '@/lib/actions/upload-recordings';
+import { uploadRecordings } from '@/app/actions/upload-recordings';
 import { useRouter } from 'next/navigation';
 
 export function UploadPage() {
