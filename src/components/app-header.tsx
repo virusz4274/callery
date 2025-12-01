@@ -15,7 +15,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
@@ -33,6 +33,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const router = useRouter();
 
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+  const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
   const isAuthenticated = true; // Placeholder for auth logic
 
   const navItems = [
@@ -42,6 +43,10 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
     { href: '/upload', name: 'Upload', icon: Upload },
     { href: '/pricing', name: 'Pricing', icon: CreditCard },
   ];
+  
+  if (isAdminMode) {
+      navItems.push({ href: '/admin', name: 'Admin', icon: Shield });
+  }
 
   const handleSettingsClick = () => {
     router.push('/settings');

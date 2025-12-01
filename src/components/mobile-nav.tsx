@@ -3,11 +3,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, LayoutDashboard, Folder, Upload, Settings, CreditCard } from "lucide-react"
+import { Users, LayoutDashboard, Folder, Upload, Settings, CreditCard, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function MobileNav() {
   const pathname = usePathname()
+  const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
+
   const navItems = [
     { href: "/", name: "Recordings", icon: LayoutDashboard },
     { href: "/contacts", name: "Contacts", icon: Users },
@@ -15,6 +17,10 @@ export function MobileNav() {
     { href: "/pricing", name: "Pricing", icon: CreditCard },
     { href: "/settings", name: "Settings", icon: Settings },
   ]
+  
+  if (isAdminMode) {
+    navItems.splice(2, 0, { href: "/admin", name: "Admin", icon: Shield });
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background md:hidden">
