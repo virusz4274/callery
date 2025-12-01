@@ -115,8 +115,11 @@ export function LandingPage() {
                          <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
                             Pricing
                         </Link>
-                         <Link href="#" className="text-muted-foreground hover:text-foreground">
+                         <Link href="/terms-of-service" className="text-muted-foreground hover:text-foreground">
                             Terms of Service
+                        </Link>
+                         <Link href="/privacy-policy" className="text-muted-foreground hover:text-foreground">
+                            Privacy Policy
                         </Link>
                     </nav>
                 </div>
