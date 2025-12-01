@@ -16,7 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Input } from './ui/input';
 import { Logo } from './icons';
@@ -40,6 +40,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
     { href: '/contacts', name: 'Contacts', icon: Users },
     { href: '/files', name: 'Files', icon: Folder },
     { href: '/upload', name: 'Upload', icon: Upload },
+    { href: '/pricing', name: 'Pricing', icon: CreditCard },
   ];
 
   const handleSettingsClick = () => {
