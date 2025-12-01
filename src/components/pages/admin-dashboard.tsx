@@ -10,6 +10,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Badge } from '../ui/badge';
 
 type AdminDashboardProps = {
     allUsers: Contact[];
@@ -18,7 +19,7 @@ type AdminDashboardProps = {
 
 export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps) {
 
-    const totalStorageUsed = 12.8; // GB, mock data
+    const totalStorageUsed = allUsers.reduce((acc, user) => acc + user.storageUsed, 0);
     const totalUsers = allUsers.length;
     const totalRecordings = allRecordings.length;
     const avgCallDuration = totalRecordings > 0 ? Math.round(allRecordings.reduce((acc, r) => acc + r.duration, 0) / totalRecordings) : 0;
@@ -57,7 +58,7 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                         <HardDrive className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{totalStorageUsed} GB</div>
+                        <div className="text-2xl font-bold">{totalStorageUsed.toFixed(2)} GB</div>
                         <p className="text-xs text-muted-foreground">Total cloud storage consumed</p>
                     </CardContent>
                 </Card>
@@ -94,6 +95,16 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                                             <p className="text-sm text-muted-foreground">{user.phoneNumber}</p>
                                         </div>
                                     </div>
+                                     <div className="hidden sm:flex items-center gap-6 text-sm">
+                                        <div>
+                                            <p className="font-medium text-right">{user.plan}</p>
+                                            <p className="text-muted-foreground text-right">Plan</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-right">{user.storageUsed.toFixed(2)} GB</p>
+                                            <p className="text-muted-foreground text-right">Storage</p>
+                                        </div>
+                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon">
@@ -103,6 +114,7 @@ export function AdminDashboard({ allUsers, allRecordings }: AdminDashboardProps)
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem>View Details</DropdownMenuItem>
+                                            <DropdownMenuItem>Manage Plan</DropdownMenuItem>
                                             <DropdownMenuItem className="text-destructive focus:text-destructive">Disable User</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
