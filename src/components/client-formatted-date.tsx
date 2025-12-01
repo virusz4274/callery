@@ -10,11 +10,22 @@ type ClientFormattedDateProps = {
 };
 
 export function ClientFormattedDate({ date, formatString }: ClientFormattedDateProps) {
-    const [formattedDate, setFormattedDate] = useState('');
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        setFormattedDate(format(new Date(date), formatString));
-    }, [date, formatString]);
+        setIsMounted(true);
+    }, []);
 
-    return <>{formattedDate}</>;
+    if (!isMounted) {
+        // To prevent hydration mismatch, we can return a placeholder or null on the server.
+        // Returning the unformatted string might be acceptable if it doesn't break layout.
+        return null;
+    }
+
+    try {
+        return <>{format(new Date(date), formatString)}</>;
+    } catch (e) {
+        console.error("Invalid date provided to ClientFormattedDate:", date);
+        return <>Invalid Date</>;
+    }
 }
