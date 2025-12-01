@@ -12,6 +12,8 @@ export type CallRecording = {
 export type Contact = {
   name: string;
   phoneNumber: string;
+  plan: 'Free' | 'Pro';
+  storageUsed: number; // in GB
 };
 
 export type FileSystemNode = {
