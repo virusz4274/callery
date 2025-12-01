@@ -22,3 +22,10 @@ export type FileSystemNode = {
   size?: string;
   children?: FileSystemNode[];
 };
+
+export type Invoice = {
+    id: string;
+    date: string; // ISO string
+    amount: number;
+    status: 'Paid' | 'Pending' | 'Failed';
+};
