@@ -15,12 +15,14 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield, LogOut } from 'lucide-react';
 import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './theme-switcher';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 type AppHeaderProps = {
   searchQuery: string;
@@ -28,28 +30,47 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
-  const userAvatar = PlaceHolderImages.find(img => img.id === 'user1');
+  const { user } = useUser();
+  const auth = useAuth();
+  const { toast } = useToast();
   const pathname = usePathname();
   const router = useRouter();
 
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
   const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
-  const isAuthenticated = true; // Placeholder for auth logic
 
   const navItems = [
-    { href: '/', name: 'Recordings', icon: LayoutDashboard },
-    { href: '/contacts', name: 'Contacts', icon: Users },
-    { href: '/files', name: 'Files', icon: Folder },
-    { href: '/upload', name: 'Upload', icon: Upload },
-    { href: '/pricing', name: 'Pricing', icon: CreditCard },
+    { href: '/', name: 'Recordings', icon: LayoutDashboard, auth: true },
+    { href: '/contacts', name: 'Contacts', icon: Users, auth: true },
+    { href: '/files', name: 'Files', icon: Folder, auth: true },
+    { href: '/upload', name: 'Upload', icon: Upload, auth: true },
+    { href: '/pricing', name: 'Pricing', icon: CreditCard, auth: false },
   ];
   
   if (isAdminMode) {
-      navItems.push({ href: '/admin', name: 'Admin', icon: Shield });
+      navItems.push({ href: '/admin', name: 'Admin', icon: Shield, auth: true });
   }
 
   const handleSettingsClick = () => {
     router.push('/settings');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+      router.push('/');
+    } catch (error) {
+      console.error("Error signing out: ", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+      });
+    }
   };
 
   const getSearchPlaceholder = () => {
@@ -61,6 +82,8 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
   const isSearchablePage = ['/', '/contacts'].includes(pathname);
 
+  const visibleNavItems = navItems.filter(item => !item.auth || !!user);
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
        <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:text-base mr-4">
@@ -69,7 +92,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
         </Link>
       
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -98,7 +121,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
                             <Logo className="h-6 w-6 text-primary" />
                             <span className="sr-only">CallOrganizer</span>
                         </Link>
-                        {navItems.map((item) => (
+                        {visibleNavItems.map((item) => (
                             <Link
                                 key={item.href}
                                 href={item.href}
@@ -118,7 +141,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        {isSearchablePage && (
+        {user && isSearchablePage && (
           <div className="relative ml-auto flex-1 md:grow-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -130,27 +153,30 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
               />
           </div>
         )}
-         <div className={cn(!isSearchablePage && "ml-auto")}>
+         <div className={cn(!(user && isSearchablePage) && "ml-auto")}>
             <ThemeSwitcher />
          </div>
         
-        {isAuthenticated ? (
+        {user ? (
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                    {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="User avatar" data-ai-hint={userAvatar.imageHint}/>}
-                    <AvatarFallback>U</AvatarFallback>
+                    {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || "User avatar"} />}
+                    <AvatarFallback>{user.email ? user.email.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                 </Avatar>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
                 <DropdownMenuItem>Support</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Logout</DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
             </DropdownMenuContent>
             </DropdownMenu>
         ) : (
