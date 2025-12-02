@@ -12,22 +12,28 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, UserCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, UserCredential } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-async function createUserProfile(firestore: any, user: any) {
+async function ensureUserProfile(firestore: any, user: User) {
     const userRef = doc(firestore, 'users', user.uid);
-    const userProfile = {
-      id: user.uid,
-      email: user.email,
-      firstName: user.displayName?.split(' ')[0] || '',
-      lastName: user.displayName?.split(' ')[1] || '',
-      createdAt: serverTimestamp(),
-      role: 'user', // Default role
-    };
-    await setDoc(userRef, userProfile);
+    const userDocSnap = await getDoc(userRef);
+
+    if (!userDocSnap.exists()) {
+        const userProfile = {
+            id: user.uid,
+            email: user.email,
+            firstName: user.displayName?.split(' ')[0] || '',
+            lastName: user.displayName?.split(' ')[1] || '',
+            createdAt: serverTimestamp(),
+            role: 'user',
+        };
+        await setDoc(userRef, userProfile);
+        return true; // Profile was created
+    }
+    return false; // Profile already existed
 }
 
 
@@ -63,7 +69,7 @@ export function SignupPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await createUserProfile(firestore, userCredential.user);
+      await ensureUserProfile(firestore, userCredential.user);
       await sendEmailVerification(userCredential.user);
       toast({
         title: "Account Created & Verification Email Sent",
@@ -86,12 +92,9 @@ export function SignupPage() {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential: UserCredential = await signInWithPopup(auth, provider);
-      // Check if this is a new user
-      const userDoc = doc(firestore, "users", userCredential.user.uid);
-      const userDocSnap = await (await import('firebase/firestore')).getDoc(userDoc);
+      const wasProfileCreated = await ensureUserProfile(firestore, userCredential.user);
       
-      if (!userDocSnap.exists()) {
-        await createUserProfile(firestore, userCredential.user);
+      if (wasProfileCreated) {
          toast({
           title: "Account Created",
           description: "Welcome! Your profile has been created.",
@@ -148,7 +151,7 @@ export function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.TearDownTarget.value)} required />
+              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
