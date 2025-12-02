@@ -12,7 +12,7 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, UserCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, UserCredential, linkWithCredential } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -108,8 +108,8 @@ export function SignupPage() {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      const userCredential: UserCredential = await signInWithPopup(auth, provider);
-      const wasProfileCreated = await ensureUserProfile(firestore, userCredential.user);
+      const result = await signInWithPopup(auth, provider);
+      const wasProfileCreated = await ensureUserProfile(firestore, result.user);
       
       if (wasProfileCreated) {
          toast({
@@ -124,11 +124,31 @@ export function SignupPage() {
       }
       router.push('/');
     } catch (error: any) {
-       toast({
-        variant: "destructive",
-        title: "Google Sign-In Failed",
-        description: error.message || "Could not sign in with Google.",
-      });
+      if (error.code === 'auth/account-exists-with-different-credential' && auth.currentUser) {
+          const credential = GoogleAuthProvider.credentialFromError(error);
+          if (credential) {
+              try {
+                  await linkWithCredential(auth.currentUser, credential);
+                  toast({
+                      title: "Account Linked",
+                      description: "Your Google account has been successfully linked.",
+                  });
+                   router.push('/');
+              } catch (linkError: any) {
+                   toast({
+                      variant: "destructive",
+                      title: "Account Linking Failed",
+                      description: linkError.message || "Could not link Google account.",
+                  });
+              }
+          }
+      } else {
+          toast({
+              variant: "destructive",
+              title: "Google Sign-In Failed",
+              description: error.message || "Could not sign in with Google.",
+          });
+      }
     } finally {
         setGoogleLoading(false);
     }
