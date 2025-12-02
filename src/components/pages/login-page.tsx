@@ -12,23 +12,29 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, UserCredential } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 
-async function createUserProfile(firestore: any, user: any) {
+async function ensureUserProfile(firestore: any, user: User) {
     const userRef = doc(firestore, 'users', user.uid);
-    const userProfile = {
-      id: user.uid,
-      email: user.email,
-      firstName: user.displayName?.split(' ')[0] || '',
-      lastName: user.displayName?.split(' ')[1] || '',
-      createdAt: serverTimestamp(),
-      role: 'user', // Default role
-    };
-    await setDoc(userRef, userProfile, { merge: true });
+    const userDocSnap = await getDoc(userRef);
+
+    if (!userDocSnap.exists()) {
+        const userProfile = {
+            id: user.uid,
+            email: user.email,
+            firstName: user.displayName?.split(' ')[0] || '',
+            lastName: user.displayName?.split(' ')[1] || '',
+            createdAt: serverTimestamp(),
+            role: 'user',
+        };
+        await setDoc(userRef, userProfile, { merge: true });
+        return true; // Profile was created
+    }
+    return false; // Profile already existed
 }
 
 
@@ -54,7 +60,9 @@ export function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await ensureUserProfile(firestore, userCredential.user);
+      
       toast({
         title: "Sign In Successful",
         description: "Welcome back!",
@@ -77,11 +85,9 @@ export function LoginPage() {
       const provider = new GoogleAuthProvider();
       const userCredential: UserCredential = await signInWithPopup(auth, provider);
 
-      const userDoc = doc(firestore, "users", userCredential.user.uid);
-      const userDocSnap = await (await import('firebase/firestore')).getDoc(userDoc);
+      const wasProfileCreated = await ensureUserProfile(firestore, userCredential.user);
       
-      if (!userDocSnap.exists()) {
-        await createUserProfile(firestore, userCredential.user);
+      if (wasProfileCreated) {
          toast({
           title: "Account Created",
           description: "Welcome! Your profile has been created.",
