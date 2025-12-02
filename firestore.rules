@@ -1,3 +1,4 @@
+
 /**
  * This ruleset enforces a strict user-ownership model for the Call Memo app.
  *
@@ -65,24 +66,26 @@ service cloud.firestore {
      * operations to prevent acting on non-existent data.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+      return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
     }
-
+    
     /**
      * Validates that the user document being created has an 'id' field
      * that matches the document's ID (which is the user's UID).
      * This enforces relational integrity from the start.
      */
     function hasValidUserDataOnCreate(userId) {
-      return request.resource.data.id == userId;
+      return request.resource.data.id == userId
+        && request.resource.data.role == 'user'; // Users can only create themselves with 'user' role
     }
 
     /**
-     * Validates that the user document's 'id' field is immutable on update.
-     * Prevents re-assigning the core identity of a user profile.
+     * Validates that the user document's 'id' and 'role' fields are immutable on update by regular users.
+     * Prevents re-assigning the core identity of a user profile or escalating privileges.
      */
     function isUserDataImmutable() {
-      return request.resource.data.id == resource.data.id;
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.role == resource.data.role;
     }
 
     /**
