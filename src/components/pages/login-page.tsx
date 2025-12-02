@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -97,10 +96,11 @@ export function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    auth.languageCode = 'it';
-    provider.setCustomParameters({
-        'auth_type': 'reauthenticate'
-    });
+    
+    // This is the root cause fix:
+    // Force the SDK to use the current origin for the OAuth flow, which is
+    // necessary in dynamic environments like Cloud Workstations.
+    auth.tenantId = window.location.origin;
 
     try {
       const result = await signInWithPopup(auth, provider);
@@ -145,6 +145,8 @@ export function LoginPage() {
           });
       }
     } finally {
+      // Clean up the tenantId override after the operation
+      auth.tenantId = null;
       setGoogleLoading(false);
     }
   };
