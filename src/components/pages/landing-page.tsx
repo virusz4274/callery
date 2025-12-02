@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, Upload, Lock, Zap, MessageSquareQuote } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "../icons";
+import { PricingSection } from "../pricing-section";
 
 const features = [
     {
@@ -77,8 +78,15 @@ export function LandingPage() {
                     </div>
                 </section>
 
+                {/* Pricing Section */}
+                <section id="pricing" className="w-full py-12 md:py-24 lg:py-32">
+                    <div className="container mx-auto px-4 md:px-6">
+                        <PricingSection />
+                    </div>
+                </section>
+
                 {/* Creator's Message Section */}
-                <section className="w-full py-12 md:py-24 lg:py-32">
+                <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/40">
                     <div className="container mx-auto px-4 md:px-6">
                         <Card className="p-8 md:p-12 lg:flex lg:items-center lg:gap-12 bg-card">
                              <div className="flex-shrink-0 flex justify-center lg:justify-start mb-6 lg:mb-0">
@@ -104,10 +112,10 @@ export function LandingPage() {
                         <span className="font-semibold">CallOrganizer</span>
                     </div>
                     <nav className="flex gap-4 sm:gap-6 mt-4 md:mt-0 text-sm">
-                        <Link href="#features" className="text-muted-foreground hover:text-foreground">
+                        <Link href="/#features" className="text-muted-foreground hover:text-foreground">
                             Features
                         </Link>
-                         <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
+                         <Link href="/#pricing" className="text-muted-foreground hover:text-foreground">
                             Pricing
                         </Link>
                          <Link href="/terms-of-service" className="text-muted-foreground hover:text-foreground">
