@@ -130,10 +130,10 @@ export function DataSettings() {
                     <div className="space-y-0.5">
                         <Label className="text-base">Sync Google Contacts</Label>
                         <p className="text-sm text-muted-foreground">
-                            Automatically match phone numbers to your Google Contacts.
+                            Automatically match names to phone numbers from your Google Contacts.
                         </p>
                     </div>
-                    <Button variant="outline">
+                    <Button variant="outline" disabled>
                         <GoogleIcon className="mr-2 h-4 w-4" />
                         Connect
                     </Button>
