@@ -14,6 +14,20 @@ interface UserProfile {
     lastName: string;
     createdAt: any; // Firestore Timestamp
     role: 'user' | 'admin';
+    plan: 'Free' | 'Pro';
+    timezone: string;
+    notificationSettings: {
+        activityDigest: 'off' | 'weekly' | 'monthly';
+        ingestSuccess: boolean;
+        ingestFail: boolean;
+    };
+    storageSettings: {
+        deletionPolicy: 'never' | '3m' | '6m' | '1y';
+    };
+    storageUsed: number;
+    storageAllocation: number;
+    transcriptionUsed: number;
+    transcriptionAllocation: number;
 }
 
 /**
