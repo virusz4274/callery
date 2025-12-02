@@ -5,12 +5,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Users, LayoutDashboard, Folder, Upload, Settings, CreditCard, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useUser } from "@/firebase"
+import { useUser, useUserProfile } from "@/firebase"
 
 export function MobileNav() {
   const pathname = usePathname()
   const { user } = useUser();
-  const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
+  const { userProfile } = useUserProfile(user);
 
   const loggedInNavItems = [
     { href: "/", name: "Recordings", icon: LayoutDashboard },
@@ -19,7 +19,7 @@ export function MobileNav() {
     { href: "/settings", name: "Settings", icon: Settings },
   ]
   
-  if (isAdminMode) {
+  if (userProfile?.role === 'admin') {
     loggedInNavItems.splice(2, 0, { href: "/admin", name: "Admin", icon: Shield });
   }
 

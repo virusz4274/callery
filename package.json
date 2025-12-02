@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_PUBLIC_ADMIN_MODE_ENABLED=false next dev --turbopack -p 9002",
-    "dev:admin": "NEXT_PUBLIC_ADMIN_MODE_ENABLED=true next dev --turbopack -p 9002",
+    "dev": "next dev --turbopack -p 9002",
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint .",
