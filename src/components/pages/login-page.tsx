@@ -97,6 +97,11 @@ export function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
+    auth.languageCode = 'it';
+    provider.setCustomParameters({
+        'auth_type': 'reauthenticate'
+    });
+
     try {
       const result = await signInWithPopup(auth, provider);
       const wasProfileCreated = await ensureUserProfile(firestore, result.user);
