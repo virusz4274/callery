@@ -1,14 +1,14 @@
+
 {
   "entities": {
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+    "UserProfile": {
+      "title": "User Profile",
       "type": "object",
-      "description": "Represents a user of the Call Memo application.",
+      "description": "Represents a user's profile information.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the User entity."
+          "description": "The user's unique ID, matching their Firebase Auth UID."
         },
         "email": {
           "type": "string",
@@ -27,15 +27,14 @@
           "type": "string",
           "description": "Timestamp indicating when the user account was created.",
           "format": "date-time"
+        },
+        "role": {
+            "type": "string",
+            "description": "The role of the user.",
+            "enum": ["admin", "user"]
         }
       },
-      "required": [
-        "id",
-        "email",
-        "firstName",
-        "lastName",
-        "createdAt"
-      ]
+      "required": ["id", "email", "createdAt", "role"]
     },
     "Recording": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -126,11 +125,11 @@
       {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "User",
+          "entityName": "UserProfile",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores user profile information.  Access control is based on the userId path parameter, ensuring only the user can access their own profile.",
+          "description": "Stores user profile information. Access control is based on the userId path parameter, ensuring only the user can access their own profile.",
           "params": [
             {
               "name": "userId",
