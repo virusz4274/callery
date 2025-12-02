@@ -20,7 +20,7 @@ import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './theme-switcher';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useUserProfile } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,13 +31,13 @@ type AppHeaderProps = {
 
 export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user);
   const auth = useAuth();
   const { toast } = useToast();
   const pathname = usePathname();
   const router = useRouter();
 
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
-  const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
 
   const loggedInNavItems = [
     { href: '/', name: 'Recordings', icon: LayoutDashboard },
@@ -46,7 +46,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
     { href: '/upload', name: 'Upload', icon: Upload },
   ];
   
-  if (isAdminMode) {
+  if (userProfile?.role === 'admin') {
       loggedInNavItems.push({ href: '/admin', name: 'Admin', icon: Shield });
   }
 
