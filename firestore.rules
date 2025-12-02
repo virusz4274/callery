@@ -1,42 +1,36 @@
 
 /**
- * This ruleset enforces a strict user-ownership model for the Call Memo app.
+ * This ruleset enforces a strict user-ownership model for the Call Memo app,
+ * with a special exception for users with an 'admin' role.
  *
  * Core Philosophy:
- * The security model is built on user data isolation. All user-specific data,
- * including their profile, contacts, and recordings, is stored within a
- * hierarchical structure dedicated to that user. Access is granted based on the
- * authenticated user's UID matching the user ID in the document path, ensuring
- * that users can only ever access their own data.
+ * The security model is built on user data isolation. All user-specific data
+ * is stored within a hierarchical structure dedicated to that user. Access is
+ * granted based on the authenticated user's UID matching the user ID in the
+ * document path. A special 'admin' role grants broader read access for
+ * management purposes.
  *
  * Data Structure:
  * All data is nested under the `/users/{userId}` path. A user's contacts and
- * recordings are stored in subcollections (`/contacts` and `/recordings`)
- * under their main user document. This structure is highly secure and performant
- * for querying user-specific data.
+ * recordings are stored in subcollections under their main user document.
  *
  * Key Security Decisions:
- * - Strict Ownership: All operations (read, write, delete) are restricted to the
- *   document owner. There is no concept of public or shared data.
- * - No User Listing: It is impossible for any user to list all documents in the
- *   top-level `/users` collection.
+ * - Strict Ownership for Users: All non-admin operations (write, delete) are
+ *   restricted to the document owner.
+ * - Admin Read Access: Users with the 'admin' role are granted read-only
+ *   access to list and get all user profiles.
  * - Path-Based Security: Authorization relies on the `{userId}` wildcard in the
  *   path, which is the most performant and secure way to handle user-owned data.
  * - Relational Integrity: On document creation, rules enforce that the `userId`
  *   (or `id` on the user document) inside the document's data matches the `userId`
- *   from the path, preventing data inconsistency. These key identifiers are then
- *   enforced as immutable on updates.
+ *   from the path. These key identifiers are then enforced as immutable on updates.
  *
  * Denormalization for Authorization:
- * The data model is inherently designed for simple authorization. By placing
- * contacts and recordings in subcollections under a user's document, we can
- * secure them without needing any extra database reads (`get()` calls). The
- * rules simply check ownership based on the path.
- *
- * Structural Segregation:
- * This pattern is fully embraced. All private user data is segregated into a
- * user-specific document tree starting with `/users/{userId}`, making it
- * impossible for data to leak between users.
+ * The data model is designed for simple authorization. Placing contacts and
+ * recordings in subcollections under a user's document allows us to secure
+ * them without needing extra database reads (`get()` calls). The rules simply
+ * check ownership based on the path. The admin role check is an exception
+ * that requires one `get()` call to check the requesting user's own role.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -68,6 +62,14 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
     }
+
+    /**
+     * Checks if the requesting user has the 'admin' role by reading their
+     * own user profile document.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
     
     /**
      * Validates that the user document being created has an 'id' field
@@ -82,10 +84,11 @@ service cloud.firestore {
     /**
      * Validates that the user document's 'id' and 'role' fields are immutable on update by regular users.
      * Prevents re-assigning the core identity of a user profile or escalating privileges.
+     * Admins are allowed to change roles.
      */
     function isUserDataImmutable() {
-      return request.resource.data.id == resource.data.id
-        && request.resource.data.role == resource.data.role;
+      let isRoleUnchanged = request.resource.data.role == resource.data.role;
+      return request.resource.data.id == resource.data.id && (isRoleUnchanged || isAdmin());
     }
 
     /**
@@ -113,13 +116,13 @@ service cloud.firestore {
     /**
      * @description Manages user profile documents.
      * @path /users/{userId}
-     * @allow (create) An authenticated user creating their own profile document.
-     * @deny (get) An authenticated user trying to read another user's profile.
-     * @principle Restricts access to a user's own data tree and allows self-creation.
+     * @allow (get) A user reading their own profile or an admin reading any profile.
+     * @allow (list) An admin listing all user profiles.
+     * @deny (list) A non-admin user trying to list all profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // A user should never list their own document.
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && hasValidUserDataOnCreate(userId);
       allow update: if isExistingOwner(userId) && isUserDataImmutable();
       allow delete: if isExistingOwner(userId);
@@ -132,13 +135,12 @@ service cloud.firestore {
     /**
      * @description Manages the contacts belonging to a specific user.
      * @path /users/{userId}/contacts/{contactId}
-     * @allow (create) An authenticated user adding a new contact for themselves.
-     * @deny (list) An authenticated user trying to list another user's contacts.
-     * @principle Enforces document ownership for all operations within a user's private subcollection.
+     * @allow (read) An authenticated user accessing their own contacts, or an admin.
+     * @deny (list) A non-admin user trying to list another user's contacts.
+     * @principle Enforces document ownership for write/delete, but allows admin read access.
      */
     match /users/{userId}/contacts/{contactId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
       allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
       allow delete: if isExistingOwner(userId);
@@ -151,13 +153,12 @@ service cloud.firestore {
     /**
      * @description Manages the audio recordings belonging to a specific user.
      * @path /users/{userId}/recordings/{recordingId}
-     * @allow (list) An authenticated user listing their own recordings.
-     * @deny (update) An authenticated user trying to modify another user's recording.
-     * @principle Enforces document ownership for all operations within a user's private subcollection.
+     * @allow (read) An authenticated user accessing their own recordings, or an admin.
+     * @deny (update) A non-admin user trying to modify another user's recording.
+     * @principle Enforces document ownership for write/delete, but allows admin read access.
      */
     match /users/{userId}/recordings/{recordingId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
       allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
       allow delete: if isExistingOwner(userId);
