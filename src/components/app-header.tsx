@@ -15,7 +15,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield, LogOut } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield, LogOut, Sparkles } from 'lucide-react';
 import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
@@ -39,17 +39,21 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
   const isAdminMode = process.env.NEXT_PUBLIC_ADMIN_MODE_ENABLED === 'true';
 
-  const navItems = [
-    { href: '/', name: 'Recordings', icon: LayoutDashboard, auth: true },
-    { href: '/contacts', name: 'Contacts', icon: Users, auth: true },
-    { href: '/files', name: 'Files', icon: Folder, auth: true },
-    { href: '/upload', name: 'Upload', icon: Upload, auth: true },
-    { href: '/pricing', name: 'Pricing', icon: CreditCard, auth: false },
+  const loggedInNavItems = [
+    { href: '/', name: 'Recordings', icon: LayoutDashboard },
+    { href: '/contacts', name: 'Contacts', icon: Users },
+    { href: '/files', name: 'Files', icon: Folder },
+    { href: '/upload', name: 'Upload', icon: Upload },
   ];
   
   if (isAdminMode) {
-      navItems.push({ href: '/admin', name: 'Admin', icon: Shield, auth: true });
+      loggedInNavItems.push({ href: '/admin', name: 'Admin', icon: Shield });
   }
+
+  const loggedOutNavItems = [
+      { href: '/#features', name: 'Features', icon: Sparkles },
+      { href: '/pricing', name: 'Pricing', icon: CreditCard },
+  ];
 
   const handleSettingsClick = () => {
     router.push('/settings');
@@ -81,8 +85,8 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
   }
 
   const isSearchablePage = ['/', '/contacts'].includes(pathname);
-
-  const visibleNavItems = navItems.filter(item => !item.auth || !!user);
+  
+  const navItems = user ? loggedInNavItems : loggedOutNavItems;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
@@ -92,7 +96,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
         </Link>
       
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-        {visibleNavItems.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -121,7 +125,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
                             <Logo className="h-6 w-6 text-primary" />
                             <span className="sr-only">CallOrganizer</span>
                         </Link>
-                        {visibleNavItems.map((item) => (
+                        {navItems.map((item) => (
                             <Link
                                 key={item.href}
                                 href={item.href}
@@ -180,12 +184,19 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
             </DropdownMenuContent>
             </DropdownMenu>
         ) : (
-             <Button asChild variant="outline">
-                <Link href="/login">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
-                </Link>
-            </Button>
+             <>
+                <Button asChild variant="ghost">
+                    <Link href="/login">
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Login
+                    </Link>
+                </Button>
+                 <Button asChild>
+                    <Link href="/signup">
+                        Sign Up
+                    </Link>
+                </Button>
+            </>
         )}
       </div>
     </header>
