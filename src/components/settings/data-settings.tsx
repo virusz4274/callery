@@ -84,6 +84,14 @@ export function DataSettings() {
         }
     };
     
+    const handleConnectGoogle = () => {
+        // Placeholder for the actual OAuth flow
+        toast({
+            title: 'Coming Soon!',
+            description: 'Google Contacts integration is under development.'
+        });
+    }
+    
     const storagePercentage = userProfile ? (userProfile.storageUsed / userProfile.storageAllocation) * 100 : 0;
 
     if(isProfileLoading) {
@@ -133,7 +141,7 @@ export function DataSettings() {
                             Automatically match names to phone numbers from your Google Contacts.
                         </p>
                     </div>
-                    <Button variant="outline" disabled>
+                    <Button variant="outline" onClick={handleConnectGoogle}>
                         <GoogleIcon className="mr-2 h-4 w-4" />
                         Connect
                     </Button>
