@@ -23,11 +23,6 @@ const features = [
         title: "AI-Powered Transcription",
         description: "Get accurate, speaker-separated transcripts for all your calls, with optional advanced AI models for higher accuracy.",
     },
-    {
-        icon: <Lock className="h-8 w-8" />,
-        title: "Admin Oversight",
-        description: "Manage users, monitor storage and transcription usage, and control system-wide settings from a secure admin dashboard.",
-    },
 ];
 
 export function LandingPage() {
@@ -68,7 +63,7 @@ export function LandingPage() {
                                 From automated organization to powerful AI features, we've built the tools you need to stay on top of your call data.
                             </p>
                         </div>
-                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
                             {features.map((feature) => (
                                 <Card key={feature.title} className="text-center p-6">
                                     <div className="flex justify-center mb-4 text-primary">
