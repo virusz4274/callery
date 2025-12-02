@@ -2,11 +2,67 @@
   "mcpServers": {
     "next-devtools": {
       "command": "npx",
-      "args": ["-y", "next-devtools-mcp@latest"]
+      "args": [
+        "-y",
+        "next-devtools-mcp@latest"
+      ]
     },
     "shadcn": {
       "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "mcp"
+      ]
     }
+  },
+  "enabledTools": {
+    "next-devtools": [
+      "browser_eval",
+      "enable_cache_components",
+      "init",
+      "nextjs_docs",
+      "nextjs_index",
+      "nextjs_call",
+      "upgrade_nextjs_16"
+    ],
+    "shadcn": [],
+    "firebase": [
+      "firebase_login",
+      "firebase_logout",
+      "firebase_validate_security_rules",
+      "firebase_get_project",
+      "firebase_list_apps",
+      "firebase_list_projects",
+      "firebase_get_sdk_config",
+      "firebase_create_project",
+      "firebase_create_app",
+      "firebase_create_android_sha",
+      "firebase_get_environment",
+      "firebase_update_environment",
+      "firebase_init",
+      "firebase_get_security_rules",
+      "firebase_read_resources",
+      "firestore_delete_document",
+      "firestore_get_documents",
+      "firestore_list_collections",
+      "firestore_query_collection",
+      "storage_get_object_download_url",
+      "auth_get_users",
+      "auth_update_user",
+      "auth_set_sms_region_policy",
+      "messaging_send_message",
+      "remoteconfig_get_template",
+      "remoteconfig_update_template",
+      "realtimedatabase_get_data",
+      "realtimedatabase_set_data"
+    ]
   }
 }
