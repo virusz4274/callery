@@ -39,6 +39,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   if (user && userProfile?.role === 'admin') {
     return <>{children}</>;
   }
+  
+  if (user && userProfile && userProfile.role !== 'admin') {
+    // This state is handled by the useEffect redirect, but as a fallback,
+    // we can return null or a message while redirecting.
+     return null;
+  }
+
 
   // Fallback for edge cases, e.g., user is logged out after initial check
   // or profile exists but role is missing (should not happen with proper setup)
@@ -50,7 +57,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </CardHeader>
             <CardContent>
                 <p className="text-center text-muted-foreground">
-                    You do not have permission to view this page.
+                    You do not have permission to view this page. Redirecting...
                 </p>
             </CardContent>
         </Card>
