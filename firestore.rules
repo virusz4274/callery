@@ -82,13 +82,16 @@ service cloud.firestore {
     }
 
     /**
-     * Validates that the user document's 'id' and 'role' fields are immutable on update by regular users.
-     * Prevents re-assigning the core identity of a user profile or escalating privileges.
-     * Admins are allowed to change roles.
+     * Validates that key user data fields are immutable.
+     * Prevents re-assigning the core identity or email of a user profile.
+     * Allows admins to change roles, but users cannot change their own role.
      */
     function isUserDataImmutable() {
       let isRoleUnchanged = request.resource.data.role == resource.data.role;
-      return request.resource.data.id == resource.data.id && (isRoleUnchanged || isAdmin());
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (isRoleUnchanged || isAdmin());
     }
 
     /**
@@ -118,6 +121,7 @@ service cloud.firestore {
      * @path /users/{userId}
      * @allow (get) A user reading their own profile or an admin reading any profile.
      * @allow (list) An admin listing all user profiles.
+     * @allow (update) A user can update their own profile's mutable fields. Admins can update roles.
      * @deny (list) A non-admin user trying to list all profiles.
      */
     match /users/{userId} {
