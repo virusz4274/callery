@@ -1,0 +1,163 @@
+/**
+ * This ruleset enforces a strict user-ownership model for the CallOrganizer app.
+ *
+ * Core Philosophy:
+ * The security model is built on user data isolation. All user-specific data,
+ * including their profile, contacts, and recordings, is stored within a
+ * hierarchical structure dedicated to that user. Access is granted based on the
+ * authenticated user's UID matching the user ID in the document path, ensuring
+ * that users can only ever access their own data.
+ *
+ * Data Structure:
+ * All data is nested under the `/users/{userId}` path. A user's contacts and
+ * recordings are stored in subcollections (`/contacts` and `/recordings`)
+ * under their main user document. This structure is highly secure and performant
+ * for querying user-specific data.
+ *
+ * Key Security Decisions:
+ * - Strict Ownership: All operations (read, write, delete) are restricted to the
+ *   document owner. There is no concept of public or shared data.
+ * - No User Listing: It is impossible for any user to list all documents in the
+ *   top-level `/users` collection.
+ * - Path-Based Security: Authorization relies on the `{userId}` wildcard in the
+ *   path, which is the most performant and secure way to handle user-owned data.
+ * - Relational Integrity: On document creation, rules enforce that the `userId`
+ *   (or `id` on the user document) inside the document's data matches the `userId`
+ *   from the path, preventing data inconsistency. These key identifiers are then
+ *   enforced as immutable on updates.
+ *
+ * Denormalization for Authorization:
+ * The data model is inherently designed for simple authorization. By placing
+ * contacts and recordings in subcollections under a user's document, we can
+ * secure them without needing any extra database reads (`get()` calls). The
+ * rules simply check ownership based on the path.
+ *
+ * Structural Segregation:
+ * This pattern is fully embraced. All private user data is segregated into a
+ * user-specific document tree starting with `/users/{userId}`, making it
+ * impossible for data to leak between users.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     * This is the primary function for verifying document ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document. Used for update and delete
+     * operations to prevent acting on non-existent data.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the user document being created has an 'id' field
+     * that matches the document's ID (which is the user's UID).
+     * This enforces relational integrity from the start.
+     */
+    function hasValidUserDataOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that the user document's 'id' field is immutable on update.
+     * Prevents re-assigning the core identity of a user profile.
+     */
+    function isUserDataImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that a subcollection document (e.g., Contact, Recording)
+     * being created has a 'userId' field that correctly points back to the
+     * owner specified in the path.
+     */
+    function hasValidSubcollectionDataOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates that the 'userId' field in a subcollection document is
+     * immutable, preventing a document from being moved between users.
+     */
+    function isSubcollectionDataImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+
+    // ----------------------------------------------------------------------
+    // User Profiles
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own profile document.
+     * @deny (get) An authenticated user trying to read another user's profile.
+     * @principle Restricts access to a user's own data tree and allows self-creation.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // A user should never list their own document.
+      allow create: if isOwner(userId) && hasValidUserDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // ----------------------------------------------------------------------
+    // User Contacts
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Manages the contacts belonging to a specific user.
+     * @path /users/{userId}/contacts/{contactId}
+     * @allow (create) An authenticated user adding a new contact for themselves.
+     * @deny (list) An authenticated user trying to list another user's contacts.
+     * @principle Enforces document ownership for all operations within a user's private subcollection.
+     */
+    match /users/{userId}/contacts/{contactId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // ----------------------------------------------------------------------
+    // User Recordings
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Manages the audio recordings belonging to a specific user.
+     * @path /users/{userId}/recordings/{recordingId}
+     * @allow (list) An authenticated user listing their own recordings.
+     * @deny (update) An authenticated user trying to modify another user's recording.
+     * @principle Enforces document ownership for all operations within a user's private subcollection.
+     */
+    match /users/{userId}/recordings/{recordingId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasValidSubcollectionDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
