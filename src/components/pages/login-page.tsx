@@ -23,13 +23,28 @@ async function ensureUserProfile(firestore: any, user: User) {
     const userDocSnap = await getDoc(userRef);
 
     if (!userDocSnap.exists()) {
+        const [firstName, ...lastName] = user.displayName?.split(' ') || [];
         const userProfile = {
             id: user.uid,
             email: user.email,
-            firstName: user.displayName?.split(' ')[0] || '',
-            lastName: user.displayName?.split(' ')[1] || '',
+            firstName: firstName || '',
+            lastName: lastName.join(' ') || '',
             createdAt: serverTimestamp(),
             role: 'user',
+            plan: 'Free',
+            storageUsed: 0,
+            storageAllocation: 0.1, // Free tier
+            transcriptionUsed: 0,
+            transcriptionAllocation: 15, // Free tier
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            notificationSettings: {
+                activityDigest: 'weekly',
+                ingestSuccess: true,
+                ingestFail: true,
+            },
+            storageSettings: {
+                deletionPolicy: 'never',
+            }
         };
         await setDoc(userRef, userProfile, { merge: true });
         return true; // Profile was created

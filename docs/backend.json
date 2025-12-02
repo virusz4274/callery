@@ -29,12 +29,45 @@
           "format": "date-time"
         },
         "role": {
+          "type": "string",
+          "description": "The role of the user.",
+          "enum": ["admin", "user"]
+        },
+        "plan": {
             "type": "string",
-            "description": "The role of the user.",
-            "enum": ["admin", "user"]
-        }
+            "enum": ["Free", "Pro"],
+            "description": "The user's subscription plan."
+        },
+        "timezone": {
+            "type": "string",
+            "description": "The user's preferred timezone."
+        },
+        "notificationSettings": {
+            "type": "object",
+            "properties": {
+                "activityDigest": {
+                    "type": "string",
+                    "enum": ["off", "weekly", "monthly"]
+                },
+                "ingestSuccess": { "type": "boolean" },
+                "ingestFail": { "type": "boolean" }
+            }
+        },
+        "storageSettings": {
+            "type": "object",
+            "properties": {
+                "deletionPolicy": {
+                    "type": "string",
+                    "enum": ["never", "3m", "6m", "1y"]
+                }
+            }
+        },
+        "storageUsed": { "type": "number", "description": "Storage used in GB." },
+        "storageAllocation": { "type": "number", "description": "Storage allocated in GB." },
+        "transcriptionUsed": { "type": "number", "description": "Transcription minutes used." },
+        "transcriptionAllocation": { "type": "number", "description": "Transcription minutes allocated." }
       },
-      "required": ["id", "email", "createdAt", "role"]
+      "required": ["id", "email", "createdAt", "role", "plan"]
     },
     "Recording": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -1,9 +1,15 @@
 
 'use client';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useUser, useUserProfile, useFirestore } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
 
 const timezones = [
     { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -34,6 +40,58 @@ const timezones = [
 ];
 
 export function GeneralSettings() {
+    const { user } = useUser();
+    const { userProfile, isProfileLoading } = useUserProfile(user);
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const [timezone, setTimezone] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (userProfile?.timezone) {
+            setTimezone(userProfile.timezone);
+        }
+    }, [userProfile]);
+
+    const handleSave = async () => {
+        if (!user || !timezone) return;
+        setIsSaving(true);
+        try {
+            const userRef = doc(firestore, 'users', user.uid);
+            await updateDoc(userRef, { timezone });
+            toast({
+                title: 'Preferences Saved',
+                description: 'Your localization settings have been updated.',
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Save Failed',
+                description: error.message,
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    if (isProfileLoading) {
+        return (
+             <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-1/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-10 w-full max-w-sm" />
+                </CardContent>
+                <CardFooter>
+                    <Skeleton className="h-10 w-24" />
+                </CardFooter>
+            </Card>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -43,7 +101,7 @@ export function GeneralSettings() {
             <CardContent className="space-y-4">
                 <div className="grid w-full max-w-sm items-center gap-1.5">
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Select>
+                    <Select value={timezone} onValueChange={setTimezone}>
                         <SelectTrigger id="timezone">
                             <SelectValue placeholder="Select a timezone" />
                         </SelectTrigger>
@@ -58,7 +116,10 @@ export function GeneralSettings() {
                 </div>
             </CardContent>
             <CardFooter>
-                <Button>Save Preferences</Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Preferences
+                </Button>
             </CardFooter>
         </Card>
     );

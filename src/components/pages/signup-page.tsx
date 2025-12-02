@@ -17,18 +17,33 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-async function ensureUserProfile(firestore: any, user: User) {
+async function ensureUserProfile(firestore: any, user: User, name?: {firstName: string, lastName: string}) {
     const userRef = doc(firestore, 'users', user.uid);
     const userDocSnap = await getDoc(userRef);
 
     if (!userDocSnap.exists()) {
+        const [displayNameFirst, ...displayNameLast] = user.displayName?.split(' ') || [];
         const userProfile = {
             id: user.uid,
             email: user.email,
-            firstName: user.displayName?.split(' ')[0] || '',
-            lastName: user.displayName?.split(' ')[1] || '',
+            firstName: name?.firstName || displayNameFirst || '',
+            lastName: name?.lastName || displayNameLast.join(' ') || '',
             createdAt: serverTimestamp(),
             role: 'user',
+            plan: 'Free',
+            storageUsed: 0,
+            storageAllocation: 0.1, // Free tier
+            transcriptionUsed: 0,
+            transcriptionAllocation: 15, // Free tier
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            notificationSettings: {
+                activityDigest: 'weekly',
+                ingestSuccess: true,
+                ingestFail: true,
+            },
+            storageSettings: {
+                deletionPolicy: 'never',
+            }
         };
         await setDoc(userRef, userProfile);
         return true; // Profile was created
@@ -38,6 +53,8 @@ async function ensureUserProfile(firestore: any, user: User) {
 
 
 export function SignupPage() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -69,7 +86,7 @@ export function SignupPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await ensureUserProfile(firestore, userCredential.user);
+      await ensureUserProfile(firestore, userCredential.user, { firstName, lastName });
       await sendEmailVerification(userCredential.user);
       toast({
         title: "Account Created & Verification Email Sent",
@@ -148,6 +165,16 @@ export function SignupPage() {
               <Separator className="flex-1" />
               <span className="text-xs text-muted-foreground">OR</span>
               <Separator className="flex-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="first-name">First Name</Label>
+                    <Input id="first-name" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="last-name">Last Name</Label>
+                    <Input id="last-name" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

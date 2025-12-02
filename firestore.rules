@@ -77,21 +77,34 @@ service cloud.firestore {
      * This enforces relational integrity from the start.
      */
     function hasValidUserDataOnCreate(userId) {
+      // On creation, users are assigned default values.
       return request.resource.data.id == userId
-        && request.resource.data.role == 'user'; // Users can only create themselves with 'user' role
+        && request.resource.data.role == 'user'
+        && request.resource.data.plan == 'Free'
+        && request.resource.data.storageAllocation == 0.1
+        && request.resource.data.transcriptionAllocation == 15
+        && request.resource.data.storageUsed == 0
+        && request.resource.data.transcriptionUsed == 0;
     }
 
     /**
      * Validates that key user data fields are immutable.
      * Prevents re-assigning the core identity or email of a user profile.
-     * Allows admins to change roles, but users cannot change their own role.
+     * Admins can change roles and allocations, but users cannot.
      */
     function isUserDataImmutable() {
       let isRoleUnchanged = request.resource.data.role == resource.data.role;
+      let isPlanUnchanged = request.resource.data.plan == resource.data.plan;
+      let isAllocationUnchanged = request.resource.data.storageAllocation == resource.data.storageAllocation 
+                                  && request.resource.data.transcriptionAllocation == resource.data.transcriptionAllocation;
+                                  
+      // Users cannot change their own role, plan, or allocations. Only admins can.
+      let canChangeSensitiveFields = isRoleUnchanged && isPlanUnchanged && isAllocationUnchanged;
+
       return request.resource.data.id == resource.data.id
         && request.resource.data.email == resource.data.email
         && request.resource.data.createdAt == resource.data.createdAt
-        && (isRoleUnchanged || isAdmin());
+        && (canChangeSensitiveFields || isAdmin());
     }
 
     /**
