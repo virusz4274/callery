@@ -78,13 +78,19 @@ service cloud.firestore {
      */
     function hasValidUserDataOnCreate(userId) {
       // On creation, users are assigned default values.
-      return request.resource.data.id == userId
-        && request.resource.data.role == 'user'
-        && request.resource.data.plan == 'Free'
-        && request.resource.data.storageAllocation == 0.1
-        && request.resource.data.transcriptionAllocation == 15
-        && request.resource.data.storageUsed == 0
-        && request.resource.data.transcriptionUsed == 0;
+      let data = request.resource.data;
+      return data.id == userId
+        && data.role == 'user'
+        && data.plan == 'Free'
+        && data.storageAllocation == 0.1
+        && data.transcriptionAllocation == 15
+        && data.storageUsed == 0
+        && data.transcriptionUsed == 0
+        && data.notificationSettings.activityDigest == 'weekly'
+        && data.notificationSettings.ingestSuccess == true
+        && data.notificationSettings.ingestFail == true
+        && data.storageSettings.deletionPolicy == 'never'
+        && data.timezone is string;
     }
 
     /**
