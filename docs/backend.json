@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the CallOrganizer application.",
+      "description": "Represents a user of the Call Memo application.",
       "properties": {
         "id": {
           "type": "string",

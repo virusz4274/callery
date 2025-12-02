@@ -1,5 +1,5 @@
 /**
- * This ruleset enforces a strict user-ownership model for the CallOrganizer app.
+ * This ruleset enforces a strict user-ownership model for the Call Memo app.
  *
  * Core Philosophy:
  * The security model is built on user data isolation. All user-specific data,

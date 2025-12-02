@@ -8,7 +8,7 @@ import { FirebaseClientProvider } from '@/firebase';
 
 
 export const metadata: Metadata = {
-  title: 'CallOrganizer',
+  title: 'Call Memo',
   description: 'Organize, search, and manage your call recordings effortlessly.',
 };
 

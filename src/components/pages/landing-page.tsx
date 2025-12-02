@@ -33,13 +33,13 @@ const testimonials = [
     {
         name: "Sarah L.",
         role: "Freelance Consultant",
-        quote: "CallOrganizer has been a game-changer for my business. I can finally find important client conversations in seconds. The search is incredibly fast and the transcription is surprisingly accurate!",
+        quote: "Call Memo has been a game-changer for my business. I can finally find important client conversations in seconds. The search is incredibly fast and the transcription is surprisingly accurate!",
         avatarId: "user5",
     },
     {
         name: "Michael B.",
         role: "Sales Manager",
-        quote: "We use CallOrganizer to onboard new sales reps. They can listen to calls from our top performers and learn what works. It's cut our ramp-up time in half.",
+        quote: "We use Call Memo to onboard new sales reps. They can listen to calls from our top performers and learn what works. It's cut our ramp-up time in half.",
         avatarId: "user6",
     },
     {
@@ -62,7 +62,7 @@ export function LandingPage() {
                             <div className="flex justify-center items-center gap-4">
                                 <Logo className="h-16 w-16 text-primary" />
                                 <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
-                                    CallOrganizer
+                                    Call Memo
                                 </h1>
                             </div>
                             <p className="text-lg text-muted-foreground md:text-xl">
@@ -84,7 +84,7 @@ export function LandingPage() {
                 <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-muted/40">
                     <div className="container mx-auto px-4 md:px-6">
                         <div className="text-center mb-12">
-                            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Why You'll Love CallOrganizer</h2>
+                            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Why You'll Love Call Memo</h2>
                             <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg">
                                 From automated organization to powerful AI features, we've built the tools you need to stay on top of your call data.
                             </p>
@@ -116,7 +116,7 @@ export function LandingPage() {
                         <div className="text-center mb-12">
                             <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Trusted by Professionals</h2>
                             <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg">
-                                See what our users have to say about how CallOrganizer transformed their workflow.
+                                See what our users have to say about how Call Memo transformed their workflow.
                             </p>
                         </div>
                         <Carousel
@@ -172,9 +172,9 @@ export function LandingPage() {
                             <div className="text-center lg:text-left">
                                 <h3 className="text-2xl font-bold">A Message from the Creator</h3>
                                 <blockquote className="mt-4 text-lg text-muted-foreground italic">
-                                    "I created CallOrganizer because I was drowning in a sea of unorganized audio files from important business calls. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings. I hope it helps you as much as it has helped me."
+                                    "I created Call Memo because I was drowning in a sea of unorganized audio files from important business calls. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings. I hope it helps you as much as it has helped me."
                                 </blockquote>
-                                <p className="mt-4 font-semibold">— The CallOrganizer Team</p>
+                                <p className="mt-4 font-semibold">— The Call Memo Team</p>
                             </div>
                         </Card>
                     </div>
@@ -186,7 +186,7 @@ export function LandingPage() {
                 <div className="container mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Logo className="h-5 w-5 text-primary" />
-                        <span className="font-semibold">CallOrganizer</span>
+                        <span className="font-semibold">Call Memo</span>
                     </div>
                     <nav className="flex gap-4 sm:gap-6 mt-4 md:mt-0 text-sm">
                         <Link href="/#features" className="text-muted-foreground hover:text-foreground">

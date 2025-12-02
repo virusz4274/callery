@@ -5,7 +5,7 @@ const sections = [
   {
     title: '1. Introduction',
     content: [
-      'Welcome to CallOrganizer ("we", "our", "us"). These Terms of Service ("Terms") govern your use of our website and services (collectively, the "Service"). By accessing or using our Service, you agree to be bound by these Terms.',
+      'Welcome to Call Memo ("we", "our", "us"). These Terms of Service ("Terms") govern your use of our website and services (collectively, the "Service"). By accessing or using our Service, you agree to be bound by these Terms.',
       'Please read these Terms carefully before using the Service. If you do not agree to these Terms, you may not use the Service.',
     ],
   },
@@ -33,7 +33,7 @@ const sections = [
    {
     title: '5. Limitation of Liability',
     content: [
-      'To the fullest extent permitted by law, in no event will CallOrganizer, its affiliates, officers, employees, agents, suppliers or licensors be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.',
+      'To the fullest extent permitted by law, in no event will Call Memo, its affiliates, officers, employees, agents, suppliers or licensors be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.',
     ],
   },
 ];
