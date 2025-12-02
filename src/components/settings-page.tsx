@@ -8,6 +8,7 @@ import { GeneralSettings } from './settings/general-settings';
 import { DataSettings } from './settings/data-settings';
 import { NotificationsSettings } from './settings/notifications-settings';
 import { BillingSettings } from './settings/billing-settings';
+import { ClientOnly } from './client-only';
 
 export function SettingsPage() {
     const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
@@ -18,32 +19,34 @@ export function SettingsPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
                 <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
             </div>
-            <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="h-auto flex-wrap justify-start">
-                    <TabsTrigger value="profile">Profile</TabsTrigger>
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="data">Data</TabsTrigger>
-                    <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                    {showBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
-                </TabsList>
-                <TabsContent value="profile">
-                    <ProfileSettings />
-                </TabsContent>
-                <TabsContent value="general">
-                    <GeneralSettings />
-                </TabsContent>
-                <TabsContent value="data">
-                    <DataSettings />
-                </TabsContent>
-                <TabsContent value="notifications">
-                    <NotificationsSettings />
-                </TabsContent>
-                {showBilling && (
-                    <TabsContent value="billing">
-                       <BillingSettings />
+            <ClientOnly>
+                <Tabs defaultValue="profile" className="w-full">
+                    <TabsList className="h-auto flex-wrap justify-start">
+                        <TabsTrigger value="profile">Profile</TabsTrigger>
+                        <TabsTrigger value="general">General</TabsTrigger>
+                        <TabsTrigger value="data">Data</TabsTrigger>
+                        <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                        {showBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
+                    </TabsList>
+                    <TabsContent value="profile">
+                        <ProfileSettings />
                     </TabsContent>
-                )}
-            </Tabs>
+                    <TabsContent value="general">
+                        <GeneralSettings />
+                    </TabsContent>
+                    <TabsContent value="data">
+                        <DataSettings />
+                    </TabsContent>
+                    <TabsContent value="notifications">
+                        <NotificationsSettings />
+                    </TabsContent>
+                    {showBilling && (
+                        <TabsContent value="billing">
+                           <BillingSettings />
+                        </TabsContent>
+                    )}
+                </Tabs>
+            </ClientOnly>
         </div>
     );
 }
