@@ -1,13 +1,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Plus } from "lucide-react";
+import { Check } from "lucide-react";
 
-export default function PricingPage() {
+export function PricingSection() {
     return (
         <div className="space-y-12">
             <div className="text-center">
-                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Find the plan that's right for you</h1>
+                <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Find the plan that's right for you</h2>
                 <p className="text-muted-foreground mt-2">Simple, usage-based pricing that scales with your needs.</p>
             </div>
 
@@ -70,7 +70,7 @@ export default function PricingPage() {
 
             <div className="space-y-6">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold tracking-tight">Pay-as-you-go Add-ons</h2>
+                    <h3 className="text-2xl font-bold tracking-tight">Pay-as-you-go Add-ons</h3>
                     <p className="text-muted-foreground mt-1">Scale your features as you need them. Billed based on usage.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

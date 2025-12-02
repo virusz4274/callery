@@ -52,7 +52,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
 
   const loggedOutNavItems = [
       { href: '/#features', name: 'Features', icon: Sparkles },
-      { href: '/pricing', name: 'Pricing', icon: CreditCard },
+      { href: '/#pricing', name: 'Pricing', icon: CreditCard },
   ];
 
   const handleSettingsClick = () => {
