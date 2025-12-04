@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -11,7 +12,7 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, UserCredential, linkWithCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, linkWithCredential } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -147,7 +148,7 @@ export function SignupPage() {
                   });
               }
           }
-      } else {
+      } else if (error.code !== 'auth/popup-closed-by-user') {
           toast({
               variant: "destructive",
               title: "Google Sign-In Failed",
