@@ -46,7 +46,7 @@ export function SettingsPage() {
                     {showBilling && (
                         <TabsContent value="billing">
                            <BillingSettings />
-                        </ENsContent>
+                        </TabsContent>
                     )}
                 </Tabs>
             </ClientOnly>
