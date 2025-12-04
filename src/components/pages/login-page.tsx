@@ -12,45 +12,10 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore, useFirebaseApp } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-
-
-async function ensureUserProfile(firestore: any, user: User) {
-    const userRef = doc(firestore, 'users', user.uid);
-    const userDocSnap = await getDoc(userRef);
-
-    if (!userDocSnap.exists()) {
-        const [firstName, ...lastName] = user.displayName?.split(' ') || [];
-        const userProfile = {
-            id: user.uid,
-            email: user.email,
-            firstName: firstName || '',
-            lastName: lastName.join(' ') || '',
-            createdAt: serverTimestamp(),
-            role: 'user',
-            plan: 'Free',
-            storageUsed: 0,
-            storageAllocation: 0.1, // Free tier
-            transcriptionUsed: 0,
-            transcriptionAllocation: 15, // Free tier
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            notificationSettings: {
-                activityDigest: 'weekly',
-                ingestSuccess: true,
-                ingestFail: true,
-            },
-            storageSettings: {
-                deletionPolicy: 'never',
-            }
-        };
-        await setDoc(userRef, userProfile, { merge: true });
-        return true; // Profile was created
-    }
-    return false; // Profile already existed
-}
+import { ensureUserProfile } from '@/firebase/auth/user-profile';
 
 
 export function LoginPage() {
