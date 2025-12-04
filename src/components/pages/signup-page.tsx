@@ -108,11 +108,6 @@ export function SignupPage() {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     
-    // This is the root cause fix:
-    // Force the SDK to use the current origin for the OAuth flow, which is
-    // necessary in dynamic environments like Cloud Workstations.
-    auth.tenantId = window.location.origin;
-
     try {
       const result = await signInWithPopup(auth, provider);
       const wasProfileCreated = await ensureUserProfile(firestore, result.user);
@@ -156,8 +151,6 @@ export function SignupPage() {
           });
       }
     } finally {
-        // Clean up the tenantId override after the operation
-        auth.tenantId = null;
         setGoogleLoading(false);
     }
   };
@@ -206,7 +199,7 @@ export function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.targe.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
