@@ -69,7 +69,7 @@ export function DataSettings() {
     const error = searchParams.get('error');
 
     const cleanupUrl = () => {
-        router.replace('/settings', { scroll: false });
+      router.replace('/settings', { scroll: false });
     };
 
     if (error) {
@@ -81,30 +81,30 @@ export function DataSettings() {
           'Could not sync with your Google account.',
       });
       cleanupUrl();
-    } else if (code && state) {
-        cleanupUrl();
-        startSyncTransition(async () => {
-            toast({
-                title: 'Syncing Contacts...',
-                description:
-                'Please wait while we fetch your Google contacts. This may take a moment.',
-            });
-            const result = await syncGoogleContacts(code, state);
-            if (result.success) {
-                toast({
-                title: 'Sync Successful',
-                description: `${result.count} contacts were found and synced.`,
-                });
-            } else {
-                toast({
-                variant: 'destructive',
-                title: 'Sync Failed',
-                description: result.error,
-                });
-            }
+    } else if (code && state && !isSyncing) {
+      cleanupUrl();
+      startSyncTransition(async () => {
+        toast({
+          title: 'Syncing Contacts...',
+          description:
+            'Please wait while we fetch your Google contacts. This may take a moment.',
         });
+        const result = await syncGoogleContacts(code, state);
+        if (result.success) {
+          toast({
+            title: 'Sync Successful',
+            description: `${result.count} contacts were found and synced.`,
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Sync Failed',
+            description: result.error,
+          });
+        }
+      });
     }
-  }, [searchParams, router, toast, startSyncTransition]);
+  }, [searchParams, router, toast, startSyncTransition, isSyncing]);
 
   const handleIngest = () => {
     startIngestTransition(async () => {
