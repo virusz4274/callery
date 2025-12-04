@@ -6,6 +6,26 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer, nextRuntime }) => {
+    // For the middleware, which runs in the Edge Runtime, we need to
+    // tell webpack to ignore the 'os' module, which is not available.
+    if (nextRuntime === 'nodejs' && config.resolve) {
+      if (Array.isArray(config.resolve.alias)) {
+        config.resolve.alias.push({ name: 'os', alias: false });
+      } else if (config.resolve.alias) {
+        (config.resolve.alias as Record<string, any>)['os'] = false;
+      }
+    }
+    
+    // For client-side builds, we also provide a fallback.
+    if (!isServer && config.resolve) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            os: false,
+        };
+    }
+    return config;
+  },
   async headers() {
     return [
       {
