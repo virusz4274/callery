@@ -7,10 +7,9 @@ import { headers } from 'next/headers';
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
 
 function getBaseUrl() {
-  const headersList = headers();
-  const host = headersList.get('host');
-  const protocol = headersList.get('x-forwarded-proto') || 'http';
-  return `${protocol}://${host}`;
+  // Use the reliable environment variable provided by App Hosting.
+  // Fall back to localhost for local development/Cloud Workstation.
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 }
 
 
