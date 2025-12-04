@@ -1,48 +1,45 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirebaseAdminApp } from './firebase/admin';
 
-// NOTE: No firebase-admin imports are needed here anymore.
+// Initialize the Firebase Admin App
+getFirebaseAdminApp();
 
 // Define public paths that do not require authentication
 const PUBLIC_PATHS = [
+  '/',
   '/login',
   '/signup',
-  '/', // The landing page should be public
   '/terms-of-service',
   '/privacy-policy',
 ];
 
-// Define paths that are used for authentication callbacks
+// Define paths that are used for authentication and should not be redirected
 const AUTH_PATHS = ['/api/auth/google/callback'];
 
 /**
  * The main middleware function that handles authentication and authorization.
- * It checks for a session cookie and passes it to server components/actions.
- * It redirects to login for protected routes if no cookie is found.
+ * It checks for a valid session cookie and redirects to the login page if
+ * the user is not authenticated and trying to access a protected route.
  * @param request The incoming request.
  * @returns A NextResponse object that either continues the request or redirects.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session')?.value;
 
-  // Allow requests to Next.js specific paths
-  if (pathname.startsWith('/_next/') || pathname.startsWith('/api/')) {
+  // Allow requests to public paths, authentication paths, and Next.js specific paths
+  if (
+    PUBLIC_PATHS.includes(pathname) ||
+    AUTH_PATHS.some(p => pathname.startsWith(p)) ||
+    pathname.startsWith('/_next/')
+  ) {
     return NextResponse.next();
   }
 
-  // If the user is trying to access a public page, let them through.
-  // Exception: if they are logged in, redirect from landing page to dashboard.
-  if (PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/#')) {
-      // The root path '/' is special. If the user is logged in and tries to
-      // access the landing page, we should redirect them to their dashboard.
-      // For now, we'll let all public paths through. A future improvement
-      // could be to check the cookie and redirect from '/'.
-      return NextResponse.next();
-  }
-  
-  // For all other "protected" routes, check for a session cookie.
+  // Check for the session cookie
+  const sessionCookie = request.cookies.get('session')?.value;
   if (!sessionCookie) {
     // If no session cookie, redirect to the login page, preserving the original path
     const url = request.nextUrl.clone();
@@ -51,17 +48,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If a session cookie exists, we'll assume it's valid for now and let the 
-  // server actions/components verify it as needed.
-  // We pass the cookie in the request headers so it can be accessed in Server Actions.
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-session-cookie', sessionCookie);
+  try {
+    // Verify the session cookie with Firebase Admin
+    await getAuth().verifySessionCookie(sessionCookie, true);
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+    // If the cookie is valid, proceed with the request and pass the session cookie
+    // in the request headers so it can be accessed in Server Actions.
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-session-cookie', sessionCookie);
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  } catch (error) {
+    // If cookie verification fails, redirect to login and clear the invalid cookie
+    console.error('Error verifying session cookie in middleware:', error);
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    const response = NextResponse.redirect(url);
+    response.cookies.set('session', '', { maxAge: 0 });
+    return response;
+  }
 }
 
 // Configure the middleware to run on all paths except for static files
