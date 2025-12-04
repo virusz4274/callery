@@ -1,7 +1,7 @@
 
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+import { SettingsPage } from './settings-page';
 
 const timezones = [
     { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -77,50 +78,46 @@ export function GeneralSettings() {
     
     if (isProfileLoading) {
         return (
-             <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-1/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-10 w-full max-w-sm" />
-                </CardContent>
-                <CardFooter>
-                    <Skeleton className="h-10 w-24" />
-                </CardFooter>
-            </Card>
+            <SettingsPage title="Localization" description="Set your preferred language and timezone for date and time display.">
+                 <Card>
+                    <CardContent>
+                        <Skeleton className="h-10 w-full max-w-sm" />
+                    </CardContent>
+                    <CardFooter>
+                        <Skeleton className="h-10 w-24" />
+                    </CardFooter>
+                </Card>
+            </SettingsPage>
         )
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Localization</CardTitle>
-                <CardDescription>Set your preferred language and timezone for date and time display.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select value={timezone} onValueChange={setTimezone}>
-                        <SelectTrigger id="timezone">
-                            <SelectValue placeholder="Select a timezone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {timezones.map(tz => (
-                                <SelectItem key={tz.value} value={tz.value}>
-                                    {tz.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Preferences
-                </Button>
-            </CardFooter>
-        </Card>
+        <SettingsPage title="Localization" description="Set your preferred language and timezone for date and time display.">
+            <Card>
+                <CardContent className="space-y-4">
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                        <Label htmlFor="timezone">Timezone</Label>
+                        <Select value={timezone} onValueChange={setTimezone}>
+                            <SelectTrigger id="timezone">
+                                <SelectValue placeholder="Select a timezone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {timezones.map(tz => (
+                                    <SelectItem key={tz.value} value={tz.value}>
+                                        {tz.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Preferences
+                    </Button>
+                </CardFooter>
+            </Card>
+        </SettingsPage>
     );
 }

@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { SettingsPage } from './settings-page';
 
 const profileFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -95,11 +96,8 @@ export function ProfileSettings() {
         setPasswordSaving(true);
 
         try {
-            // Re-authenticate the user for this sensitive operation
             const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
             await reauthenticateWithCredential(user, credential);
-            
-            // If re-authentication is successful, update the password
             await updatePassword(user, values.newPassword);
             
             toast({
@@ -107,7 +105,6 @@ export function ProfileSettings() {
                 description: 'You will be logged out for security. Please log in with your new password.',
             });
 
-            // Log the user out for security
             setTimeout(() => auth.signOut(), 3000);
 
         } catch (error: any) {
@@ -134,115 +131,111 @@ export function ProfileSettings() {
 
     return (
         <div className="space-y-6">
-            <Card>
-                 <Form {...profileForm}>
-                    <form onSubmit={profileForm.handleSubmit(handleUpdateProfile)}>
-                        <CardHeader>
-                            <CardTitle>Profile</CardTitle>
-                            <CardDescription>Update your personal information.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="grid sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={profileForm.control}
-                                    name="firstName"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>First Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Your first name" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={profileForm.control}
-                                    name="lastName"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Last Name</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Your last name" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input id="email" type="email" readOnly value={user.email || ''} className="bg-muted/50 cursor-not-allowed"/>
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                            <Button type="submit" disabled={isProfileSaving}>
-                                {isProfileSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save Profile
-                            </Button>
-                        </CardFooter>
-                    </form>
-                </Form>
-            </Card>
-            
-            {user.providerData.some(p => p.providerId === 'password') && (
-                 <Card>
-                    <Form {...passwordForm}>
-                        <form onSubmit={passwordForm.handleSubmit(handleChangePassword)}>
-                            <CardHeader>
-                                <CardTitle>Password</CardTitle>
-                                <CardDescription>Change your account password. You will be logged out after a successful change.</CardDescription>
-                            </CardHeader>
+            <SettingsPage title="Profile" description="Update your personal information.">
+                <Card>
+                     <Form {...profileForm}>
+                        <form onSubmit={profileForm.handleSubmit(handleUpdateProfile)}>
                             <CardContent className="space-y-4">
-                                 <FormField
-                                    control={passwordForm.control}
-                                    name="currentPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Current Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="Your current password" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={passwordForm.control}
-                                    name="newPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="Enter a new password" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={passwordForm.control}
-                                    name="confirmPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Confirm New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="Confirm your new password" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                 <div className="grid sm:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={profileForm.control}
+                                        name="firstName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>First Name</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Your first name" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={profileForm.control}
+                                        name="lastName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Last Name</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Your last name" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" type="email" readOnly value={user.email || ''} className="bg-muted/50 cursor-not-allowed"/>
+                                </div>
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" disabled={isPasswordSaving}>
-                                    {isPasswordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Change Password
+                                <Button type="submit" disabled={isProfileSaving}>
+                                    {isProfileSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Profile
                                 </Button>
                             </CardFooter>
                         </form>
                     </Form>
                 </Card>
+            </SettingsPage>
+            
+            {user.providerData.some(p => p.providerId === 'password') && (
+                <SettingsPage title="Password" description="Change your account password. You will be logged out after a successful change.">
+                     <Card>
+                        <Form {...passwordForm}>
+                            <form onSubmit={passwordForm.handleSubmit(handleChangePassword)}>
+                                <CardContent className="space-y-4">
+                                     <FormField
+                                        control={passwordForm.control}
+                                        name="currentPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Current Password</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" placeholder="Your current password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={passwordForm.control}
+                                        name="newPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>New Password</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" placeholder="Enter a new password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={passwordForm.control}
+                                        name="confirmPassword"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Confirm New Password</FormLabel>
+                                                <FormControl>
+                                                    <Input type="password" placeholder="Confirm your new password" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={isPasswordSaving}>
+                                        {isPasswordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Change Password
+                                    </Button>
+                                </CardFooter>
+                            </form>
+                        </Form>
+                    </Card>
+                </SettingsPage>
             )}
         </div>
     );

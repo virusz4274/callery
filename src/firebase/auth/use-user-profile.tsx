@@ -4,31 +4,8 @@ import { useMemo } from 'react';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
+import type { Contact } from '@/lib/types';
 
-// Assuming a UserProfile type is defined somewhere, e.g., in src/lib/types.ts
-// If not, you can define it here.
-interface UserProfile {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    createdAt: any; // Firestore Timestamp
-    role: 'user' | 'admin';
-    plan: 'Free' | 'Pro';
-    timezone: string;
-    notificationSettings: {
-        activityDigest: 'off' | 'weekly' | 'monthly';
-        ingestSuccess: boolean;
-        ingestFail: boolean;
-    };
-    storageSettings: {
-        deletionPolicy: 'never' | '3m' | '6m' | '1y';
-    };
-    storageUsed: number;
-    storageAllocation: number;
-    transcriptionUsed: number;
-    transcriptionAllocation: number;
-}
 
 /**
  * A hook to fetch the Firestore profile data for a given Firebase Auth user.
@@ -46,7 +23,7 @@ export function useUserProfile(user: User | null) {
         return null; // Return null if user or firestore is not available
     }, [user, firestore]);
 
-    const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<UserProfile>(userProfileRef);
+    const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<Contact>(userProfileRef);
 
     return { userProfile, isProfileLoading, profileError };
 }
