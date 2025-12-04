@@ -19,25 +19,29 @@ export function AppLayout({ children }: AppLayoutProps) {
     const [isPending, startTransition] = useTransition();
     const isMobile = useIsMobile();
 
-    // Initialize state from URL search params
+    // Initialize state from URL search params, but only on initial render
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
     
     // Effect to update URL when searchQuery changes
     useEffect(() => {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(window.location.search);
         if (searchQuery) {
             params.set('q', searchQuery);
         } else {
             params.delete('q');
         }
-        // Use replace to avoid adding to history
-        startTransition(() => {
-            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-        });
-    }, [searchQuery, pathname, router, searchParams]);
 
-    // Effect to clear search when pathname changes
+        const newPath = `${pathname}?${params.toString()}`;
+        
+        // Use transition to avoid blocking UI, and replace state to avoid polluting history
+        startTransition(() => {
+            router.replace(newPath, { scroll: false });
+        });
+    // This effect should ONLY run when the user-driven searchQuery or the pathname changes.
+    }, [searchQuery, pathname]);
+
+    // Effect to clear search when navigating to a new page
     useEffect(() => {
         setSearchQuery('');
     }, [pathname]);
