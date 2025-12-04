@@ -1,12 +1,24 @@
 'use server';
 
 import { getOAuth2Client } from '@/services/google/oauth';
+import { headers } from 'next/headers';
 
 // These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
 
+function getBaseUrl() {
+  const headersList = headers();
+  const host = headersList.get('host');
+  const protocol = headersList.get('x-forwarded-proto') || 'http';
+  return `${protocol}://${host}`;
+}
+
+
 export async function getGoogleAuthUrl() {
-  const oAuth2Client = getOAuth2Client();
+  const baseUrl = getBaseUrl();
+  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+
+  const oAuth2Client = getOAuth2Client(redirectUri);
 
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
