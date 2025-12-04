@@ -3,30 +3,125 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { RecordingsDashboard } from '@/components/pages/recordings-dashboard';
 import { recordings, contacts } from '@/lib/data/data';
 import { LandingPage } from '@/components/pages/landing-page';
 import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { CallRecording, Contact } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RecordingsTable } from '@/components/recordings-table';
+import { Users, Phone, Clock, BarChart } from 'lucide-react';
+import { format, subMonths } from 'date-fns';
 
-function Dashboard() {
-  const searchParams = useSearchParams();
 
-  const filter = React.useMemo(() => ({
-    type: searchParams.get('filterType'),
-    value: searchParams.get('filterValue'),
-  }), [searchParams]);
+function RecordingsDashboard() {
+    const searchParams = useSearchParams();
+    const allRecordings = recordings;
+    const allContacts = contacts;
 
-  const searchQuery = searchParams.get('q') || '';
+    const filter = React.useMemo(() => ({
+        type: searchParams.get('filterType'),
+        value: searchParams.get('filterValue'),
+    }), [searchParams]);
 
-  return (
-    <RecordingsDashboard 
-      allRecordings={recordings}
-      allContacts={contacts}
-      searchQuery={searchQuery}
-      filter={filter}
-    />
-  );
+    const searchQuery = searchParams.get('q') || '';
+
+    const filteredRecordings = React.useMemo(() => {
+        return allRecordings.filter(rec => {
+            const searchLower = searchQuery.toLowerCase();
+            const matchesSearch = searchQuery === '' ||
+                rec.contactName?.toLowerCase().includes(searchLower) ||
+                rec.phoneNumber.includes(searchLower) ||
+                rec.transcriptSnippet.toLowerCase().includes(searchLower);
+
+            if (!filter.type) {
+                return matchesSearch;
+            }
+            
+            let matchesFilter = false;
+            if (filter.type === 'contact') {
+                if (filter.value === 'Unknown') {
+                    matchesFilter = !rec.contactName;
+                } else {
+                    matchesFilter = rec.contactName === filter.value;
+                }
+            } else if (filter.type === 'date') {
+                const recDate = new Date(rec.date);
+                const [filterMonth, filterYear] = filter.value?.split(' ') || [];
+                matchesFilter = recDate.toLocaleString('default', { month: 'long' }) === filterMonth &&
+                                recDate.getFullYear().toString() === filterYear;
+            }
+
+            return matchesSearch && matchesFilter;
+        });
+    }, [allRecordings, searchQuery, filter]);
+
+    const summaryStats = React.useMemo(() => {
+        const now = new Date();
+        const oneMonthAgo = subMonths(now, 1);
+        const knownNumbers = new Set(allContacts.map(c => c.phoneNumber));
+        
+        const totalRecordings = allRecordings.length;
+        const newThisMonth = allRecordings.filter(r => new Date(r.date) > oneMonthAgo).length;
+        const unknownCallers = allRecordings.filter(r => !knownNumbers.has(r.phoneNumber)).length;
+        const totalDuration = allRecordings.reduce((acc, r) => acc + r.duration, 0);
+        
+        return {
+            totalRecordings,
+            newThisMonth,
+            unknownCallers,
+            avgDuration: totalRecordings > 0 ? Math.round(totalDuration / totalRecordings) : 0,
+        };
+    }, [allRecordings, allContacts]);
+    
+    return (
+        <div className="space-y-8">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Recordings</CardTitle>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.totalRecordings}</div>
+                        <p className="text-xs text-muted-foreground">Across all contacts and numbers</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">New This Month</CardTitle>
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">+{summaryStats.newThisMonth}</div>
+                        <p className="text-xs text-muted-foreground">In the last 30 days</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Unknown Callers</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.unknownCallers}</div>
+                        <p className="text-xs text-muted-foreground">Not in your contact list</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Avg. Call Duration</CardTitle>
+                        <BarChart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{Math.floor(summaryStats.avgDuration / 60)}m {summaryStats.avgDuration % 60}s</div>
+                        <p className="text-xs text-muted-foreground">Average across all recordings</p>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <RecordingsTable recordings={filteredRecordings} />
+        </div>
+    );
 }
 
 function HomePageContent() {
@@ -52,7 +147,7 @@ function HomePageContent() {
 
   return (
     <Suspense fallback={<div>Loading Dashboard...</div>}>
-      <Dashboard />
+      <RecordingsDashboard />
     </Suspense>
   );
 }
