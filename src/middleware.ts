@@ -75,7 +75,11 @@ export async function middleware(request: NextRequest) {
 
 // Configure the middleware to run on all paths except for static files
 export const config = {
-  matcher: [
-    '/((?!_next/static|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+    // Instruct Next.js to run this middleware in the Node.js runtime.
+    // This is necessary because the Firebase Admin SDK uses Node.js APIs
+    // that are not available in the default Edge runtime.
+    runtime: 'nodejs',
+    matcher: [
+        '/((?!_next/static|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
 };

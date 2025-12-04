@@ -18,9 +18,7 @@ export function getFirebaseAdminApp(): App {
     }
 
     try {
-        adminApp = initializeApp({
-            credential: SERVICE_ACCOUNT,
-        });
+        adminApp = initializeApp();
     } catch(e) {
         console.error("Failed to initialize Firebase Admin SDK", e);
         // This is a critical error, rethrow it.
