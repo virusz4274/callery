@@ -69,9 +69,7 @@ export function DataSettings() {
     const error = searchParams.get('error');
 
     const cleanupUrl = () => {
-        startSyncTransition(() => {
-            router.replace('/settings', { scroll: false });
-        });
+        router.replace('/settings', { scroll: false });
     };
 
     if (error) {
@@ -84,6 +82,7 @@ export function DataSettings() {
       });
       cleanupUrl();
     } else if (code && state) {
+        cleanupUrl();
         startSyncTransition(async () => {
             toast({
                 title: 'Syncing Contacts...',
@@ -103,10 +102,9 @@ export function DataSettings() {
                 description: result.error,
                 });
             }
-            cleanupUrl();
         });
     }
-  }, [searchParams, router, toast]);
+  }, [searchParams, router, toast, startSyncTransition]);
 
   const handleIngest = () => {
     startIngestTransition(async () => {
