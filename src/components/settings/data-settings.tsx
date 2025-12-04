@@ -5,10 +5,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ingestFiles } from '@/app/actions/ingest-files';
@@ -33,6 +30,7 @@ import { GoogleConnectDialog } from './google-connect-dialog';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { syncGoogleContacts } from '@/app/actions/contacts';
+import { SettingsPage } from './settings-page';
 
 export function DataSettings() {
   const [isIngesting, startIngestTransition] = useTransition();
@@ -62,7 +60,6 @@ export function DataSettings() {
     }
   }, [userProfile]);
 
-  // Effect to handle the Google OAuth callback
   useEffect(() => {
     const code = searchParams.get('g_code');
     const state = searchParams.get('g_state');
@@ -180,29 +177,25 @@ export function DataSettings() {
   if (isProfileLoading) {
     return (
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-1/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-1/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full max-w-sm" />
-          </CardContent>
-          <CardFooter>
-            <Skeleton className="h-10 w-24" />
-          </CardFooter>
-        </Card>
+        <SettingsPage title="Data Sources" description="Manage where your call data comes from.">
+            <Card>
+              <CardContent className="space-y-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </CardContent>
+            </Card>
+        </SettingsPage>
+        <SettingsPage title="Storage Management" description="Manage your storage usage and data retention policies.">
+            <Card>
+              <CardContent className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full max-w-sm" />
+              </CardContent>
+              <CardFooter>
+                <Skeleton className="h-10 w-24" />
+              </CardFooter>
+            </Card>
+        </SettingsPage>
       </div>
     );
   }
@@ -210,154 +203,141 @@ export function DataSettings() {
   return (
     <>
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Sources</CardTitle>
-            <CardDescription>
-              Manage where your call data comes from. Connect your Google
-              account or manually upload recordings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label className="text-base">Sync Google Contacts</Label>
-                <p className="text-sm text-muted-foreground">
-                  Automatically match names to phone numbers from your Google
-                  Contacts.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={handleConnectGoogle}
-                disabled={isSyncing}
-              >
-                {isSyncing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <GoogleIcon className="mr-2 h-4 w-4" />
-                )}
-                Connect
-              </Button>
-            </div>
-            <div className="rounded-lg border p-4">
-              <div className="space-y-1">
-                <Label className="text-base">Manual Data Ingestion</Label>
-                <p className="text-sm text-muted-foreground pb-2">
-                  Place your recording files in the `/injest` directory and
-                  click the button below to process them.
-                </p>
-              </div>
-              <Button
-                onClick={handleIngest}
-                disabled={isIngesting}
-                variant="outline"
-              >
-                {isIngesting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  'Process New Recordings'
-                )}
-              </Button>
-              {isIngesting && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Please wait, this may take a moment...
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        {showAutoTranscribe && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Processing</CardTitle>
-              <CardDescription>
-                Manage how your recordings are transcribed and analyzed.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label
-                    htmlFor="auto-transcribe"
-                    className="text-base"
+        <SettingsPage title="Data Sources" description="Manage where your call data comes from. Connect your Google account or manually upload recordings.">
+            <Card>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Sync Google Contacts</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically match names to phone numbers from your Google
+                      Contacts.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleConnectGoogle}
+                    disabled={isSyncing}
                   >
-                    Auto-Transcribe New Recordings
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically generate a transcript when a new recording is
-                    ingested. This may incur costs.
-                  </p>
+                    {isSyncing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <GoogleIcon className="mr-2 h-4 w-4" />
+                    )}
+                    Connect
+                  </Button>
                 </div>
-                <Switch
-                  id="auto-transcribe"
-                  disabled
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button disabled>Save Settings</Button>
-            </CardFooter>
-          </Card>
+                <div className="rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <Label className="text-base">Manual Data Ingestion</Label>
+                    <p className="text-sm text-muted-foreground pb-2">
+                      Place your recording files in the `/injest` directory and
+                      click the button below to process them.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleIngest}
+                    disabled={isIngesting}
+                    variant="outline"
+                  >
+                    {isIngesting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Process New Recordings'
+                    )}
+                  </Button>
+                  {isIngesting && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Please wait, this may take a moment...
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+        </SettingsPage>
+        {showAutoTranscribe && (
+            <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
+              <Card>
+                <CardContent>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="auto-transcribe"
+                        className="text-base"
+                      >
+                        Auto-Transcribe New Recordings
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically generate a transcript when a new recording is
+                        ingested. This may incur costs.
+                      </p>
+                    </div>
+                    <Switch
+                      id="auto-transcribe"
+                      disabled
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button disabled>Save Settings</Button>
+                </CardFooter>
+              </Card>
+            </SettingsPage>
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Management</CardTitle>
-            <CardDescription>
-              Manage your storage usage and data retention policies.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Storage Usage</Label>
-              <p className="text-sm text-muted-foreground pb-2">
-                You are currently using{' '}
-                {userProfile?.storageUsed?.toFixed(2) || 0} GB of{' '}
-                {userProfile?.storageAllocation || 0} GB.
-              </p>
-              <Progress
-                value={storagePercentage}
-                className="w-full"
-              />
-            </div>
-            <div className="grid w-full max-w-sm items-center gap-1.5 pt-2">
-              <Label htmlFor="deletion-policy">
-                Automatic Deletion Policy
-              </Label>
-              <p className="text-sm text-muted-foreground pb-1">
-                Automatically delete old recordings to manage storage space.
-              </p>
-              <Select
-                value={deletionPolicy}
-                onValueChange={setDeletionPolicy}
-              >
-                <SelectTrigger id="deletion-policy">
-                  <SelectValue placeholder="Select a policy" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="never">Never</SelectItem>
-                  <SelectItem value="3m">3 Months</SelectItem>
-                  <SelectItem value="6m">6 Months</SelectItem>
-                  <SelectItem value="1y">1 Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              onClick={handleSavePolicy}
-              disabled={isSavingPolicy}
-            >
-              {isSavingPolicy && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save Policy
-            </Button>
-          </CardFooter>
-        </Card>
+        <SettingsPage title="Storage Management" description="Manage your storage usage and data retention policies.">
+            <Card>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Storage Usage</Label>
+                  <p className="text-sm text-muted-foreground pb-2">
+                    You are currently using{' '}
+                    {userProfile?.storageUsed?.toFixed(2) || 0} GB of{' '}
+                    {userProfile?.storageAllocation || 0} GB.
+                  </p>
+                  <Progress
+                    value={storagePercentage}
+                    className="w-full"
+                  />
+                </div>
+                <div className="grid w-full max-w-sm items-center gap-1.5 pt-2">
+                  <Label htmlFor="deletion-policy">
+                    Automatic Deletion Policy
+                  </Label>
+                  <p className="text-sm text-muted-foreground pb-1">
+                    Automatically delete old recordings to manage storage space.
+                  </p>
+                  <Select
+                    value={deletionPolicy}
+                    onValueChange={setDeletionPolicy}
+                  >
+                    <SelectTrigger id="deletion-policy">
+                      <SelectValue placeholder="Select a policy" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="never">Never</SelectItem>
+                      <SelectItem value="3m">3 Months</SelectItem>
+                      <SelectItem value="6m">6 Months</SelectItem>
+                      <SelectItem value="1y">1 Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  onClick={handleSavePolicy}
+                  disabled={isSavingPolicy}
+                >
+                  {isSavingPolicy && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Save Policy
+                </Button>
+              </CardFooter>
+            </Card>
+        </SettingsPage>
       </div>
       {showConnectDialog && (
         <GoogleConnectDialog
