@@ -12,7 +12,7 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, linkWithCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -99,6 +99,11 @@ export function LoginPage() {
     const provider = new GoogleAuthProvider();
     
     try {
+      // Ensure any previous session (like anonymous) is cleared.
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+
       const result = await signInWithPopup(auth, provider);
       const wasProfileCreated = await ensureUserProfile(firestore, result.user);
       
@@ -115,25 +120,7 @@ export function LoginPage() {
       }
       router.push('/');
     } catch (error: any) {
-      if (error.code === 'auth/account-exists-with-different-credential' && auth.currentUser) {
-          const credential = GoogleAuthProvider.credentialFromError(error);
-          if (credential) {
-              try {
-                  await linkWithCredential(auth.currentUser, credential);
-                  toast({
-                      title: "Account Linked",
-                      description: "Your Google account has been successfully linked.",
-                  });
-                   router.push('/');
-              } catch (linkError: any) {
-                   toast({
-                      variant: "destructive",
-                      title: "Account Linking Failed",
-                      description: linkError.message || "Could not link Google account.",
-                  });
-              }
-          }
-      } else if (error.code !== 'auth/popup-closed-by-user') {
+      if (error.code !== 'auth/popup-closed-by-user') {
           toast({
               variant: "destructive",
               title: "Google Sign-In Failed",
