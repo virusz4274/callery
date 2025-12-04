@@ -1,8 +1,7 @@
 
-
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -18,29 +17,45 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { Skeleton } from '../ui/skeleton';
 
-type ContactsPageProps = {
-  allContacts: Contact[];
-  allRecordings: CallRecording[];
-};
-
-export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) {
+export function ContactsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
-    if (rec.contactName) {
-      const key = rec.contactName;
-      if (!acc[key]) {
-        acc[key] = 0;
+  const contactsQuery = useMemoFirebase(() => 
+    user ? query(collection(firestore, 'users', user.uid, 'contacts')) : null, 
+    [user, firestore]
+  );
+  const recordingsQuery = useMemoFirebase(() => 
+    user ? query(collection(firestore, 'users', user.uid, 'recordings')) : null, 
+    [user, firestore]
+  );
+
+  const { data: allContacts, isLoading: isLoadingContacts } = useCollection<Contact>(contactsQuery);
+  const { data: allRecordings, isLoading: isLoadingRecordings } = useCollection<CallRecording>(recordingsQuery);
+
+  const recordingsByContact = useMemo(() => {
+    if (!allRecordings) return {};
+    return allRecordings.reduce((acc, rec) => {
+      if (rec.contactName) {
+        const key = rec.contactName;
+        if (!acc[key]) {
+          acc[key] = 0;
+        }
+        acc[key]++;
       }
-      acc[key]++;
-    }
-    return acc;
-  }, {} as Record<string, number>), [allRecordings]);
+      return acc;
+    }, {} as Record<string, number>);
+  }, [allRecordings]);
 
   const sortedAndFilteredContacts = useMemo(() => {
+    if (!allContacts) return [];
     const searchLower = searchQuery.toLowerCase();
     return allContacts
       .filter(contact => 
@@ -73,6 +88,8 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
   const handleContactClick = (contactName: string) => {
     router.push(`/?filterType=contact&filterValue=${encodeURIComponent(contactName)}`);
   }
+  
+  const isLoading = isLoadingContacts || isLoadingRecordings;
 
   return (
     <div className="relative">
@@ -80,17 +97,38 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
         <CardHeader>
           <CardTitle className="mb-2">Contacts</CardTitle>
            <div className="text-sm text-muted-foreground">
-            Showing {sortedAndFilteredContacts.length} of {allContacts.length} contacts.
+            {isLoading ? (
+              <Skeleton className="h-4 w-48" />
+            ) : (
+              `Showing ${sortedAndFilteredContacts.length} of ${allContacts?.length || 0} contacts.`
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
           <div className="flex flex-col pr-8">
-            {Object.keys(groupedContacts).length > 0 ? (
+            {isLoading ? (
+                <div className="space-y-4 p-4">
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                        </div>
+                    </div>
+                </div>
+            ) : Object.keys(groupedContacts).length > 0 ? (
                 Object.entries(groupedContacts).map(([letter, contacts]) => (
                 <div key={letter} id={`letter-group-${letter}`} className="pt-4">
                   <h3 className="text-lg font-semibold px-4 pb-2">{letter}</h3>
                   {contacts.map((contact, index) => {
-                    const avatar = PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length];
+                    const avatar = allContacts ? PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length] : undefined;
                     return (
                       <React.Fragment key={contact.phoneNumber}>
                         <div 
@@ -138,7 +176,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
               ))
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>No contacts found matching your search.</p>
+                    <p>{searchQuery ? "No contacts found matching your search." : "You don't have any contacts yet."}</p>
                 </div>
             )}
           </div>
@@ -148,7 +186,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
                 key={letter}
                 onClick={() => handleLetterClick(letter)}
                 className="p-1 text-muted-foreground hover:text-foreground font-medium disabled:opacity-50"
-                disabled={!groupedContacts[letter]}
+                disabled={isLoading || !groupedContacts[letter]}
               >
                 {letter}
               </button>
