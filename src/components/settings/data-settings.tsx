@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
@@ -67,6 +68,12 @@ export function DataSettings() {
     const state = searchParams.get('g_state');
     const error = searchParams.get('error');
 
+    const cleanupUrl = () => {
+        startSyncTransition(() => {
+            router.replace('/settings', { scroll: false });
+        });
+    };
+
     if (error) {
       toast({
         variant: 'destructive',
@@ -75,31 +82,29 @@ export function DataSettings() {
           error.replace(/\+/g, ' ') ||
           'Could not sync with your Google account.',
       });
-      // Clean up URL
-      router.replace('/settings');
+      cleanupUrl();
     } else if (code && state) {
-      startSyncTransition(async () => {
-        toast({
-          title: 'Syncing Contacts...',
-          description:
-            'Please wait while we fetch your Google contacts. This may take a moment.',
+        startSyncTransition(async () => {
+            toast({
+                title: 'Syncing Contacts...',
+                description:
+                'Please wait while we fetch your Google contacts. This may take a moment.',
+            });
+            const result = await syncGoogleContacts(code, state);
+            if (result.success) {
+                toast({
+                title: 'Sync Successful',
+                description: `${result.count} contacts were found and synced.`,
+                });
+            } else {
+                toast({
+                variant: 'destructive',
+                title: 'Sync Failed',
+                description: result.error,
+                });
+            }
+            cleanupUrl();
         });
-        const result = await syncGoogleContacts(code, state);
-        if (result.success) {
-          toast({
-            title: 'Sync Successful',
-            description: `${result.count} contacts were found and synced.`,
-          });
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Sync Failed',
-            description: result.error,
-          });
-        }
-        // Clean up URL
-        router.replace('/settings');
-      });
     }
   }, [searchParams, router, toast]);
 
