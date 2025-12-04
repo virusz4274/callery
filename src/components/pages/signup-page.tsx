@@ -11,7 +11,7 @@ import { GoogleIcon } from '@/components/icons/google-icon';
 import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { Separator } from '../ui/separator';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, useFirebaseApp } from '@/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider, User, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -63,6 +63,7 @@ export function SignupPage() {
   
   const auth = useAuth();
   const firestore = useFirestore();
+  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -107,6 +108,10 @@ export function SignupPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+        prompt: 'select_account'
+    });
+    auth.tenantId = firebaseApp.options.authDomain || null;
     
     try {
       // Ensure any previous session (like anonymous) is cleared.
