@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const oAuth2Client = getOAuth2Client();
+    // Re-initialize the client with the same redirect URI used for the auth request
+    const redirectUri = `${new URL(request.url).origin}/api/auth/google/callback`;
+    const oAuth2Client = getOAuth2Client(redirectUri);
+    
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
