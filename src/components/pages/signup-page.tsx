@@ -77,7 +77,6 @@ export function SignupPage() {
     provider.setCustomParameters({
         prompt: 'select_account'
     });
-    auth.tenantId = firebaseApp.options.authDomain || null;
     
     try {
       // Ensure any previous session (like anonymous) is cleared.
