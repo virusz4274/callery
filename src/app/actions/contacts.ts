@@ -3,6 +3,27 @@
 import { getGoogleContacts } from '@/services/google/contacts';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { revalidatePath } from 'next/cache';
+import { saveContactsToFirestore } from './save-contacts';
+import { headers } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirebaseAdminApp } from '@/firebase/admin';
+
+async function getUserIdFromSessionCookie() {
+    try {
+        const sessionCookie = headers().get('x-session-cookie');
+        if (!sessionCookie) {
+            console.error('Session cookie not found in headers.');
+            return null;
+        }
+        const adminApp = getFirebaseAdminApp();
+        const decodedIdToken = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
+        return decodedIdToken.uid;
+    } catch (error) {
+        console.error('Error verifying session cookie in server action:', error);
+        return null;
+    }
+}
+
 
 export async function syncGoogleContacts(code: string, state: string) {
   try {
@@ -10,13 +31,14 @@ export async function syncGoogleContacts(code: string, state: string) {
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
-    // For this example, we'll just log the contacts.
-    // In a real app, you would save these to your database.
     const contacts = await getGoogleContacts(oAuth2Client);
-    console.log('Fetched contacts:', contacts.length);
-
-    // Here you would typically save the contacts to Firestore
-    // e.g., saveContactsToFirestore(userId, contacts);
+    
+    const userId = await getUserIdFromSessionCookie();
+    if (!userId) {
+        return { success: false, error: 'User authentication failed. Could not save contacts.' };
+    }
+    
+    await saveContactsToFirestore(userId, contacts);
 
     revalidatePath('/contacts');
     revalidatePath('/settings');
