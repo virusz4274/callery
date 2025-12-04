@@ -9,9 +9,12 @@ import { DataSettings } from './settings/data-settings';
 import { NotificationsSettings } from './settings/notifications-settings';
 import { BillingSettings } from './settings/billing-settings';
 import { ClientOnly } from './client-only';
+import { useSearchParams } from 'next/navigation';
 
 export function SettingsPage() {
     const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
+    const searchParams = useSearchParams();
+    const tab = searchParams.get('tab') || 'profile';
 
     return (
         <div className="space-y-6">
@@ -20,7 +23,7 @@ export function SettingsPage() {
                 <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
             </div>
             <ClientOnly>
-                <Tabs defaultValue="profile" className="w-full">
+                <Tabs defaultValue={tab} className="w-full">
                     <TabsList className="h-auto flex-wrap justify-start">
                         <TabsTrigger value="profile">Profile</TabsTrigger>
                         <TabsTrigger value="general">General</TabsTrigger>
@@ -43,7 +46,7 @@ export function SettingsPage() {
                     {showBilling && (
                         <TabsContent value="billing">
                            <BillingSettings />
-                        </TabsContent>
+                        </ENsContent>
                     )}
                 </Tabs>
             </ClientOnly>
