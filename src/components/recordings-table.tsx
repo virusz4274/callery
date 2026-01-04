@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useTransition } from 'react';
-import type { CallRecording } from '@/lib/types';
+import type { CallRecording, Contact } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -31,20 +31,23 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MoreHorizontal, Play, Download, Trash2, FileText, Loader2 } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingDetailsDialog } from './recording-details-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { deleteRecordings } from '@/app/actions/delete-recordings';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import Image from 'next/image';
 
 type RecordingsTableProps = {
   recordings: CallRecording[];
+  contacts: Contact[];
 };
 
 const ITEMS_PER_PAGE = 10;
 
-export function RecordingsTable({ recordings }: RecordingsTableProps) {
+export function RecordingsTable({ recordings, contacts }: RecordingsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [activeRecording, setActiveRecording] = useState<CallRecording | null>(null);
@@ -158,7 +161,12 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
             </TableHeader>
             <TableBody>
               {paginatedRecordings.length > 0 ? (
-                paginatedRecordings.map((rec) => (
+                paginatedRecordings.map((rec) => {
+                  const contact = contacts.find(c => c.name === rec.contactName);
+                  const contactIndex = contact ? contacts.indexOf(contact) : -1;
+                  const avatar = contactIndex !== -1 ? PlaceHolderImages[contactIndex % PlaceHolderImages.length] : undefined;
+
+                  return (
                   <TableRow key={rec.id} data-state={selectedRows.has(rec.id) ? 'selected' : ''}>
                     <TableCell>
                       <Checkbox 
@@ -170,6 +178,7 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
+                          {avatar && <Image src={avatar.imageUrl} alt={rec.contactName || 'Avatar'} width={40} height={40} className="rounded-full object-cover" data-ai-hint={avatar.imageHint} />}
                           <AvatarFallback>{rec.contactName ? rec.contactName.charAt(0) : '#'}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -203,7 +212,7 @@ export function RecordingsTable({ recordings }: RecordingsTableProps) {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">

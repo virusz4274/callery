@@ -3,22 +3,34 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { recordings, contacts } from '@/lib/data/data';
-import { LandingPage } from '@/components/pages/landing-page';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CallRecording, Contact } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecordingsTable } from '@/components/recordings-table';
 import { Users, Phone, Clock, BarChart } from 'lucide-react';
-import { format, subMonths } from 'date-fns';
+import { subMonths } from 'date-fns';
+import { LandingPage } from '@/components/pages/landing-page';
 
 
 function RecordingsDashboard() {
     const searchParams = useSearchParams();
-    const allRecordings = recordings;
-    const allContacts = contacts;
+    const { user } = useUser();
+    const firestore = useFirestore();
 
+    const contactsQuery = useMemoFirebase(() => 
+        user ? query(collection(firestore, 'users', user.uid, 'contacts')) : null, 
+        [user, firestore]
+    );
+    const recordingsQuery = useMemoFirebase(() => 
+        user ? query(collection(firestore, 'users', user.uid, 'recordings')) : null, 
+        [user, firestore]
+    );
+
+    const { data: allContacts, isLoading: isLoadingContacts } = useCollection<Contact>(contactsQuery);
+    const { data: allRecordings, isLoading: isLoadingRecordings } = useCollection<CallRecording>(recordingsQuery);
+    
     const filter = React.useMemo(() => ({
         type: searchParams.get('filterType'),
         value: searchParams.get('filterValue'),
@@ -27,6 +39,7 @@ function RecordingsDashboard() {
     const searchQuery = searchParams.get('q') || '';
 
     const filteredRecordings = React.useMemo(() => {
+        if (!allRecordings) return [];
         return allRecordings.filter(rec => {
             const searchLower = searchQuery.toLowerCase();
             const matchesSearch = searchQuery === '' ||
@@ -57,6 +70,9 @@ function RecordingsDashboard() {
     }, [allRecordings, searchQuery, filter]);
 
     const summaryStats = React.useMemo(() => {
+        if (!allRecordings || !allContacts) {
+            return { totalRecordings: 0, newThisMonth: 0, unknownCallers: 0, avgDuration: 0 };
+        }
         const now = new Date();
         const oneMonthAgo = subMonths(now, 1);
         const knownNumbers = new Set(allContacts.map(c => c.phoneNumber));
@@ -73,6 +89,22 @@ function RecordingsDashboard() {
             avgDuration: totalRecordings > 0 ? Math.round(totalDuration / totalRecordings) : 0,
         };
     }, [allRecordings, allContacts]);
+
+    const isLoading = isLoadingContacts || isLoadingRecordings;
+    
+    if (isLoading) {
+        return (
+            <div className="space-y-8">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                    <Skeleton className="h-24" />
+                </div>
+                <Skeleton className="h-96" />
+            </div>
+        );
+    }
     
     return (
         <div className="space-y-8">
@@ -119,7 +151,7 @@ function RecordingsDashboard() {
                 </Card>
             </div>
             
-            <RecordingsTable recordings={filteredRecordings} />
+            <RecordingsTable recordings={filteredRecordings} contacts={allContacts || []} />
         </div>
     );
 }
