@@ -2,37 +2,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useUser } from '@/firebase';
+import type { User } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { sendEmailVerification } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertCircle } from 'lucide-react';
 
-export function EmailVerificationAlert() {
-  const { user } = useUser();
-  const [isSending, setIsSending] = useState(false);
-  const { toast } = useToast();
+type EmailVerificationAlertProps = {
+  user: User | null;
+  onResend: () => Promise<void>;
+};
 
-  const handleResendVerification = async () => {
-    if (!user) return;
-    
+export function EmailVerificationAlert({ user, onResend }: EmailVerificationAlertProps) {
+  const [isSending, setIsSending] = useState(false);
+
+  const handleResend = async () => {
     setIsSending(true);
-    try {
-      await sendEmailVerification(user);
-      toast({
-        title: 'Verification Email Sent',
-        description: 'Please check your inbox for the verification link.',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error Sending Email',
-        description: error.message || 'Failed to send verification email. Please try again.',
-      });
-    } finally {
-      setIsSending(false);
-    }
+    await onResend();
+    setIsSending(false);
   };
   
   const isEmailPasswordProvider = user?.providerData.some(
@@ -53,7 +39,7 @@ export function EmailVerificationAlert() {
         <span>
           Your account is not verified. Please check your inbox for a verification link.
         </span>
-        <Button onClick={handleResendVerification} disabled={isSending} size="sm" variant="secondary" className="mt-2 sm:mt-0">
+        <Button onClick={handleResend} disabled={isSending} size="sm" variant="secondary" className="mt-2 sm:mt-0">
           {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Resend Verification Email
         </Button>
