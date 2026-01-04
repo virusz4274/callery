@@ -20,20 +20,19 @@ import { Input } from './ui/input';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './theme-switcher';
-import { useUser, useAuth, useUserProfile } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
+import type { User } from 'firebase/auth';
+import type { Contact } from '@/lib/types';
+
 
 type AppHeaderProps = {
+  user: User | null;
+  userProfile: Contact | null;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onLogout: () => void;
 };
 
-export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
-  const { user } = useUser();
-  const { userProfile } = useUserProfile(user);
-  const auth = useAuth();
-  const { toast } = useToast();
+export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLogout }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -59,23 +58,6 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
     router.push('/settings');
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out.",
-      });
-      router.push('/');
-    } catch (error) {
-      console.error("Error signing out: ", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-      });
-    }
-  };
 
   const getSearchPlaceholder = () => {
     if (pathname === '/contacts') {
@@ -177,7 +159,7 @@ export function AppHeader({ searchQuery, onSearchChange }: AppHeaderProps) {
                 <DropdownMenuItem onSelect={handleSettingsClick}>Settings</DropdownMenuItem>
                 <DropdownMenuItem>Support</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem onSelect={onLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Logout</span>
                 </DropdownMenuItem>
