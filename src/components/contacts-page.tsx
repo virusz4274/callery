@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import type { Contact, CallRecording } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -28,18 +28,22 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
 
-  const recordingsByContact = useMemo(() => allRecordings.reduce((acc, rec) => {
-    if (rec.contactName) {
-      const key = rec.contactName;
-      if (!acc[key]) {
-        acc[key] = 0;
+  const recordingsByContact = useMemo(() => {
+    if (!allRecordings) return {};
+    return allRecordings.reduce((acc, rec) => {
+      if (rec.contactName) {
+        const key = rec.contactName;
+        if (!acc[key]) {
+          acc[key] = 0;
+        }
+        acc[key]++;
       }
-      acc[key]++;
-    }
-    return acc;
-  }, {} as Record<string, number>), [allRecordings]);
+      return acc;
+    }, {} as Record<string, number>);
+  }, [allRecordings]);
 
   const sortedAndFilteredContacts = useMemo(() => {
+    if (!allContacts) return [];
     const searchLower = searchQuery.toLowerCase();
     return allContacts
       .filter(contact => 
@@ -72,14 +76,14 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
   const handleContactClick = (contactName: string) => {
     router.push(`/?filterType=contact&filterValue=${encodeURIComponent(contactName)}`);
   }
-
+  
   return (
     <div className="relative">
       <Card>
         <CardHeader>
           <CardTitle className="mb-2">Contacts</CardTitle>
            <div className="text-sm text-muted-foreground">
-            Showing {sortedAndFilteredContacts.length} of {allContacts.length} contacts.
+            Showing {sortedAndFilteredContacts.length} of {allContacts?.length || 0} contacts.
           </div>
         </CardHeader>
         <CardContent className="p-0 relative">
@@ -89,7 +93,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
                 <div key={letter} id={`letter-group-${letter}`} className="pt-4">
                   <h3 className="text-lg font-semibold px-4 pb-2">{letter}</h3>
                   {contacts.map((contact, index) => {
-                    const avatar = PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length];
+                    const avatar = allContacts ? PlaceHolderImages[allContacts.findIndex(c => c.phoneNumber === contact.phoneNumber) % PlaceHolderImages.length] : undefined;
                     return (
                       <React.Fragment key={contact.phoneNumber}>
                         <div 
@@ -137,7 +141,7 @@ export function ContactsPage({ allContacts, allRecordings }: ContactsPageProps) 
               ))
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>No contacts found matching your search.</p>
+                    <p>{searchQuery ? "No contacts found matching your search." : "You don't have any contacts yet."}</p>
                 </div>
             )}
           </div>
