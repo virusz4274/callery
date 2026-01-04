@@ -1,125 +1,121 @@
-"use client";
 
-import React, { useState, useMemo } from 'react';
-import type { FileSystemNode } from '@/lib/types';
+"use client"
+
+import React from 'react';
+import { subMonths } from 'date-fns';
+import type { CallRecording, Contact } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Folder, FileText, ChevronRight } from 'lucide-react';
-import { ClientFormattedDate } from './client-formatted-date';
+import { RecordingsTable } from '@/components/recordings-table';
+import { Users, Phone, Clock, BarChart } from 'lucide-react';
+import { Skeleton } from './ui/skeleton';
 
-type FileBrowserPageProps = {
-  rootNode: FileSystemNode;
+type RecordingsDashboardProps = {
+    allRecordings: CallRecording[];
+    allContacts: Contact[];
+    filter: { type: string | null; value: string | null };
+    searchQuery: string;
 };
 
-export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
-  const [path, setPath] = useState<string[]>([]);
+export function RecordingsDashboard({ allRecordings, allContacts, filter, searchQuery }: RecordingsDashboardProps) {
 
-  const { currentNode, breadcrumbItems } = useMemo(() => {
-    let currentNode: FileSystemNode = rootNode;
-    const breadcrumbItems = [{ name: 'Home', newPath: [] }];
+    const filteredRecordings = React.useMemo(() => {
+        if (!allRecordings) return [];
+        return allRecordings.filter(rec => {
+            const searchLower = searchQuery.toLowerCase();
+            const matchesSearch = searchQuery === '' ||
+                rec.contactName?.toLowerCase().includes(searchLower) ||
+                rec.phoneNumber.includes(searchLower) ||
+                rec.transcriptSnippet.toLowerCase().includes(searchLower);
 
-    path.forEach((segment, index) => {
-      const nextNode = currentNode.children?.find(child => child.name === segment);
-      if (nextNode) {
-        currentNode = nextNode;
-        breadcrumbItems.push({ name: segment, newPath: path.slice(0, index + 1) });
-      }
-    });
+            if (!filter.type || !filter.value) {
+                return matchesSearch;
+            }
+            
+            let matchesFilter = false;
+            if (filter.type === 'contact') {
+                if (filter.value === 'Unknown') {
+                    matchesFilter = !rec.contactName;
+                } else {
+                    matchesFilter = rec.contactName === filter.value;
+                }
+            } else if (filter.type === 'date') {
+                const recDate = new Date(rec.date);
+                const [filterMonth, filterYear] = filter.value?.split(' ') || [];
+                matchesFilter = recDate.toLocaleString('default', { month: 'long' }) === filterMonth &&
+                                recDate.getFullYear().toString() === filterYear;
+            }
 
-    return { currentNode, breadcrumbItems };
-  }, [rootNode, path]);
+            return matchesSearch && matchesFilter;
+        });
+    }, [allRecordings, searchQuery, filter]);
 
-  const handleNodeClick = (node: FileSystemNode) => {
-    if (node.type === 'folder') {
-      setPath([...path, node.name]);
-    }
-  };
-  
-  const handleBreadcrumbClick = (newPath: string[]) => {
-    setPath(newPath);
-  }
-
-  const items = useMemo(() => {
-    return currentNode.children?.sort((a, b) => {
-        if (a.type === 'folder' && b.type !== 'folder') return -1;
-        if (a.type !== 'folder' && b.type === 'folder') return 1;
-        return a.name.localeCompare(b.name);
-    }) || [];
-  }, [currentNode]);
-
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>File Browser</CardTitle>
-        <div className="text-sm text-muted-foreground pt-2">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    {breadcrumbItems.map((item, index) => (
-                        <React.Fragment key={index}>
-                           <BreadcrumbItem>
-                                <BreadcrumbLink 
-                                    onClick={() => handleBreadcrumbClick(item.newPath)}
-                                    className="cursor-pointer"
-                                >
-                                    {item.name}
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                           {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
-                        </React.Fragment>
-                    ))}
-                </BreadcrumbList>
-            </Breadcrumb>
+    const summaryStats = React.useMemo(() => {
+        if (!allRecordings || !allContacts) {
+            return { totalRecordings: 0, newThisMonth: 0, unknownCallers: 0, avgDuration: 0 };
+        }
+        const now = new Date();
+        const oneMonthAgo = subMonths(now, 1);
+        const knownNumbers = new Set(allContacts.map(c => c.phoneNumber));
+        
+        const totalRecordings = allRecordings.length;
+        const newThisMonth = allRecordings.filter(r => new Date(r.date) > oneMonthAgo).length;
+        const unknownCallers = allRecordings.filter(r => !knownNumbers.has(r.phoneNumber)).length;
+        const totalDuration = allRecordings.reduce((acc, r) => acc + r.duration, 0);
+        
+        return {
+            totalRecordings,
+            newThisMonth,
+            unknownCallers,
+            avgDuration: totalRecordings > 0 ? Math.round(totalDuration / totalRecordings) : 0,
+        };
+    }, [allRecordings, allContacts]);
+    
+    return (
+        <div className="space-y-8">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Recordings</CardTitle>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.totalRecordings}</div>
+                        <p className="text-xs text-muted-foreground">Across all contacts and numbers</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">New This Month</CardTitle>
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">+{summaryStats.newThisMonth}</div>
+                        <p className="text-xs text-muted-foreground">In the last 30 days</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Unknown Callers</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.unknownCallers}</div>
+                        <p className="text-xs text-muted-foreground">Not in your contact list</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Avg. Call Duration</CardTitle>
+                        <BarChart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{Math.floor(summaryStats.avgDuration / 60)}m {summaryStats.avgDuration % 60}s</div>
+                        <p className="text-xs text-muted-foreground">Average across all recordings</p>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <RecordingsTable recordings={filteredRecordings} contacts={allContacts || []} />
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[400px]">Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead className="text-right">Last Modified</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length > 0 ? items.map(item => (
-                <TableRow 
-                    key={item.id}
-                    onClick={() => handleNodeClick(item)} 
-                    className={item.type === 'folder' ? 'cursor-pointer' : ''}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                        {item.type === 'folder' ? <Folder className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
-                        <span>{item.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="capitalize text-muted-foreground">{item.type}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.size || '—'}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    <ClientFormattedDate date={item.lastModified} formatString="PP" />
-                  </TableCell>
-                </TableRow>
-              )) : (
-                <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                        This folder is empty.
-                    </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
+    );
 }
