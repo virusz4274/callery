@@ -1,127 +1,38 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useUser, useUserProfile, useFirestore, useAuth } from '@/firebase';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { doc, updateDoc } from 'firebase/firestore';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { SettingsPage } from './settings-page';
+import type { UseFormReturn } from 'react-hook-form';
+import type { User } from 'firebase/auth';
 
-const profileFormSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-});
+interface ProfileSettingsProps {
+    user: User | null;
+    profileForm: UseFormReturn<any>;
+    passwordForm: UseFormReturn<any>;
+    onUpdateProfile: (values: any) => Promise<void>;
+    onChangePassword: (values: any) => Promise<void>;
+    isProfileSaving: boolean;
+    isPasswordSaving: boolean;
+}
 
-const passwordFormSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required for security.'),
-  newPassword: z.string().min(6, 'Password must be at least 6 characters long.'),
-  confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "New passwords don't match",
-  path: ['confirmPassword'],
-});
+export function ProfileSettings({
+    user,
+    profileForm,
+    passwordForm,
+    onUpdateProfile,
+    onChangePassword,
+    isProfileSaving,
+    isPasswordSaving,
+}: ProfileSettingsProps) {
 
-export function ProfileSettings() {
-    const { user } = useUser();
-    const { userProfile } = useUserProfile(user);
-    const firestore = useFirestore();
-    const auth = useAuth();
-    const { toast } = useToast();
-
-    const [isProfileSaving, setProfileSaving] = useState(false);
-    const [isPasswordSaving, setPasswordSaving] = useState(false);
-
-    const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-        resolver: zodResolver(profileFormSchema),
-        defaultValues: {
-            firstName: '',
-            lastName: '',
-        },
-    });
-
-    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
-        resolver: zodResolver(passwordFormSchema),
-        defaultValues: {
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: '',
-        }
-    });
-
-    useEffect(() => {
-        if (userProfile) {
-            profileForm.reset({
-                firstName: userProfile.firstName || '',
-                lastName: userProfile.lastName || '',
-            });
-        }
-    }, [userProfile, profileForm]);
-
-    const handleUpdateProfile = async (values: z.infer<typeof profileFormSchema>) => {
-        if (!user) return;
-        setProfileSaving(true);
-        try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, {
-                firstName: values.firstName,
-                lastName: values.lastName,
-            });
-            toast({
-                title: 'Profile Updated',
-                description: 'Your personal information has been saved.',
-            });
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Update Failed',
-                description: error.message,
-            });
-        } finally {
-            setProfileSaving(false);
-        }
-    };
-
-    const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
-        if (!user || !user.email) return;
-        setPasswordSaving(true);
-
-        try {
-            const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
-            await reauthenticateWithCredential(user, credential);
-            await updatePassword(user, values.newPassword);
-            
-            toast({
-                title: 'Password Changed Successfully',
-                description: 'You will be logged out for security. Please log in with your new password.',
-            });
-
-            setTimeout(() => auth.signOut(), 3000);
-
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Password Change Failed',
-                description: error.code === 'auth/wrong-password' 
-                    ? 'The current password you entered is incorrect.' 
-                    : error.message,
-            });
-        } finally {
-            setPasswordSaving(false);
-            passwordForm.reset();
-        }
-    };
-    
-    if (!user || !userProfile) {
+    if (!user) {
         return (
             <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/>
@@ -134,7 +45,7 @@ export function ProfileSettings() {
             <SettingsPage title="Profile" description="Update your personal information.">
                 <Card>
                      <Form {...profileForm}>
-                        <form onSubmit={profileForm.handleSubmit(handleUpdateProfile)}>
+                        <form onSubmit={profileForm.handleSubmit(onUpdateProfile)}>
                             <CardContent className="space-y-4">
                                  <div className="grid sm:grid-cols-2 gap-4">
                                     <FormField
@@ -184,7 +95,7 @@ export function ProfileSettings() {
                 <SettingsPage title="Password" description="Change your account password. You will be logged out after a successful change.">
                      <Card>
                         <Form {...passwordForm}>
-                            <form onSubmit={passwordForm.handleSubmit(handleChangePassword)}>
+                            <form onSubmit={passwordForm.handleSubmit(onChangePassword)}>
                                 <CardContent className="space-y-4">
                                      <FormField
                                         control={passwordForm.control}
