@@ -1,16 +1,12 @@
 
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useUser, useUserProfile, useFirestore } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Skeleton } from '../ui/skeleton';
 import { SettingsPage } from './settings-page';
 
 type NotificationSettingsState = {
@@ -19,62 +15,14 @@ type NotificationSettingsState = {
     ingestFail: boolean;
 };
 
-export function NotificationsSettings() {
-    const { user } = useUser();
-    const { userProfile, isProfileLoading } = useUserProfile(user);
-    const firestore = useFirestore();
-    const { toast } = useToast();
+interface NotificationsSettingsProps {
+    settings: NotificationSettingsState;
+    onSettingsChange: (newSettings: NotificationSettingsState) => void;
+    onSave: () => Promise<void>;
+    isSaving: boolean;
+}
 
-    const [settings, setSettings] = useState<NotificationSettingsState>({
-        activityDigest: 'weekly',
-        ingestSuccess: true,
-        ingestFail: true,
-    });
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        if (userProfile?.notificationSettings) {
-            setSettings(userProfile.notificationSettings);
-        }
-    }, [userProfile]);
-
-    const handleSave = async () => {
-        if (!user) return;
-        setIsSaving(true);
-        try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { notificationSettings: settings });
-            toast({
-                title: 'Notifications Saved',
-                description: 'Your notification preferences have been updated.',
-            });
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Save Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-    
-    if (isProfileLoading) {
-        return (
-            <SettingsPage title="Email Notifications" description="Choose which email notifications you want to receive.">
-                 <Card>
-                    <CardContent className="space-y-4">
-                        <Skeleton className="h-16 w-full" />
-                        <Skeleton className="h-16 w-full" />
-                    </CardContent>
-                    <CardFooter>
-                        <Skeleton className="h-10 w-24" />
-                    </CardFooter>
-                </Card>
-            </SettingsPage>
-        )
-    }
-
+export function NotificationsSettings({ settings, onSettingsChange, onSave, isSaving }: NotificationsSettingsProps) {
     return (
         <SettingsPage title="Email Notifications" description="Choose which email notifications you want to receive.">
             <Card>
@@ -84,7 +32,7 @@ export function NotificationsSettings() {
                         <p className="text-sm text-muted-foreground pb-2">Receive a summary of your call activity.</p>
                         <RadioGroup 
                             value={settings.activityDigest} 
-                            onValueChange={(value: 'off' | 'weekly' | 'monthly') => setSettings(s => ({...s, activityDigest: value}))}
+                            onValueChange={(value: 'off' | 'weekly' | 'monthly') => onSettingsChange({ ...settings, activityDigest: value })}
                             className="flex space-x-4"
                         >
                             <div className="flex items-center space-x-2">
@@ -111,7 +59,7 @@ export function NotificationsSettings() {
                         <Switch 
                             id="ingest-success" 
                             checked={settings.ingestSuccess}
-                            onCheckedChange={(checked) => setSettings(s => ({...s, ingestSuccess: checked}))}
+                            onCheckedChange={(checked) => onSettingsChange({ ...settings, ingestSuccess: checked })}
                         />
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -124,12 +72,12 @@ export function NotificationsSettings() {
                         <Switch 
                             id="ingest-fail" 
                             checked={settings.ingestFail}
-                            onCheckedChange={(checked) => setSettings(s => ({...s, ingestFail: checked}))}
+                            onCheckedChange={(checked) => onSettingsChange({ ...settings, ingestFail: checked })}
                         />
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSave} disabled={isSaving}>
+                    <Button onClick={onSave} disabled={isSaving}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Notifications
                     </Button>
