@@ -1,6 +1,7 @@
 
 export type CallRecording = {
   id: string;
+  contactId?: string;
   contactName: string | null;
   phoneNumber: string;
   date: string; // ISO string
