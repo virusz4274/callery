@@ -176,7 +176,7 @@ export default function Contacts() {
               ))
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>{searchQuery ? "No contacts found matching your search." : "You don\'t have any contacts yet."}</p>
+                    <p>{searchQuery ? "No contacts found matching your search." : "You don't have any contacts yet."}</p>
                 </div>
             )}
           </div>
