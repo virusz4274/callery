@@ -1,56 +1,55 @@
 
 'use client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/toast-provider';
+
+import { Tabs } from '@heroui/react';
+import { authFetch } from '@/lib/api-client';
 import { ProfileSettings } from './settings/profile-settings';
 import { GeneralSettings } from './settings/general-settings';
 import { DataSettings } from './settings/data-settings';
 import { NotificationsSettings } from './settings/notifications-settings';
 import { BillingSettings } from './settings/billing-settings';
 import { ClientOnly } from './client-only';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
-import { useUser, useUserProfile, useFirestore, useAuth } from '@/firebase';
+import { useUser, useAuth } from '@/lib/firebase/provider';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { Skeleton } from './ui/skeleton';
 import { ingestFiles } from '@/app/actions/ingest-files';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { syncGoogleContacts } from '@/app/actions/contacts';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { Skeleton } from '@heroui/react';
 
 const profileFormSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+    firstName: z.string().min(1, 'First name is required'),
+    lastName: z.string().min(1, 'Last name is required'),
 });
 
 const passwordFormSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required for security.'),
-  newPassword: z.string().min(6, 'Password must be at least 6 characters long.'),
-  confirmPassword: z.string(),
+    currentPassword: z.string().min(1, 'Current password is required for security.'),
+    newPassword: z.string().min(6, 'Password must be at least 6 characters long.'),
+    confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
-  message: "New passwords don't match",
-  path: ['confirmPassword'],
+    message: "New passwords don't match",
+    path: ['confirmPassword'],
 });
 
 export function SettingsPage() {
+    const { toast } = useToast();
     const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
     const searchParams = useSearchParams();
-    const router = useSearchParams();
-    const tab = searchParams.get('tab') || 'profile';
+    const defaultTab = searchParams.get('tab') || 'profile';
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
-    const firestore = useFirestore();
     const auth = useAuth();
-    const { toast } = useToast();
 
-    // State for all settings, centralized here
+    // State, Loading, Forms (Same as before)
     const [profileState, setProfileState] = useState({ firstName: '', lastName: '' });
     const [generalState, setGeneralState] = useState({ timezone: '' });
     const [notificationsState, setNotificationsState] = useState({
@@ -60,7 +59,6 @@ export function SettingsPage() {
     });
     const [dataState, setDataState] = useState({ deletionPolicy: 'never' });
 
-    // Loading states
     const [isSavingProfile, setSavingProfile] = useState(false);
     const [isSavingPassword, setSavingPassword] = useState(false);
     const [isSavingGeneral, setSavingGeneral] = useState(false);
@@ -72,7 +70,6 @@ export function SettingsPage() {
     const [showConnectDialog, setShowConnectDialog] = useState(false);
     const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
 
-    // Forms
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: { firstName: '', lastName: '' },
@@ -82,58 +79,116 @@ export function SettingsPage() {
         defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' }
     });
 
+    // Effects (Same as before)
+    const lastProfileRef = React.useRef('');
+
+    // Dirty Start Tracking
+    const generalDirtyRef = React.useRef(false);
+    const notificationsDirtyRef = React.useRef(false);
+    const dataDirtyRef = React.useRef(false);
+
+    // Effects
+
+
     useEffect(() => {
         if (userProfile) {
+            // Check if profile actually changed to avoid overwriting user input on re-renders
+            const profileHash = JSON.stringify({
+                firstName: userProfile.firstName,
+                lastName: userProfile.lastName,
+                timezone: userProfile.timezone,
+                notifications: userProfile.notificationSettings,
+                storage: userProfile.storageSettings
+            });
+
+            if (profileHash === lastProfileRef.current) {
+                return;
+            }
+            lastProfileRef.current = profileHash;
+
             setProfileState({
                 firstName: userProfile.firstName || '',
                 lastName: userProfile.lastName || '',
             });
-            profileForm.reset({
-                firstName: userProfile.firstName || '',
-                lastName: userProfile.lastName || '',
-            });
-            setGeneralState({ timezone: userProfile.timezone || '' });
-            setNotificationsState(userProfile.notificationSettings || notificationsState);
-            setDataState({ deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never' });
+
+            // Only reset form if we have fresh data differing from what we last saw AND user hasn't started typing
+            if (!profileForm.formState.isDirty) {
+                profileForm.reset({
+                    firstName: userProfile.firstName || '',
+                    lastName: userProfile.lastName || '',
+                });
+            }
+
+            // Only update if not dirty
+            if (!generalDirtyRef.current) {
+                setGeneralState({ timezone: userProfile.timezone || '' });
+            }
+
+            if (userProfile.notificationSettings && !notificationsDirtyRef.current) {
+                setNotificationsState(userProfile.notificationSettings);
+            }
+
+            if (!dataDirtyRef.current) {
+                setDataState({ deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never' });
+            }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userProfile, profileForm]);
-    
-     useEffect(() => {
+    }, [userProfile, profileForm]); // Removed specific refs dependencies as they are refs
+
+    const router = useRouter();
+    const processedCodeRef = React.useRef<string | null>(null);
+
+    useEffect(() => {
         const code = searchParams.get('g_code');
         const state = searchParams.get('g_state');
         const error = searchParams.get('error');
 
         if (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Google Sync Failed',
-                description: error.replace(/\+/g, ' ') || 'Could not sync with your Google account.',
-            });
+            toast({ title: 'Google Sync Failed', description: error.replace(/\+/g, ' ') || 'Could not sync with your Google account.', status: 'danger' });
+            // Clean up error params
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('error');
+            router.replace(`/settings?${newParams.toString()}`);
         } else if (code && state && !isSyncing) {
+            // Prevent double-execution for the same code
+            if (processedCodeRef.current === code) return;
+            processedCodeRef.current = code;
+
             startSyncTransition(async () => {
-                toast({ title: 'Syncing Contacts...', description: 'Please wait while we fetch your Google contacts.' });
                 const result = await syncGoogleContacts(code, state);
                 if (result.success) {
-                    toast({ title: 'Sync Successful', description: `${result.count} contacts were found and synced.` });
+                    toast({ title: 'Sync Successful', description: `${result.count} contacts were found and synced.`, status: 'success' });
                 } else {
-                    toast({ variant: 'destructive', title: 'Sync Failed', description: result.error });
+                    toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
                 }
+
+                // Clean up URL parameters to prevent re-execution on refresh
+                const newParams = new URLSearchParams(searchParams.toString());
+                newParams.delete('g_code');
+                newParams.delete('g_state');
+                router.replace(`/settings?${newParams.toString()}`);
             });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams, toast, isSyncing]);
+    }, [searchParams, isSyncing, router, toast]);
 
+    // ... (imports)
 
+    // ... (inside component)
+
+    // Handlers
     const handleUpdateProfile = async (values: z.infer<typeof profileFormSchema>) => {
         if (!user) return;
         setSavingProfile(true);
         try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { firstName: values.firstName, lastName: values.lastName });
-            toast({ title: 'Profile Updated', description: 'Your personal information has been saved.' });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+            const response = await authFetch('/api/user/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName: values.firstName, lastName: values.lastName }),
+            });
+            if (!response.ok) throw new Error('Failed to update profile');
+            toast({ title: 'Profile Updated', status: 'success' });
+            // Profile form handles its own dirty state via react-hook-form
+        } catch (error: unknown) {
+            toast({ title: 'Update Failed', description: error instanceof Error ? error.message : 'Unknown error', status: 'danger' });
         } finally {
             setSavingProfile(false);
         }
@@ -146,10 +201,12 @@ export function SettingsPage() {
             const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
             await reauthenticateWithCredential(user, credential);
             await updatePassword(user, values.newPassword);
-            toast({ title: 'Password Changed Successfully', description: 'You will be logged out for security. Please log in with your new password.' });
+            toast({ title: 'Password Changed', description: 'Please log in again.', status: 'success' });
             setTimeout(() => auth.signOut(), 3000);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Password Change Failed', description: error.code === 'auth/wrong-password' ? 'The current password you entered is incorrect.' : error.message });
+        } catch (error: unknown) {
+            const firebaseError = error as { code?: string; message?: string };
+            const msg = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
+            toast({ title: 'Password Change Failed', description: msg, status: 'danger' });
         } finally {
             setSavingPassword(false);
             passwordForm.reset();
@@ -160,158 +217,200 @@ export function SettingsPage() {
         if (!user || !generalState.timezone) return;
         setSavingGeneral(true);
         try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { timezone: generalState.timezone });
-            toast({ title: 'Preferences Saved', description: 'Your localization settings have been updated.' });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-        } finally {
-            setSavingGeneral(false);
-        }
+            await authFetch('/api/user/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timezone: generalState.timezone }),
+            });
+            toast({ title: 'Preferences Saved', status: 'success' });
+            generalDirtyRef.current = false;
+        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingGeneral(false); }
     };
 
     const handleSaveNotifications = async () => {
-        if (!user) return;
         setSavingNotifications(true);
         try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { notificationSettings: notificationsState });
-            toast({ title: 'Notifications Saved', description: 'Your notification preferences have been updated.' });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-        } finally {
-            setSavingNotifications(false);
-        }
+            await authFetch('/api/user/profile', { method: 'PATCH', body: JSON.stringify({ notificationSettings: notificationsState }) });
+            toast({ title: 'Notifications Saved', status: 'success' });
+            notificationsDirtyRef.current = false;
+        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingNotifications(false); }
     };
-    
+
     const handleSaveData = async () => {
-        if (!user) return;
         setSavingData(true);
         try {
-            const userRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userRef, { 'storageSettings.deletionPolicy': dataState.deletionPolicy });
-            toast({ title: 'Policy Saved', description: 'Your data retention policy has been updated.' });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-        } finally {
-            setSavingData(false);
-        }
+            await authFetch('/api/user/profile', { method: 'PATCH', body: JSON.stringify({ storageSettings: { deletionPolicy: dataState.deletionPolicy } }) });
+            toast({ title: 'Policy Saved', status: 'success' });
+            dataDirtyRef.current = false;
+        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingData(false); }
     };
 
     const handleIngest = () => {
         startIngestTransition(async () => {
             const result = await ingestFiles();
             if (result.error) {
-                toast({ variant: 'destructive', title: 'Ingestion Error', description: result.error });
-            } else if (result.processedCount > 0) {
-                toast({ title: 'Ingestion Complete', description: `${result.processedCount} new recordings have been processed.` });
+                toast({ title: 'Ingest Error', description: result.error, status: 'danger' });
             } else {
-                toast({ title: 'No New Files', description: "The 'injest' directory is empty." });
+                toast({ title: 'Ingest Complete', description: `Ingested ${result.processedCount} files.`, status: 'success' });
             }
         });
     };
 
-    const redirectToGoogleAuth = async () => {
-        const { url } = await getGoogleAuthUrl();
-        window.location.href = url;
-    };
-
-    const handleConnectGoogle = () => {
-        if (hasConsented) {
-            redirectToGoogleAuth();
-        } else {
-            setShowConnectDialog(true);
-        }
-    };
-    
-    const onDialogConfirm = () => {
-        setHasConsented(true);
-        setShowConnectDialog(false);
-        redirectToGoogleAuth();
-    };
+    // Google Auth helpers
+    const redirectToGoogleAuth = async () => { const { url } = await getGoogleAuthUrl(); window.location.href = url; };
+    const handleConnectGoogle = () => { hasConsented ? redirectToGoogleAuth() : setShowConnectDialog(true); };
+    const onDialogConfirm = () => { setHasConsented(true); setShowConnectDialog(false); redirectToGoogleAuth(); };
 
     const isLoading = isUserLoading || isProfileLoading;
 
+    const tabs = [
+        { id: 'profile', label: 'Profile', icon: '👤' },
+        { id: 'general', label: 'General', icon: '⚙️' },
+        { id: 'data', label: 'Data', icon: '💾' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' },
+        ...(showBilling ? [{ id: 'billing', label: 'Billing', icon: '💳' }] : []),
+    ];
+
+    const [activeTab, setActiveTab] = useState(defaultTab);
+
+    // Sync active tab with URL if needed, or just initialize. 
+    // For now, we prefer internal state to avoid excessive URL updates or simple syncing.
+    useEffect(() => {
+        if (defaultTab && tabs.some(t => t.id === defaultTab)) {
+            setActiveTab(defaultTab);
+        }
+    }, [defaultTab]);
+
+
+
+
     if (isLoading) {
         return (
-             <div className="space-y-6">
-                <div>
+            <div className="w-full p-6 space-y-6">
+                <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                    <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
+                    <p className="text-default-500">Manage your account preferences and application settings.</p>
                 </div>
-                 <div className="space-y-4">
-                    <Skeleton className="h-10 w-full max-w-lg" />
-                    <Skeleton className="h-64 w-full" />
+                <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="w-full lg:w-64 space-y-2">
+                        {[1, 2, 3, 4].map((i) => (
+                            <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                        ))}
+                    </div>
+                    <div className="flex-1">
+                        <Skeleton className="h-[500px] w-full rounded-2xl" />
+                    </div>
                 </div>
-             </div>
+            </div>
         )
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground">Manage your account, data, and application preferences.</p>
+        <div className="w-full h-full min-h-screen p-6 relative">
+            {/* Background Elements */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+                <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl opacity-40 animate-pulse" />
+                <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-secondary/5 blur-3xl opacity-40" />
             </div>
-            <ClientOnly>
-                <Tabs defaultValue={tab} className="w-full">
-                    <TabsList className="h-auto flex-wrap justify-start">
-                        <TabsTrigger value="profile">Profile</TabsTrigger>
-                        <TabsTrigger value="general">General</TabsTrigger>
-                        <TabsTrigger value="data">Data</TabsTrigger>
-                        <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                        {showBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
-                    </TabsList>
-                    <TabsContent value="profile">
-                        <ProfileSettings 
-                            user={user}
-                            profileForm={profileForm}
-                            passwordForm={passwordForm}
-                            onUpdateProfile={handleUpdateProfile}
-                            onChangePassword={handleChangePassword}
-                            isProfileSaving={isSavingProfile}
-                            isPasswordSaving={isSavingPassword}
-                        />
-                    </TabsContent>
-                    <TabsContent value="general">
-                        <GeneralSettings
-                           settings={generalState}
-                           onSettingsChange={setGeneralState}
-                           onSave={handleSaveGeneral}
-                           isSaving={isSavingGeneral}
-                        />
-                    </TabsContent>
-                    <TabsContent value="data">
-                        <DataSettings 
-                           userProfile={userProfile}
-                           settings={dataState}
-                           onSettingsChange={setDataState}
-                           onSave={handleSaveData}
-                           isSaving={isSavingData}
-                           onIngest={handleIngest}
-                           isIngesting={isIngesting}
-                           onConnectGoogle={handleConnectGoogle}
-                           isSyncing={isSyncing}
-                           showConnectDialog={showConnectDialog}
-                           onDialogConfirm={onDialogConfirm}
-                           onOpenChangeDialog={setShowConnectDialog}
-                        />
-                    </TabsContent>
-                    <TabsContent value="notifications">
-                        <NotificationsSettings 
-                            settings={notificationsState}
-                            onSettingsChange={setNotificationsState}
-                            onSave={handleSaveNotifications}
-                            isSaving={isSavingNotifications}
-                        />
-                    </TabsContent>
-                    {showBilling && (
-                        <TabsContent value="billing">
-                           <BillingSettings />
-                        </TabsContent>
-                    )}
-                </Tabs>
-            </ClientOnly>
+
+            <div className="max-w-[1600px] mx-auto space-y-8">
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                        Settings
+                    </h1>
+                    <p className="text-default-500 text-lg">Manage your account, data, and application preferences.</p>
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+                    {/* Sidebar Navigation */}
+                    <aside className="w-full lg:w-72 flex-shrink-0">
+                        <div className="sticky top-6 flex flex-col gap-2 p-2 rounded-2xl bg-card/30 backdrop-blur-md border border-default-200/50">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left group ${activeTab === tab.id
+                                        ? 'bg-primary/10 text-primary font-medium shadow-sm'
+                                        : 'text-default-500 hover:text-foreground hover:bg-default-100'
+                                        }`}
+                                >
+                                    <span className="text-xl group-hover:scale-110 transition-transform">{tab.icon}</span>
+                                    <span>{tab.label}</span>
+                                    {activeTab === tab.id && (
+                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 w-full min-w-0">
+                        <div className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl rounded-3xl p-6 lg:p-8 min-h-[600px] transition-all duration-300">
+                            <ClientOnly>
+                                <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
+                                    <ProfileSettings
+                                        user={user!}
+                                        profileForm={profileForm}
+                                        passwordForm={passwordForm}
+                                        onUpdateProfile={handleUpdateProfile}
+                                        onChangePassword={handleChangePassword}
+                                        isProfileSaving={isSavingProfile}
+                                        isPasswordSaving={isSavingPassword}
+                                    />
+                                </div>
+                                <div className={activeTab === 'general' ? 'block' : 'hidden'}>
+                                    <GeneralSettings
+                                        settings={generalState}
+                                        onSettingsChange={(newSettings) => {
+                                            generalDirtyRef.current = true;
+                                            setGeneralState(newSettings);
+                                        }}
+                                        onSave={handleSaveGeneral}
+                                        isSaving={isSavingGeneral}
+                                    />
+                                </div>
+                                <div className={activeTab === 'data' ? 'block' : 'hidden'}>
+                                    <DataSettings
+                                        userProfile={userProfile}
+                                        settings={dataState}
+                                        onSettingsChange={(newSettings) => {
+                                            dataDirtyRef.current = true;
+                                            setDataState(newSettings);
+                                        }}
+                                        onSave={handleSaveData}
+                                        isSaving={isSavingData}
+                                        onIngest={handleIngest}
+                                        isIngesting={isIngesting}
+                                        onConnectGoogle={handleConnectGoogle}
+                                        isSyncing={isSyncing}
+                                        showConnectDialog={showConnectDialog}
+                                        onDialogConfirm={onDialogConfirm}
+                                        onOpenChangeDialog={setShowConnectDialog}
+                                    />
+                                </div>
+                                <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
+                                    <NotificationsSettings
+                                        settings={notificationsState}
+                                        onSettingsChange={(newSettings) => {
+                                            notificationsDirtyRef.current = true;
+                                            setNotificationsState(newSettings);
+                                        }}
+                                        onSave={handleSaveNotifications}
+                                        isSaving={isSavingNotifications}
+                                    />
+                                </div>
+                                {showBilling && (
+                                    <div className={activeTab === 'billing' ? 'block' : 'hidden'}>
+                                        <BillingSettings invoices={[]} isLoading={false} />
+                                    </div>
+                                )}
+                            </ClientOnly>
+                        </div>
+                    </main>
+                </div>
+            </div>
         </div>
     );
 }
+

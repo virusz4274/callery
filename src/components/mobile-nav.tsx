@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Users, LayoutDashboard, Folder, Upload, Settings, CreditCard, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useUser, useUserProfile } from "@/firebase"
+import { useUser } from "@/lib/firebase/provider";
+import { useUserProfile } from "@/hooks/firebase/use-user-profile";
 
 export function MobileNav() {
   const pathname = usePathname()
@@ -18,16 +19,16 @@ export function MobileNav() {
     { href: "/upload", name: "Upload", icon: Upload },
     { href: "/settings", name: "Settings", icon: Settings },
   ]
-  
+
   if (userProfile?.role === 'admin') {
     loggedInNavItems.splice(2, 0, { href: "/admin", name: "Admin", icon: Shield });
   }
 
   const loggedOutNavItems = [
-      { href: "/", name: "Home", icon: LayoutDashboard },
-      { href: "/#features", name: "Features", icon: Users },
-      { href: "/#pricing", name: "Pricing", icon: CreditCard },
-      { href: "/login", name: "Login", icon: Settings },
+    { href: "/", name: "Home", icon: LayoutDashboard },
+    { href: "/#features", name: "Features", icon: Users },
+    { href: "/#pricing", name: "Pricing", icon: CreditCard },
+    { href: "/login", name: "Login", icon: Settings },
   ];
 
   const navItems = user ? loggedInNavItems : loggedOutNavItems.slice(0, 5);

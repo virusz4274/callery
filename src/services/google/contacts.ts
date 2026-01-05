@@ -2,15 +2,26 @@ import { people } from '@googleapis/people';
 import type { OAuth2Client } from 'google-auth-library';
 
 export async function getGoogleContacts(auth: OAuth2Client) {
+  // @ts-ignore
   const peopleService = people({ version: 'v1', auth });
 
-  const { data } = await peopleService.people.connections.list({
-    resourceName: 'people/me',
-    personFields: 'names,emailAddresses,phoneNumbers',
-    pageSize: 500, // Adjust as needed
-  });
+  let connections: any[] = [];
+  let nextPageToken: string | undefined = undefined;
 
-  const connections = data.connections || [];
+  do {
+    const { data } = await peopleService.people.connections.list({
+      resourceName: 'people/me',
+      personFields: 'names,emailAddresses,phoneNumbers,organizations',
+      pageSize: 1000,
+      pageToken: nextPageToken,
+    });
+
+    if (data.connections) {
+      connections = connections.concat(data.connections);
+    }
+    nextPageToken = data.nextPageToken || undefined;
+  } while (nextPageToken);
+
   if (connections.length === 0) {
     return [];
   }
@@ -18,18 +29,30 @@ export async function getGoogleContacts(auth: OAuth2Client) {
   const contacts = connections
     .map((person) => {
       const name = person.names?.[0]?.displayName;
-      const phoneNumber = person.phoneNumbers?.[0]?.value;
+      const phoneNumbers = person.phoneNumbers?.map(p => p.value).filter(Boolean) as string[];
 
-      if (name && phoneNumber) {
+      if (name && phoneNumbers && phoneNumbers.length > 0) {
+        const organization = person.organizations?.[0];
+
         return {
+          googleContactId: person.resourceName,
           name,
-          phoneNumber,
+          phoneNumbers,
           email: person.emailAddresses?.[0]?.value || null,
+          jobTitle: organization?.title || undefined,
+          company: organization?.name || undefined,
         };
       }
       return null;
     })
     .filter(Boolean); // Filter out null entries
 
-  return contacts as { name: string; phoneNumber: string; email: string | null }[];
+  return contacts as {
+    googleContactId?: string;
+    name: string;
+    phoneNumbers: string[];
+    email: string | null;
+    jobTitle?: string;
+    company?: string;
+  }[];
 }

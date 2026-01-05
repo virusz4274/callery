@@ -1,45 +1,52 @@
 
 'use client';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { GoogleIcon } from "../icons/google-icon";
+import React from 'react';
+import { Modal, Button, Link } from '@heroui/react';
 
-type GoogleConnectDialogProps = {
+interface GoogleConnectDialogProps {
     onOpenChange: (open: boolean) => void;
     onConfirm: () => void;
 }
 
 export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDialogProps) {
     return (
-        <AlertDialog open={true} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <div className="flex justify-center mb-4">
-                        <GoogleIcon className="h-12 w-12" />
-                    </div>
-                    <AlertDialogTitle className="text-center">Connect to Google Contacts</AlertDialogTitle>
-                    <AlertDialogDescription className="text-center">
-                        To automatically match names to your call recordings, Call Memo needs permission to view your Google Contacts.
-                        <br/><br/>
-                        This app will request <span className="font-semibold text-foreground">read-only access</span>. We will never edit or delete your contacts.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="sm:justify-center">
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onConfirm}>
-                        Continue to Google
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    )
+        <Modal isOpen onOpenChange={onOpenChange}>
+            <Modal.Backdrop className="bg-background/20 backdrop-blur-md">
+                <Modal.Container>
+                    <Modal.Dialog className="bg-card/70 backdrop-blur-xl border border-default-200 shadow-2xl">
+                        <Modal.CloseTrigger />
+                        <Modal.Header>
+                            <Modal.Heading>Connect Google Account</Modal.Heading>
+                        </Modal.Header>
+                        <Modal.Body>
+                            <div className="space-y-4">
+                                <p className="text-default-500">
+                                    Connecting your Google account allows CallMemo to sync your contacts and better identify callers.
+                                </p>
+                                <div className="rounded-lg bg-default-100 p-4 text-sm text-default-600">
+                                    <p className="mb-2 font-medium">We will only access:</p>
+                                    <ul className="list-disc pl-4 space-y-1">
+                                        <li>Contact names and phone numbers</li>
+                                        <li>Primary email addresses</li>
+                                    </ul>
+                                </div>
+                                <p className="text-xs text-default-400">
+                                    By clicking continue, you agree to our{' '}
+                                    <Link href="/privacy" className="underline text-small">Privacy Policy</Link>
+                                    {' '}regarding contact data usage.
+                                </p>
+                            </div>
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button variant="ghost" onPress={() => onOpenChange(false)}>Cancel</Button>
+                            <Button variant="primary" onPress={onConfirm}>
+                                Continue to Google
+                            </Button>
+                        </Modal.Footer>
+                    </Modal.Dialog>
+                </Modal.Container>
+            </Modal.Backdrop>
+        </Modal>
+    );
 }

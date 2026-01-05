@@ -1,30 +1,95 @@
 
 'use client';
 
-import React from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useMemo } from 'react';
+import { useUser } from '@/lib/firebase/provider';
+import { useRecordings } from '@/hooks/use-recordings';
+import { useContacts } from '@/hooks/use-contacts';
+import { Skeleton } from '@heroui/react';
 import type { CallRecording, Contact } from '@/lib/types';
 import { ContactsPage } from '@/components/contacts-page';
 
+/**
+ * Transform API response to match existing types.
+ */
+function toCallRecording(recording: {
+  id: string;
+  contactName: string | null;
+  phoneNumber: string;
+  recordedAt: string;
+  duration: number;
+  r2Key: string;
+  transcriptSnippet: string;
+  playbackUrl?: string;
+}): CallRecording {
+  return {
+    id: recording.id,
+    contactName: recording.contactName,
+    phoneNumber: recording.phoneNumber,
+    date: recording.recordedAt,
+    duration: recording.duration,
+    filePath: recording.playbackUrl || recording.r2Key,
+    transcriptSnippet: recording.transcriptSnippet,
+  };
+}
+
+function toContact(contact: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  phoneNumber?: string;
+  phoneNumbers: string[];
+  jobTitle?: string;
+  company?: string;
+  googleContactId?: string;
+  createdAt: string;
+  totalRecordings: number;
+  lastRecordingAt: string | null;
+}): Contact {
+  return {
+    id: contact.id,
+    email: contact.email,
+    firstName: contact.firstName,
+    lastName: contact.lastName,
+    name: contact.name,
+    phoneNumber: contact.phoneNumber,
+    phoneNumbers: contact.phoneNumbers,
+    jobTitle: contact.jobTitle,
+    company: contact.company,
+    googleContactId: contact.googleContactId,
+    createdAt: contact.createdAt,
+    role: 'user',
+    plan: 'Free',
+    timezone: '',
+    notificationSettings: {
+      activityDigest: 'weekly',
+      ingestSuccess: true,
+      ingestFail: true,
+    },
+    storageSettings: {
+      deletionPolicy: 'never',
+    },
+    storageUsed: 0,
+    storageAllocation: 0,
+    transcriptionUsed: 0,
+    transcriptionAllocation: 0,
+    totalRecordings: contact.totalRecordings,
+    lastRecordingAt: contact.lastRecordingAt,
+  };
+}
+
 function ContactsContainer() {
   const { user } = useUser();
-  const firestore = useFirestore();
 
-  const contactsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'contacts')) : null),
-    [user, firestore]
-  );
-  const recordingsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'recordings')) : null),
-    [user, firestore]
-  );
+  const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore } = useContacts();
 
-  const { data: allContacts, isLoading: isLoadingContacts } = useCollection<Contact>(contactsQuery);
-  const { data: allRecordings, isLoading: isLoadingRecordings } = useCollection<CallRecording>(recordingsQuery);
+  const allContacts = useMemo(() => {
+    return contactsData?.map(toContact) || [];
+  }, [contactsData]);
 
-  const isLoading = isLoadingContacts || isLoadingRecordings;
+  const isLoading = isLoadingContacts;
 
   if (isLoading) {
     return (
@@ -47,9 +112,9 @@ function ContactsContainer() {
     );
   }
 
-  return <ContactsPage allContacts={allContacts || []} allRecordings={allRecordings || []} />;
+  return <ContactsPage allContacts={allContacts} loadMore={loadMore} hasMore={hasMore} />;
 }
 
 export default function Contacts() {
-    return <ContactsContainer />
+  return <ContactsContainer />
 }

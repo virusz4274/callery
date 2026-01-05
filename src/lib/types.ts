@@ -17,7 +17,11 @@ export type Contact = {
   firstName: string;
   lastName: string;
   name: string; // Keep for compatibility where name is used as combination
-  phoneNumber: string;
+  phoneNumbers?: string[];
+  phoneNumber?: string;
+  jobTitle?: string;
+  company?: string;
+  googleContactId?: string;
   createdAt: any;
   role: 'user' | 'admin';
   plan: 'Free' | 'Pro';
@@ -34,6 +38,8 @@ export type Contact = {
   storageAllocation: number;
   transcriptionUsed: number;
   transcriptionAllocation: number;
+  totalRecordings: number;
+  lastRecordingAt: string | null;
 };
 
 export type FileSystemNode = {
@@ -46,8 +52,8 @@ export type FileSystemNode = {
 };
 
 export type Invoice = {
-    id: string;
-    date: string; // ISO string
-    amount: number;
-    status: 'Paid' | 'Pending' | 'Failed';
+  id: string;
+  date: string; // ISO string
+  amount: number;
+  status: 'Paid' | 'Pending' | 'Failed';
 };
