@@ -4,10 +4,10 @@
 import { getGoogleContacts } from '@/services/google/contacts';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { revalidatePath } from 'next/cache';
-import { saveContactsToFirestore } from './save-contacts';
-import { headers } from 'next/headers';
+import { saveContactsToMongoDB } from './save-contacts';
+import { headers, cookies } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/firebase/admin';
+import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 
 /**
  * Securely gets the user ID from the session cookie passed in the headers.
@@ -15,22 +15,25 @@ import { getFirebaseAdminApp } from '@/firebase/admin';
  * @returns The user's UID or null if the cookie is invalid or not present.
  */
 async function getUserIdFromSessionCookie() {
-    try {
-        const sessionCookie = headers().get('x-session-cookie');
-        if (!sessionCookie) {
-            console.error('Session cookie not found in headers.');
-            return null;
-        }
-        // Initialize admin app (safe to call multiple times)
-        const adminApp = getFirebaseAdminApp();
-        // Verify the cookie and get the user's decoded token
-        const decodedIdToken = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
-        return decodedIdToken.uid;
-    } catch (error) {
-        // This will catch invalid/expired cookies
-        console.error('Error verifying session cookie in server action:', error);
-        return null;
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session');
+
+    if (!sessionCookie || !sessionCookie.value) {
+      console.error('Session cookie not found.');
+      return null;
     }
+
+    // Initialize admin app (safe to call multiple times)
+    const adminApp = getFirebaseAdminApp();
+    // Verify the cookie and get the user's decoded token
+    const decodedIdToken = await getAuth(adminApp).verifySessionCookie(sessionCookie.value, true);
+    return decodedIdToken.uid;
+  } catch (error) {
+    // This will catch invalid/expired cookies
+    console.error('Error verifying session cookie in server action:', error);
+    return null;
+  }
 }
 
 
@@ -41,14 +44,14 @@ export async function syncGoogleContacts(code: string, state: string) {
     oAuth2Client.setCredentials(tokens);
 
     const contacts = await getGoogleContacts(oAuth2Client);
-    
+
     // Get the user ID securely on the server
     const userId = await getUserIdFromSessionCookie();
     if (!userId) {
-        return { success: false, error: 'User authentication failed. Could not save contacts.' };
+      return { success: false, error: 'User authentication failed. Could not save contacts.' };
     }
-    
-    await saveContactsToFirestore(userId, contacts);
+
+    await saveContactsToMongoDB(userId, contacts);
 
     // Revalidate paths to show new data
     revalidatePath('/contacts');

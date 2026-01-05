@@ -2,10 +2,102 @@
 import type { CallRecording, Contact } from '../types';
 
 export const contacts: Contact[] = [
-  { name: 'Alice Johnson', phoneNumber: '+1-202-555-0182', plan: 'Pro', storageUsed: 4.2, transcriptionUsed: 125, storageAllocation: 5, transcriptionAllocation: 500 },
-  { name: 'Bob Williams', phoneNumber: '+1-202-555-0191', plan: 'Pro', storageUsed: 8.1, transcriptionUsed: 450, storageAllocation: 10, transcriptionAllocation: 500 },
-  { name: 'Charlie Brown', phoneNumber: '+1-202-555-0143', plan: 'Free', storageUsed: 0.05, transcriptionUsed: 10, storageAllocation: 0.1, transcriptionAllocation: 15 },
-  { name: 'Diana Miller', phoneNumber: '+1-202-555-0167', plan: 'Free', storageUsed: 0.09, transcriptionUsed: 2, storageAllocation: 0.1, transcriptionAllocation: 15 },
+  {
+    id: 'user_1',
+    email: 'alice@example.com',
+    firstName: 'Alice',
+    lastName: 'Johnson',
+    name: 'Alice Johnson',
+    phoneNumber: '+1-202-555-0182',
+    plan: 'Pro',
+    storageUsed: 4.2,
+    transcriptionUsed: 125,
+    storageAllocation: 5,
+    transcriptionAllocation: 500,
+    createdAt: new Date().toISOString(),
+    role: 'user',
+    timezone: 'America/New_York',
+    notificationSettings: {
+      activityDigest: 'weekly',
+      ingestSuccess: true,
+      ingestFail: true
+    },
+    storageSettings: {
+      deletionPolicy: '1y'
+    }
+  },
+  {
+    id: 'user_2',
+    email: 'bob@example.com',
+    firstName: 'Bob',
+    lastName: 'Williams',
+    name: 'Bob Williams',
+    phoneNumber: '+1-202-555-0191',
+    plan: 'Pro',
+    storageUsed: 8.1,
+    transcriptionUsed: 450,
+    storageAllocation: 10,
+    transcriptionAllocation: 500,
+    createdAt: new Date().toISOString(),
+    role: 'user',
+    timezone: 'America/Chicago',
+    notificationSettings: {
+      activityDigest: 'weekly',
+      ingestSuccess: true,
+      ingestFail: true
+    },
+    storageSettings: {
+      deletionPolicy: 'never'
+    }
+  },
+  {
+    id: 'user_3',
+    email: 'charlie@example.com',
+    firstName: 'Charlie',
+    lastName: 'Brown',
+    name: 'Charlie Brown',
+    phoneNumber: '+1-202-555-0143',
+    plan: 'Free',
+    storageUsed: 0.05,
+    transcriptionUsed: 10,
+    storageAllocation: 0.1,
+    transcriptionAllocation: 15,
+    createdAt: new Date().toISOString(),
+    role: 'user',
+    timezone: 'America/Los_Angeles',
+    notificationSettings: {
+      activityDigest: 'off',
+      ingestSuccess: false,
+      ingestFail: true
+    },
+    storageSettings: {
+      deletionPolicy: '3m'
+    }
+  },
+  {
+    id: 'user_4',
+    email: 'diana@example.com',
+    firstName: 'Diana',
+    lastName: 'Miller',
+    name: 'Diana Miller',
+    phoneNumber: '+1-202-555-0167',
+    plan: 'Free',
+    storageUsed: 0.09,
+    transcriptionUsed: 2,
+    storageAllocation: 0.1,
+    transcriptionAllocation: 15,
+    createdAt: new Date().toISOString(),
+    role: 'user',
+    timezone: 'America/Denver',
+    notificationSettings: {
+      activityDigest: 'monthly',
+      ingestSuccess: true,
+      ingestFail: false
+    },
+    storageSettings: {
+      deletionPolicy: '6m'
+    }
+  },
 ];
 
 const contactMap = new Map(contacts.map(c => [c.phoneNumber, c.name]));
@@ -19,7 +111,7 @@ const generateRecording = (id: number, daysAgo: number, phoneNumber: string, dur
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const dateStr = `${String(date.getFullYear()).slice(2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
   const timeStr = `${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
-  
+
   return {
     id: `rec_${id}`,
     contactName: contactName,

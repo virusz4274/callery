@@ -1,11 +1,11 @@
+
 'use client';
 
 import React, { Suspense } from 'react';
-import { useUser } from '@/firebase';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { useUser } from '@/lib/firebase/provider';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Spinner, Card } from '@heroui/react';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -17,7 +17,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     if (!isUserLoading && !user) {
       router.replace('/login');
     }
-    
+
     // If profile loading is finished and the user is not an admin, redirect home.
     if (!isProfileLoading && userProfile && userProfile.role !== 'admin') {
       router.replace('/');
@@ -28,9 +28,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        <span className="sr-only">Loading Admin Section...</span>
+      <div className="flex flex-col h-[calc(100vh-8rem)] items-center justify-center gap-4">
+        <Spinner size="lg" color="current" className="text-primary" />
+        <p className="text-default-500 font-medium">Loading Admin Section...</p>
       </div>
     );
   }
@@ -39,29 +39,29 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   if (user && userProfile?.role === 'admin') {
     return <>{children}</>;
   }
-  
+
   if (user && userProfile && userProfile.role !== 'admin') {
     // This state is handled by the useEffect redirect, but as a fallback,
     // we can return null or a message while redirecting.
-     return null;
+    return null;
   }
 
 
   // Fallback for edge cases, e.g., user is logged out after initial check
   // or profile exists but role is missing (should not happen with proper setup)
   return (
-     <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <Card className="w-full max-w-md">
-            <CardHeader>
-                <CardTitle className="text-center">Access Denied</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-center text-muted-foreground">
-                    You do not have permission to view this page. Redirecting...
-                </p>
-            </CardContent>
-        </Card>
-     </div>
+    <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+      <Card className="w-full max-w-md">
+        <Card.Header className="justify-center">
+          <h3 className="text-xl font-semibold text-center">Access Denied</h3>
+        </Card.Header>
+        <Card.Content>
+          <p className="text-center text-muted-foreground">
+            You do not have permission to view this page. Redirecting...
+          </p>
+        </Card.Content>
+      </Card>
+    </div>
   );
 }
 
@@ -69,7 +69,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense>
-        <AdminLayoutContent>{children}</AdminLayoutContent>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
     </Suspense>
   );
 }

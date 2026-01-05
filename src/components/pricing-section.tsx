@@ -1,6 +1,5 @@
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, Card, Separator } from "@heroui/react";
 import { Check } from "lucide-react";
 
 export function PricingSection() {
@@ -12,59 +11,62 @@ export function PricingSection() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Free</CardTitle>
-                        <CardDescription>For individuals just getting started.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <Card className="bg-card/70 backdrop-blur-xl border border-default-200">
+                    <Card.Header className="flex flex-col items-start gap-1 pb-2">
+                        <h3 className="text-xl font-bold">Free</h3>
+                        <p className="text-small text-default-500">For individuals just getting started.</p>
+                    </Card.Header>
+                    <Separator />
+                    <Card.Content className="gap-4">
                         <div className="text-4xl font-bold">$0<span className="text-xl font-normal text-muted-foreground">/mo</span></div>
                         <ul className="space-y-2">
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> 100 MB Storage</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Basic Transcription</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Community Support</li>
                         </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button variant="outline" className="w-full">Get Started</Button>
-                    </CardFooter>
+                    </Card.Content>
+                    <Card.Footer>
+                        <Button variant="secondary" className="w-full">Get Started</Button>
+                    </Card.Footer>
                 </Card>
-                <Card className="border-primary">
-                    <CardHeader>
-                        <CardTitle>Pro</CardTitle>
-                        <CardDescription>For professionals who need more power.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div className="text-4xl font-bold">$15<span className="text-xl font-normal text-muted-foreground">/mo</span></div>
-                         <ul className="space-y-2">
+                <Card className="bg-card/70 backdrop-blur-xl border-primary border-2 shadow-lg scale-105 z-10">
+                    <Card.Header className="flex flex-col items-start gap-1 pb-2">
+                        <h3 className="text-xl font-bold text-primary">Pro</h3>
+                        <p className="text-small text-default-500">For professionals who need more power.</p>
+                    </Card.Header>
+                    <Separator />
+                    <Card.Content className="gap-4">
+                        <div className="text-4xl font-bold">$15<span className="text-xl font-normal text-muted-foreground">/mo</span></div>
+                        <ul className="space-y-2">
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> 5 GB Storage</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Access to Advanced AI Transcription</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Priority Email Support</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Data Export</li>
                         </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button className="w-full">Upgrade to Pro</Button>
-                    </CardFooter>
+                    </Card.Content>
+                    <Card.Footer>
+                        <Button variant="primary" className="w-full shadow-lg">Upgrade to Pro</Button>
+                    </Card.Footer>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Enterprise</CardTitle>
-                        <CardDescription>For teams and businesses with custom needs.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div className="text-4xl font-bold">Custom</div>
-                         <ul className="space-y-2">
+                <Card className="bg-card/70 backdrop-blur-xl border border-default-200">
+                    <Card.Header className="flex flex-col items-start gap-1 pb-2">
+                        <h3 className="text-xl font-bold">Enterprise</h3>
+                        <p className="text-small text-default-500">For teams and businesses with custom needs.</p>
+                    </Card.Header>
+                    <Separator />
+                    <Card.Content className="gap-4">
+                        <div className="text-4xl font-bold">Custom</div>
+                        <ul className="space-y-2">
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Everything in Pro</li>
-                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Unlimited Storage</li>
+                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Unlimited Storage</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Team Collaboration</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Dedicated Account Manager</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Custom Integrations</li>
                         </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button variant="outline" className="w-full">Contact Sales</Button>
-                    </CardFooter>
+                    </Card.Content>
+                    <Card.Footer>
+                        <Button variant="secondary" className="w-full">Contact Sales</Button>
+                    </Card.Footer>
                 </Card>
             </div>
 
@@ -74,29 +76,29 @@ export function PricingSection() {
                     <p className="text-muted-foreground mt-1">Scale your features as you need them. Billed based on usage.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <Card>
-                        <CardHeader className="flex-row items-start justify-between">
+                    <Card className="bg-card/70 backdrop-blur-xl border border-default-200">
+                        <Card.Header className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div>
-                                <CardTitle>Advanced AI Transcription</CardTitle>
-                                <CardDescription>High-accuracy transcription powered by leading AI models.</CardDescription>
+                                <h4 className="text-lg font-bold">Advanced AI Transcription</h4>
+                                <p className="text-small text-default-500">High-accuracy transcription powered by leading AI models.</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-2xl font-bold">$0.05</p>
-                                <p className="text-sm text-muted-foreground">/ minute</p>
+                                <p className="text-small text-muted-foreground">/ minute</p>
                             </div>
-                        </CardHeader>
+                        </Card.Header>
                     </Card>
-                     <Card>
-                        <CardHeader className="flex-row items-start justify-between">
-                             <div>
-                                <CardTitle>Additional Storage</CardTitle>
-                                <CardDescription>Add more storage space to your plan as your library grows.</CardDescription>
+                    <Card className="bg-card/70 backdrop-blur-xl border border-default-200">
+                        <Card.Header className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <div>
+                                <h4 className="text-lg font-bold">Additional Storage</h4>
+                                <p className="text-small text-default-500">Add more storage space to your plan as your library grows.</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-2xl font-bold">$2</p>
-                                <p className="text-sm text-muted-foreground">/ GB / month</p>
+                                <p className="text-small text-muted-foreground">/ GB / month</p>
                             </div>
-                        </CardHeader>
+                        </Card.Header>
                     </Card>
                 </div>
             </div>

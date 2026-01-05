@@ -1,5 +1,4 @@
 
-import { getOAuth2Client } from '@/services/google/oauth';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**

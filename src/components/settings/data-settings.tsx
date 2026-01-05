@@ -2,14 +2,8 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Card, Button, Select, Switch, Spinner, Label, ListBox, Separator } from '@heroui/react';
 import { GoogleIcon } from '@/components/icons/google-icon';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
 import { GoogleConnectDialog } from './google-connect-dialog';
 import { SettingsPage } from './settings-page';
 import type { Contact } from '@/lib/types';
@@ -52,22 +46,22 @@ export function DataSettings({
         <>
             <div className="space-y-6">
                 <SettingsPage title="Data Sources" description="Manage where your call data comes from. Connect your Google account or manually upload recordings.">
-                    <Card>
-                        <CardContent className="space-y-4">
+                    <Card className="bg-card/70 border-default-200">
+                        <Card.Content className="space-y-4">
                             <div className="flex items-center justify-between rounded-lg border p-4">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Sync Google Contacts</Label>
-                                    <p className="text-sm text-muted-foreground">
+                                    <h4 className="text-base font-medium">Sync Google Contacts</h4>
+                                    <p className="text-sm text-default-500">
                                         Automatically match names to phone numbers from your Google Contacts.
                                     </p>
                                 </div>
                                 <Button
-                                    variant="outline"
-                                    onClick={onConnectGoogle}
-                                    disabled={isSyncing}
+                                    variant="secondary"
+                                    onPress={onConnectGoogle}
+                                    isDisabled={isSyncing}
                                 >
                                     {isSyncing ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <Spinner size="sm" />
                                     ) : (
                                         <GoogleIcon className="mr-2 h-4 w-4" />
                                     )}
@@ -75,94 +69,96 @@ export function DataSettings({
                                 </Button>
                             </div>
                             <div className="rounded-lg border p-4">
-                                <div className="space-y-1">
-                                    <Label className="text-base">Manual Data Ingestion</Label>
-                                    <p className="text-sm text-muted-foreground pb-2">
+                                <div className="space-y-1 mb-4">
+                                    <h4 className="text-base font-medium">Manual Data Ingestion</h4>
+                                    <p className="text-sm text-default-500">
                                         Place your recording files in the `/injest` directory and click the button below to process them.
                                     </p>
                                 </div>
                                 <Button
-                                    onClick={onIngest}
-                                    disabled={isIngesting}
-                                    variant="outline"
+                                    onPress={onIngest}
+                                    isDisabled={isIngesting}
+                                    variant="secondary"
                                 >
-                                    {isIngesting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Processing...
-                                        </>
-                                    ) : (
-                                        'Process New Recordings'
-                                    )}
+                                    {isIngesting && <Spinner size="sm" className='mr-2' />}
+                                    {isIngesting ? 'Processing...' : 'Process New Recordings'}
                                 </Button>
-                                {isIngesting && (
-                                    <p className="text-sm text-muted-foreground mt-2">
-                                        Please wait, this may take a moment...
-                                    </p>
-                                )}
                             </div>
-                        </CardContent>
+                        </Card.Content>
                     </Card>
                 </SettingsPage>
                 {showAutoTranscribe && (
                     <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
-                        <Card>
-                            <CardContent>
+                        <Card className="bg-card/70 border-default-200">
+                            <Card.Content>
                                 <div className="flex items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">
-                                        <Label htmlFor="auto-transcribe" className="text-base">
-                                            Auto-Transcribe New Recordings
-                                        </Label>
-                                        <p className="text-sm text-muted-foreground">
+                                        <h4 className="text-base font-medium">Auto-Transcribe New Recordings</h4>
+                                        <p className="text-sm text-default-500">
                                             Automatically generate a transcript when a new recording is ingested. This may incur costs.
                                         </p>
                                     </div>
-                                    <Switch id="auto-transcribe" disabled />
+                                    <Switch isDisabled aria-label="Auto-Transcribe">
+                                        <Switch.Control>
+                                            <Switch.Thumb />
+                                        </Switch.Control>
+                                    </Switch>
                                 </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button disabled>Save Settings</Button>
-                            </CardFooter>
+                            </Card.Content>
+                            <Card.Footer>
+                                <Button isDisabled>Save Settings</Button>
+                            </Card.Footer>
                         </Card>
                     </SettingsPage>
                 )}
                 <SettingsPage title="Storage Management" description="Manage your storage usage and data retention policies.">
-                    <Card>
-                        <CardContent className="space-y-4">
+                    <Card className="bg-card/70 border-default-200">
+                        <Card.Content className="space-y-6">
                             <div>
-                                <Label>Storage Usage</Label>
-                                <p className="text-sm text-muted-foreground pb-2">
-                                    You are currently using {userProfile?.storageUsed?.toFixed(2) || 0} GB of {userProfile?.storageAllocation || 0} GB.
+                                <h4 className="font-medium mb-2">Storage Usage</h4>
+                                <p className="text-sm text-default-500 mb-2">
+                                    You are currently using {((userProfile?.storageUsed || 0) / (1024 * 1024 * 1024)).toFixed(2)} GB of {((userProfile?.storageAllocation || 0) / (1024 * 1024 * 1024)).toFixed(0)} GB.
                                 </p>
-                                <Progress value={storagePercentage} className="w-full" />
+                                {/* Custom Progress Bar */}
+                                <div className="h-2 w-full bg-default-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full ${storagePercentage > 90 ? "bg-danger" : "bg-primary"}`}
+                                        style={{ width: `${Math.min(storagePercentage, 100)}%` }}
+                                    />
+                                </div>
                             </div>
-                            <div className="grid w-full max-w-sm items-center gap-1.5 pt-2">
-                                <Label htmlFor="deletion-policy">Automatic Deletion Policy</Label>
-                                <p className="text-sm text-muted-foreground pb-1">
-                                    Automatically delete old recordings to manage storage space.
-                                </p>
+                            <div className="w-full max-w-sm">
                                 <Select
-                                    value={settings.deletionPolicy}
-                                    onValueChange={(value) => onSettingsChange({ ...settings, deletionPolicy: value })}
+                                    placeholder="Select a policy"
+                                    selectedKey={settings.deletionPolicy}
+                                    onSelectionChange={(key) => {
+                                        if (key) {
+                                            onSettingsChange({ ...settings, deletionPolicy: key as string });
+                                        }
+                                    }}
                                 >
-                                    <SelectTrigger id="deletion-policy">
-                                        <SelectValue placeholder="Select a policy" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="never">Never</SelectItem>
-                                        <SelectItem value="3m">3 Months</SelectItem>
-                                        <SelectItem value="6m">6 Months</SelectItem>
-                                        <SelectItem value="1y">1 Year</SelectItem>
-                                    </SelectContent>
+                                    <Label>Automatic Deletion Policy</Label>
+                                    <Select.Trigger>
+                                        <Select.Value />
+                                        <Select.Indicator />
+                                    </Select.Trigger>
+                                    <Select.Popover>
+                                        <ListBox>
+                                            <ListBox.Item key="never" id="never" textValue="Never">Never</ListBox.Item>
+                                            <ListBox.Item key="3m" id="3m" textValue="3 Months">3 Months</ListBox.Item>
+                                            <ListBox.Item key="6m" id="6m" textValue="6 Months">6 Months</ListBox.Item>
+                                            <ListBox.Item key="1y" id="1y" textValue="1 Year">1 Year</ListBox.Item>
+                                        </ListBox>
+                                    </Select.Popover>
                                 </Select>
+                                <p className="text-xs text-default-500 mt-1">Automatically delete old recordings to manage storage space.</p>
                             </div>
-                        </CardContent>
-                        <CardFooter>
-                            <Button onClick={onSave} disabled={isSaving}>
-                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save Policy
+                        </Card.Content>
+                        <Card.Footer>
+                            <Button onPress={onSave} isPending={isSaving} variant="primary">
+                                {isSaving ? <Spinner color="current" size="sm" /> : "Save Policy"}
                             </Button>
-                        </CardFooter>
+                        </Card.Footer>
                     </Card>
                 </SettingsPage>
             </div>

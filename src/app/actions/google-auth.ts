@@ -14,8 +14,8 @@ function getBaseUrl() {
 
 
 export async function getGoogleAuthUrl() {
-  const baseUrl = getBaseUrl();
-  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  // Use the environment variable if set, otherwise construct it dynamically
+  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
 
   const oAuth2Client = getOAuth2Client(redirectUri);
 

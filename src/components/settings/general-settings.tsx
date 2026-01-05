@@ -1,11 +1,7 @@
 
 'use client';
 import React from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Card, Button, Select, Label, ListBox, Spinner } from '@heroui/react';
 import { SettingsPage } from './settings-page';
 
 const timezones = [
@@ -47,33 +43,39 @@ export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }
 
     return (
         <SettingsPage title="Localization" description="Set your preferred language and timezone for date and time display.">
-            <Card>
-                <CardContent className="space-y-4">
-                    <div className="grid w-full max-w-sm items-center gap-1.5">
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Select
-                            value={settings.timezone}
-                            onValueChange={(value) => onSettingsChange({ ...settings, timezone: value })}
-                        >
-                            <SelectTrigger id="timezone">
-                                <SelectValue placeholder="Select a timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
+            <Card className="bg-card/70 border-default-200">
+                <Card.Content className="space-y-4">
+                    <Select
+                        placeholder="Select a timezone"
+                        selectedKey={settings.timezone}
+                        onSelectionChange={(key) => {
+                            // key is Key (string | number)
+                            if (key) {
+                                onSettingsChange({ ...settings, timezone: key as string });
+                            }
+                        }}
+                    >
+                        <Label>Timezone</Label>
+                        <Select.Trigger>
+                            <Select.Value />
+                            <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover>
+                            <ListBox>
                                 {timezones.map(tz => (
-                                    <SelectItem key={tz.value} value={tz.value}>
+                                    <ListBox.Item key={tz.value} id={tz.value} textValue={tz.label}>
                                         {tz.label}
-                                    </SelectItem>
+                                    </ListBox.Item>
                                 ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={onSave} disabled={isSaving}>
-                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Preferences
+                            </ListBox>
+                        </Select.Popover>
+                    </Select>
+                </Card.Content>
+                <Card.Footer>
+                    <Button onPress={onSave} isPending={isSaving} variant="primary">
+                        {isSaving ? <Spinner color="current" size="sm" /> : "Save Preferences"}
                     </Button>
-                </CardFooter>
+                </Card.Footer>
             </Card>
         </SettingsPage>
     );
