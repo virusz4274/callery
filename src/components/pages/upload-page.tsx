@@ -9,12 +9,27 @@ import { UploadCloud, File, X } from 'lucide-react';
 import { uploadRecordings } from '@/app/actions/upload-recordings';
 import { useRouter } from 'next/navigation';
 
+import { useUser } from '@/lib/firebase/provider';
+
 export function UploadPage() {
     const { toast } = useToast();
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, startUploadTransition] = useTransition();
     const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
+
+    const { user, isUserLoading } = useUser();
+
+    // Protect the page - redirect to login if not authenticated
+    React.useEffect(() => {
+        if (!isUserLoading && !user) {
+            router.replace('/login');
+        }
+    }, [user, isUserLoading, router]);
+
+    if (isUserLoading || !user) {
+        return <div className="flex justify-center p-8"><Spinner size="lg" /></div>;
+    }
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {

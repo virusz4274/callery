@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import type { RecordingResponse } from '@/lib/db/types';
 import { authFetch } from '@/lib/api-client';
 
@@ -12,80 +12,59 @@ interface UseRecordingsResult {
     totalCount: number;
 }
 
+interface RecordingOptions {
+    limit?: number;
+    skip?: number;
+    includeArchived?: boolean;
+}
+
 /**
  * Hook to fetch recordings for the current user.
  * Uses the API route which handles authentication via session cookie.
  */
 export function useRecordings(
-    options?: {
-        limit?: number;
-        skip?: number;
-        includeArchived?: boolean;
-    }
+    options?: RecordingOptions
 ): UseRecordingsResult {
-    const [data, setData] = useState<RecordingResponse[] | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
+    // Unique key for SWR cache based on options
+    const key = ['/api/recordings', options] as const;
 
-    const fetchRecordings = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+    const { data: responseData, error, isLoading, mutate } = useSWR(key, async ([url, opts]: [string, RecordingOptions | undefined]) => {
+        const params = new URLSearchParams();
+        if (opts?.limit) params.set('limit', opts.limit.toString());
+        if (opts?.skip) params.set('skip', opts.skip.toString());
+        if (opts?.includeArchived) params.set('includeArchived', 'true');
 
-        try {
-            const params = new URLSearchParams();
-            if (options?.limit) params.set('limit', options.limit.toString());
-            if (options?.skip) params.set('skip', options.skip.toString());
-            if (options?.includeArchived) params.set('includeArchived', 'true');
+        const response = await authFetch(`${url}?${params.toString()}`);
 
-            const response = await authFetch(`/api/recordings?${params.toString()}`);
-
-            // Check content type before parsing JSON
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                // Not JSON - likely a redirect or error page
-                if (response.status === 401 || response.status === 302) {
-                    // User not authenticated
-                    setData(null);
-                    setTotalCount(0);
-                    return;
-                }
-                throw new Error(`Unexpected response type: ${contentType}`);
+        // Check content type before parsing JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            if (response.status === 401 || response.status === 302) {
+                // Return empty structure for unauthorized/redirects to handle gracefully
+                return { recordings: [], totalCount: 0 };
             }
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    // User not authenticated
-                    setData(null);
-                    setTotalCount(0);
-                    return;
-                }
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch recordings');
-            }
-
-            const result = await response.json();
-            setData(result.recordings);
-            setTotalCount(result.totalCount);
-        } catch (err) {
-            console.error('Error fetching recordings:', err);
-            setError(err instanceof Error ? err : new Error('Unknown error'));
-            setData(null);
-        } finally {
-            setIsLoading(false);
+            throw new Error(`Unexpected response type: ${contentType}`);
         }
-    }, [options?.limit, options?.skip, options?.includeArchived]);
 
-    useEffect(() => {
-        fetchRecordings();
-    }, [fetchRecordings]);
+        if (!response.ok) {
+            if (response.status === 401) return { recordings: [], totalCount: 0 };
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch recordings');
+        }
+
+        return response.json();
+    }, {
+        // SWR Configuration
+        revalidateOnFocus: false, // Don't reval on window focus to save bandwidth
+        dedupingInterval: 5000, // Dedup requests within 5s
+    });
 
     return {
-        data,
+        data: responseData?.recordings || null,
         isLoading,
-        error,
-        refetch: fetchRecordings,
-        totalCount,
+        error: error || null,
+        refetch: async () => { await mutate(); },
+        totalCount: responseData?.totalCount || 0,
     };
 }
 
