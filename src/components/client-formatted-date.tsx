@@ -24,7 +24,7 @@ export function ClientFormattedDate({ date, formatString }: ClientFormattedDateP
 
     try {
         return <>{format(new Date(date), formatString)}</>;
-    } catch (e) {
+    } catch {
         console.error("Invalid date provided to ClientFormattedDate:", date);
         return <>Invalid Date</>;
     }

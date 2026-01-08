@@ -16,6 +16,7 @@ export async function getContactsByUser(
     const contacts = await db
         .collection<Contact>(Collections.CONTACTS)
         .find({ firebaseUid })
+        .collation({ locale: 'en', strength: 2 })
         .sort({ name: 1 })
         .skip(options?.skip || 0)
         .limit(options?.limit || 0) // 0 means no limit
@@ -48,10 +49,13 @@ export async function findContactByName(
 ): Promise<Contact | null> {
     const db = await getMongoDb();
 
-    return db.collection<Contact>(Collections.CONTACTS).findOne({
-        firebaseUid,
-        name,
-    });
+    return db.collection<Contact>(Collections.CONTACTS).findOne(
+        {
+            firebaseUid,
+            name,
+        },
+        { collation: { locale: 'en', strength: 2 } }
+    );
 }
 
 /**
@@ -131,7 +135,7 @@ export async function upsertContacts(
         const lastName = lastNameParts.join(' ');
 
         // Construct filter: Match by googleContactId OR any of the phone numbers
-        const filter: any = { firebaseUid };
+        const filter: import('mongodb').Filter<Contact> = { firebaseUid };
         if (contact.googleContactId) {
             filter.googleContactId = contact.googleContactId;
         } else if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
@@ -208,23 +212,10 @@ export async function incrementContactRecordings(
  * Count all contacts for a user.
  */
 export async function countContactsByUser(firebaseUid: string): Promise<number> {
-    const db = await getMongoDb();
-
-    // Lazy migration: Check if user has totalContacts count
-    const { findUserByFirebaseUid, updateUser } = await import('./users');
+    // We rely on the user profile to store the total count of contacts.
+    // This is maintained by incrementContactCount in createContact/upsertContacts.
+    const { findUserByFirebaseUid } = await import('./users');
     const user = await findUserByFirebaseUid(firebaseUid);
 
-    if (user && typeof user.totalContacts === 'number') {
-        return user.totalContacts;
-    }
-
-    // Fallback + Migration: Count manually and update user profile
-    const count = await db.collection<Contact>(Collections.CONTACTS).countDocuments({ firebaseUid });
-
-    // Update user profile asynchronously (don't block return)
-    updateUser(firebaseUid, { totalContacts: count }).catch(err => {
-        console.error('Failed to migrate totalContacts count:', err);
-    });
-
-    return count;
+    return user?.totalContacts || 0;
 }

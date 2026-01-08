@@ -3,7 +3,7 @@
 import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
-import { headers, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 
@@ -57,15 +57,22 @@ export async function deleteRecordings(
     const r2Errors: string[] = [];
     let totalSizeDeleted = 0;
 
-    for (const recording of deletedRecordings) {
+    // Delete from R2 in parallel
+
+
+    const deletePromises = deletedRecordings.map(async (recording) => {
       try {
         await deleteFromR2(recording.r2Key);
-        totalSizeDeleted += recording.fileSize;
+        return { size: recording.fileSize, error: null };
       } catch (r2Error) {
         console.error(`Error deleting ${recording.r2Key} from R2:`, r2Error);
         r2Errors.push(recording.r2Key);
+        return { size: 0, error: r2Error };
       }
-    }
+    });
+
+    const results = await Promise.all(deletePromises);
+    totalSizeDeleted = results.reduce((acc, curr) => acc + curr.size, 0);
 
     // Update user's storage usage
     if (totalSizeDeleted > 0) {

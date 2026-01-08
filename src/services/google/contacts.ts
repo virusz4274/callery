@@ -1,20 +1,21 @@
-import { people } from '@googleapis/people';
+import { people, people_v1 } from '@googleapis/people';
 import type { OAuth2Client } from 'google-auth-library';
 
 export async function getGoogleContacts(auth: OAuth2Client) {
-  // @ts-ignore
+  // @ts-expect-error - Version mismatch in google-auth-library types
   const peopleService = people({ version: 'v1', auth });
 
-  let connections: any[] = [];
+  let connections: people_v1.Schema$Person[] = [];
   let nextPageToken: string | undefined = undefined;
 
   do {
-    const { data } = await peopleService.people.connections.list({
+    const response = await peopleService.people.connections.list({
       resourceName: 'people/me',
       personFields: 'names,emailAddresses,phoneNumbers,organizations',
       pageSize: 1000,
       pageToken: nextPageToken,
-    });
+    }) as { data: people_v1.Schema$ListConnectionsResponse };
+    const data = response.data;
 
     if (data.connections) {
       connections = connections.concat(data.connections);

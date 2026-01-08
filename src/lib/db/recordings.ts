@@ -2,34 +2,9 @@ import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import type { Recording, CreateRecordingInput, UpdateRecordingInput, RecordingResponse } from './types';
 import { getSignedR2Url } from '@/lib/r2';
+import { toRecordingResponse } from './converters';
 
-/**
- * Convert a Recording document to API response format.
- */
-export function toRecordingResponse(recording: Recording, playbackUrl?: string): RecordingResponse {
-    return {
-        id: recording._id.toString(),
-        firebaseUid: recording.firebaseUid,
-        contactId: recording.contactId?.toString() || null,
-        contactName: recording.contactName,
-        phoneNumber: recording.phoneNumber,
-        r2Key: recording.r2Key,
-        fileName: recording.fileName,
-        originalFileName: recording.originalFileName,
-        fileSize: recording.fileSize,
-        mimeType: recording.mimeType,
-        duration: recording.duration,
-        recordedAt: recording.recordedAt.toISOString(),
-        createdAt: recording.createdAt.toISOString(),
-        updatedAt: recording.updatedAt.toISOString(),
-        transcriptionStatus: recording.transcriptionStatus,
-        transcriptSnippet: recording.transcriptSnippet,
-        tags: recording.tags,
-        isStarred: recording.isStarred,
-        isArchived: recording.isArchived,
-        playbackUrl,
-    };
-}
+
 
 /**
  * Get all recordings for a user.
@@ -223,57 +198,22 @@ export async function getRecordingsWithUrls(
  * Count recordings for a user.
  */
 export async function countRecordingsByUser(firebaseUid: string): Promise<number> {
-    const db = await getMongoDb();
-
-    // Lazy migration: Check if user has totalRecordings count
-    const { findUserByFirebaseUid, updateUser } = await import('./users');
+    // We rely on the user profile to store the total count.
+    const { findUserByFirebaseUid } = await import('./users');
     const user = await findUserByFirebaseUid(firebaseUid);
 
-    if (user && typeof user.totalRecordings === 'number') {
-        return user.totalRecordings;
-    }
-
-    // Fallback + Migration
-    const count = await db.collection<Recording>(Collections.RECORDINGS).countDocuments({
-        firebaseUid,
-        isArchived: { $ne: true },
-    });
-
-    // Update user profile asynchronously
-    updateUser(firebaseUid, { totalRecordings: count }).catch(err => {
-        console.error('Failed to migrate totalRecordings count:', err);
-    });
-
-    return count;
+    return user?.totalRecordings || 0;
 }
 
 /**
  * Get total duration of all recordings for a user.
  */
 export async function getTotalDurationByUser(firebaseUid: string): Promise<number> {
-    const db = await getMongoDb();
-
-    // Lazy migration
-    const { findUserByFirebaseUid, updateUser } = await import('./users');
+    // We rely on the user profile to store the total duration.
+    const { findUserByFirebaseUid } = await import('./users');
     const user = await findUserByFirebaseUid(firebaseUid);
 
-    if (user && typeof user.totalDuration === 'number') {
-        return user.totalDuration;
-    }
-
-    // Fallback + Migration
-    const result = await db.collection<Recording>(Collections.RECORDINGS).aggregate([
-        { $match: { firebaseUid, isArchived: { $ne: true } } },
-        { $group: { _id: null, totalDuration: { $sum: '$duration' } } },
-    ]).toArray();
-
-    const totalDuration = result[0]?.totalDuration || 0;
-
-    updateUser(firebaseUid, { totalDuration }).catch(err => {
-        console.error('Failed to migrate totalDuration:', err);
-    });
-
-    return totalDuration;
+    return user?.totalDuration || 0;
 }
 
 export type DashboardStats = {
@@ -288,114 +228,29 @@ export async function getDashboardStats(firebaseUid: string): Promise<DashboardS
     const now = new Date();
     const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
 
-    // Try to get cached stats first
-    const { findUserByFirebaseUid, updateUser } = await import('./users');
+    const { findUserByFirebaseUid } = await import('./users');
     const user = await findUserByFirebaseUid(firebaseUid);
 
-    // Check if we have both totals
-    const hasCachedTotals = user &&
-        typeof user.totalRecordings === 'number' &&
-        typeof user.totalDuration === 'number';
+    const totalRecordings = user?.totalRecordings || 0;
+    const totalDuration = user?.totalDuration || 0;
 
-    // If we have cached totals, we only need to query for newThisMonth and unknownCallers
-    // Ideally we would optimize those too, but for now we'll stick to optimizing the heavy totals aggregation
+    // Run specific queries for "New This Month" and "Unknown"
+    // optimized to avoid full collection scan if possible (depends on indexes)
+    const [monthCount, unknownCount] = await Promise.all([
+        db.collection<Recording>(Collections.RECORDINGS).countDocuments({
+            firebaseUid,
+            isArchived: { $ne: true },
+            recordedAt: { $gte: oneMonthAgo }
+        }),
+        db.collection<Recording>(Collections.RECORDINGS).countDocuments({
+            firebaseUid,
+            isArchived: { $ne: true },
+            $or: [{ contactName: { $exists: false } }, { contactName: null }]
+        })
+    ]);
 
-    // Simplification: running the aggregation is still needed for newThisMonth/unknownCallers
-    // But we can avoid the summation for totalDuration if we trust the cache, 
-    // OR we can just run the aggregation for everything if cache is missing,
-    // and if cache is present, we might still need to query for temporal stats (newThisMonth).
-
-    // Strategy: 
-    // If cache is missing, run full aggregation and update cache.
-    // If cache is present, run a LIGHTER aggregation for just newThisMonth/unknownCallers, or stick to existing one?
-    // The existing aggregation does everything in one pass. Splitting it might be more expensive if we still need to scan for month/unknown.
-    // HOWEVER, typical dashboard load is: "Total Recs", "New this month", "Unknown callers", "Avg Duration".
-    // "Total Recs" and "Avg Duration" (Total Duration / Total Recs) can come from User.
-    // "New This Month" and "Unknown" need scan.
-
-    // Let's use the full aggregation to get the definitive current state for migration/fallback,
-    // but if we wanted to be super optimized we'd index other things.
-    // Given the prompt "optimize similar inefficiencies", let's prioritize using the User stats if available 
-    // and MAYBE doing a cheaper query for the rest? 
-    // Actually, "New This Month" requires scanning `recordedAt`. "Unknown Callers" scans `contactName`.
-    // We can't easily optimize those without new indices or counters.
-    // BUT we can at least ensure `totalRecordings` and `totalDuration` are populated for future use (e.g. valid lazy migration).
-
-    // Let's keep the aggregation but ALSO update the cache if it's missing or out of sync? 
-    // No, that might be too much.
-    // Let's stick to: If User has stats, use them for Total & Duration. Query ONLY for the others.
-
-    let totalRecordings = 0;
-    let totalDuration = 0;
-    let newThisMonth = 0;
-    let unknownCallers = 0;
-
-    if (hasCachedTotals) {
-        totalRecordings = user.totalRecordings!;
-        totalDuration = user.totalDuration!;
-
-        // We still need newThisMonth and unknownCallers. 
-        // We can do two separate optimized count queries or one aggregation.
-        // Let's do a single aggregation for the remaining fields to avoid scanning getting *everything* if possible?
-        // Actually, just doing two counts is faster if indexed properly.
-        // `recordedAt` is indexed? default sort is `recordedAt: -1`, so likely indexed.
-        // `query.isArchived` is used.
-
-        // Parallel queries for specific stats
-        const [monthCount, unknownCount] = await Promise.all([
-            db.collection<Recording>(Collections.RECORDINGS).countDocuments({
-                firebaseUid,
-                isArchived: { $ne: true },
-                recordedAt: { $gte: oneMonthAgo }
-            }),
-            db.collection<Recording>(Collections.RECORDINGS).countDocuments({
-                firebaseUid,
-                isArchived: { $ne: true },
-                $or: [{ contactName: { $exists: false } }, { contactName: null }]
-            })
-        ]);
-
-        newThisMonth = monthCount;
-        unknownCallers = unknownCount;
-
-    } else {
-        // Full Aggregation (Fallback + Migration)
-        const result = await db.collection<Recording>(Collections.RECORDINGS).aggregate([
-            { $match: { firebaseUid, isArchived: { $ne: true } } },
-            {
-                $group: {
-                    _id: null,
-                    totalRecordings: { $sum: 1 },
-                    newThisMonth: {
-                        $sum: {
-                            $cond: [{ $gte: ['$recordedAt', oneMonthAgo] }, 1, 0]
-                        }
-                    },
-                    unknownCallers: {
-                        $sum: {
-                            $cond: [{ $ifNull: ['$contactName', false] }, 0, 1]
-                        }
-                    },
-                    totalDuration: { $sum: '$duration' }
-                }
-            }
-        ]).toArray();
-
-        const stats = result[0] || { totalRecordings: 0, newThisMonth: 0, unknownCallers: 0, totalDuration: 0 };
-
-        totalRecordings = stats.totalRecordings;
-        totalDuration = stats.totalDuration;
-        newThisMonth = stats.newThisMonth;
-        unknownCallers = stats.unknownCallers;
-
-        // Lazy migration: Update user stats
-        updateUser(firebaseUid, {
-            totalRecordings,
-            totalDuration
-        }).catch(err => {
-            console.error('Failed to migrate dashboard stats:', err);
-        });
-    }
+    const newThisMonth = monthCount;
+    const unknownCallers = unknownCount;
 
     return {
         totalRecordings,

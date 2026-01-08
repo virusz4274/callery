@@ -1,37 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { User } from 'firebase/auth';
+import type { User as FirebaseUser } from 'firebase/auth';
+import type { User } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
 
-interface UserProfile {
-    id: string;
-    firebaseUid: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    name: string;
-    phoneNumber: string;
-    createdAt: string;
-    role: 'user' | 'admin';
-    plan: 'Free' | 'Pro';
-    timezone: string;
-    notificationSettings: {
-        activityDigest: 'off' | 'weekly' | 'monthly';
-        ingestSuccess: boolean;
-        ingestFail: boolean;
-    };
-    storageSettings: {
-        deletionPolicy: 'never' | '3m' | '6m' | '1y';
-    };
-    storageUsed: number;
-    storageAllocation: number;
-    transcriptionUsed: number;
-    transcriptionAllocation: number;
-}
-
 interface UseUserProfileResult {
-    userProfile: UserProfile | null;
+    userProfile: User | null;
     isProfileLoading: boolean;
     profileError: Error | null;
     refetch: () => Promise<void>;
@@ -41,8 +16,8 @@ interface UseUserProfileResult {
  * Hook to fetch the user profile from MongoDB via API.
  * @param user The Firebase Auth user object.
  */
-export function useUserProfile(user: User | null): UseUserProfileResult {
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult {
+    const [userProfile, setUserProfile] = useState<User | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState<Error | null>(null);
 
@@ -57,7 +32,22 @@ export function useUserProfile(user: User | null): UseUserProfileResult {
         setProfileError(null);
 
         try {
-            const response = await authFetch('/api/user/profile');
+            let response = await authFetch('/api/user/profile');
+
+            // Handle 404 (User not found in MongoDB) by attempting to create it
+            if (response.status === 404) {
+                console.log('User profile not found in MongoDB. Attempting to ensure profile...');
+                const created = await ensureUserProfile(user);
+
+                if (created) {
+                    // Small delay to ensure DB write propagation
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Retry fetching the profile
+                    response = await authFetch('/api/user/profile');
+                } else {
+                    throw new Error('Failed to create user profile');
+                }
+            }
 
             if (!response.ok) {
                 if (response.status === 401) {

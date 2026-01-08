@@ -1,17 +1,19 @@
 
 'use client';
 
-import type { Contact, CallRecording, Invoice } from '@/lib/types';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Avatar, Card, Tabs, Chip } from '@heroui/react';
+import type { User, Recording, Invoice } from '@/lib/types';
+
+import { Avatar, Card, Tabs, Chip, Button } from '@heroui/react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { deleteUser } from '@/app/actions/admin';
 import { useState } from 'react';
 
 type UserDetailsPageProps = {
-    user: Contact;
-    recordings: CallRecording[];
+    user: User;
+    recordings: Recording[];
     invoices: Invoice[];
     defaultTab?: string;
 };
@@ -25,8 +27,25 @@ function SimpleProgress({ value }: { value: number }) {
 }
 
 export function UserDetailsPage({ user, recordings, invoices, defaultTab }: UserDetailsPageProps) {
-    const avatar = PlaceHolderImages.find(img => img.id === 'user' + ((user.phoneNumber || '').slice(-1))) || PlaceHolderImages[0];
     const [selectedTab, setSelectedTab] = useState<string>(defaultTab || "info");
+    const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
+
+    const handleDeleteUser = async () => {
+        if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            await deleteUser(user.id);
+            router.push('/admin/users');
+        } catch (error) {
+            console.error('Failed to delete user:', error);
+            alert('Failed to delete user');
+            setIsDeleting(false);
+        }
+    };
 
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -42,14 +61,30 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
             </Link>
 
             <Card>
-                <Card.Header className="flex gap-4">
+                <Card.Header className="flex gap-4 justify-between">
                     <Avatar className="h-16 w-16">
-                        <Avatar.Image src={avatar?.imageUrl} alt={user.name} />
+                        <Avatar.Image src={user.photoURL} alt={user.name} />
                         <Avatar.Fallback>{user.name.charAt(0)}</Avatar.Fallback>
                     </Avatar>
                     <div>
                         <h2 className="text-3xl font-bold">{user.name}</h2>
                         <p className="text-default-500">{user.phoneNumber || 'No phone number'}</p>
+                    </div>
+                    <div className="flex gap-2 ml-auto">
+                        {/* Placeholder for Manage Plan - can be connected later */}
+                        {/* <Button variant="flat">Manage Plan</Button> */}
+                        <Button
+                            variant="danger-soft"
+                            isDisabled={isDeleting}
+                            onPress={handleDeleteUser}
+                        >
+                            {isDeleting ? 'Deleting...' : (
+                                <div className="flex items-center gap-2">
+                                    <Trash2 className="h-4 w-4" />
+                                    <span>Delete User</span>
+                                </div>
+                            )}
+                        </Button>
                     </div>
                 </Card.Header>
             </Card>
@@ -85,7 +120,7 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                             <div>
                                 <div className="flex justify-between mb-1">
                                     <span className="text-small">Transcription Usage</span>
-                                    <span className="text-small text-default-500">{user.transcriptionUsed} / {user.transcriptionAllocation} min</span>
+                                    <span className="text-small text-default-500">{(user.transcriptionUsed / 60).toFixed(1)} / {(user.transcriptionAllocation / 60).toFixed(0)} min</span>
                                 </div>
                                 <SimpleProgress value={(user.transcriptionUsed / user.transcriptionAllocation) * 100} />
                             </div>
@@ -115,10 +150,12 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                                         {recordings.length > 0 ? recordings.map((rec) => (
                                             <tr key={rec.id}>
                                                 <td className="p-4 align-middle">
-                                                    <ClientFormattedDate date={rec.date} formatString="PPp" />
+                                                    <ClientFormattedDate date={rec.recordedAt} formatString="PPp" />
                                                 </td>
                                                 <td className="p-4 align-middle">{formatDuration(rec.duration)}</td>
-                                                <td className="p-4 align-middle text-default-500 truncate max-w-sm">{rec.transcriptSnippet}</td>
+                                                <td className="p-4 align-middle text-default-500 truncate max-w-sm">
+                                                    {rec.summary || (rec.fullTranscript && rec.fullTranscript[0]?.text) || '-'}
+                                                </td>
                                             </tr>
                                         )) : (
                                             <tr><td colSpan={3} className="p-4 text-center">No recordings.</td></tr>

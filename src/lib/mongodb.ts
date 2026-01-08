@@ -11,7 +11,7 @@ let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 declare global {
-    // eslint-disable-next-line no-var
+    // Global variable for Mongo client
     var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
@@ -53,6 +53,10 @@ export const Collections = {
     USERS: 'users',
     RECORDINGS: 'recordings',
     CONTACTS: 'contacts',
+    PLANS: 'plans',
+    SYSTEM_SETTINGS: 'system_settings',
+    ANNOUNCEMENTS: 'announcements',
+    ADMIN_LOGS: 'admin_logs',
 } as const;
 
 export default clientPromise;

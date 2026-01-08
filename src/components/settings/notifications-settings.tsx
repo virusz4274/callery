@@ -45,7 +45,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                         </Radio>
                     </RadioGroup>
 
-                    <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4">
                         <div className="space-y-0.5">
                             <h4 className="text-base font-medium">Data Ingestion Success</h4>
                             <p className="text-sm text-default-500">
@@ -61,7 +61,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                             </Switch.Control>
                         </Switch>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4">
                         <div className="space-y-0.5">
                             <h4 className="text-base font-medium">Data Ingestion Failed</h4>
                             <p className="text-sm text-default-500">

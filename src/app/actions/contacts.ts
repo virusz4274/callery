@@ -5,7 +5,7 @@ import { getGoogleContacts } from '@/services/google/contacts';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { revalidatePath } from 'next/cache';
 import { saveContactsToMongoDB } from './save-contacts';
-import { headers, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 
@@ -37,7 +37,7 @@ async function getUserIdFromSessionCookie() {
 }
 
 
-export async function syncGoogleContacts(code: string, state: string) {
+export async function syncGoogleContacts(code: string) {
   try {
     const oAuth2Client = getOAuth2Client();
     const { tokens } = await oAuth2Client.getToken(code);

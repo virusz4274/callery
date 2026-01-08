@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { ContactResponse } from '@/lib/db/types';
 import { authFetch } from '@/lib/api-client';
+import useSWR from 'swr';
 
 interface UseContactsResult {
     data: ContactResponse[] | null;
@@ -19,30 +20,40 @@ interface UseContactsResult {
  * Uses the API route with Firebase ID token authentication.
  */
 export function useContacts(): UseContactsResult {
-    const [data, setData] = useState<ContactResponse[] | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    // The following useState declarations are being replaced or modified by the useSWR line.
+    // Based on the instruction, the useSWR line is inserted after these,
+    // but the variables declared in useSWR (data, isLoading, error) conflict with existing ones.
+    // Assuming the intent is to replace the state management for these variables with useSWR.
+    // The instruction shows `const [isLoading, setIsLoading] = useState(true);` etc.
+    // followed by the useSWR line. This implies the useSWR is meant to take over.
+    // I will remove the conflicting useState declarations and keep the ones not covered by useSWR.
+    // The instruction also shows `setData(null);` inside the useSWR block, implying `data` state still exists.
+    // This is a bit contradictory. I will follow the instruction literally for the insertion.
+
+    // Original: const [data, setData] = useState<ContactResponse[] | null>(null);
+    // Original: const [isLoading, setIsLoading] = useState(true);
+    // Original: const [error, setError] = useState<Error | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [page, setPage] = useState(0);
-    const LIMIT = 20;
 
-    const fetchContacts = useCallback(async (reset = false) => {
-        if (reset) {
-            setIsLoading(true);
-            setPage(0);
-            setHasMore(true);
-            setData(null);
-        } else {
-            // If we are loading more, don't set global loading, maybe a background loading state?
-            // For simplicity let's rely on the fact that we append data
+    const { data: contactsData, isLoading, error, mutate } = useSWR<ContactResponse[]>(
+        ['/api/contacts', page],
+        async () => {
+            const skip = page * 20;
+            const response = await authFetch(`/api/contacts?limit=20&skip=${skip}`);
+            if (!response.ok) throw new Error('Failed to fetch contacts');
+            const result = await response.json();
+            setTotalCount(result.totalCount);
+            if (result.contacts.length < 20) setHasMore(false);
+            return result.contacts as ContactResponse[];
+        },
+        {
+            revalidateOnFocus: false,
         }
+    );
 
-        // Use a ref or local variable to get current page if we weren't using state in dependency...
-        // But here we want to fetch the NEXT page.
-        // Actually, let's redesign slightly: 
-        // fetchContacts(pageToFetch)
-    }, []);
+    const LIMIT = 20;
 
     const loadMore = useCallback(async () => {
         if (isLoading || !hasMore) return;
@@ -51,10 +62,6 @@ export function useContacts(): UseContactsResult {
         const skip = nextPage * LIMIT;
 
         try {
-            // We need to handle the appending logic here. 
-            // Ideally we refactor `fetchContacts` to be more flexible.
-            // Let's implement a direct fetch here to avoid complex state deps for now.
-
             const response = await authFetch(`/api/contacts?limit=${LIMIT}&skip=${skip}`);
             if (!response.ok) throw new Error('Failed to load more');
             const result = await response.json();
@@ -63,39 +70,18 @@ export function useContacts(): UseContactsResult {
                 setHasMore(false);
             }
 
-            setData(prev => [...(prev || []), ...result.contacts]);
+            mutate((prev) => [...(prev || []), ...result.contacts], false);
             setPage(nextPage);
         } catch (error) {
             console.error(error);
         }
-    }, [page, isLoading, hasMore]);
-
-    // Initial load
-    useEffect(() => {
-        const init = async () => {
-            setIsLoading(true);
-            try {
-                const response = await authFetch(`/api/contacts?limit=${LIMIT}&skip=0`);
-                if (response.ok) {
-                    const result = await response.json();
-                    setData(result.contacts);
-                    setTotalCount(result.totalCount);
-                    if (result.contacts.length < LIMIT) setHasMore(false);
-                }
-            } catch (err) {
-                setError(err instanceof Error ? err : new Error('Unknown'));
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        init();
-    }, []);
+    }, [page, isLoading, hasMore, mutate]);
 
     return {
-        data,
+        data: contactsData || null,
         isLoading,
-        error,
-        refetch: async () => { setPage(0); setData(null); setHasMore(true); /* trigger init */ },
+        error: error || null,
+        refetch: async () => { setPage(0); setHasMore(true); mutate(); },
         totalCount,
         loadMore,
         hasMore
@@ -109,7 +95,7 @@ export function findContactByPhone(
     contacts: ContactResponse[] | null,
     phoneNumber: string
 ): ContactResponse | undefined {
-    return contacts?.find(c => c.phoneNumber === phoneNumber);
+    return contacts?.find(c => c.phoneNumbers?.includes(phoneNumber));
 }
 
 /**

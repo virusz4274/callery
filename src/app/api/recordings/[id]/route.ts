@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { getRecordingById, deleteRecording, updateRecording, toRecordingResponse } from '@/lib/db/recordings';
+import { getRecordingById, deleteRecording, updateRecording } from '@/lib/db/recordings';
+import { toRecordingResponse } from '@/lib/db/converters';
 import { deleteFromR2, getSignedR2Url } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 

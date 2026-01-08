@@ -1,5 +1,5 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import type { User, CreateUserInput, UpdateUserInput } from './types';
+import type { User, CreateUserInput, UpdateUserInput, SystemSettings, Plan } from './types';
 
 /**
  * Find a user by their Firebase UID.
@@ -63,12 +63,37 @@ export async function updateUser(
 export async function ensureUserProfile(
     firebaseUid: string,
     email: string,
-    displayName?: string
+    displayName?: string,
+    photoURL?: string
 ): Promise<{ user: User; wasCreated: boolean }> {
     const existingUser = await findUserByFirebaseUid(firebaseUid);
 
     if (existingUser) {
         return { user: existingUser, wasCreated: false };
+    }
+
+    const db = await getMongoDb();
+
+    // Check system settings for signup allow/deny and default plan
+    const settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
+
+    if (settings && !settings.allowSignups) {
+        throw new Error('New signups are currently disabled.');
+    }
+
+    // Default values (fallback)
+    let planName = 'Free Trial';
+    let storageAllocation = 5 * 1024 * 1024 * 1024; // 5GB
+    let transcriptionAllocation = 3600; // 60 minutes
+
+    // Fetch default plan if configured
+    if (settings?.defaultPlanId) {
+        const defaultPlan = await db.collection<Plan>(Collections.PLANS).findOne({ _id: settings.defaultPlanId });
+        if (defaultPlan) {
+            planName = defaultPlan.name;
+            storageAllocation = defaultPlan.limits.storage;
+            transcriptionAllocation = defaultPlan.limits.transcription;
+        }
     }
 
     // Parse display name into first/last
@@ -83,24 +108,29 @@ export async function ensureUserProfile(
         lastName,
         name: displayName || email.split('@')[0],
         phoneNumber: '',
+        photoURL: photoURL || '',
         role: 'user',
-        plan: 'Free',
+        plan: planName,
         timezone: '',
         notificationSettings: {
             activityDigest: 'weekly',
             ingestSuccess: true,
             ingestFail: true,
         },
+        transcriptionSettings: {
+            autoTranscribe: true,
+        },
         storageSettings: {
             deletionPolicy: 'never',
         },
         storageUsed: 0,
-        storageAllocation: 5 * 1024 * 1024 * 1024, // 5GB default
+        storageAllocation,
         transcriptionUsed: 0,
-        transcriptionAllocation: 60, // 60 minutes default
+        transcriptionAllocation,
         totalContacts: 0,
         totalRecordings: 0,
         totalDuration: 0,
+        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     });
 
     return { user: newUser, wasCreated: true };
@@ -137,6 +167,25 @@ export async function decrementStorageUsed(
         { firebaseUid },
         {
             $inc: { storageUsed: -bytes },
+            $set: { updatedAt: new Date() }
+        }
+    );
+}
+
+/**
+ * Increment the user's transcription usage counter.
+ * @param seconds - The number of seconds to add (should be the billed duration)
+ */
+export async function incrementTranscriptionUsed(
+    firebaseUid: string,
+    seconds: number
+): Promise<void> {
+    const db = await getMongoDb();
+
+    await db.collection<User>(Collections.USERS).updateOne(
+        { firebaseUid },
+        {
+            $inc: { transcriptionUsed: seconds },
             $set: { updatedAt: new Date() }
         }
     );

@@ -23,8 +23,7 @@ async function createTestRecording() {
             duration: 120, // 2 minutes
             recordedAt: new Date(),
             transcriptionStatus: 'pending',
-            transcriptSnippet: '',
-            transcript: '',
+            fullTranscript: [],
             tags: ['test'],
             isStarred: false,
             isArchived: false,

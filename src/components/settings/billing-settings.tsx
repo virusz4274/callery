@@ -6,8 +6,15 @@ import { Card, Button, Chip, Spinner } from '@heroui/react';
 import { SettingsPage } from './settings-page';
 import Link from 'next/link';
 
+type Invoice = {
+    id: string;
+    date: string;
+    amount: string;
+    status: string;
+};
+
 interface BillingSettingsProps {
-    invoices: any[];
+    invoices: Invoice[];
     isLoading: boolean;
 }
 
