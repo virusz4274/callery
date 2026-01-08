@@ -5,7 +5,7 @@ const sections = [
   {
     title: '1. Introduction',
     content: [
-      'Call Memo ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.',
+      'VoSift ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.',
       'By using the Service, you agree to the collection and use of information in accordance with this policy.',
     ],
   },
@@ -27,10 +27,10 @@ const sections = [
   {
     title: '4. Data Security',
     content: [
-        'We implement a variety of security measures to maintain the safety of your personal information and your uploaded content. However, no method of transmission over the Internet or method of electronic storage is 100% secure.',
+      'We implement a variety of security measures to maintain the safety of your personal information and your uploaded content. However, no method of transmission over the Internet or method of electronic storage is 100% secure.',
     ],
   },
-   {
+  {
     title: '5. Changes to This Policy',
     content: [
       'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page. You are advised to review this Privacy Policy periodically for any changes.',

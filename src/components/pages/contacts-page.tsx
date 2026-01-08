@@ -15,10 +15,23 @@ type ContactsPageProps = {
   totalCount?: number;
 };
 
+import { useUser } from '@/lib/firebase/provider';
+
 export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }: ContactsPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
+
+  const { user, isUserLoading } = useUser();
+
+  // Protect the page
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+
 
   const sortedAndFilteredContacts = useMemo(() => {
     if (!allContacts) return [];
@@ -67,6 +80,10 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
 
     return () => observer.disconnect();
   }, [loadMore, hasMore]);
+
+  if (isUserLoading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center"><Spinner size="lg" /></div>;
+  }
 
   return (
     <div className="relative space-y-8">

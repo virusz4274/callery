@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { getRecordingsWithUrls, countRecordingsByUser } from '@/lib/db/recordings';
+import { getRecordingsForApi, countRecordingsByUser } from '@/lib/db/recordings';
 
 
 /**
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         const skip = (page - 1) * limit;
 
         const [recordings, totalCount] = await Promise.all([
-            getRecordingsWithUrls(firebaseUid, { limit, skip, includeArchived }),
+            getRecordingsForApi(firebaseUid, { limit, skip, includeArchived }),
             countRecordingsByUser(firebaseUid),
         ]);
 

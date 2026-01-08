@@ -6,13 +6,29 @@ import type { FileSystemNode } from '@/lib/types';
 import { Card, Button } from '@heroui/react';
 import { Folder, FileText, ChevronRight } from 'lucide-react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
+import { useRouter } from 'next/navigation';
 
 type FileBrowserPageProps = {
   rootNode: FileSystemNode;
 };
 
+import { useUser } from '@/lib/firebase/provider';
+import { Spinner } from '@heroui/react';
+
 export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
   const [path, setPath] = useState<string[]>([]);
+  const router = useRouter(); // Use explicit router import if not present, checking imports...
+
+  const { user, isUserLoading } = useUser();
+
+  // Protect the page
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login'); // Assuming router is available
+    }
+  }, [user, isUserLoading, router]);
+
+
 
   const { currentNode, breadcrumbItems } = useMemo(() => {
     let currentNode: FileSystemNode = rootNode;
@@ -47,6 +63,10 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
     }) || [];
   }, [currentNode]);
 
+
+  if (isUserLoading || !user) {
+    return <div className="flex h-[50vh] items-center justify-center"><Spinner size="lg" /></div>;
+  }
 
   return (
     <div className="relative space-y-8">

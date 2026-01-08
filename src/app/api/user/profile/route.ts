@@ -22,6 +22,17 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        // Update lastLoginAt if it's been more than 1 hour
+        const now = new Date();
+        if (!user.lastLoginAt || (now.getTime() - user.lastLoginAt.getTime() > 60 * 60 * 1000)) {
+            // we don't await this to keep the response fast (fire & forget-ish)
+            updateUser(firebaseUid, { lastLoginAt: now }).catch(err =>
+                console.error('Failed to update lastLoginAt:', err)
+            );
+            // Update local user object for current response correctness
+            user.lastLoginAt = now;
+        }
+
         // Convert to response format
         const profile = {
             id: user._id.toString(),
@@ -41,6 +52,7 @@ export async function GET(request: NextRequest) {
             storageAllocation: user.storageAllocation,
             transcriptionUsed: user.transcriptionUsed,
             transcriptionAllocation: user.transcriptionAllocation,
+            lastLoginAt: user.lastLoginAt?.toISOString(),
         };
 
         return NextResponse.json({ profile });
