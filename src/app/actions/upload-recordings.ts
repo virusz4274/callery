@@ -14,10 +14,10 @@ import { createRecording, updateRecording } from '@/lib/db/recordings';
 import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid } from '@/lib/db/users';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
-import { transcribeAudio, deleteTranscript } from '@/lib/elevenlabs';
+import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
 import { parseContactFromFilename } from '@/lib/utils/filename-parser';
 import { calculateBilledDuration } from '@/lib/utils/billing';
-import { generateSummary, generateTransliteration } from '@/lib/llm';
+import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
 import { checkUserAccess } from '@/lib/access-control';

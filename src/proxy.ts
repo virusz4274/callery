@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 
 /**
  * The main proxy function.
  * Currently simplified to allow all requests to pass through while authentication is being reworked.
  */
-export async function proxy() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function proxy(_request: NextRequest) {
     return NextResponse.next();
 }
 

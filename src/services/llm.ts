@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { TranscriptionSegment } from './db/types';
+import { TranscriptionSegment } from '@/lib/db/types';
 
 // The client gets the API key from the environment variable `GOOGLE_GENERATIVE_AI_API_KEY` mapped to GEMINI_API_KEY or we pass it explicitly.
 // The new SDK looks for GEMINI_API_KEY by default or accepts it in constructor.
