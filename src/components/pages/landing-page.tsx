@@ -34,13 +34,13 @@ const testimonials = [
     {
         name: "Sarah L.",
         role: "Freelance Consultant",
-        quote: "Call Memo has been a game-changer. I can finally find important client conversations in seconds. The search is incredibly fast!",
+        quote: "VoSift has been a game-changer. I can finally find important client conversations in seconds. The search is incredibly fast!",
         avatarId: "user5",
     },
     {
         name: "Michael B.",
         role: "Sales Manager",
-        quote: "We use Call Memo to onboard new sales reps. Listening to top performers' calls cut our ramp-up time in half.",
+        quote: "We use VoSift to onboard new sales reps. Listening to top performers' calls cut our ramp-up time in half.",
         avatarId: "user6",
     },
     {
@@ -77,8 +77,7 @@ export function LandingPage() {
                                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Into Intelligence</span>
                             </h1>
                             <p className="max-w-2xl mx-auto text-xl text-default-500 md:text-2xl leading-relaxed">
-                                Your all-in-one solution to organize, search, and manage call recordings.
-                                Transform messy audio into a structured knowledge base.
+                                Search deeper than words. Your all-in-one solution to organize, search, and manage call recordings.
                             </p>
                         </div>
 
@@ -291,7 +290,7 @@ export function LandingPage() {
                             <div className="max-w-xl">
                                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Loved by our users</h2>
                                 <p className="text-default-500 text-lg">
-                                    Join thousands of professionals who trust Call Memo to manage their conversations.
+                                    Join thousands of professionals who trust VoSift to manage their conversations.
                                 </p>
                             </div>
                             <Button
@@ -345,14 +344,14 @@ export function LandingPage() {
                                 <div className="space-y-6">
                                     <h3 className="text-2xl font-bold">A Message from the Creator</h3>
                                     <p className="text-lg text-default-500 italic leading-relaxed">
-                                        &quot;I created Call Memo because I was drowning in a sea of unorganized audio files. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings.&quot;
+                                        &quot;I created VoSift because I was drowning in a sea of unorganized audio files. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings.&quot;
                                     </p>
                                     <div className="flex items-center gap-4 pt-4 border-t border-default-100">
                                         <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-bold text-xl">
                                             C
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-foreground">Call Memo Team</p>
+                                            <p className="font-semibold text-foreground">VoSift Team</p>
                                             <p className="text-xs text-default-400">Founders</p>
                                         </div>
                                     </div>
@@ -369,7 +368,7 @@ export function LandingPage() {
                         <div className="col-span-1 md:col-span-2 space-y-4">
                             <div className="flex items-center gap-2">
                                 <Logo className="h-8 w-8 text-primary" />
-                                <span className="font-bold text-xl tracking-tight">Call Memo</span>
+                                <span className="font-bold text-xl tracking-tight">VoSift</span>
                             </div>
                             <p className="max-w-xs text-sm text-default-500">
                                 Transforming how you store, search, and analyze your most important conversations.
@@ -392,7 +391,7 @@ export function LandingPage() {
                         </div>
                     </div>
                     <div className="pt-8 border-t border-default-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="text-xs text-default-400">© 2024 Call Memo. All rights reserved.</p>
+                        <p className="text-xs text-default-400">© 2024 VoSift. All rights reserved.</p>
                         <div className="flex gap-4">
                             {/* Social Icons Placeholder */}
                             <div className="w-8 h-8 rounded-full bg-default-200/50 flex items-center justify-center text-default-500 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer">

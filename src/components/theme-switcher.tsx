@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 export function ThemeSwitcher() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -20,7 +20,7 @@ export function ThemeSwitcher() {
     );
   }
 
-  const isDark = theme === 'dark';
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <Switch

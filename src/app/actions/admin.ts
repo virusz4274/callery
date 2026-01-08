@@ -72,6 +72,7 @@ export async function getUsers(
         _id: undefined, // remove generic objectId
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
+        lastLoginAt: user.lastLoginAt?.toISOString(),
     }));
 
     return {
@@ -102,6 +103,7 @@ export async function getUserById(userId: string) {
             _id: undefined,
             createdAt: user.createdAt.toISOString(),
             updatedAt: user.updatedAt.toISOString(),
+            lastLoginAt: user.lastLoginAt?.toISOString(),
         };
 
     } catch (error) {

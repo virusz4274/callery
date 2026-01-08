@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { getUsers } from '@/app/actions/admin';
 import { getPlans } from '@/app/actions/admin-plans';
 import { UserManagementTable } from '@/components/admin/user-management-table';
-import { Spinner } from '@heroui/react';
+import { Spinner } from '@/components/ui-primitives';
 
 export default async function UsersPage({
     searchParams,

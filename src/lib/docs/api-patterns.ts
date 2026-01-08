@@ -2,7 +2,7 @@
  * @fileoverview API Pattern Documentation
  * 
  * This documents the patterns used for data fetching and mutations
- * in the Call Memo application.
+ * in the VoSift application.
  * 
  * @module docs/api-patterns
  */

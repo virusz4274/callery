@@ -1,6 +1,6 @@
 # Project Structure
 
-This document provides a high-level overview of the `call-memo` codebase organization.
+This document provides a high-level overview of the `vosift` codebase organization.
 
 ## Directory Layout
 
