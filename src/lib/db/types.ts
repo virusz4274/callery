@@ -47,6 +47,9 @@ export interface User {
 
     // Trial
     trialEndsAt?: Date;
+
+    // Login tracking
+    lastLoginAt?: Date;
 }
 
 /**
@@ -278,7 +281,7 @@ export interface UserResponse {
         autoTranscribe: boolean;
     };
     totalRecordings: number;
-
+    lastLoginAt?: string;
 }
 
 export interface PlanResponse {

@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide will help you set up the CallOrganizer application locally.
+This guide will help you set up the VoSift application locally.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ Create a `.env` file in the root directory with the following variables:
 
 ```env
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/call-memo
+MONGODB_URI=mongodb://localhost:27017/vosift
 
 # Firebase (Client & Admin)
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
@@ -52,8 +52,8 @@ GOOGLE_CLIENT_SECRET=your_oauth_client_secret
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/your-repo/call-memo.git
-    cd call-memo
+    git clone https://github.com/your-repo/vosift.git
+    cd vosift
     ```
 
 2.  Install dependencies:

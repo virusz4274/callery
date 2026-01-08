@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Suspense } from 'react';
 import './globals.css';
@@ -12,9 +12,28 @@ import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'CallGent',
-  description: 'AI-powered call analysis and management',
+  title: 'VoSift',
+  description: 'VoSift - Search deeper than words.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'VoSift',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#ffffff',
+};
+
+
 
 import { getSystemSettings } from '@/app/actions/admin-settings';
 

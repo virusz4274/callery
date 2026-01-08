@@ -179,7 +179,7 @@ export function UserManagementTable({
                     </div>
                   </div>
 
-                  <div className="hidden md:grid grid-cols-[100px_160px_160px] gap-4 text-sm items-center flex-shrink-0 mr-4">
+                  <div className="hidden md:grid grid-cols-[80px_130px_130px_120px] gap-4 text-sm items-center flex-shrink-0 mr-4">
                     <div className="text-right">
                       <p className="font-medium">{user.plan}</p>
                       <p className="text-xs text-default-400">Plan</p>
@@ -191,6 +191,12 @@ export function UserManagementTable({
                     <div className="text-right">
                       <p className="font-medium">{(user.transcriptionUsed / 60).toFixed(1)} / {(user.transcriptionAllocation / 60).toFixed(0)} min</p>
                       <p className="text-xs text-default-400">Transcription</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-default-700">
+                        {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                      </p>
+                      <p className="text-xs text-default-400">Last Active</p>
                     </div>
                   </div>
 

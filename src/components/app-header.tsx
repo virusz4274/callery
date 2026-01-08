@@ -76,7 +76,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
                 <Modal.Header className="flex flex-row items-center justify-between p-4 border-b border-default-100">
                   <div className="flex items-center gap-2">
                     <Logo className="h-6 w-6 text-primary" />
-                    <span className="font-bold text-lg">Call Memo</span>
+                    <span className="font-bold text-lg">VoSift</span>
                   </div>
                 </Modal.Header>
                 <Modal.Body className="p-4 gap-6">
@@ -132,7 +132,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center gap-2">
             <Logo className="h-8 w-8 text-primary" />
-            <span className="font-bold text-xl tracking-tight hidden xs:block">Call Memo</span>
+            <span className="font-bold text-xl tracking-tight hidden xs:block">VoSift</span>
           </Link>
         </div>
 
