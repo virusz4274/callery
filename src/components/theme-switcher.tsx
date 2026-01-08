@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@heroui/react';
 import { Sun, Moon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function ThemeSwitcher() {
   const [mounted, setMounted] = useState(false);
@@ -15,27 +15,35 @@ export function ThemeSwitcher() {
   }, []);
 
   if (!mounted) {
-    // Render a placeholder on the server and during hydration
     return (
-        <div className="flex items-center gap-2" style={{width: '93px', height: '28px'}}>
-             <Sun className="h-5 w-5" />
-        </div>
+      <div className="w-[56px] h-[32px] rounded-full bg-default-200 animate-pulse" />
     );
   }
 
-  const handleThemeChange = (checked: boolean) => {
-    setTheme(checked ? 'dark' : 'light');
-  };
+  const isDark = theme === 'dark';
 
   return (
-    <div className="flex items-center gap-2">
-      <Sun className="h-5 w-5" />
-      <Switch
-        checked={theme === 'dark'}
-        onCheckedChange={handleThemeChange}
-        aria-label="Toggle dark mode"
-      />
-      <Moon className="h-5 w-5" />
-    </div>
+    <Switch
+      isSelected={isDark}
+      onChange={(selected) => setTheme(selected ? 'dark' : 'light')}
+      size="lg"
+      aria-label="Toggle dark mode"
+      className={cn(
+        "w-[56px] h-[32px] rounded-full border border-default-200 transition-colors",
+        isDark ? "bg-default-900" : "bg-default-200"
+      )}
+    >
+      <Switch.Control>
+        <Switch.Thumb>
+          <Switch.Icon>
+            {isDark ? (
+              <Moon className="w-4 h-4 text-default-900 fill-current" />
+            ) : (
+              <Sun className="w-4 h-4 text-yellow-500 fill-current" />
+            )}
+          </Switch.Icon>
+        </Switch.Thumb>
+      </Switch.Control>
+    </Switch>
   );
 }

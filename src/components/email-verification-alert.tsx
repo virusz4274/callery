@@ -1,11 +1,9 @@
 
-'use client';
+"use client";
 
 import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Alert, Button, Spinner } from '@heroui/react';
 
 type EmailVerificationAlertProps = {
   user: User | null;
@@ -20,7 +18,7 @@ export function EmailVerificationAlert({ user, onResend }: EmailVerificationAler
     await onResend();
     setIsSending(false);
   };
-  
+
   const isEmailPasswordProvider = user?.providerData.some(
     (provider) => provider.providerId === 'password'
   );
@@ -32,18 +30,22 @@ export function EmailVerificationAlert({ user, onResend }: EmailVerificationAler
   }
 
   return (
-    <Alert variant="destructive" className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Verify Your Email Address</AlertTitle>
-      <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <span>
-          Your account is not verified. Please check your inbox for a verification link.
-        </span>
-        <Button onClick={handleResend} disabled={isSending} size="sm" variant="secondary" className="mt-2 sm:mt-0">
-          {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Resend Verification Email
-        </Button>
-      </AlertDescription>
-    </Alert>
+    <div className="mb-6">
+      <Alert status="danger">
+        <Alert.Indicator />
+        <Alert.Content>
+          <Alert.Title>Verify Your Email Address</Alert.Title>
+          <Alert.Description className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <span>
+              Your account is not verified. Please check your inbox for a verification link.
+            </span>
+            <Button onPress={handleResend} isDisabled={isSending} size="sm" variant="secondary" className="mt-2 sm:mt-0">
+              {isSending ? <Spinner size="sm" color="current" /> : null}
+              Resend Verification Email
+            </Button>
+          </Alert.Description>
+        </Alert.Content>
+      </Alert>
+    </div>
   );
 }

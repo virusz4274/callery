@@ -1,32 +1,20 @@
-
 'use client';
 
 import React from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { CallRecording, Contact } from '@/lib/types';
-import { ContactsPage } from '@/components/contacts-page';
+
+import { useContacts } from '@/hooks/use-contacts';
+import { Skeleton } from '@heroui/react';
+import { ContactsPage } from '@/components/pages/contacts-page';
 
 function ContactsContainer() {
-  const { user } = useUser();
-  const firestore = useFirestore();
 
-  const contactsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'contacts')) : null),
-    [user, firestore]
-  );
-  const recordingsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'recordings')) : null),
-    [user, firestore]
-  );
 
-  const { data: allContacts, isLoading: isLoadingContacts } = useCollection<Contact>(contactsQuery);
-  const { data: allRecordings, isLoading: isLoadingRecordings } = useCollection<CallRecording>(recordingsQuery);
+  const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, totalCount } = useContacts();
 
-  const isLoading = isLoadingContacts || isLoadingRecordings;
+  // Use API response directly (no transformation needed)
+  const allContacts = contactsData ?? [];
 
-  if (isLoading) {
+  if (isLoadingContacts) {
     return (
       <div className="space-y-4 p-4">
         <div className="flex items-center gap-4">
@@ -47,9 +35,9 @@ function ContactsContainer() {
     );
   }
 
-  return <ContactsPage allContacts={allContacts || []} allRecordings={allRecordings || []} />;
+  return <ContactsPage allContacts={allContacts} loadMore={loadMore} hasMore={hasMore} totalCount={totalCount} />;
 }
 
 export default function Contacts() {
-    return <ContactsContainer />
+  return <ContactsContainer />
 }

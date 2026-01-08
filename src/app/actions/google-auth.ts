@@ -1,7 +1,6 @@
 'use server';
 
 import { getOAuth2Client } from '@/services/google/oauth';
-import { headers } from 'next/headers';
 
 // These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
@@ -14,8 +13,8 @@ function getBaseUrl() {
 
 
 export async function getGoogleAuthUrl() {
-  const baseUrl = getBaseUrl();
-  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  // Use the environment variable if set, otherwise construct it dynamically
+  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
 
   const oAuth2Client = getOAuth2Client(redirectUri);
 

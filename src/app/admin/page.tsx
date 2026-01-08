@@ -1,9 +1,15 @@
-
+import { Suspense } from 'react';
+import { getSystemStats, getOrphanedRecordingsCount } from '@/app/actions/admin';
 import { AdminDashboard } from '@/components/pages/admin/admin-dashboard';
-import { contacts, recordings } from '@/lib/data/data';
+import { Spinner } from '@heroui/react';
 
-export default function AdminPage() {
-    // In a real app, you'd fetch all users and recordings.
-    // For now, we'll use our mock data to simulate this.
-    return <AdminDashboard allUsers={contacts} allRecordings={recordings} />;
+export default async function AdminPage() {
+    const stats = await getSystemStats();
+    const orphanedCount = await getOrphanedRecordingsCount();
+
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8"><Spinner size="lg" /></div>}>
+            <AdminDashboard stats={stats} orphanedCount={orphanedCount} />
+        </Suspense>
+    );
 }

@@ -1,32 +1,40 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { CallRecording, Contact } from '@/lib/types';
+import { useUser } from '@/lib/firebase/provider';
+import { useRecordings } from '@/hooks/use-recordings';
+import { useContacts } from '@/hooks/use-contacts';
+import { useStats } from '@/hooks/use-stats';
+import { Skeleton } from '@heroui/react';
 import { LandingPage } from '@/components/pages/landing-page';
 import { RecordingsDashboard } from '@/components/recordings-dashboard';
 
-function HomePageContent() {
-  const { user, isUserLoading } = useUser();
+/**
+ * Dashboard content - only rendered when user is authenticated
+ */
+function AuthenticatedDashboard() {
   const searchParams = useSearchParams();
-  const firestore = useFirestore();
+  const [page, setPage] = React.useState(1);
+  const LIMIT = 10;
 
-  const contactsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'contacts')) : null),
-    [user, firestore]
-  );
-  const recordingsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'users', user.uid, 'recordings')) : null),
-    [user, firestore]
-  );
+  // Fetch stats separately
+  const { stats, isLoading: isLoadingStats } = useStats();
 
-  const { data: allContacts, isLoading: isLoadingContacts } = useCollection<Contact>(contactsQuery);
-  const { data: allRecordings, isLoading: isLoadingRecordings } = useCollection<CallRecording>(recordingsQuery);
+  // Fetch recordings with pagination
+  const { data: recordingsData, isLoading: isLoadingRecordings, totalCount, refetch: refetchRecordings } = useRecordings({
+    limit: LIMIT,
+    skip: (page - 1) * LIMIT,
+    includeArchived: false,
+  });
 
-  const filter = React.useMemo(
+  const { data: contactsData, isLoading: isLoadingContacts } = useContacts();
+
+  // Use API responses directly (no transformation needed)
+  const allRecordings = recordingsData ?? [];
+  const allContacts = contactsData ?? [];
+
+  const filter = useMemo(
     () => ({
       type: searchParams.get('filterType'),
       value: searchParams.get('filterValue'),
@@ -36,9 +44,7 @@ function HomePageContent() {
 
   const searchQuery = searchParams.get('q') || '';
 
-  const isLoading = isUserLoading || isLoadingContacts || isLoadingRecordings;
-
-  if (isLoading) {
+  if (isLoadingRecordings || isLoadingContacts || isLoadingStats) {
     return (
       <div className="space-y-8">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -52,20 +58,49 @@ function HomePageContent() {
     );
   }
 
+  return (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+      <RecordingsDashboard
+        allRecordings={allRecordings}
+        allContacts={allContacts}
+        filter={filter}
+        searchQuery={searchQuery}
+        stats={stats}
+        page={page}
+        setPage={setPage}
+        totalCount={totalCount}
+        itemsPerPage={LIMIT}
+        onRecordingsChange={refetchRecordings}
+      />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
+  const { user, isUserLoading } = useUser();
+
+  // Show loading state while checking auth
+  if (isUserLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  // Show landing page for unauthenticated users
   if (!user) {
     return <LandingPage />;
   }
 
-  return (
-    <Suspense fallback={<div>Loading Dashboard...</div>}>
-      <RecordingsDashboard
-        allRecordings={allRecordings || []}
-        allContacts={allContacts || []}
-        filter={filter}
-        searchQuery={searchQuery}
-      />
-    </Suspense>
-  );
+  // Show dashboard for authenticated users
+  return <AuthenticatedDashboard />;
 }
 
 export default function Home() {

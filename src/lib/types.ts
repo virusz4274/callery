@@ -1,53 +1,36 @@
+/**
+ * Frontend type definitions.
+ * Re-exports from db/types for consistency, keeping unique UI-only types here.
+ */
 
-export type CallRecording = {
-  id: string;
-  contactId?: string;
-  contactName: string | null;
-  phoneNumber: string;
-  date: string; // ISO string
-  duration: number; // in seconds
-  filePath: string;
-  transcriptSnippet: string;
-};
+// Re-export API response types for frontend use
+export type {
+  RecordingResponse,
+  ContactResponse,
+  UserResponse,
+  TranscriptionSegment,
+  TranscriptionWord,
+} from './db/types';
 
-// This was updated to match the UserProfile entity to allow for live data.
-export type Contact = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  name: string; // Keep for compatibility where name is used as combination
-  phoneNumber: string;
-  createdAt: any;
-  role: 'user' | 'admin';
-  plan: 'Free' | 'Pro';
-  timezone: string;
-  notificationSettings: {
-    activityDigest: 'off' | 'weekly' | 'monthly';
-    ingestSuccess: boolean;
-    ingestFail: boolean;
-  };
-  storageSettings: {
-    deletionPolicy: 'never' | '3m' | '6m' | '1y';
-  };
-  storageUsed: number;
-  storageAllocation: number;
-  transcriptionUsed: number;
-  transcriptionAllocation: number;
-};
+// Type aliases for semantic clarity in UI code
+export { type RecordingResponse as Recording } from './db/types';
+export { type ContactResponse as Contact } from './db/types';
+export { type UserResponse as User } from './db/types';
+
+// UI-only types (not stored in MongoDB)
 
 export type FileSystemNode = {
   id: string;
   name: string;
   type: 'folder' | 'file';
-  lastModified: string; // ISO string
+  lastModified: string;
   size?: string;
   children?: FileSystemNode[];
 };
 
 export type Invoice = {
-    id: string;
-    date: string; // ISO string
-    amount: number;
-    status: 'Paid' | 'Pending' | 'Failed';
+  id: string;
+  date: string;
+  amount: number;
+  status: 'Paid' | 'Pending' | 'Failed';
 };
