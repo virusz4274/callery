@@ -38,8 +38,9 @@ export const R2_BUCKET = process.env.R2_BUCKET_NAME;
 
 /**
  * Allowed audio MIME types for recording uploads.
+ * Using a Set for O(1) lookup performance.
  */
-const ALLOWED_AUDIO_MIME_TYPES = [
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
     'audio/mpeg',
     'audio/mp4',
     'audio/x-m4a',
@@ -47,13 +48,13 @@ const ALLOWED_AUDIO_MIME_TYPES = [
     'audio/wav',
     'audio/x-wav',
     'audio/webm',
-];
+]);
 
 /**
  * Validate if a MIME type is an allowed audio format.
  */
 export function validateAudioMimeType(mimeType: string): boolean {
-    return ALLOWED_AUDIO_MIME_TYPES.includes(mimeType.toLowerCase());
+    return ALLOWED_AUDIO_MIME_TYPES.has(mimeType.toLowerCase());
 }
 
 /**
@@ -139,16 +140,7 @@ export async function uploadToR2WithMetadata(
     await r2Client.send(command);
 }
 
-/**
- * Upload a file to R2 (legacy function for backward compatibility).
- */
-export async function uploadToR2(
-    key: string,
-    body: Buffer | Uint8Array,
-    contentType: string
-): Promise<void> {
-    await uploadToR2WithMetadata(key, body, contentType, {});
-}
+
 
 /**
  * Delete a file from R2.

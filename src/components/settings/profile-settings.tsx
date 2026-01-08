@@ -7,12 +7,23 @@ import { SettingsPage } from './settings-page';
 import type { UseFormReturn } from 'react-hook-form';
 import type { User } from 'firebase/auth';
 
+type ProfileFormValues = {
+    firstName: string;
+    lastName: string;
+};
+
+type PasswordFormValues = {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+};
+
 interface ProfileSettingsProps {
     user: User | null;
-    profileForm: UseFormReturn<any>;
-    passwordForm: UseFormReturn<any>;
-    onUpdateProfile: (values: any) => Promise<void>;
-    onChangePassword: (values: any) => Promise<void>;
+    profileForm: UseFormReturn<ProfileFormValues>;
+    passwordForm: UseFormReturn<PasswordFormValues>;
+    onUpdateProfile: (values: ProfileFormValues) => Promise<void>;
+    onChangePassword: (values: PasswordFormValues) => Promise<void>;
     isProfileSaving: boolean;
     isPasswordSaving: boolean;
 }

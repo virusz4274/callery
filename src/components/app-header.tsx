@@ -10,16 +10,16 @@ import {
   Input,
   Dropdown,
 } from "@heroui/react";
-import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, LogIn, Shield, Sparkles, Settings, LogOut, HelpCircle } from 'lucide-react';
+import { Users, LayoutDashboard, Search, Folder, Upload, Menu, CreditCard, Shield, Sparkles, Settings, LogOut, HelpCircle } from 'lucide-react';
 import { Logo } from './icons';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './theme-switcher';
 import type { User } from 'firebase/auth';
-import type { Contact } from '@/lib/types';
+import type { User as UserProfile } from '@/lib/types';
 
 type AppHeaderProps = {
   user: User | null;
-  userProfile: Contact | null;
+  userProfile: UserProfile | null;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onLogout: () => void;

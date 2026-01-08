@@ -11,7 +11,7 @@ import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
 import { useAuth, useUser } from '@/lib/firebase/provider';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { ensureUserProfile } from '@/hooks/firebase/use-user-profile';
+
 
 export function LoginPage() {
   const { toast } = useToast();
@@ -34,7 +34,7 @@ export function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       // Session and profile syncing is now handled by FirebaseProvider
       router.push('/');
     } catch (error: unknown) {
@@ -56,7 +56,7 @@ export function LoginPage() {
       if (auth.currentUser) {
         await signOut(auth);
       }
-      const result = await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, provider);
       // Session and profile syncing is now handled by FirebaseProvider
       router.push('/');
     } catch (error: unknown) {
@@ -151,7 +151,7 @@ export function LoginPage() {
         </Card.Content>
         <Card.Footer className="flex-col gap-4 pt-0 pb-6">
           <p className="text-small text-center text-default-500">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-medium text-primary hover:underline">
               Sign up
             </Link>

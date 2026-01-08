@@ -2,20 +2,24 @@
 'use client';
 
 import React from 'react';
-import { Card, Button, Select, Switch, Spinner, Label, ListBox, Separator } from '@heroui/react';
+import { Card, Button, Select, Switch, Spinner, Label, ListBox } from '@heroui/react';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { GoogleConnectDialog } from './google-connect-dialog';
 import { SettingsPage } from './settings-page';
-import type { Contact } from '@/lib/types';
+import type { User } from '@/lib/types';
 
 interface DataSettingsProps {
-    userProfile: Contact | null;
-    settings: { deletionPolicy: string };
-    onSettingsChange: (newSettings: { deletionPolicy: string }) => void;
+    userProfile: User | null;
+    settings: {
+        deletionPolicy: string;
+        transcriptionSettings: { autoTranscribe: boolean };
+    };
+    onSettingsChange: (newSettings: {
+        deletionPolicy: string;
+        transcriptionSettings: { autoTranscribe: boolean };
+    }) => void;
     onSave: () => Promise<void>;
     isSaving: boolean;
-    onIngest: () => void;
-    isIngesting: boolean;
     onConnectGoogle: () => void;
     isSyncing: boolean;
     showConnectDialog: boolean;
@@ -29,18 +33,27 @@ export function DataSettings({
     onSettingsChange,
     onSave,
     isSaving,
-    onIngest,
-    isIngesting,
     onConnectGoogle,
     isSyncing,
     showConnectDialog,
     onDialogConfirm,
     onOpenChangeDialog,
 }: DataSettingsProps) {
-    const showAutoTranscribe = process.env.NEXT_PUBLIC_FEATURE_AUTO_TRANSCRIBE_ENABLED === 'true';
-    const storagePercentage = userProfile
-        ? (userProfile.storageUsed / userProfile.storageAllocation) * 100
-        : 0;
+
+
+    const storageUsed = userProfile?.storageUsed || 0;
+    const storageAllocation = userProfile?.storageAllocation || 1; // Prevent div by zero
+    const storagePercentage = (storageUsed / storageAllocation) * 100;
+
+    // Unit Conversion: Used is in seconds, Allocation is in minutes.
+    // We convert everything to minutes for display and percentage calculation.
+    const transcriptionUsedSeconds = userProfile?.transcriptionUsed || 0;
+    const transcriptionUsedMinutes = transcriptionUsedSeconds / 60;
+    const transcriptionAllocationSeconds = userProfile?.transcriptionAllocation || 3600; // Default 60 mins (3600s)
+    const transcriptionAllocationMinutes = transcriptionAllocationSeconds / 60;
+
+    // Prevent division by zero and cap at 100% just for visual bar (though value can exceed)
+    const transcriptionPercentage = (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100;
 
     return (
         <>
@@ -48,7 +61,7 @@ export function DataSettings({
                 <SettingsPage title="Data Sources" description="Manage where your call data comes from. Connect your Google account or manually upload recordings.">
                     <Card className="bg-card/70 border-default-200">
                         <Card.Content className="space-y-4">
-                            <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4">
                                 <div className="space-y-0.5">
                                     <h4 className="text-base font-medium">Sync Google Contacts</h4>
                                     <p className="text-sm text-default-500">
@@ -59,6 +72,7 @@ export function DataSettings({
                                     variant="secondary"
                                     onPress={onConnectGoogle}
                                     isDisabled={isSyncing}
+                                    className="w-full sm:w-auto"
                                 >
                                     {isSyncing ? (
                                         <Spinner size="sm" />
@@ -68,61 +82,74 @@ export function DataSettings({
                                     Connect
                                 </Button>
                             </div>
-                            <div className="rounded-lg border p-4">
-                                <div className="space-y-1 mb-4">
-                                    <h4 className="text-base font-medium">Manual Data Ingestion</h4>
-                                    <p className="text-sm text-default-500">
-                                        Place your recording files in the `/injest` directory and click the button below to process them.
-                                    </p>
-                                </div>
-                                <Button
-                                    onPress={onIngest}
-                                    isDisabled={isIngesting}
-                                    variant="secondary"
-                                >
-                                    {isIngesting && <Spinner size="sm" className='mr-2' />}
-                                    {isIngesting ? 'Processing...' : 'Process New Recordings'}
-                                </Button>
-                            </div>
+
                         </Card.Content>
                     </Card>
                 </SettingsPage>
-                {showAutoTranscribe && (
-                    <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
-                        <Card className="bg-card/70 border-default-200">
-                            <Card.Content>
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <div className="space-y-0.5">
-                                        <h4 className="text-base font-medium">Auto-Transcribe New Recordings</h4>
-                                        <p className="text-sm text-default-500">
-                                            Automatically generate a transcript when a new recording is ingested. This may incur costs.
-                                        </p>
-                                    </div>
-                                    <Switch isDisabled aria-label="Auto-Transcribe">
-                                        <Switch.Control>
-                                            <Switch.Thumb />
-                                        </Switch.Control>
-                                    </Switch>
-                                </div>
-                            </Card.Content>
-                            <Card.Footer>
-                                <Button isDisabled>Save Settings</Button>
-                            </Card.Footer>
-                        </Card>
-                    </SettingsPage>
-                )}
-                <SettingsPage title="Storage Management" description="Manage your storage usage and data retention policies.">
+
+                <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
                     <Card className="bg-card/70 border-default-200">
                         <Card.Content className="space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <h4 className="text-base font-medium">Auto-Transcribe New Recordings</h4>
+                                    <p className="text-sm text-default-500">
+                                        Automatically generate a transcript when a new recording is ingested. This counts toward your monthly quota.
+                                    </p>
+                                </div>
+                                <Switch
+                                    isSelected={settings.transcriptionSettings.autoTranscribe}
+                                    onChange={(isSelected) => {
+                                        onSettingsChange({
+                                            ...settings,
+                                            transcriptionSettings: { ...settings.transcriptionSettings, autoTranscribe: isSelected }
+                                        });
+                                    }}
+                                    aria-label="Auto-Transcribe"
+                                >
+                                    <Switch.Control>
+                                        <Switch.Thumb />
+                                    </Switch.Control>
+                                </Switch>
+                            </div>
+
+
+                        </Card.Content>
+                        <Card.Footer>
+                            <Button onPress={onSave} isPending={isSaving} variant="primary">
+                                {isSaving ? <Spinner color="current" size="sm" /> : "Save Settings"}
+                            </Button>
+                        </Card.Footer>
+                    </Card>
+                </SettingsPage>
+
+                <SettingsPage title="Usage & Storage" description="View your data limits and manage retention policies.">
+                    <Card className="bg-card/70 border-default-200">
+                        <Card.Content className="space-y-6">
+                            {/* Transcription Usage */}
                             <div>
-                                <h4 className="font-medium mb-2">Storage Usage</h4>
+                                <h4 className="font-medium mb-2">Transcription Usage</h4>
                                 <p className="text-sm text-default-500 mb-2">
-                                    You are currently using {((userProfile?.storageUsed || 0) / (1024 * 1024 * 1024)).toFixed(2)} GB of {((userProfile?.storageAllocation || 0) / (1024 * 1024 * 1024)).toFixed(0)} GB.
+                                    You have used {transcriptionUsedMinutes.toFixed(1)} minutes of {transcriptionAllocationMinutes} minutes.
                                 </p>
                                 {/* Custom Progress Bar */}
                                 <div className="h-2 w-full bg-default-100 rounded-full overflow-hidden">
                                     <div
-                                        className={`h-full ${storagePercentage > 90 ? "bg-danger" : "bg-primary"}`}
+                                        className={`h-full transition-all duration-500 ${transcriptionPercentage > 90 ? "bg-danger" : "bg-primary"}`}
+                                        style={{ width: `${Math.min(transcriptionPercentage, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="font-medium mb-2">Storage Usage</h4>
+                                <p className="text-sm text-default-500 mb-2">
+                                    You are currently using {((storageUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB of {((storageAllocation) / (1024 * 1024 * 1024)).toFixed(0)} GB.
+                                </p>
+                                {/* Custom Progress Bar */}
+                                <div className="h-2 w-full bg-default-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all duration-500 ${storagePercentage > 90 ? "bg-danger" : "bg-primary"}`}
                                         style={{ width: `${Math.min(storagePercentage, 100)}%` }}
                                     />
                                 </div>
@@ -171,3 +198,4 @@ export function DataSettings({
         </>
     );
 }
+

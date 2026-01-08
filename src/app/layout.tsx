@@ -16,11 +16,16 @@ export const metadata: Metadata = {
   description: 'AI-powered call analysis and management',
 };
 
-export default function RootLayout({
+import { getSystemSettings } from '@/app/actions/admin-settings';
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fetch system settings on the server
+  const settings = await getSystemSettings();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -35,7 +40,7 @@ export default function RootLayout({
           <FirebaseClientProvider>
             <Suspense>
               <ToastProvider>
-                <AppLayout>{children}</AppLayout>
+                <AppLayout systemSettings={settings}>{children}</AppLayout>
               </ToastProvider>
             </Suspense>
           </FirebaseClientProvider>

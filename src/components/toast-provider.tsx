@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Alert, Button } from "@heroui/react";
 import { X } from 'lucide-react';
 
@@ -62,13 +62,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                                 {t.description && <Alert.Description>{t.description}</Alert.Description>}
                             </Alert.Content>
                         </Alert>
-                        <button
-                            onClick={() => dismiss(t.id)}
-                            className="absolute top-2 right-2 p-1 rounded-full bg-background/20 hover:bg-background/40 transition-colors text-foreground"
+                        <Button
+                            isIconOnly
+                            variant="ghost"
+                            size="sm"
+                            onPress={() => dismiss(t.id)}
+                            className="absolute top-2 right-2 text-foreground/50 hover:text-foreground"
                             aria-label="Close"
                         >
                             <X className="h-4 w-4" />
-                        </button>
+                        </Button>
                     </div>
                 ))}
             </div>

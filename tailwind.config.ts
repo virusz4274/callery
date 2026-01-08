@@ -2,6 +2,7 @@
 // Renamed to backup to allow Tailwind v4 CSS-based configuration
 import type { Config } from 'tailwindcss';
 
+
 export default {
   darkMode: 'class',
   content: [

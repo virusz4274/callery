@@ -1,41 +1,31 @@
 'use server';
 
 import { ObjectId } from 'mongodb';
-import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
+import { after } from 'next/server';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 import {
   uploadToR2WithMetadata,
   generateRecordingKey,
   extractFileExtension,
   validateAudioMimeType,
-  sanitizePhoneNumber
+  getSignedR2Url
 } from '@/lib/r2';
-import { createRecording } from '@/lib/db/recordings';
-import { incrementStorageUsed } from '@/lib/db/users';
+import { createRecording, updateRecording } from '@/lib/db/recordings';
+import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid } from '@/lib/db/users';
+import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
+import { transcribeAudio, deleteTranscript } from '@/lib/elevenlabs';
+import { parseContactFromFilename } from '@/lib/utils/filename-parser';
+import { calculateBilledDuration } from '@/lib/utils/billing';
+import { generateSummary, generateTransliteration } from '@/lib/llm';
+
+import { generateEmbedding } from '@/lib/embeddings';
+import { checkUserAccess } from '@/lib/access-control';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
 
-/**
- * Get the Firebase UID from the session cookie.
- */
-async function getFirebaseUidFromSession(): Promise<string | null> {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
 
-    if (!sessionCookie || !sessionCookie.value) {
-      return null;
-    }
-    const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
-    return decodedToken.uid;
-  } catch (error) {
-    console.error('Error verifying session:', error);
-    return null;
-  }
-}
 
 /**
  * Upload recordings to R2 and save metadata to MongoDB.
@@ -49,6 +39,16 @@ export async function uploadRecordings(
     return { success: false, count: 0, error: 'Not authenticated' };
   }
 
+  const user = await findUserByFirebaseUid(firebaseUid);
+  if (!user) {
+    return { success: false, count: 0, error: 'User not found' };
+  }
+
+  const access = checkUserAccess(user);
+  if (!access.allowed) {
+    return { success: false, count: 0, error: access.reason || 'Access denied' };
+  }
+
   const files = formData.getAll('files') as File[];
 
   if (!files || files.length === 0) {
@@ -58,10 +58,21 @@ export async function uploadRecordings(
   let uploadedCount = 0;
   const errors: string[] = [];
 
+
   for (const file of files) {
     try {
       const buffer = Buffer.from(await file.arrayBuffer());
       const recordedAt = new Date(); // You could parse this from filename if available
+
+      // Calculate duration
+      let duration = 0;
+      try {
+        const { parseBuffer } = await import('music-metadata');
+        const metadata = await parseBuffer(buffer, file.type || 'audio/mpeg');
+        duration = metadata.format.duration || 0;
+      } catch (e) {
+        console.warn(`[uploadRecordings] Failed to extract duration for ${file.name}:`, e);
+      }
 
       // Parse contact info from filename if possible
       // Expected format: "Call recording ContactName_YYMMDD_HHMMSS.mp3"
@@ -73,7 +84,7 @@ export async function uploadRecordings(
 
       // Validate MIME type
       if (!validateAudioMimeType(mimeType)) {
-        console.warn(`Skipping file ${file.name}: Invalid MIME type ${mimeType}`);
+        console.warn(`[uploadRecordings] Skipping file ${file.name}: Invalid MIME type ${mimeType}`);
         errors.push(`${file.name} (invalid format)`);
         continue;
       }
@@ -125,6 +136,7 @@ export async function uploadRecordings(
         'original-filename': file.name,
         'standardized-name': displayName,
         'recorded-at': recordingDate.toISOString(), // ISO 8601 timestamp for sorting
+        'duration': duration.toString(),
       };
 
       if (googleContactId) {
@@ -135,36 +147,90 @@ export async function uploadRecordings(
       await uploadToR2WithMetadata(r2Key, buffer, mimeType, metadata);
 
       // Create recording in MongoDB
-      await createRecording({
+      const recordingData = {
         firebaseUid,
         contactId: contactId ? new ObjectId(contactId) : null,
         contactName,
         phoneNumber,
         r2Key,
         fileName: file.name,
-        originalFileName: file.name,
+
         standardizedDisplayName: displayName,
         fileSize: buffer.length,
         mimeType,
-        duration: 0, // Will be updated when transcription is done
+        duration: Math.round(duration), // Store as rounded seconds
         recordedAt: contactInfo.date || recordedAt,
-        transcriptionStatus: 'pending',
+        transcriptionStatus: 'pending' as const,
         transcriptSnippet: '',
         transcript: '',
         tags: [],
         isStarred: false,
         isArchived: false,
-      });
+      };
+
+      const createdRecording = await createRecording(recordingData);
+      console.log(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
 
       // Update user's storage usage
       await incrementStorageUsed(firebaseUid, buffer.length);
 
+      // Auto-transcription
+      const user = await findUserByFirebaseUid(firebaseUid);
+      if (user?.transcriptionSettings?.autoTranscribe) {
+        // Use after() to run transcription in the background after the response is sent
+        // This prevents the upload request from timing out
+        after(async () => {
+          try {
+            console.log(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
+
+            await updateRecording(createdRecording._id.toString(), firebaseUid, {
+              transcriptionStatus: 'processing',
+            });
+
+            const fileUrl = await getSignedR2Url(r2Key, 1800);
+            const result = await transcribeAudio(fileUrl);
+
+            // Parallelize LLM operations
+            const [summary, transliteratedSegments] = await Promise.all([
+              generateSummary(result.text, result.languageCode),
+              generateTransliteration(result.segments, result.languageCode)
+            ]);
+
+            // Generate embedding from summary
+            const summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+
+            await updateRecording(createdRecording._id.toString(), firebaseUid, {
+              transcriptionStatus: 'completed',
+              fullTranscript: transliteratedSegments,
+              languageCode: result.languageCode,
+              summary,
+              summaryEmbedding,
+            });
+
+            // Calculate and record billed usage
+            const billedDuration = calculateBilledDuration(duration);
+            await incrementTranscriptionUsed(firebaseUid, billedDuration);
+            console.log(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
+
+            // Delete from ElevenLabs
+            await deleteTranscript(result.transcriptionId);
+            console.log(`[uploadRecordings] Background: Transcription complete for ${createdRecording._id.toString()}`);
+          } catch (transcriptionError) {
+            console.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
+            await updateRecording(createdRecording._id.toString(), firebaseUid, {
+              transcriptionStatus: 'failed',
+            });
+          }
+        });
+      }
+
       uploadedCount++;
     } catch (error) {
-      console.error(`Failed to upload file ${file.name}:`, error);
+      console.error(`[uploadRecordings] ❌ Failed to upload file ${file.name}:`, error);
       errors.push(file.name);
     }
   }
+  console.log(`[uploadRecordings] Complete. Uploaded: ${uploadedCount}, Errors: ${errors.length}`);
 
   if (errors.length > 0) {
     return {
@@ -175,69 +241,4 @@ export async function uploadRecordings(
   }
 
   return { success: true, count: uploadedCount };
-}
-
-/**
- * Parse contact info and date from a recording filename.
- * Expected format: "Call recording ContactName_YYMMDD_HHMMSS.ext"
- */
-function parseContactFromFilename(filename: string): {
-  name: string | null;
-  phoneNumber: string | null;
-  date: Date | null;
-} {
-  const prefix = 'Call recording ';
-  if (!filename.startsWith(prefix)) {
-    // Try to extract any useful info from the filename
-    const nameWithoutExt = filename.replace(/\.[^.]+$/, '');
-    return {
-      name: nameWithoutExt || null,
-      phoneNumber: null,
-      date: null,
-    };
-  }
-
-  const mainPart = filename.substring(prefix.length);
-  const nameWithoutExt = mainPart.replace(/\.[^.]+$/, '');
-
-  // Try to match: ContactName_YYMMDD_HHMMSS
-  const match = nameWithoutExt.match(/(.+)_(\d{6})_(\d{6})$/);
-
-  if (!match) {
-    return {
-      name: nameWithoutExt || null,
-      phoneNumber: null,
-      date: null,
-    };
-  }
-
-  const contact = match[1];
-  const dateStr = match[2];
-  const timeStr = match[3];
-
-  // Check if contact is a phone number
-  const isPhoneNumber = /^[\d+\-\s()]+$/.test(contact.replace(/_/g, ' '));
-
-  // Parse date
-  let date: Date | null = null;
-  try {
-    const year = 2000 + parseInt(dateStr.substring(0, 2));
-    const month = parseInt(dateStr.substring(2, 4)) - 1;
-    const day = parseInt(dateStr.substring(4, 6));
-    const hours = parseInt(timeStr.substring(0, 2));
-    const minutes = parseInt(timeStr.substring(2, 4));
-    const seconds = parseInt(timeStr.substring(4, 6));
-    date = new Date(year, month, day, hours, minutes, seconds);
-    if (isNaN(date.getTime())) {
-      date = null;
-    }
-  } catch {
-    date = null;
-  }
-
-  return {
-    name: isPhoneNumber ? null : contact.replace(/_/g, ' '),
-    phoneNumber: isPhoneNumber ? contact.replace(/_/g, '') : null,
-    date,
-  };
 }

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+
 
 /**
  * The main proxy function.
  * Currently simplified to allow all requests to pass through while authentication is being reworked.
  */
-export async function proxy(request: NextRequest) {
+export async function proxy() {
     return NextResponse.next();
 }
 

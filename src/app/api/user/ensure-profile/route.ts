@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        const { firebaseUid, email, displayName, firstName, lastName } = body;
+        const { firebaseUid, email, displayName, firstName, lastName, photoURL } = body;
 
         if (!firebaseUid || !email) {
             return NextResponse.json(
@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
         const { user, wasCreated } = await ensureUserProfile(
             firebaseUid,
             email,
-            name
+            name,
+            photoURL
         );
 
         return NextResponse.json({

@@ -12,23 +12,18 @@ import {
   Label,
   ListBox
 } from '@heroui/react';
-import type { Contact } from '@/lib/types';
+import { PlanResponse } from '@/lib/db/types';
+import type { User } from '@/lib/types';
 import { updateContactPlan } from '@/app/actions/update-contact-plan';
 
 type ManagePlanDialogProps = {
-  user: Contact;
+  user: User;
   isOpen: boolean;
   onClose: () => void;
+  plans: PlanResponse[];
 };
 
-const PLANS = [
-  { value: 'Free', label: 'Free' },
-  { value: 'Pro', label: 'Pro' },
-  { value: 'Business', label: 'Business' },
-  { value: 'Enterprise', label: 'Enterprise' },
-];
-
-export function ManagePlanDialog({ user, isOpen, onClose }: ManagePlanDialogProps) {
+export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDialogProps) {
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState(user.plan);
   const [loading, setLoading] = useState(false);
@@ -40,12 +35,25 @@ export function ManagePlanDialog({ user, isOpen, onClose }: ManagePlanDialogProp
       onClose();
       // In a real app, you'd trigger a refresh or update UI state
       window.location.reload();
-    } catch (error) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to update plan', status: 'danger' });
     } finally {
       setLoading(false);
     }
   };
+
+  // Find the selected plan object to display its limits
+  const selectedPlanDetails = plans.find(p => p.name === selectedPlan);
+
+  // Display values (default to user's current if plan not found/selected)
+  // Convert bytes to GB and seconds to minutes for display
+  const displayStorage = selectedPlanDetails
+    ? Math.floor(selectedPlanDetails.limits.storage / (1024 * 1024 * 1024))
+    : Math.floor(user.storageAllocation / (1024 * 1024 * 1024));
+
+  const displayTranscription = selectedPlanDetails
+    ? Math.floor(selectedPlanDetails.limits.transcription / 60)
+    : Math.floor(user.transcriptionAllocation / 60);
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -61,7 +69,7 @@ export function ManagePlanDialog({ user, isOpen, onClose }: ManagePlanDialogProp
                 <Select
                   placeholder="Select a plan"
                   selectedKey={selectedPlan}
-                  onSelectionChange={(key) => setSelectedPlan(key as any)}
+                  onSelectionChange={(key) => setSelectedPlan(key as string)}
                 >
                   <Label>Plan</Label>
                   <Select.Trigger>
@@ -70,9 +78,9 @@ export function ManagePlanDialog({ user, isOpen, onClose }: ManagePlanDialogProp
                   </Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      {PLANS.map((plan) => (
-                        <ListBox.Item key={plan.value} id={plan.value} textValue={plan.label}>
-                          {plan.label}
+                      {plans.map((plan) => (
+                        <ListBox.Item key={plan.name} id={plan.name} textValue={plan.name}>
+                          {plan.name} ({plan.price === 0 ? 'Free' : `$${plan.price}`})
                         </ListBox.Item>
                       ))}
                     </ListBox>
@@ -84,21 +92,23 @@ export function ManagePlanDialog({ user, isOpen, onClose }: ManagePlanDialogProp
                     <Label>Storage Allocation (GB)</Label>
                     <Input
                       type="number"
-                      defaultValue={String(user.storageAllocation)}
+                      value={String(displayStorage)}
                       readOnly
                       disabled
                       className="bg-default-100"
                     />
+                    <p className="text-xs text-default-400">Defined by Plan</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Transcription (min)</Label>
                     <Input
                       type="number"
-                      defaultValue={String(user.transcriptionAllocation)}
+                      value={String(displayTranscription)}
                       readOnly
                       disabled
                       className="bg-default-100"
                     />
+                    <p className="text-xs text-default-400">Defined by Plan</p>
                   </div>
                 </div>
               </div>

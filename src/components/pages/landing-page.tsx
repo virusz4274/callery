@@ -193,6 +193,7 @@ export function LandingPage() {
                                                                     <p className="text-[10px] text-default-400">{item.time}</p>
                                                                 </div>
                                                             </div>
+                                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                                             <Chip size="sm" variant="soft" color={item.color as any} className="h-6 text-[10px]">
                                                                 {item.status}
                                                             </Chip>
@@ -237,7 +238,7 @@ export function LandingPage() {
                             </p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {features.map((feature, idx) => (
+                            {features.map((feature) => (
                                 <Card key={feature.title} className="p-1 h-full bg-gradient-to-br from-content1 to-content2/50 border-none shadow-medium hover:shadow-xl transition-shadow duration-300">
                                     <div className="h-full bg-background/80 backdrop-blur-md rounded-lg p-6 flex flex-col items-start gap-4 hover:bg-background/40 transition-colors">
                                         <div className={`p-3 rounded-xl bg-${feature.color}/10 text-${feature.color}`}>
@@ -323,7 +324,7 @@ export function LandingPage() {
                                             ))}
                                         </div>
                                         <blockquote className="text-default-500 text-sm leading-relaxed">
-                                            "{testimonial.quote}"
+                                            &quot;{testimonial.quote}&quot;
                                         </blockquote>
                                     </Card>
                                 )
@@ -344,7 +345,7 @@ export function LandingPage() {
                                 <div className="space-y-6">
                                     <h3 className="text-2xl font-bold">A Message from the Creator</h3>
                                     <p className="text-lg text-default-500 italic leading-relaxed">
-                                        "I created Call Memo because I was drowning in a sea of unorganized audio files. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings."
+                                        &quot;I created Call Memo because I was drowning in a sea of unorganized audio files. Finding a specific piece of information was impossible. I knew there had to be a better way. This tool is the result: a simple, powerful platform to bring order to the chaos of call recordings.&quot;
                                     </p>
                                     <div className="flex items-center gap-4 pt-4 border-t border-default-100">
                                         <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-bold text-xl">

@@ -12,7 +12,7 @@ async function checkDatabase() {
 
     try {
         // Test connection
-        const client = await getMongoClient();
+        await getMongoClient();
         console.log('✅ MongoDB connection successful\n');
 
         const db = await getMongoDb();
@@ -52,7 +52,7 @@ async function checkDatabase() {
                 indexes.forEach(idx => {
                     console.log(`      - ${idx.name}: ${JSON.stringify(idx.key)}`);
                 });
-            } catch (err) {
+            } catch {
                 console.log(`   ${collectionName}: Collection doesn't exist yet`);
             }
         }

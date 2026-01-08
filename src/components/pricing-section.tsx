@@ -6,8 +6,8 @@ export function PricingSection() {
     return (
         <div className="space-y-12">
             <div className="text-center">
-                <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Find the plan that's right for you</h2>
-                <p className="text-muted-foreground mt-2">Simple, usage-based pricing that scales with your needs.</p>
+                <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Find the plan that&apos;s right for you</h2>
+                <p className="text-default-500 text-lg mt-4">Simple, transparent pricing. No credit card required to start.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

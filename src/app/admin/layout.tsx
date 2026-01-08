@@ -1,16 +1,24 @@
-
 'use client';
 
 import React, { Suspense } from 'react';
 import { useUser } from '@/lib/firebase/provider';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
-import { useRouter } from 'next/navigation';
-import { Spinner, Card } from '@heroui/react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Spinner, Card, Button } from '@heroui/react';
+import Link from 'next/link';
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  CreditCard,
+  Megaphone // Added
+} from 'lucide-react';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     // If user loading is finished and there's no user, redirect to login.
@@ -35,20 +43,49 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If user is logged in and is an admin, show the content.
+  // If user is logged in and is an admin, show the content with Layout.
   if (user && userProfile?.role === 'admin') {
-    return <>{children}</>;
+    const navItems = [
+      { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+      { name: 'Users', href: '/admin/users', icon: Users },
+      { name: 'Plans', href: '/admin/plans', icon: CreditCard },
+      { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
+      { name: 'Settings', href: '/admin/settings', icon: Settings },
+    ];
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 min-h-[calc(100vh-8rem)]">
+        <aside className="hidden md:flex flex-col gap-2 py-4 border-r border-default-200 pr-4">
+          <div className="px-3 mb-2">
+            <h3 className="font-semibold text-default-500 text-sm uppercase tracking-wider">Admin</h3>
+          </div>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+            return (
+              <Link key={item.href} href={item.href} className="w-full">
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={`w-full justify-start gap-3 ${isActive ? 'font-semibold' : 'text-default-600'}`}
+                >
+                  <item.icon size={18} />
+                  {item.name}
+                </Button>
+              </Link>
+            );
+          })}
+        </aside>
+        <main className="py-4">
+          {children}
+        </main>
+      </div>
+    );
   }
 
   if (user && userProfile && userProfile.role !== 'admin') {
-    // This state is handled by the useEffect redirect, but as a fallback,
-    // we can return null or a message while redirecting.
-    return null;
+    return null; // Redirecting
   }
 
-
-  // Fallback for edge cases, e.g., user is logged out after initial check
-  // or profile exists but role is missing (should not happen with proper setup)
+  // Fallback for edge cases
   return (
     <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
       <Card className="w-full max-w-md">
@@ -64,7 +101,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -73,6 +73,7 @@ export async function PATCH(request: NextRequest) {
             'timezone',
             'notificationSettings',
             'storageSettings',
+            'transcriptionSettings',
         ];
 
         const updateData: Record<string, unknown> = {};

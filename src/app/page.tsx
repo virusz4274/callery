@@ -7,83 +7,8 @@ import { useRecordings } from '@/hooks/use-recordings';
 import { useContacts } from '@/hooks/use-contacts';
 import { useStats } from '@/hooks/use-stats';
 import { Skeleton } from '@heroui/react';
-import type { CallRecording, Contact } from '@/lib/types';
 import { LandingPage } from '@/components/pages/landing-page';
 import { RecordingsDashboard } from '@/components/recordings-dashboard';
-
-/**
- * Transform API response to match the existing CallRecording type.
- */
-function toCallRecording(recording: {
-  id: string;
-  contactName: string | null;
-  phoneNumber: string;
-  recordedAt: string;
-  duration: number;
-  r2Key: string;
-  transcriptSnippet: string;
-  playbackUrl?: string;
-}): CallRecording {
-  return {
-    id: recording.id,
-    contactName: recording.contactName,
-    phoneNumber: recording.phoneNumber,
-    date: recording.recordedAt,
-    duration: recording.duration,
-    filePath: recording.playbackUrl || recording.r2Key,
-    transcriptSnippet: recording.transcriptSnippet,
-  };
-}
-
-/**
- * Transform API response to match the existing Contact type.
- */
-function toContact(contact: {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  name: string;
-  phoneNumber?: string;
-  phoneNumbers: string[];
-  jobTitle?: string;
-  company?: string;
-  googleContactId?: string;
-  createdAt: string;
-  totalRecordings: number;
-  lastRecordingAt: string | null;
-}): Contact {
-  return {
-    id: contact.id,
-    email: contact.email,
-    firstName: contact.firstName,
-    lastName: contact.lastName,
-    name: contact.name,
-    phoneNumber: contact.phoneNumber,
-    phoneNumbers: contact.phoneNumbers,
-    jobTitle: contact.jobTitle,
-    company: contact.company,
-    googleContactId: contact.googleContactId,
-    createdAt: contact.createdAt,
-    role: 'user',
-    plan: 'Free',
-    timezone: '',
-    notificationSettings: {
-      activityDigest: 'weekly',
-      ingestSuccess: true,
-      ingestFail: true,
-    },
-    storageSettings: {
-      deletionPolicy: 'never',
-    },
-    storageUsed: 0,
-    storageAllocation: 0,
-    transcriptionUsed: 0,
-    transcriptionAllocation: 0,
-    totalRecordings: contact.totalRecordings,
-    lastRecordingAt: contact.lastRecordingAt,
-  };
-}
 
 /**
  * Dashboard content - only rendered when user is authenticated
@@ -105,14 +30,9 @@ function AuthenticatedDashboard() {
 
   const { data: contactsData, isLoading: isLoadingContacts } = useContacts();
 
-  // Transform API responses to match existing types
-  const allRecordings = useMemo(() => {
-    return recordingsData?.map(toCallRecording) || [];
-  }, [recordingsData]);
-
-  const allContacts = useMemo(() => {
-    return contactsData?.map(toContact) || [];
-  }, [contactsData]);
+  // Use API responses directly (no transformation needed)
+  const allRecordings = recordingsData ?? [];
+  const allContacts = contactsData ?? [];
 
   const filter = useMemo(
     () => ({

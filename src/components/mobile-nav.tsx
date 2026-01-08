@@ -1,9 +1,8 @@
-
 "use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, LayoutDashboard, Folder, Upload, Settings, CreditCard, Shield } from "lucide-react"
+import { Settings, Shield, Users, LayoutDashboard, Upload, CreditCard } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
@@ -35,19 +34,21 @@ export function MobileNav() {
 
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background md:hidden">
-      <nav className="flex items-center justify-around px-2 pt-2 pb-1">
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/80 backdrop-blur-lg md:hidden pb-[env(safe-area-inset-bottom)]">
+      <nav className="flex items-center justify-around px-2 pt-3 pb-3">
         {navItems.map((item) => (
           <Link
             key={item.name}
             href={item.href}
             className={cn(
-              "flex flex-col items-center gap-1 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-1/5",
-              pathname === item.href && "text-primary bg-accent/50"
+              "flex flex-col items-center gap-1.5 rounded-xl p-2 min-w-[64px] transition-all duration-200",
+              pathname === item.href
+                ? "text-primary bg-primary/10"
+                : "text-default-500 hover:text-foreground hover:bg-default-100/50"
             )}
           >
-            <item.icon className="h-5 w-5" />
-            <span className="text-xs font-medium text-center">{item.name}</span>
+            <item.icon className={cn("h-5 w-5", pathname === item.href && "fill-current")} />
+            <span className="text-[10px] font-medium text-center leading-none">{item.name}</span>
           </Link>
         ))}
       </nav>

@@ -18,7 +18,7 @@ function getValueFromLocalStorage<T>(key: string, initialValue: T): T {
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
     const [storedValue, setStoredValue] = useState<T>(() => getValueFromLocalStorage(key, initialValue));
-    
+
     useEffect(() => {
         try {
             const valueToStore = storedValue instanceof Function ? storedValue(getValueFromLocalStorage(key, initialValue)) : storedValue;
@@ -26,7 +26,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         } catch (error) {
             console.error(error);
         }
-    }, [key, storedValue]);
+    }, [key, storedValue, initialValue]);
 
     return [storedValue, setStoredValue];
 }

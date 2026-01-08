@@ -12,7 +12,7 @@ function toContactResponse(contact: Awaited<ReturnType<typeof getContactsByUser>
         id: contact._id.toString(),
         firebaseUid: contact.firebaseUid,
         name: contact.name,
-        phoneNumber: contact.phoneNumber,
+
         phoneNumbers: contact.phoneNumbers || [],
         email: contact.email,
         firstName: contact.firstName,

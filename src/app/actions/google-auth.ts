@@ -1,7 +1,6 @@
 'use server';
 
 import { getOAuth2Client } from '@/services/google/oauth';
-import { headers } from 'next/headers';
 
 // These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];

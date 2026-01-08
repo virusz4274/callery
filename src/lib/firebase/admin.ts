@@ -27,12 +27,15 @@ export function getFirebaseAdminApp(): App {
 
     // Check for file in project root
     try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require('fs');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const path = require('path');
         const serviceAccountPath = path.join(process.cwd(), 'service-account.json');
 
         if (fs.existsSync(serviceAccountPath)) {
-            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+            const fileContent = fs.readFileSync(serviceAccountPath, 'utf8');
+            const serviceAccount = JSON.parse(fileContent);
             return initializeApp({
                 credential: cert(serviceAccount),
                 projectId: firebaseConfig.projectId,

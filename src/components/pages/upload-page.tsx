@@ -5,7 +5,7 @@ import { useToast } from '@/components/toast-provider';
 
 import React, { useState, useTransition } from 'react';
 import { Card, Button, Spinner } from '@heroui/react';
-import { Loader2, UploadCloud, File, X } from 'lucide-react';
+import { UploadCloud, File, X } from 'lucide-react';
 import { uploadRecordings } from '@/app/actions/upload-recordings';
 import { useRouter } from 'next/navigation';
 
@@ -13,6 +13,7 @@ export function UploadPage() {
     const { toast } = useToast();
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, startUploadTransition] = useTransition();
+    const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,6 +25,7 @@ export function UploadPage() {
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
+        setIsDragging(false);
         if (event.dataTransfer.files) {
             setFiles(Array.from(event.dataTransfer.files));
         }
@@ -32,6 +34,13 @@ export function UploadPage() {
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         event.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(false);
     };
 
     const removeFile = (index: number) => {
@@ -53,7 +62,7 @@ export function UploadPage() {
             const result = await uploadRecordings(formData);
 
             if (result.success) {
-                toast({ title: 'Upload Successful', description: `${result.count} file(s) have been uploaded to the 'injest' folder.`, status: 'success' });
+                toast({ title: 'Upload Successful', description: `${result.count} file(s) have been uploaded successfully.`, status: 'success' });
                 setFiles([]);
                 router.refresh();
             } else {
@@ -63,14 +72,14 @@ export function UploadPage() {
     };
 
     return (
-        <div className="space-y-8 relative max-w-5xl mx-auto">
+        <div className="space-y-8 relative max-w-7xl mx-auto px-4 md:px-6">
             {/* Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
                 <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-3xl opacity-40 animate-pulse" />
                 <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-secondary/10 blur-3xl opacity-40" />
             </div>
 
-            <div className="flex flex-col gap-2 text-center md:text-left">
+            <div className="flex flex-col gap-2 text-center md:text-left pt-4">
                 <h1 className="text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
                     Upload Recordings
                 </h1>
@@ -79,85 +88,131 @@ export function UploadPage() {
                 </p>
             </div>
 
-            <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl overflow-visible">
-                <Card.Content className="space-y-8 p-8">
-                    <div
-                        className="group relative flex flex-col items-center justify-center p-16 border-2 border-dashed rounded-2xl cursor-pointer hover:border-primary border-default-200 transition-all duration-300 bg-gradient-to-b from-default-50/50 to-transparent hover:from-primary/5 hover:to-primary/5"
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onClick={() => document.getElementById('file-input')?.click()}
-                    >
-                        <div className="absolute inset-0 bg-grid-default-200/20 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none rounded-2xl" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Left Column: Dropzone (Sticky on Desktop) */}
+                <div className="lg:col-span-5 lg:sticky lg:top-8 z-10">
+                    <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl overflow-visible">
+                        <Card.Content className="p-4 sm:p-8">
+                            <div
+                                className={`group relative flex flex-col items-center justify-center p-8 sm:p-12 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ${isDragging
+                                    ? 'border-primary bg-primary/10 scale-[1.01]'
+                                    : 'border-default-200 hover:border-primary bg-gradient-to-b from-default-50/50 to-transparent hover:from-primary/5 hover:to-primary/5'
+                                    }`}
+                                onDrop={handleDrop}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onClick={() => document.getElementById('file-input')?.click()}
+                            >
+                                {/* Grid Pattern */}
+                                <div className={`absolute inset-0 bg-grid-default-200/20 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none rounded-2xl transition-opacity duration-300 ${isDragging ? 'opacity-50' : 'opacity-100'}`} />
 
-                        <div className="h-20 w-20 mb-6 rounded-2xl bg-default-100 flex items-center justify-center group-hover:bg-primary group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-primary/30">
-                            <UploadCloud className="h-10 w-10 text-default-400 group-hover:text-primary-foreground transition-colors duration-300" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">Drag & drop files here</h3>
-                        <p className="text-md text-default-500 mb-6">or click to browse your computer</p>
-
-                        <div className="flex gap-4 text-xs text-default-400 font-mono bg-default-100/50 px-4 py-2 rounded-full backdrop-blur-sm border border-default-200/50">
-                            <span>MP3</span>
-                            <span>WAV</span>
-                            <span>M4A</span>
-                            <span>MP4</span>
-                        </div>
-
-                        <input
-                            id="file-input"
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={handleFileChange}
-                            accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4"
-                        />
-                    </div>
-
-                    {files.length > 0 && (
-                        <div className="space-y-4 animate-appearance-in">
-                            <div className="flex justify-between items-end border-b border-default-100 pb-2">
-                                <div>
-                                    <h3 className="font-bold text-lg text-foreground">Selected Files</h3>
-                                    <p className="text-small text-default-500">{files.length} file(s) ready to upload</p>
+                                <div className={`h-16 w-16 sm:h-20 sm:w-20 mb-4 sm:mb-6 rounded-3xl flex items-center justify-center transition-all duration-300 shadow-xl ${isDragging
+                                    ? 'bg-primary text-primary-foreground scale-110 rotate-0 shadow-primary/30'
+                                    : 'bg-default-100 text-default-400 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-primary/30'
+                                    }`}>
+                                    <UploadCloud className="h-8 w-8 sm:h-10 sm:w-10 transition-colors duration-300" />
                                 </div>
-                                <Button size="sm" variant="ghost" onPress={() => setFiles([])} className="font-medium text-danger hover:bg-danger/10">
-                                    Clear All
-                                </Button>
+
+                                <h3 className={`text-xl font-bold mb-2 transition-colors text-center ${isDragging ? 'text-primary' : 'text-foreground group-hover:text-primary'}`}>
+                                    {isDragging ? 'Drop files to upload' : 'Drag & drop files here'}
+                                </h3>
+                                <p className="text-sm text-default-500 mb-6 max-w-sm text-center px-4">
+                                    or click to browse
+                                </p>
+
+                                <div className="flex flex-wrap justify-center gap-3 text-xs text-default-400 font-mono bg-default-100/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-default-200/50">
+                                    <span>MP3</span>
+                                    <span className="w-px h-3 bg-default-300/50" />
+                                    <span>WAV</span>
+                                    <span className="w-px h-3 bg-default-300/50" />
+                                    <span>M4A</span>
+                                    <span className="w-px h-3 bg-default-300/50" />
+                                    <span>MP4</span>
+                                </div>
+
+                                <input
+                                    id="file-input"
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                    accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4"
+                                />
                             </div>
-                            <ul className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                                {files.map((file, index) => (
-                                    <li key={index} className="flex items-center justify-between p-3 rounded-xl border border-default-200 bg-background/40 backdrop-blur-md hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group">
-                                        <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center flex-shrink-0 text-primary group-hover:text-secondary transition-colors">
-                                                <File className="h-5 w-5" />
-                                            </div>
-                                            <div className="flex flex-col overflow-hidden">
-                                                <span className="text-sm font-semibold truncate text-foreground">{file.name}</span>
-                                                <span className="text-xs text-default-400 font-mono">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                                            </div>
+                        </Card.Content>
+                    </Card>
+                </div>
+
+                {/* Right Column: File List */}
+                <div className="lg:col-span-7 space-y-6">
+                    {files.length > 0 ? (
+                        <>
+                            <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl">
+                                <Card.Content className="p-4 sm:p-6">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-default-100 pb-4">
+                                        <div>
+                                            <h3 className="font-bold text-xl text-foreground">Selected Files</h3>
+                                            <p className="text-small text-default-500 mt-1">{files.length} file(s) ready</p>
                                         </div>
-                                        <Button variant="ghost" isIconOnly size="sm" onPress={() => removeFile(index)} className="text-default-400 hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-all">
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </li>
-                                ))}
-                            </ul>
+                                        <div className="flex gap-2 w-full sm:w-auto">
+                                            <Button size="sm" variant="ghost" onPress={() => setFiles([])} className="font-medium text-danger hover:bg-danger/10 flex-1 sm:flex-none">
+                                                Clear All
+                                            </Button>
+                                            <Button
+                                                onPress={handleUpload}
+                                                isDisabled={isUploading}
+                                                variant="primary"
+                                                className={`font-semibold shadow-md shadow-primary/20 flex-1 sm:flex-none ${isUploading ? 'opacity-80' : 'hover:scale-[1.02]'}`}
+                                                size="sm"
+                                            >
+                                                {isUploading && <Spinner size="sm" color="current" className="mr-2" />}
+                                                {isUploading ? 'Uploading...' : 'Upload All'}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <ul className="space-y-3">
+                                        {files.map((file, index) => (
+                                            <li key={index} className="group flex items-center justify-between p-3 rounded-xl border border-default-200 bg-background/40 hover:bg-default-100/50 transition-all duration-200">
+                                                <div className="flex items-center gap-4 overflow-hidden w-full">
+                                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                                                        <File className="h-5 w-5" />
+                                                    </div>
+                                                    <div className="flex flex-col overflow-hidden min-w-0 flex-1">
+                                                        <span className="text-sm font-medium truncate text-foreground">{file.name}</span>
+                                                        <span className="text-xs text-default-500 font-mono">
+                                                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    isIconOnly
+                                                    size="sm"
+                                                    onPress={() => removeFile(index)}
+                                                    className="text-default-400 hover:text-danger hover:bg-danger/10"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </Card.Content>
+                            </Card>
+                        </>
+                    ) : (
+                        <div className="h-full flex items-center justify-center min-h-[300px] border-2 border-dashed border-default-100 rounded-3xl bg-default-50/30 text-default-400">
+                            <div className="text-center p-6">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-default-100 mb-4">
+                                    <File className="w-8 h-8 text-default-300" />
+                                </div>
+                                <p className="text-lg font-medium">No files selected</p>
+                                <p className="text-sm text-default-400">Files you add will appear here</p>
+                            </div>
                         </div>
                     )}
-
-                    <div className="flex justify-end pt-6 border-t border-default-100/50">
-                        <Button
-                            onPress={handleUpload}
-                            isDisabled={isUploading || files.length === 0}
-                            variant="primary"
-                            className={`font-bold text-lg px-8 h-14 shadow-lg shadow-primary/25 rounded-xl transition-all ${isUploading ? 'opacity-80' : 'hover:scale-[1.02] hover:shadow-primary/40'}`}
-                            size="lg"
-                        >
-                            {isUploading && <Spinner size="sm" color="current" className="mr-2" />}
-                            {isUploading ? 'Uploading Files...' : 'Start Upload'}
-                        </Button>
-                    </div>
-                </Card.Content>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }

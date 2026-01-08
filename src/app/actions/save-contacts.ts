@@ -47,7 +47,8 @@ export async function saveContactsToMongoDB(
                             const migratedCount = await migrateUnknownRecordingsToContact(
                                 firebaseUid,
                                 foundContact._id.toString(),
-                                contact.phoneNumbers
+                                contact.phoneNumbers,
+                                contact.name
                             );
 
                             if (migratedCount > 0) {
@@ -65,5 +66,4 @@ export async function saveContactsToMongoDB(
     return result;
 }
 
-// Keep the old function name as an alias for backward compatibility
-export const saveContactsToFirestore = saveContactsToMongoDB;
+

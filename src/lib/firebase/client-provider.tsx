@@ -1,18 +1,12 @@
 'use client';
 
-import React, { useMemo, useEffect, useState, type ReactNode } from 'react';
+import React, { useMemo, useEffect, type ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
 import { initializeFirebase } from './client';
-import { User } from 'firebase/auth';
+// import { User } from 'firebase/auth'; // User type might be needed if I use it? No, checking usages.
 
 interface FirebaseClientProviderProps {
     children: ReactNode;
-}
-
-interface UserAuthState {
-    user: User | null;
-    isUserLoading: boolean;
-    userError: Error | null;
 }
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
@@ -22,24 +16,12 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
 
     const auth = firebaseServices.auth;
 
-    // State to manage the user's authentication status
-    const [userAuthState, setUserAuthState] = useState<UserAuthState>({
-        user: null,
-        isUserLoading: true, // Initially true while we check auth status
-        userError: null,
-    });
-
     // Effect to subscribe to Firebase auth state changes and sync session
     useEffect(() => {
-        if (!auth) {
-            setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
-            return;
-        }
+        if (!auth) return;
 
         // Use onIdTokenChanged to handle token refreshes as well
         const unsubscribe = auth.onIdTokenChanged(async (firebaseUser) => {
-            setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-
             if (firebaseUser) {
                 // User is signed in or token refreshed
                 try {
