@@ -141,6 +141,13 @@ export function SettingsPage() {
     }, [userProfile, profileForm]); // Removed specific refs dependencies as they are refs
 
     const router = useRouter();
+
+    // Protect the page - redirect to login if not authenticated
+    useEffect(() => {
+        if (!isUserLoading && !user) {
+            router.replace('/login');
+        }
+    }, [user, isUserLoading, router]);
     const processedCodeRef = React.useRef<string | null>(null);
 
     useEffect(() => {
