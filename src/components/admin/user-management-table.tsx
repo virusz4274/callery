@@ -1,190 +1,294 @@
-
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import type { Contact } from '@/lib/types';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import Image from 'next/image';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { MoreVertical, Search } from 'lucide-react';
-import { ManagePlanDialog } from './manage-plan-dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
+import React, { useState, useTransition } from 'react';
+import type { UserResponse, PlanResponse } from '@/lib/db/types'; // Using UserResponse as it comes from API/Server Action
 
-const ITEMS_PER_PAGE = 5;
+import {
+  Dropdown,
+  Button,
+  Avatar,
+  Card,
+  Input,
+  Chip,
+  Spinner
+} from '@heroui/react';
+import { MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ManagePlanDialog } from './manage-plan-dialog';
+import { EditLimitsDialog } from './edit-limits-dialog';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import {
+  toggleUserStatus,
+  updateUserRole,
+  updateUserLimits,
+  deleteUser
+} from '@/app/actions/admin';
 
 type UserManagementTableProps = {
-  allUsers: Contact[];
+  initialUsers: UserResponse[];
+  totalUsers: number;
+  currentPage: number;
+  totalPages: number;
+  initialSearch: string;
+  plans: PlanResponse[];
 };
 
-export function UserManagementTable({ allUsers }: UserManagementTableProps) {
-  const [userToManage, setUserToManage] = useState<Contact | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+export function UserManagementTable({
+  initialUsers,
+  totalUsers,
+  currentPage,
+  totalPages,
+  initialSearch,
+  plans
+}: UserManagementTableProps) {
+  const [userToManage, setUserToManage] = useState<UserResponse | null>(null);
+  const [userToEditLimits, setUserToEditLimits] = useState<UserResponse | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
 
-  const handleManagePlanClick = (user: Contact) => {
-    setUserToManage(user);
+  // Better approach without external lib for now:
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track which user is being deleted
+
+  // Search handler
+  const handleSearch = React.useCallback((term: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (term) {
+      params.set('search', term);
+    } else {
+      params.delete('search');
+    }
+    params.set('page', '1');
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [searchParams, pathname, router]);
+
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== initialSearch) {
+        handleSearch(searchTerm);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, initialSearch, handleSearch]);
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    router.push(`${pathname}?${params.toString()}`);
   };
-  
-  const handleNavigation = (path: string) => {
-    router.push(path);
+
+  const handleToggleStatus = (userId: string, currentStatus?: boolean) => {
+    startTransition(async () => {
+      await toggleUserStatus(userId, !currentStatus);
+    });
+  };
+
+  const handleToggleRole = (userId: string, currentRole: 'user' | 'admin') => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    startTransition(async () => {
+      await updateUserRole(userId, newRole);
+    });
+  };
+
+  const handleResetLimits = (userId: string) => {
+    // Reset to defaults: 5GB storage, 60 mins transcription
+    if (confirm('Are you sure you want to reset this users limits to default (5GB, 60min)?')) {
+      startTransition(async () => {
+        await updateUserLimits(userId, {
+          storageAllocation: 5 * 1024 * 1024 * 1024,
+          transcriptionAllocation: 60 * 60
+        });
+      });
+    }
+  };
+
+  const handleManagePlanClick = (user: UserResponse) => {
+    setUserToManage(user);
   };
 
   const closeDialog = () => {
     setUserToManage(null);
+    setUserToEditLimits(null);
   };
 
-  const filteredUsers = useMemo(() => {
-    if (!searchQuery) return allUsers;
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return allUsers.filter(user =>
-      user.name.toLowerCase().includes(lowercasedQuery) ||
-      user.phoneNumber.includes(lowercasedQuery)
-    );
-  }, [allUsers, searchQuery]);
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone and will remove all their data.')) {
+      return;
+    }
 
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredUsers, currentPage]);
-  
-  const nameToSlug = (name: string) => name.toLowerCase().replace(/\s+/g, '-');
+    setIsDeleting(userId);
+    try {
+      await deleteUser(userId);
+      // router.refresh(); // Server action revalidates, but router.refresh ensures client updates
+    } catch (error) {
+      alert('Failed to delete user');
+      console.error(error);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>
-            A list of all registered users in the system. Found {filteredUsers.length} users.
-          </CardDescription>
-          <div className="relative pt-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Card.Header className="flex flex-col items-start gap-4 p-4">
+          <div className="flex justify-between w-full items-center">
+            <div>
+              <h3 className="text-xl font-bold">User Management</h3>
+              <p className="text-small text-default-500">
+                Total Users: {totalUsers}
+              </p>
+            </div>
+            {isPending && <Spinner size="sm" />}
+          </div>
+
+          <div className="w-full sm:max-w-xs">
             <Input
-              placeholder="Search users by name or phone..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[320px]"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1); // Reset to first page on new search
-              }}
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
             />
           </div>
-        </CardHeader>
-        <CardContent>
-            <div className="space-y-4">
-            {paginatedUsers.length > 0 ? paginatedUsers.map((user) => {
-                const userIndex = allUsers.findIndex((c) => c.phoneNumber === user.phoneNumber);
-                const avatar = userIndex !== -1 ? PlaceHolderImages[userIndex % PlaceHolderImages.length] : undefined;
-                const userSlug = nameToSlug(user.name);
-                return (
+        </Card.Header>
+        <Card.Content className="p-0">
+          <div className="divide-y divide-default-100">
+            {initialUsers.length > 0 ? initialUsers.map((user) => {
+              return (
                 <div
-                    key={user.phoneNumber}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50"
+                  key={user.id}
+                  className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 p-4 hover:bg-default-50 transition-colors ${user.disabled ? 'opacity-60 bg-default-100' : ''}`}
                 >
-                    <div className="flex items-center gap-4">
-                    <Avatar>
-                        {avatar && (
-                        <Image
-                            src={avatar.imageUrl}
-                            alt={user.name}
-                            width={40}
-                            height={40}
-                            data-ai-hint={avatar.imageHint}
-                            className="rounded-full object-cover"
-                        />
-                        )}
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  <div className="flex items-center gap-4 min-w-0">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <Avatar.Image src={user.photoURL} alt={user.name} />
+                      <Avatar.Fallback>{user.name?.charAt(0) || 'U'}</Avatar.Fallback>
                     </Avatar>
-                    <div>
-                        <p className="font-semibold">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">{user.phoneNumber}</p>
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold truncate">{user.name || 'Unnamed User'}</p>
+                        {user.role === 'admin' && (
+                          <Chip color="warning" variant="soft" size="sm" className="ml-2 flex-shrink-0">Admin</Chip>
+                        )}
+                        {user.disabled && (
+                          <Chip color="danger" size="sm" className="ml-2 flex-shrink-0">Banned</Chip>
+                        )}
+                      </div>
+                      <p className="text-small text-default-500 truncate">{user.email}</p>
                     </div>
+                  </div>
+
+                  <div className="hidden md:grid grid-cols-[100px_160px_160px] gap-4 text-sm items-center flex-shrink-0 mr-4">
+                    <div className="text-right">
+                      <p className="font-medium">{user.plan}</p>
+                      <p className="text-xs text-default-400">Plan</p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-6 text-sm">
-                    <div>
-                        <p className="font-medium text-right">{user.plan}</p>
-                        <p className="text-muted-foreground text-right">Plan</p>
+                    <div className="text-right">
+                      <p className="font-medium">{(user.storageUsed / (1024 * 1024 * 1024)).toFixed(2)} / {(user.storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB</p>
+                      <p className="text-xs text-default-400">Storage</p>
                     </div>
-                    <div>
-                        <p className="font-medium text-right">{user.storageUsed.toFixed(2)} / {user.storageAllocation} GB</p>
-                        <p className="text-muted-foreground text-right">Storage</p>
+                    <div className="text-right">
+                      <p className="font-medium">{(user.transcriptionUsed / 60).toFixed(1)} / {(user.transcriptionAllocation / 60).toFixed(0)} min</p>
+                      <p className="text-xs text-default-400">Transcription</p>
                     </div>
-                    <div>
-                        <p className="font-medium text-right">{user.transcriptionUsed} / {user.transcriptionAllocation} min</p>
-                        <p className="text-muted-foreground text-right">Transcription</p>
-                    </div>
-                    </div>
-                    <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">Actions</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleNavigation(`/admin/users/${userSlug}`)}>View User Details</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleNavigation(`/admin/users/${userSlug}?tab=payment-history`)}>View Payment History</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => handleManagePlanClick(user)}>
-                        Manage Plan
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                        Disable User
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                    </DropdownMenu>
+                  </div>
+
+                  <Dropdown>
+                    <Button variant="ghost" isIconOnly size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Actions</span>
+                    </Button>
+                    <Dropdown.Popover>
+                      <Dropdown.Menu aria-label="User Actions">
+                        {/* Navigation handled via router for implementation simplicity */}
+                        <Dropdown.Item key="details" onPress={() => router.push(`/admin/users/${user.id}`)}>
+                          View Details
+                        </Dropdown.Item>
+
+                        <Dropdown.Item key="plan" onPress={() => handleManagePlanClick(user)}>
+                          Manage Plan
+                        </Dropdown.Item>
+
+                        <Dropdown.Item key="role" onPress={() => handleToggleRole(user.id, user.role)}>
+                          {user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                        </Dropdown.Item>
+
+                        <Dropdown.Item key="edit_limits" onPress={() => setUserToEditLimits(user)}>
+                          Edit Limits
+                        </Dropdown.Item>
+
+                        <Dropdown.Item key="limits" onPress={() => handleResetLimits(user.id)}>
+                          Reset Defaults
+                        </Dropdown.Item>
+
+                        <Dropdown.Item
+                          key="status"
+                          className={user.disabled ? "text-success" : "text-danger"}
+                          onPress={() => handleToggleStatus(user.id, user.disabled)}
+                        >
+                          {user.disabled ? 'Enable User' : 'Disable User'}
+                        </Dropdown.Item>
+                        <Dropdown.Item
+                          key="delete"
+                          className="text-danger"
+                          onPress={() => handleDeleteUser(user.id)}
+                        >
+                          {isDeleting === user.id ? 'Deleting...' : 'Delete User'}
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
                 </div>
-                );
+              );
             }) : (
-                <div className="text-center py-10 text-muted-foreground">
-                    No users found.
-                </div>
+              <div className="text-center py-10 text-default-500">
+                No users found.
+              </div>
             )}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center p-4 gap-2 items-center border-t border-default-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                isIconOnly
+                isDisabled={currentPage === 1}
+                onPress={() => handlePageChange(currentPage - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-small text-default-500">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                isIconOnly
+                isDisabled={currentPage === totalPages}
+                onPress={() => handlePageChange(currentPage + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-             {totalPages > 1 && (
-            <div className="flex items-center justify-end pt-6">
-                <div className="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                >
-                    Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                >
-                    Next
-                </Button>
-                </div>
-            </div>
-            )}
-        </CardContent>
+          )}
+        </Card.Content>
       </Card>
+
       {userToManage && (
         <ManagePlanDialog
           user={userToManage}
           isOpen={!!userToManage}
+          onClose={closeDialog}
+          plans={plans}
+        />
+      )}
+
+      {userToEditLimits && (
+        <EditLimitsDialog
+          user={userToEditLimits}
+          isOpen={!!userToEditLimits}
           onClose={closeDialog}
         />
       )}

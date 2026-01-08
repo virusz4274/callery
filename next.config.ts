@@ -1,11 +1,14 @@
 
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    after: true,
+  } as NextConfig['experimental'],
   async headers() {
     return [
       {

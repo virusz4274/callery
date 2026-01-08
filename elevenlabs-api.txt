@@ -1,0 +1,242 @@
+we should be using the cloud_storage_url and provide the r2 url so that transcription can be done on the uploaded data
+
+curl -X POST https://api.elevenlabs.io/v1/speech-to-text \
+     -H "xi-api-key: sk_87324f7d70dc9c858adea1ef05fcc4de62bd3744ce9973a7" \
+     -H "Content-Type: multipart/form-data" \
+     -F model_id="scribe_v2" \
+     -F file=@"Call recording sreekutty_260105_212424.m4a;type=audio/x-m4a" \
+     -F diarize='true' \
+     -F cloud_storage_url=""
+
+    
+api response after transcription is done, data should be saved into mongodb as we require
+
+{
+  "language_code": "mal",
+  "language_probability": 0.9969964027404785,
+  "text": "... ഹലോ വൺ റെഡി ആയോ? ആ വന്നാ. ആ വന്നു, വന്നു, ഒരു മിനിറ്റ് ദാ ഇവിടുന്നാ.",
+  "words": [
+    {
+      "text": "...",
+      "start": 0.639,
+      "end": 0.659,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 0.659,
+      "end": 0.68,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ഹലോ",
+      "start": 0.68,
+      "end": 0.919,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 0.919,
+      "end": 0.979,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "വൺ",
+      "start": 0.979,
+      "end": 1.079,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 1.079,
+      "end": 1.279,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "റെഡി",
+      "start": 1.279,
+      "end": 1.459,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 1.459,
+      "end": 1.499,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ആയോ?",
+      "start": 1.5,
+      "end": 2.099,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 2.099,
+      "end": 2.139,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ആ",
+      "start": 2.139,
+      "end": 2.319,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 2.319,
+      "end": 2.339,
+      "type": "spacing",
+      "speaker_id": "speaker_1",
+      "logprob": 0
+    },
+    {
+      "text": "വന്നാ.",
+      "start": 2.339,
+      "end": 3.039,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 3.039,
+      "end": 3.079,
+      "type": "spacing",
+      "speaker_id": "speaker_1",
+      "logprob": 0
+    },
+    {
+      "text": "ആ",
+      "start": 3.079,
+      "end": 3.199,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 3.199,
+      "end": 3.279,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "വന്നു,",
+      "start": 3.279,
+      "end": 4.059,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 4.059,
+      "end": 4.059,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "വന്നു,",
+      "start": 4.059,
+      "end": 4.059,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 4.059,
+      "end": 4.119,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ഒരു",
+      "start": 4.119,
+      "end": 4.219,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 4.219,
+      "end": 4.219,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "മിനിറ്റ്",
+      "start": 4.219,
+      "end": 4.42,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 4.42,
+      "end": 4.42,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ദാ",
+      "start": 4.42,
+      "end": 4.619,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": " ",
+      "start": 4.619,
+      "end": 4.679,
+      "type": "spacing",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    },
+    {
+      "text": "ഇവിടുന്നാ.",
+      "start": 4.679,
+      "end": 7.019,
+      "type": "word",
+      "speaker_id": "speaker_0",
+      "logprob": 0
+    }
+  ],
+  "transcription_id": "gb4XwAlL78MtHxRhrH1y"
+}
+
+
+delete the transcription. this should be done after the transcription is done and data is saved into mongodb
+curl -X DELETE https://api.elevenlabs.io/v1/speech-to-text/transcripts/transcription_id \
+     -H "xi-api-key: xi-api-key"

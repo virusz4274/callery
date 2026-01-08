@@ -1,42 +1,100 @@
-
 'use server';
 
-import fs from 'fs/promises';
-import path from 'path';
+import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
+import { deleteFromR2 } from '@/lib/r2';
+import { decrementStorageUsed } from '@/lib/db/users';
+import { cookies } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 
-export async function deleteRecordings(
-  recordingsToDelete: { id: string, filePath: string }[]
-): Promise<{ success: boolean; message: string }> {
-  
-  const publicDir = path.join(process.cwd(), 'public');
-  const deletedFiles: string[] = [];
-  const errors: string[] = [];
+// Initialize Firebase Admin
+getFirebaseAdminApp();
 
-  for (const rec of recordingsToDelete) {
-    try {
-      const fullPath = path.join(publicDir, rec.filePath);
-      
-      // Basic security check to prevent path traversal
-      if (!fullPath.startsWith(publicDir)) {
-        throw new Error(`Invalid path: ${rec.filePath}`);
-      }
-      
-      await fs.unlink(fullPath);
-      deletedFiles.push(rec.id);
+/**
+ * Get the Firebase UID from the session cookie.
+ */
+async function getFirebaseUidFromSession(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session');
 
-    } catch (error) {
-      console.error(`Failed to delete file ${rec.filePath}:`, error);
-      let errorMessage = `Failed to delete recording ${rec.id}.`;
-      if (error instanceof Error && error.name === 'ENOENT') {
-        errorMessage = `File not found for recording ${rec.id}. It may have already been deleted.`;
-      }
-      errors.push(errorMessage);
+    if (!sessionCookie || !sessionCookie.value) {
+      return null;
     }
+    const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error('Error verifying session:', error);
+    return null;
+  }
+}
+
+/**
+ * Delete recordings from MongoDB and R2.
+ */
+export async function deleteRecordings(
+  recordingIds: string[]
+): Promise<{ success: boolean; message: string }> {
+  const firebaseUid = await getFirebaseUidFromSession();
+
+  if (!firebaseUid) {
+    return { success: false, message: 'Not authenticated' };
   }
 
-  if (errors.length > 0) {
-    return { success: false, message: errors.join(' ') };
+  if (!recordingIds || recordingIds.length === 0) {
+    return { success: false, message: 'No recordings specified' };
   }
 
-  return { success: true, message: `${deletedFiles.length} recording(s) deleted successfully.` };
+  try {
+    // Delete from MongoDB and get the deleted recordings (for R2 keys and file sizes)
+    const deletedRecordings = await deleteRecordingsFromDb(recordingIds, firebaseUid);
+
+    if (deletedRecordings.length === 0) {
+      return { success: false, message: 'No recordings found to delete' };
+    }
+
+    // Delete from R2
+    const r2Errors: string[] = [];
+    let totalSizeDeleted = 0;
+
+    // Delete from R2 in parallel
+
+
+    const deletePromises = deletedRecordings.map(async (recording) => {
+      try {
+        await deleteFromR2(recording.r2Key);
+        return { size: recording.fileSize, error: null };
+      } catch (r2Error) {
+        console.error(`Error deleting ${recording.r2Key} from R2:`, r2Error);
+        r2Errors.push(recording.r2Key);
+        return { size: 0, error: r2Error };
+      }
+    });
+
+    const results = await Promise.all(deletePromises);
+    totalSizeDeleted = results.reduce((acc, curr) => acc + curr.size, 0);
+
+    // Update user's storage usage
+    if (totalSizeDeleted > 0) {
+      await decrementStorageUsed(firebaseUid, totalSizeDeleted);
+    }
+
+    if (r2Errors.length > 0) {
+      return {
+        success: true,
+        message: `Deleted ${deletedRecordings.length} recording(s) from database. ${r2Errors.length} file(s) could not be deleted from storage.`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `${deletedRecordings.length} recording(s) deleted successfully.`,
+    };
+  } catch (error) {
+    console.error('Error deleting recordings:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'An unknown error occurred',
+    };
+  }
 }

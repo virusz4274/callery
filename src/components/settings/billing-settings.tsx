@@ -1,77 +1,98 @@
 
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { invoices } from '@/lib/data/invoice-data';
-import { ClientFormattedDate } from '../client-formatted-date';
-import Link from 'next/link';
+'use client';
+
+import React from 'react';
+import { Card, Button, Chip, Spinner } from '@heroui/react';
 import { SettingsPage } from './settings-page';
+import Link from 'next/link';
 
-export function BillingSettings() {
-  return (
-    <div className="space-y-6">
-        <SettingsPage title="Your Subscription" description="Manage your current plan and billing details.">
-            <Card>
-                <CardContent className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
-                        <div className='space-y-1'>
-                            <h3 className="text-lg font-semibold">Pro Plan <Badge className="ml-2">Active</Badge></h3>
-                            <p className="text-muted-foreground">Your plan renews on <ClientFormattedDate date={new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString()} formatString="MMMM dd, yyyy" />.</p>
-                        </div>
-                        <div className="mt-4 sm:mt-0">
-                            <p className="text-2xl font-bold">$15.00 <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
-                        </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4">
-                        <div className="space-y-1">
-                            <h3 className="font-semibold">Payment Method</h3>
-                            <p className="text-muted-foreground">Visa ending in 1234</p>
-                        </div>
-                        <Button variant="outline" className="mt-4 sm:mt-0">Update Payment Method</Button>
-                    </div>
-                </CardContent>
-                <CardFooter className="flex-col sm:flex-row sm:justify-end gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/pricing">Change Plan</Link>
-                    </Button>
-                    <Button variant="destructive">Cancel Subscription</Button>
-                </CardFooter>
-            </Card>
-        </SettingsPage>
+type Invoice = {
+    id: string;
+    date: string;
+    amount: string;
+    status: string;
+};
 
-        <SettingsPage title="Billing History" description="View your past invoices.">
-            <Card>
-                <CardContent>
-                     <div className="rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead>Invoice ID</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {invoices.map((invoice) => (
-                                <TableRow key={invoice.id}>
-                                    <TableCell className="font-medium">{invoice.id}</TableCell>
-                                    <TableCell>
-                                        <ClientFormattedDate date={invoice.date} formatString="MMMM dd, yyyy" />
-                                    </TableCell>
-                                    <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant={invoice.status === 'Paid' ? 'secondary' : 'destructive'}>{invoice.status}</Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+interface BillingSettingsProps {
+    invoices: Invoice[];
+    isLoading: boolean;
+}
+
+export function BillingSettings({ invoices, isLoading }: BillingSettingsProps) {
+    return (
+        <SettingsPage title="Billing & Plans" description="Manage your subscription, payment methods, and billing history.">
+            <div className="space-y-6">
+                <Card className="bg-card/70 border-default-200">
+                    <Card.Content className="space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h4 className="text-lg font-medium">Current Plan</h4>
+                                <div className="mt-1 flex items-center gap-2 text-default-500">
+                                    Pro Plan <Chip color="success" size="sm" variant="soft">Active</Chip>
+                                </div>
+                                <p className="mt-2 text-sm text-default-400">
+                                    Renews on Jan 1, 2024 • $15.00/month
+                                </p>
+                            </div>
+                            <Button variant="secondary" className="mt-4 sm:mt-0">Update Payment Method</Button>
+                        </div>
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <Link href="/pricing" passHref legacyBehavior>
+                                <Button variant="secondary" onPress={() => window.location.href = "/pricing"}>
+                                    Change Plan
+                                </Button>
+                            </Link>
+                            <Button variant="danger">Cancel Subscription</Button>
+                        </div>
+                    </Card.Content>
+                </Card>
+
+                <Card className="bg-card/70 border-default-200">
+                    <Card.Header>
+                        <h4 className="text-base font-medium">Billing History</h4>
+                    </Card.Header>
+                    <Card.Content>
+                        {isLoading ? (
+                            <div className="flex justify-center p-4">
+                                <Spinner />
+                            </div>
+                        ) : (
+                            <div className="relative w-full overflow-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-default-500 font-medium border-b border-default-200">
+                                        <tr>
+                                            <th className="h-12 px-4 align-middle">DATE</th>
+                                            <th className="h-12 px-4 align-middle">AMOUNT</th>
+                                            <th className="h-12 px-4 align-middle">STATUS</th>
+                                            <th className="h-12 px-4 align-middle">INVOICE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="[&_tr:last-child]:border-0">
+                                        {invoices.map((invoice) => (
+                                            <tr key={invoice.id} className="border-b border-default-100 hover:bg-default-50 transition-colors">
+                                                <td className="p-4 align-middle">{invoice.date}</td>
+                                                <td className="p-4 align-middle">{invoice.amount}</td>
+                                                <td className="p-4 align-middle">
+                                                    <Chip
+                                                        size="sm"
+                                                        color={invoice.status === 'Paid' ? 'default' : 'danger'}
+                                                        variant="soft"
+                                                    >
+                                                        {invoice.status}
+                                                    </Chip>
+                                                </td>
+                                                <td className="p-4 align-middle">
+                                                    <Link href="#" className="underline text-primary">Download</Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </Card.Content>
+                </Card>
+            </div>
         </SettingsPage>
-    </div>
-  );
+    );
 }
