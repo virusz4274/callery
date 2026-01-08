@@ -4,7 +4,7 @@ import React, { Suspense } from 'react';
 import { useUser } from '@/lib/firebase/provider';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useRouter, usePathname } from 'next/navigation';
-import { Spinner, Card, Button } from '@heroui/react';
+import { Spinner, Card, Button } from '@/components/ui-primitives';
 import Link from 'next/link';
 import {
   LayoutDashboard,

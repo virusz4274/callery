@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { getSystemStats, getOrphanedRecordingsCount } from '@/app/actions/admin';
 import { AdminDashboard } from '@/components/pages/admin/admin-dashboard';
-import { Spinner } from '@heroui/react';
+import { Spinner } from '@/components/ui-primitives';
 
 export default async function AdminPage() {
     const stats = await getSystemStats();

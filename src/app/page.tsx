@@ -6,7 +6,7 @@ import { useUser } from '@/lib/firebase/provider';
 import { useRecordings } from '@/hooks/use-recordings';
 import { useContacts } from '@/hooks/use-contacts';
 import { useStats } from '@/hooks/use-stats';
-import { Skeleton } from '@heroui/react';
+import { Skeleton } from '@/components/ui-primitives';
 import { LandingPage } from '@/components/pages/landing-page';
 import { RecordingsDashboard } from '@/components/recordings-dashboard';
 

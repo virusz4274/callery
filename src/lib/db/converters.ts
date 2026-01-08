@@ -116,5 +116,6 @@ export function toUserResponse(user: User): UserResponse {
         transcriptionAllocation: user.transcriptionAllocation,
         transcriptionSettings: user.transcriptionSettings,
         totalRecordings: user.totalRecordings,
+        lastLoginAt: user.lastLoginAt?.toISOString(),
     };
 }

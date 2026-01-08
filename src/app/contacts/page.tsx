@@ -3,7 +3,7 @@
 import React from 'react';
 
 import { useContacts } from '@/hooks/use-contacts';
-import { Skeleton } from '@heroui/react';
+import { Skeleton } from '@/components/ui-primitives';
 import { ContactsPage } from '@/components/pages/contacts-page';
 
 function ContactsContainer() {

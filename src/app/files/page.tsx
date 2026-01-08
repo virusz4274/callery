@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
-import { Skeleton, Card } from '@heroui/react';
+import { Skeleton, Card } from '@/components/ui-primitives';
 import { useUser } from '@/lib/firebase/provider';
 import { LandingPage } from '@/components/pages/landing-page';
 import { authFetch } from '@/lib/api-client';

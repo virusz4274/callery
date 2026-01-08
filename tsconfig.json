@@ -37,6 +37,9 @@
       ],
       "@/app/*": [
         "./src/app/*"
+      ],
+      "@/services/*": [
+        "./src/services/*"
       ]
     }
   },

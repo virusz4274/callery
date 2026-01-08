@@ -101,39 +101,52 @@ export async function ensureUserProfile(
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    const newUser = await createUser({
-        firebaseUid,
-        email,
-        firstName,
-        lastName,
-        name: displayName || email.split('@')[0],
-        phoneNumber: '',
-        photoURL: photoURL || '',
-        role: 'user',
-        plan: planName,
-        timezone: '',
-        notificationSettings: {
-            activityDigest: 'weekly',
-            ingestSuccess: true,
-            ingestFail: true,
-        },
-        transcriptionSettings: {
-            autoTranscribe: true,
-        },
-        storageSettings: {
-            deletionPolicy: 'never',
-        },
-        storageUsed: 0,
-        storageAllocation,
-        transcriptionUsed: 0,
-        transcriptionAllocation,
-        totalContacts: 0,
-        totalRecordings: 0,
-        totalDuration: 0,
-        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    });
+    try {
+        const newUser = await createUser({
+            firebaseUid,
+            email,
+            firstName,
+            lastName,
+            name: displayName || email.split('@')[0],
+            phoneNumber: '',
+            photoURL: photoURL || '',
+            role: 'user',
+            plan: planName,
+            timezone: '',
+            notificationSettings: {
+                activityDigest: 'weekly',
+                ingestSuccess: true,
+                ingestFail: true,
+            },
+            transcriptionSettings: {
+                autoTranscribe: true,
+            },
+            storageSettings: {
+                deletionPolicy: 'never',
+            },
+            storageUsed: 0,
+            storageAllocation,
+            transcriptionUsed: 0,
+            transcriptionAllocation,
+            totalContacts: 0,
+            totalRecordings: 0,
+            totalDuration: 0,
+            trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+            lastLoginAt: new Date(),
+        });
 
-    return { user: newUser, wasCreated: true };
+        return { user: newUser, wasCreated: true };
+    } catch (error: unknown) {
+        // Handle race condition: Duplicate key error (E11000) means user was created by another request
+        const err = error as { code?: number; message?: string };
+        if (err.code === 11000 || err.message?.includes('E11000') || err.message?.includes('duplicate key')) {
+            const user = await findUserByFirebaseUid(firebaseUid);
+            if (user) {
+                return { user, wasCreated: false };
+            }
+        }
+        throw error;
+    }
 }
 
 /**

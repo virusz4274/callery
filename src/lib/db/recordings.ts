@@ -1,7 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import type { Recording, CreateRecordingInput, UpdateRecordingInput, RecordingResponse } from './types';
-import { getSignedR2Url } from '@/lib/r2';
+
 import { toRecordingResponse } from './converters';
 
 
@@ -172,9 +172,9 @@ export async function deleteRecordings(
 }
 
 /**
- * Get recordings with signed playback URLs.
+ * Get recordings for API response (without signed URLs).
  */
-export async function getRecordingsWithUrls(
+export async function getRecordingsForApi(
     firebaseUid: string,
     options?: {
         limit?: number;
@@ -184,14 +184,7 @@ export async function getRecordingsWithUrls(
 ): Promise<RecordingResponse[]> {
     const recordings = await getRecordingsByUser(firebaseUid, options);
 
-    const recordingsWithUrls = await Promise.all(
-        recordings.map(async (recording) => {
-            const playbackUrl = await getSignedR2Url(recording.r2Key, 3600); // 1 hour expiry
-            return toRecordingResponse(recording, playbackUrl);
-        })
-    );
-
-    return recordingsWithUrls;
+    return recordings.map(recording => toRecordingResponse(recording));
 }
 
 /**

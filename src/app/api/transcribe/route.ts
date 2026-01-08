@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRecordingById, updateRecording } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
-import { transcribeAudio, deleteTranscript } from '@/lib/elevenlabs';
+import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed } from '@/lib/db/users';
-import { generateSummary, generateTransliteration } from '@/lib/llm';
+import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
 import { checkUserAccess } from '@/lib/access-control';

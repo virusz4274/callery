@@ -110,6 +110,12 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                                     <Chip>{user.plan}</Chip>
                                 </div>
                             </div>
+                            <div className="flex justify-between items-center border-b border-default-100 pb-4">
+                                <span className="font-semibold text-small">Last Logged In:</span>
+                                <span className="text-small text-default-500">
+                                    {user.lastLoginAt ? <ClientFormattedDate date={user.lastLoginAt} formatString="PPp" /> : 'Never'}
+                                </span>
+                            </div>
                             <div>
                                 <div className="flex justify-between mb-1">
                                     <span className="text-small">Storage Usage</span>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api-client';
 import type { Recording } from '@/lib/types';
 import {
@@ -27,6 +27,27 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
     const secs = seconds % 60;
     return `${mins}m ${secs}s`;
   };
+
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
+  const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
+
+  // Fetch playback URL on mount if not provided
+  useEffect(() => {
+    if (recording.playbackUrl) {
+      setPlaybackUrl(recording.playbackUrl);
+      setIsLoadingUrl(false);
+      return;
+    }
+
+    setIsLoadingUrl(true);
+    authFetch(`/api/recordings/${recording.id}/play`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.playbackUrl) setPlaybackUrl(data.playbackUrl);
+      })
+      .catch(console.error)
+      .finally(() => setIsLoadingUrl(false));
+  }, [recording.id, recording.playbackUrl]);
 
   const handleTranscribe = async () => {
     setIsTranscribing(true);
@@ -85,14 +106,23 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
             </Modal.Header>
             <Modal.Body className="p-4 sm:p-6 gap-6 overflow-y-auto flex-1">
               <div className="flex flex-col gap-6 h-full">
-                <div className="flex-shrink-0 w-full bg-default-50 rounded-xl p-2 border border-default-100">
-                  <audio controls className="w-full" key={recording.id}>
-                    <source
-                      src={recording.playbackUrl || recording.r2Key}
-                      type="audio/mpeg"
-                    />
-                    Your browser does not support the audio element.
-                  </audio>
+                <div className="flex-shrink-0 w-full bg-default-50 rounded-xl p-2 border border-default-100 min-h-[54px] flex items-center justify-center">
+                  {isLoadingUrl ? (
+                    <div className="flex items-center gap-2 text-default-500">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Loading audio...</span>
+                    </div>
+                  ) : playbackUrl ? (
+                    <audio controls className="w-full" key={recording.id}>
+                      <source
+                        src={playbackUrl}
+                        type="audio/mpeg"
+                      />
+                      Your browser does not support the audio element.
+                    </audio>
+                  ) : (
+                    <div className="text-sm text-danger">Audio unavailable</div>
+                  )}
                 </div>
 
                 {/* Summary Section */}

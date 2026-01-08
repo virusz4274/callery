@@ -1,4 +1,4 @@
-import { TranscriptionSegment } from './db/types';
+import { TranscriptionSegment } from '@/lib/db/types';
 
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
