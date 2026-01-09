@@ -197,11 +197,9 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
                             </div>
                             <div onClick={(e) => e.stopPropagation()}>
                               <Dropdown>
-                                <Dropdown.Trigger>
-                                  <Button variant="ghost" isIconOnly size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground">
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">Actions</span>
-                                  </Button>
+                                <Dropdown.Trigger className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground p-1.5 rounded-md hover:bg-default-100 cursor-pointer">
+                                  <MoreVertical className="h-4 w-4" />
+                                  <span className="sr-only">Actions</span>
                                 </Dropdown.Trigger>
                                 <Dropdown.Popover>
                                   <Dropdown.Menu aria-label="Contact actions" onAction={(key) => {
