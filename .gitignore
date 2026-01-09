@@ -21,7 +21,7 @@ lerna-debug.log*
 # local env files
 .env*.local
 .env
-service-account.json
+#service-account.json
 
 # vercel
 .vercel
