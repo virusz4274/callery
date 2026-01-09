@@ -36,7 +36,13 @@ export interface User {
     transcriptionAllocation: number;
     totalContacts: number;
     totalRecordings: number;
+
     totalDuration: number;
+
+    // Billing Settings
+    billingSettings: {
+        allowOverage: boolean;
+    };
 
     // Stripe Subscription Fields
     stripeCustomerId?: string;
@@ -279,6 +285,9 @@ export interface UserResponse {
     transcriptionAllocation: number;
     transcriptionSettings: {
         autoTranscribe: boolean;
+    };
+    billingSettings: {
+        allowOverage: boolean;
     };
     totalRecordings: number;
     lastLoginAt?: string;

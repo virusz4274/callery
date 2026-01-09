@@ -4,12 +4,11 @@ import { getSignedR2Url } from '@/lib/r2';
 import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
-import { incrementTranscriptionUsed } from '@/lib/db/users';
+import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
-import { checkUserAccess } from '@/lib/access-control';
-import { findUserByFirebaseUid } from '@/lib/db/users';
+import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
@@ -32,6 +31,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: access.reason }, { status: 403 });
         }
 
+        // 2a. Check Usage Cycle
+        const currentUser = await checkAndResetUsageCycle(user);
+
         const body = await req.json();
         const { recordingId } = body;
 
@@ -43,6 +45,12 @@ export async function POST(req: NextRequest) {
         const recording = await getRecordingById(recordingId, uid);
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
+        }
+
+        // 3. Check Transcription Access
+        const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
+        if (!transcriptionAccess.allowed) {
+            return NextResponse.json({ error: transcriptionAccess.reason || 'Transcription limit exceeded' }, { status: 403 });
         }
 
         // 5. Trigger Background Transcription

@@ -124,6 +124,9 @@ export async function ensureUserProfile(
             storageSettings: {
                 deletionPolicy: 'never',
             },
+            billingSettings: {
+                allowOverage: false,
+            },
             storageUsed: 0,
             storageAllocation,
             transcriptionUsed: 0,
@@ -165,6 +168,14 @@ export async function incrementStorageUsed(
             $set: { updatedAt: new Date() }
         }
     );
+
+    // TODO: [Stripe Hook] Report metered storage usage to Stripe
+    // if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false' && user.stripeSubscriptionId && user.plan !== 'Free' && user.plan !== 'Free Trial' && user.plan !== 'Lifetime') {
+    //     await stripe.subscriptionItems.createUsageRecord(
+    //         'si_STORAGE_ITEM_ID', 
+    //         { quantity: bytes, action: 'increment' }
+    //     );
+    // }
 }
 
 /**
@@ -202,6 +213,15 @@ export async function incrementTranscriptionUsed(
             $set: { updatedAt: new Date() }
         }
     );
+
+    // TODO: [Stripe Hook] Report metered transcription usage to Stripe
+    // if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false' && user.stripeSubscriptionId && user.plan !== 'Free' && user.plan !== 'Free Trial' && user.plan !== 'Lifetime') {
+    //    // Convert seconds to billed unit (e.g. minutes or seconds)
+    //     await stripe.subscriptionItems.createUsageRecord(
+    //         'si_TRANSCRIPTION_ITEM_ID', 
+    //         { quantity: seconds, action: 'increment' }
+    //     );
+    // }
 }
 
 /**
@@ -241,4 +261,82 @@ export async function updateUserRecordingStats(
             $set: { updatedAt: new Date() }
         }
     );
+}
+/**
+ * Check if the user's billing cycle has ended and reset usage if necessary.
+ * This should be called before any usage-metered action (upload, transcribe).
+ */
+export async function checkAndResetUsageCycle(user: User): Promise<User> {
+    // If no stripeCurrentPeriodEnd is set, we might need to initialize it.
+    // For free trial users, this might not track a "billing" cycle in the traditional sense,
+    // but we still want to reset monthly limits if we treat them as renewable (unlikely for trial, but good for structure).
+    // However, the spec says "Usage resets monthly" for paid plans.
+    // Trial is 30 days fixed. Let's assume this only applies if there's a recurring cycle intent.
+
+    // If user is on a fixed trial (and not yet converted), we might NOT reset usage, 
+    // OR we might just let it accumulate until the hard 30-day stop.
+    // PLAN: Paid plans reset monthly. Trial plans do NOT reset (fixed 30 day window).
+
+    if (user.plan === 'Free Trial' || user.plan === 'Free') {
+        // Trial users: strict 30 day limit, usage does NOT reset monthly?
+        // Actually, "Free Trial Duration: 30 days" -> usage resets monthly? No, usually trial is one-off.
+        // If they are on "Free" (expired trial), they are blocked anyway.
+        return user;
+    }
+
+    // For LifeTime, maybe we don't reset "usage" if it's pay-per-use?
+    // "Existing data remains readable... Usage usage becomes metered... Usage resets monthly"
+    // Actually the prompt says "Usage resets monthly for non-lifetime plans".
+    // "Lifetime Plan... Every action is pay-per-use... No free storage/transcription minutes".
+    // So for Lifetime, we might reset the "allocation" counters if we used them for free tiers, 
+    // but really they have 0 free, so it's always metered.
+    // Let's just reset the counter to keep it clean per month for reporting, 
+    // OR if we want to track "Total Lifetime Usage", we shouldn't reset.
+    // Requirement: "Usage resets monthly for non-lifetime plans".
+    if (user.plan === 'Lifetime') {
+        return user;
+    }
+
+    const now = new Date();
+    // Default to 1 month from now if missing (should be set on upgrade)
+    const currentPeriodEnd = user.stripeCurrentPeriodEnd ? new Date(user.stripeCurrentPeriodEnd) : null;
+
+    if (!currentPeriodEnd || now > currentPeriodEnd) {
+        console.log(`[checkAndResetUsageCycle] Resetting usage for user ${user._id}`);
+
+        // Reset Logic
+        const nextPeriodEnd = new Date();
+        nextPeriodEnd.setDate(nextPeriodEnd.getDate() + 30); // Advance 30 days
+
+        const db = await getMongoDb();
+
+        // updateOne returns the WriteResult, NOT the document. 
+        // We use findOneAndUpdate to get the new doc.
+        const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
+            { _id: user._id },
+            {
+                $set: {
+                    transcriptionUsed: 0, // Reset monthly transcription usage
+                    // Storage is usually persistent (accumulated), NOT reset monthly.
+                    // "Storage limit (GB)... Usage resets monthly" -> This usually means "Transfer" reset, 
+                    // BUT for storage it implies "Available Storage" vs "Used Storage". 
+                    // Used storage definitely persists. The *limit* (allocation) grants you space.
+                    // If you delete files, used goes down. 
+                    // "Transcription minutes limit per month" -> THIS resets.
+                    // "Storage usage tracking... Monthly reset logic for non-lifetime plans" 
+                    // -> Wait, "Storage usage" doesn't reset unless files are deleted. 
+                    // I will assume only Transcription resets. Storage is persistent state.
+                    stripeCurrentPeriodEnd: nextPeriodEnd,
+                    updatedAt: new Date(),
+                }
+            },
+            { returnDocument: 'after' }
+        );
+
+        if (result) {
+            return result as User;
+        }
+    }
+
+    return user;
 }

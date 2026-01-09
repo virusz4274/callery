@@ -9,12 +9,20 @@ import { toRecordingResponse } from './converters';
 /**
  * Get all recordings for a user.
  */
+/**
+ * Get all recordings for a user.
+ */
 export async function getRecordingsByUser(
     firebaseUid: string,
     options?: {
         limit?: number;
         skip?: number;
         includeArchived?: boolean;
+        contactName?: string;
+        sortBy?: 'date' | 'duration';
+        sortOrder?: 'asc' | 'desc';
+        startDate?: string;
+        endDate?: string;
     }
 ): Promise<Recording[]> {
     const db = await getMongoDb();
@@ -23,11 +31,47 @@ export async function getRecordingsByUser(
     if (!options?.includeArchived) {
         query.isArchived = { $ne: true };
     }
+    if (options?.contactName) {
+        query.contactName = options.contactName;
+    }
+
+    if (options?.startDate || options?.endDate) {
+        const dateQuery: Record<string, unknown> = {};
+        // Ensure valid dates if provided
+        if (options.startDate) {
+            const start = new Date(options.startDate);
+            if (!isNaN(start.getTime())) {
+                dateQuery.$gte = start;
+            }
+        }
+        if (options.endDate) {
+            const end = new Date(options.endDate);
+            if (!isNaN(end.getTime())) {
+                // If it's just a date string (YYYY-MM-DD), we might want to set to end of day?
+                // For now, assume the caller handles the specific time boundary or we accept strict comparison.
+                // Let's ensure we cover the whole seconds/milliseconds of the end date if it matches the start date?
+                // Actually, let's keep it simple: exact comparison.
+                dateQuery.$lte = end;
+            }
+        }
+        if (Object.keys(dateQuery).length > 0) {
+            query.recordedAt = dateQuery;
+        }
+    }
+
+    const sort: Record<string, 1 | -1> = {};
+    if (options?.sortBy === 'duration') {
+        sort.duration = options.sortOrder === 'asc' ? 1 : -1;
+    } else {
+        // Default to date
+        // If sortOrder is explicitly 'asc', use 1, otherwise default to -1 (desc)
+        sort.recordedAt = options?.sortOrder === 'asc' ? 1 : -1;
+    }
 
     const recordings = await db
         .collection<Recording>(Collections.RECORDINGS)
         .find(query)
-        .sort({ recordedAt: -1 })
+        .sort(sort)
         .skip(options?.skip || 0)
         .limit(options?.limit || 100)
         .toArray();
@@ -73,6 +117,12 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
         count: 1,
         duration: data.duration,
     });
+
+    // Update contact stats if linked
+    if (data.contactId) {
+        const { incrementContactRecordings } = await import('./contacts');
+        await incrementContactRecordings(data.contactId, data.firebaseUid, now, 1);
+    }
 
     return {
         ...recordingDoc,
@@ -126,6 +176,13 @@ export async function deleteRecording(
             count: -1,
             duration: -result.duration,
         });
+
+        // Update contact stats if linked
+        if (result.contactId) {
+            const { incrementContactRecordings } = await import('./contacts');
+            // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
+            await incrementContactRecordings(result.contactId, firebaseUid, new Date(), -1);
+        }
     }
 
     return result;
@@ -166,6 +223,17 @@ export async function deleteRecordings(
             count: -recordings.length,
             duration: -totalDuration,
         });
+
+        // Update contact stats for deleted recordings
+        const { incrementContactRecordings } = await import('./contacts');
+
+        // Group by contactId to optimize updates (though loop is fine for now)
+        for (const recording of recordings) {
+            if (recording.contactId) {
+                // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
+                await incrementContactRecordings(recording.contactId, firebaseUid, new Date(), -1);
+            }
+        }
     }
 
     return recordings;
@@ -180,6 +248,11 @@ export async function getRecordingsForApi(
         limit?: number;
         skip?: number;
         includeArchived?: boolean;
+        contactName?: string;
+        sortBy?: 'date' | 'duration';
+        sortOrder?: 'asc' | 'desc';
+        startDate?: string;
+        endDate?: string;
     }
 ): Promise<RecordingResponse[]> {
     const recordings = await getRecordingsByUser(firebaseUid, options);
@@ -190,8 +263,47 @@ export async function getRecordingsForApi(
 /**
  * Count recordings for a user.
  */
-export async function countRecordingsByUser(firebaseUid: string): Promise<number> {
-    // We rely on the user profile to store the total count.
+export async function countRecordingsByUser(
+    firebaseUid: string,
+    options?: {
+        includeArchived?: boolean;
+        contactName?: string;
+        startDate?: string;
+        endDate?: string;
+    }
+): Promise<number> {
+    // If filtering, we must query the collection
+    if (options?.contactName || options?.startDate || options?.endDate) {
+        const db = await getMongoDb();
+        const query: Record<string, unknown> = { firebaseUid };
+
+        if (!options.includeArchived) {
+            query.isArchived = { $ne: true };
+        }
+
+        if (options.contactName) {
+            query.contactName = options.contactName;
+        }
+
+        if (options.startDate || options.endDate) {
+            const dateQuery: Record<string, unknown> = {};
+            if (options.startDate) {
+                const start = new Date(options.startDate);
+                if (!isNaN(start.getTime())) dateQuery.$gte = start;
+            }
+            if (options.endDate) {
+                const end = new Date(options.endDate);
+                if (!isNaN(end.getTime())) dateQuery.$lte = end;
+            }
+            if (Object.keys(dateQuery).length > 0) {
+                query.recordedAt = dateQuery;
+            }
+        }
+
+        return db.collection(Collections.RECORDINGS).countDocuments(query);
+    }
+
+    // Default optimization: use user profile stats
     const { findUserByFirebaseUid } = await import('./users');
     const user = await findUserByFirebaseUid(firebaseUid);
 

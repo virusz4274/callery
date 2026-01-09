@@ -5,7 +5,7 @@ import React, { useMemo, useState, useTransition } from 'react';
 import type { Recording, Contact } from '@/lib/types';
 import { Button, Chip, SearchField } from '@heroui/react';
 import { RecordingsTable } from '@/components/recordings-table'; // Resolves to /index.tsx
-import { Users, Phone, Clock, BarChart, Search, Sparkles } from 'lucide-react';
+import { Users, Phone, Clock, BarChart, Search, Sparkles, Filter, Calendar, ArrowUpAz, ArrowDownAz, SlidersHorizontal } from 'lucide-react';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
 import { StatsCard } from './dashboard/stats-card';
 import { DashboardBackground } from './dashboard/background';
@@ -26,9 +26,30 @@ type RecordingsDashboardProps = {
     totalCount: number;
     itemsPerPage: number;
     onRecordingsChange?: () => void;
+
+    // New Props for Sorting & Filtering
+    onSortChange: (sortBy: 'date' | 'duration', sortOrder: 'asc' | 'desc') => void;
+    onDateFilterChange: (start?: string, end?: string) => void;
+    currentSort: { by: 'date' | 'duration'; order: 'asc' | 'desc' };
+    currentDateFilter: { start?: string; end?: string };
 };
 
-export function RecordingsDashboard({ allRecordings, allContacts, filter, searchQuery, stats, page, setPage, totalCount, itemsPerPage, onRecordingsChange }: RecordingsDashboardProps) {
+export function RecordingsDashboard({
+    allRecordings,
+    allContacts,
+    filter,
+    searchQuery,
+    stats,
+    page,
+    setPage,
+    totalCount,
+    itemsPerPage,
+    onRecordingsChange,
+    onSortChange,
+    onDateFilterChange,
+    currentSort,
+    currentDateFilter
+}: RecordingsDashboardProps) {
     const [semanticQuery, setSemanticQuery] = useState('');
     const [semanticResults, setSemanticResults] = useState<Recording[] | null>(null);
     const [isSearching, startSearchTransition] = useTransition();
@@ -227,6 +248,64 @@ export function RecordingsDashboard({ allRecordings, allContacts, filter, search
                     >
                         Search
                     </Button>
+                </div>
+            </div>
+
+            {/* Filters & Sorting Toolbar */}
+            <div className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-default-200 bg-background/50 backdrop-blur-sm shadow-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-default-500" />
+                        <span className="text-sm font-medium text-default-700">Sort:</span>
+                    </div>
+                    <select
+                        className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        value={`${currentSort.by}-${currentSort.order}`}
+                        onChange={(e) => {
+                            const [by, order] = e.target.value.split('-');
+                            onSortChange(by as 'date' | 'duration', order as 'asc' | 'desc');
+                        }}
+                    >
+                        <option value="date-desc">Newest First</option>
+                        <option value="date-asc">Oldest First</option>
+                        <option value="duration-desc">Longest Duration</option>
+                        <option value="duration-asc">Shortest Duration</option>
+                    </select>
+
+                    <div className="w-px h-6 bg-default-200 mx-2 hidden sm:block"></div>
+
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-default-500" />
+                        <span className="text-sm font-medium text-default-700">Date Range:</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={currentDateFilter.start || ''}
+                            onChange={(e) => onDateFilterChange(e.target.value || undefined, currentDateFilter.end)}
+                            placeholder="Start Date"
+                        />
+                        <span className="text-default-400">-</span>
+                        <input
+                            type="date"
+                            className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={currentDateFilter.end || ''}
+                            onChange={(e) => onDateFilterChange(currentDateFilter.start, e.target.value || undefined)}
+                            placeholder="End Date"
+                        />
+                    </div>
+
+                    {(currentDateFilter.start || currentDateFilter.end) && (
+                        <Button
+                            size="sm"
+                            variant="danger-soft"
+                            className="ml-auto sm:ml-2 h-9"
+                            onPress={() => onDateFilterChange(undefined, undefined)}
+                        >
+                            Clear Dates
+                        </Button>
+                    )}
                 </div>
             </div>
 

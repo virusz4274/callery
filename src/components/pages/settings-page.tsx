@@ -192,8 +192,12 @@ export function SettingsPage() {
                                     isSaving={isSavingNotifications}
                                 />
                             )}
-                            {showBilling && activeTab === 'billing' && (
-                                <BillingSettings invoices={[]} isLoading={false} />
+                            {showBilling && activeTab === 'billing' && user && userProfile && (
+                                <BillingSettings
+                                    invoices={[]}
+                                    isLoading={false}
+                                    userProfile={userProfile}
+                                />
                             )}
                         </ClientOnly>
                     </div>

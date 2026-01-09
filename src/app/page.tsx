@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/firebase/provider';
 import { useRecordings } from '@/hooks/use-recordings';
@@ -21,17 +21,9 @@ function AuthenticatedDashboard() {
   // Fetch stats separately
   const { stats, isLoading: isLoadingStats } = useStats();
 
-  // Fetch recordings with pagination
-  const { data: recordingsData, isLoading: isLoadingRecordings, totalCount, refetch: refetchRecordings } = useRecordings({
-    limit: LIMIT,
-    skip: (page - 1) * LIMIT,
-    includeArchived: false,
-  });
-
   const { data: contactsData, isLoading: isLoadingContacts } = useContacts();
 
   // Use API responses directly (no transformation needed)
-  const allRecordings = recordingsData ?? [];
   const allContacts = contactsData ?? [];
 
   const filter = useMemo(
@@ -41,6 +33,26 @@ function AuthenticatedDashboard() {
     }),
     [searchParams]
   );
+
+  // State for new filters
+  const [currentSort, setCurrentSort] = useState<{ by: 'date' | 'duration'; order: 'asc' | 'desc' }>({ by: 'date', order: 'desc' });
+  const [currentDateFilter, setCurrentDateFilter] = useState<{ start?: string; end?: string }>({});
+
+  const contactName = filter.type === 'contact' ? filter.value || undefined : undefined;
+
+  // Fetch recordings with pagination
+  const { data: recordingsData, isLoading: isLoadingRecordings, totalCount, refetch: refetchRecordings } = useRecordings({
+    limit: LIMIT,
+    skip: (page - 1) * LIMIT,
+    includeArchived: false,
+    contactName,
+    sortBy: currentSort.by,
+    sortOrder: currentSort.order,
+    startDate: currentDateFilter.start,
+    endDate: currentDateFilter.end
+  });
+
+  const allRecordings = recordingsData ?? [];
 
   const searchQuery = searchParams.get('q') || '';
 
@@ -71,6 +83,10 @@ function AuthenticatedDashboard() {
         totalCount={totalCount}
         itemsPerPage={LIMIT}
         onRecordingsChange={refetchRecordings}
+        onSortChange={(by, order) => setCurrentSort({ by, order })}
+        onDateFilterChange={(start, end) => setCurrentDateFilter({ start, end })}
+        currentSort={currentSort}
+        currentDateFilter={currentDateFilter}
       />
     </Suspense>
   );

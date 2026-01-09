@@ -88,6 +88,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
 
   return (
     <Modal isOpen={true} onOpenChange={onOpenChange}>
+      <Button className="hidden" aria-hidden="true" />
       <Modal.Backdrop className="bg-background/20 backdrop-blur-xl z-[99]">
         <Modal.Container className="z-[100]">
           <Modal.Dialog className="h-[100dvh] sm:h-auto sm:max-h-[85vh] w-full max-w-5xl m-0 sm:m-4 bg-background sm:bg-card/70 backdrop-blur-xl sm:border border-default-200/50 shadow-none sm:shadow-2xl flex flex-col">
