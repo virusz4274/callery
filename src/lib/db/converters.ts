@@ -115,6 +115,7 @@ export function toUserResponse(user: User): UserResponse {
         transcriptionUsed: user.transcriptionUsed,
         transcriptionAllocation: user.transcriptionAllocation,
         transcriptionSettings: user.transcriptionSettings,
+        billingSettings: user.billingSettings || { allowOverage: false },
         totalRecordings: user.totalRecordings,
         lastLoginAt: user.lastLoginAt?.toISOString(),
     };

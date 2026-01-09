@@ -11,7 +11,7 @@ import {
   getSignedR2Url
 } from '@/lib/r2';
 import { createRecording, updateRecording } from '@/lib/db/recordings';
-import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid } from '@/lib/db/users';
+import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
 import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
@@ -20,7 +20,7 @@ import { calculateBilledDuration } from '@/lib/utils/billing';
 import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
-import { checkUserAccess } from '@/lib/access-control';
+import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
@@ -46,12 +46,31 @@ export async function uploadRecordings(
     return { success: false, count: 0, error: 'User not found' };
   }
 
-  const access = checkUserAccess(user);
-  if (!access.allowed) {
-    return { success: false, count: 0, error: access.reason || 'Access denied' };
+  // 1. Check General Access (e.g. Disabled?)
+  const generalAccess = checkUserAccess(user);
+  if (!generalAccess.allowed) {
+    return { success: false, count: 0, error: generalAccess.reason || 'Access denied' };
   }
 
+  // 2. Check & Reset Usage Cycle
+  const currentUser = await checkAndResetUsageCycle(user);
+
+  // 3. Pre-calculate total size to check storage roughly?
+  // We check per file below, but technically we should check all files at once.
+  // Let's iterate and sum size.
+  let totalUploadSize = 0;
   const files = formData.getAll('files') as File[];
+  for (const file of files) {
+    totalUploadSize += file.size;
+  }
+
+  if (files.length > 0) {
+    // Check storage access for the BATCH
+    const storageAccess = checkStorageAccess(currentUser, totalUploadSize);
+    if (!storageAccess.allowed) {
+      return { success: false, count: 0, error: storageAccess.reason || 'Storage limit exceeded' };
+    }
+  }
 
   if (!files || files.length === 0) {
     return { success: false, count: 0, error: 'No files were uploaded.' };
@@ -185,6 +204,27 @@ export async function uploadRecordings(
             // This prevents the upload request from timing out
             after(async () => {
               try {
+                // Re-fetch user to get latest usage
+                const freshUser = await findUserByFirebaseUid(firebaseUid);
+                if (!freshUser) return;
+
+                // Check Transcription Access
+                const transcriptionAccess = await checkTranscriptionAccess(freshUser, duration);
+                if (!transcriptionAccess.allowed) {
+                  console.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${transcriptionAccess.reason}`);
+                  // We don't fail the recording (it's uploaded), just the transcription status?
+                  // Or keep it 'pending' so they can try manually later?
+                  // 'failed' implies it broke. 'pending' implies waiting. 
+                  // If we set 'failed', we can show "Quota exceeded" if we store error message.
+                  // Recording schema doesn't have error message field easily viewable.
+                  // Let's set to 'failed' for now to stop it from looking like it's stuck.
+                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                    transcriptionStatus: 'failed',
+                    // TODO: Add errorReason field to Recording schema if needed
+                  });
+                  return;
+                }
+
                 console.log(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
 
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {

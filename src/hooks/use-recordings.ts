@@ -16,6 +16,11 @@ interface RecordingOptions {
     limit?: number;
     skip?: number;
     includeArchived?: boolean;
+    contactName?: string;
+    sortBy?: 'date' | 'duration';
+    sortOrder?: 'asc' | 'desc';
+    startDate?: string;
+    endDate?: string;
 }
 
 /**
@@ -33,6 +38,11 @@ export function useRecordings(
         if (opts?.limit) params.set('limit', opts.limit.toString());
         if (opts?.skip) params.set('skip', opts.skip.toString());
         if (opts?.includeArchived) params.set('includeArchived', 'true');
+        if (opts?.contactName) params.set('contactName', opts.contactName);
+        if (opts?.sortBy) params.set('sortBy', opts.sortBy);
+        if (opts?.sortOrder) params.set('sortOrder', opts.sortOrder);
+        if (opts?.startDate) params.set('startDate', opts.startDate);
+        if (opts?.endDate) params.set('endDate', opts.endDate);
 
         const response = await authFetch(`${url}?${params.toString()}`);
 
