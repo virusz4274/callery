@@ -84,6 +84,9 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                             <Dropdown.Item key="play" onPress={() => onOpenDialog(rec)}>
                                                 <div className="flex items-center gap-2">Play Audio</div>
                                             </Dropdown.Item>
+                                            <Dropdown.Item key="view" onPress={() => onOpenDialog(rec)}>
+                                                <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-secondary" /> View Transcript</div>
+                                            </Dropdown.Item>
                                             <Dropdown.Item key="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>
                                                 Delete
                                             </Dropdown.Item>
