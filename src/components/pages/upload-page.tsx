@@ -131,8 +131,11 @@ export function UploadPage() {
                                 <h3 className={`text-xl font-bold mb-2 transition-colors text-center ${isDragging ? 'text-primary' : 'text-foreground group-hover:text-primary'}`}>
                                     {isDragging ? 'Drop files to upload' : 'Drag & drop files here'}
                                 </h3>
-                                <p className="text-sm text-default-500 mb-6 max-w-sm text-center px-4">
+                                <p className="text-sm text-default-500 mb-2 max-w-sm text-center px-4">
                                     or click to browse
+                                </p>
+                                <p className="text-xs text-default-400 mb-6 text-center font-medium">
+                                    Max file size: 2GB
                                 </p>
 
                                 <div className="flex flex-wrap justify-center gap-3 text-xs text-default-400 font-mono bg-default-100/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-default-200/50">
