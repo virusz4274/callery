@@ -133,7 +133,7 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                     <div className="flex items-center gap-2">
                                         <h4 className="font-medium text-foreground">Pay Per Usage (Overage)</h4>
                                         <Tooltip delay={0}>
-                                            <Button isIconOnly className="w-auto h-auto min-w-0 min-h-0 bg-transparent data-[hover=true]:bg-transparent p-0" disableRipple>
+                                            <Button isIconOnly className="w-auto h-auto min-w-0 min-h-0 bg-transparent data-[hover=true]:bg-transparent p-0">
                                                 <Info className="w-4 h-4 text-default-400" />
                                             </Button>
                                             <Tooltip.Content>
@@ -160,13 +160,11 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                         )}
 
                         <div className="flex flex-col gap-4 sm:flex-row pt-4">
-                            <Button
-                                as={Link}
-                                href="/pricing"
-                                variant="secondary"
-                            >
-                                Upgrade / Change Plan
-                            </Button>
+                            <Link href="/pricing">
+                                <Button variant="secondary">
+                                    Upgrade / Change Plan
+                                </Button>
+                            </Link>
                             {!isFree && (
                                 <Button variant="danger-soft">Cancel Subscription</Button>
                             )}

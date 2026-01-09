@@ -21,11 +21,9 @@ async function main() {
     let updatedCount = 0;
 
     for (const contact of contacts) {
-        const contactId = contact._id.toString();
-
         // Count recordings for this contact
         const recordings = await recordingsCollection
-            .find({ contactId: contactId, isArchived: { $ne: true } }) // Don't count archived if that's the rule? Logic in route says nothing about archived, but typically archived means deleted/hidden. Let's match getRecordingsByUser logic which excludes archived by default unless requested. Actually, totalRecordings usually implies active recordings.
+            .find({ contactId: contact._id, isArchived: { $ne: true } }) // Use ObjectId directly
             .sort({ recordedAt: -1 })
             .toArray();
 
