@@ -30,7 +30,7 @@ export function useSettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
+    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
     const defaultTab = searchParams.get('tab') || 'profile';
 
     const { user, isUserLoading } = useUser();
@@ -130,6 +130,12 @@ export function useSettingsPage() {
             if (processedCodeRef.current === code) return;
             processedCodeRef.current = code;
 
+            // Remove params immediately to prevent double-invocation
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete('g_code');
+            newParams.delete('g_state');
+            router.replace(`/settings?${newParams.toString()}`);
+
             startSyncTransition(async () => {
                 const result = await syncGoogleContacts(code);
                 if (result.success) {
@@ -137,10 +143,6 @@ export function useSettingsPage() {
                 } else {
                     toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
                 }
-                const newParams = new URLSearchParams(searchParams.toString());
-                newParams.delete('g_code');
-                newParams.delete('g_state');
-                router.replace(`/settings?${newParams.toString()}`);
             });
         }
     }, [searchParams, isSyncing, router, toast]);

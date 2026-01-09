@@ -27,12 +27,34 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '100', 10);
         const page = parseInt(searchParams.get('page') || '1', 10);
         const includeArchived = searchParams.get('includeArchived') === 'true';
+        const contactName = searchParams.get('contactName') || undefined;
+
+        const sortBy = (searchParams.get('sortBy') as 'date' | 'duration') || undefined;
+        const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || undefined;
+        const startDate = searchParams.get('startDate') || undefined;
+        const endDate = searchParams.get('endDate') || undefined;
 
         const skip = (page - 1) * limit;
 
+        const options = {
+            limit,
+            skip,
+            includeArchived,
+            contactName,
+            sortBy,
+            sortOrder,
+            startDate,
+            endDate
+        };
+
         const [recordings, totalCount] = await Promise.all([
-            getRecordingsForApi(firebaseUid, { limit, skip, includeArchived }),
-            countRecordingsByUser(firebaseUid),
+            getRecordingsForApi(firebaseUid, options),
+            countRecordingsByUser(firebaseUid, {
+                includeArchived,
+                contactName,
+                startDate,
+                endDate
+            }),
         ]);
 
         return NextResponse.json({

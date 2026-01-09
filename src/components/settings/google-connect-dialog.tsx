@@ -12,6 +12,7 @@ interface GoogleConnectDialogProps {
 export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDialogProps) {
     return (
         <Modal isOpen onOpenChange={onOpenChange}>
+            <Button className="hidden" aria-hidden="true" />
             <Modal.Backdrop className="bg-background/20 backdrop-blur-md">
                 <Modal.Container>
                     <Modal.Dialog className="bg-card/70 backdrop-blur-xl border border-default-200 shadow-2xl">
