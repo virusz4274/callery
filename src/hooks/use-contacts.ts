@@ -65,7 +65,7 @@ export function useContacts(): UseContactsResult {
     const totalCount = pages && pages[0] ? (pages[0] as any).totalCount : 0;
 
     const hasMore = contactsData ? contactsData.length < totalCount : true;
-    const isLoadingMore = isLoading || (size > 0 && pages && typeof pages[size - 1] === 'undefined');
+    const isLoadingMore = !!(isLoading || (size > 0 && pages && typeof pages[size - 1] === 'undefined'));
 
     const loadMore = useCallback(() => {
         if (isLoadingMore || !hasMore) return;

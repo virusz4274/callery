@@ -111,7 +111,7 @@ export async function createContact(data: CreateContactInput): Promise<Contact> 
     await incrementContactCount(data.firebaseUid, 1);
 
     // Link any existing recordings to this new contact
-    let stats = { totalRecordings: 0, lastRecordingAt: null };
+    let stats: { totalRecordings: number; lastRecordingAt: Date | null } = { totalRecordings: 0, lastRecordingAt: null };
     if (data.phoneNumbers && data.phoneNumbers.length > 0) {
         stats = await linkRecordingsToContact(result.insertedId, data.phoneNumbers, data.firebaseUid);
     }
