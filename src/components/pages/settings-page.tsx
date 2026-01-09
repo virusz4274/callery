@@ -1,332 +1,55 @@
 
 'use client';
 
-import { useToast } from '@/components/toast-provider';
-
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// Tabs removed as we use custom list now.
-import { authFetch } from '@/lib/api-client';
 import { ProfileSettings } from '@/components/settings/profile-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
 import { DataSettings } from '@/components/settings/data-settings';
 import { NotificationsSettings } from '@/components/settings/notifications-settings';
 import { BillingSettings } from '@/components/settings/billing-settings';
 import { ClientOnly } from '@/components/client-only';
-import { useSearchParams, useRouter } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
-import { useUser, useAuth } from '@/lib/firebase/provider';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-
-import { getGoogleAuthUrl } from '@/app/actions/google-auth';
-import { syncGoogleContacts } from '@/app/actions/contacts';
-import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Skeleton } from '@heroui/react';
-
-const profileFormSchema = z.object({
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
-});
-
-const passwordFormSchema = z.object({
-    currentPassword: z.string().min(1, 'Current password is required for security.'),
-    newPassword: z.string().min(6, 'Password must be at least 6 characters long.'),
-    confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-    message: "New passwords don't match",
-    path: ['confirmPassword'],
-});
+import { useSettingsPage } from '@/hooks/use-settings-page';
 
 export function SettingsPage() {
-    const { toast } = useToast();
-    const showBilling = process.env.NEXT_PUBLIC_FEATURE_BILLING_ENABLED === 'true';
-    const searchParams = useSearchParams();
-    const defaultTab = searchParams.get('tab') || 'profile';
-
-    const { user, isUserLoading } = useUser();
-    const { userProfile, isProfileLoading } = useUserProfile(user);
-    const auth = useAuth();
-
-    // State, Loading, Forms
-    // Removed unused profileState
-
-    const [generalState, setGeneralState] = useState({ timezone: '' });
-    const [notificationsState, setNotificationsState] = useState({
-        activityDigest: 'weekly' as 'off' | 'weekly' | 'monthly',
-        ingestSuccess: true,
-        ingestFail: true,
-    });
-    const [dataState, setDataState] = useState({
-        deletionPolicy: 'never',
-        transcriptionSettings: { autoTranscribe: true }
-    });
-
-    const [isSavingProfile, setSavingProfile] = useState(false);
-    const [isSavingPassword, setSavingPassword] = useState(false);
-    const [isSavingGeneral, setSavingGeneral] = useState(false);
-    const [isSavingNotifications, setSavingNotifications] = useState(false);
-    const [isSavingData, setSavingData] = useState(false);
-
-    const [isSyncing, startSyncTransition] = React.useTransition();
-
-    const [showConnectDialog, setShowConnectDialog] = useState(false);
-    const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
-
-    const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-        resolver: zodResolver(profileFormSchema),
-        defaultValues: { firstName: '', lastName: '' },
-    });
-    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
-        resolver: zodResolver(passwordFormSchema),
-        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' }
-    });
-
-    // Effects
-    const lastProfileRef = React.useRef('');
-
-    // Dirty Start Tracking
-    const generalDirtyRef = React.useRef(false);
-    const notificationsDirtyRef = React.useRef(false);
-    const dataDirtyRef = React.useRef(false);
-
-    // Effects
-
-
-    useEffect(() => {
-        if (userProfile) {
-            // Check if profile actually changed to avoid overwriting user input on re-renders
-            const profileHash = JSON.stringify({
-                firstName: userProfile.firstName,
-                lastName: userProfile.lastName,
-                timezone: userProfile.timezone,
-                notifications: userProfile.notificationSettings,
-                storage: userProfile.storageSettings
-            });
-
-            if (profileHash === lastProfileRef.current) {
-                return;
-            }
-            lastProfileRef.current = profileHash;
-
-            // Removed setProfileState calls as state was unused
-
-            // Only reset form if we have fresh data differing from what we last saw AND user hasn't started typing
-            if (!profileForm.formState.isDirty) {
-                profileForm.reset({
-                    firstName: userProfile.firstName || '',
-                    lastName: userProfile.lastName || '',
-                });
-            }
-
-            // Only update if not dirty
-            if (!generalDirtyRef.current) {
-                setGeneralState({ timezone: userProfile.timezone || '' });
-            }
-
-            if (userProfile.notificationSettings && !notificationsDirtyRef.current) {
-                setNotificationsState(userProfile.notificationSettings);
-            }
-
-            if (!dataDirtyRef.current) {
-                setDataState({
-                    deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never',
-                    transcriptionSettings: userProfile.transcriptionSettings || { autoTranscribe: true }
-                });
-            }
-        }
-    }, [userProfile, profileForm]); // Removed specific refs dependencies as they are refs
-
-    const router = useRouter();
-
-    // Protect the page - redirect to login if not authenticated
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.replace('/login');
-        }
-    }, [user, isUserLoading, router]);
-    const processedCodeRef = React.useRef<string | null>(null);
-
-    useEffect(() => {
-        const code = searchParams.get('g_code');
-        const state = searchParams.get('g_state');
-        const error = searchParams.get('error');
-
-        if (error) {
-            toast({ title: 'Google Sync Failed', description: error.replace(/\+/g, ' ') || 'Could not sync with your Google account.', status: 'danger' });
-            // Clean up error params
-            const newParams = new URLSearchParams(searchParams.toString());
-            newParams.delete('error');
-            router.replace(`/settings?${newParams.toString()}`);
-        } else if (code && state && !isSyncing) {
-            // Prevent double-execution for the same code
-            if (processedCodeRef.current === code) return;
-            processedCodeRef.current = code;
-
-            startSyncTransition(async () => {
-                const result = await syncGoogleContacts(code);
-                if (result.success) {
-                    toast({ title: 'Sync Successful', description: `${result.count} contacts were found and synced.`, status: 'success' });
-                } else {
-                    toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
-                }
-
-                // Clean up URL parameters to prevent re-execution on refresh
-                const newParams = new URLSearchParams(searchParams.toString());
-                newParams.delete('g_code');
-                newParams.delete('g_state');
-                router.replace(`/settings?${newParams.toString()}`);
-            });
-        }
-    }, [searchParams, isSyncing, router, toast]);
-
-    // ... (imports)
-
-    // ... (inside component)
-
-    // Handlers
-    const handleUpdateProfile = async (values: z.infer<typeof profileFormSchema>) => {
-        if (!user) return;
-        setSavingProfile(true);
-        try {
-            const response = await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ firstName: values.firstName, lastName: values.lastName }),
-            });
-            if (!response.ok) throw new Error('Failed to update profile');
-            toast({ title: 'Profile Updated', status: 'success' });
-            // Profile form handles its own dirty state via react-hook-form
-        } catch (error: unknown) {
-            toast({ title: 'Update Failed', description: error instanceof Error ? error.message : 'Unknown error', status: 'danger' });
-        } finally {
-            setSavingProfile(false);
-        }
-    };
-
-    const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
-        if (!user || !user.email) return;
-        setSavingPassword(true);
-        try {
-            const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
-            await reauthenticateWithCredential(user, credential);
-            await updatePassword(user, values.newPassword);
-            toast({ title: 'Password Changed', description: 'Please log in again.', status: 'success' });
-            setTimeout(() => auth.signOut(), 3000);
-        } catch (error: unknown) {
-            const firebaseError = error as { code?: string; message?: string };
-            const msg = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
-            toast({ title: 'Password Change Failed', description: msg, status: 'danger' });
-        } finally {
-            setSavingPassword(false);
-            passwordForm.reset();
-        }
-    };
-
-    const handleSaveGeneral = async () => {
-        if (!user || !generalState.timezone) return;
-        setSavingGeneral(true);
-        try {
-            await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: generalState.timezone }),
-            });
-            toast({ title: 'Preferences Saved', status: 'success' });
-            generalDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingGeneral(false); }
-    };
-
-    const handleSaveNotifications = async () => {
-        setSavingNotifications(true);
-        try {
-            await authFetch('/api/user/profile', { method: 'PATCH', body: JSON.stringify({ notificationSettings: notificationsState }) });
-            toast({ title: 'Notifications Saved', status: 'success' });
-            notificationsDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingNotifications(false); }
-    };
-
-    const handleSaveData = async () => {
-        setSavingData(true);
-        try {
-            await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    storageSettings: { deletionPolicy: dataState.deletionPolicy },
-                    transcriptionSettings: dataState.transcriptionSettings
-                })
-            });
-            toast({ title: 'Policy Saved', status: 'success' });
-            dataDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingData(false); }
-    };
-
-
-
-    // Google Auth helpers
-    const redirectToGoogleAuth = async () => { const { url } = await getGoogleAuthUrl(); window.location.href = url; };
-    const handleConnectGoogle = () => {
-        if (hasConsented) {
-            redirectToGoogleAuth();
-        } else {
-            setShowConnectDialog(true);
-        }
-    };
-    const onDialogConfirm = () => { setHasConsented(true); setShowConnectDialog(false); redirectToGoogleAuth(); };
-
-    const isLoading = isUserLoading || isProfileLoading;
-
-    // Use useMemo for tabs to avoid dependency warnings if passed to useEffect
-    const tabs = React.useMemo(() => [
-        { id: 'profile', label: 'Profile', icon: '👤' },
-        { id: 'general', label: 'General', icon: '⚙️' },
-        { id: 'data', label: 'Data', icon: '💾' },
-        { id: 'notifications', label: 'Notifications', icon: '🔔' },
-        ...(showBilling ? [{ id: 'billing', label: 'Billing', icon: '💳' }] : []),
-    ], [showBilling]);
-
-    const [activeTab, setActiveTab] = useState(defaultTab);
-    const [view, setView] = useState<'list' | 'detail'>('list');
-
-    // Sync active tab with URL if needed, or just initialize. 
-    useEffect(() => {
-        const tab = searchParams.get('tab');
-        if (tab && tabs.some(t => t.id === tab)) {
-            setActiveTab(tab);
-            // If we have a tab in URL on load, we assume user might want to see it, 
-            // but for "Settings" main link usually no tab is present, or default 'profile'.
-            // If component mounts and there is a specific non-default tab, or if user navigated,
-            // we should probably show detail on mobile if it's deeply linked.
-            // Let's decide: if URL has tab, show detail? 
-            // But 'profile' is default. If URL is just /settings, default is profile.
-            // We only want to show list by default on mobile unless specifically requested?
-            // Actually, for better UX on mobile, 'Settings' should land on List.
-            // If I specifically go to /settings?tab=data, I definitely want to see Data.
-            if (tab) {
-                setView('detail');
-            }
-        }
-    }, [searchParams, tabs]);
-
-    const handleTabSelect = (tabId: string) => {
-        setActiveTab(tabId);
-        setView('detail');
-        // Optional: shallow push to URL
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('tab', tabId);
-        router.replace(`/settings?${params.toString()}`);
-    };
-
-    const handleBack = () => {
-        setView('list');
-        // Optional: clear tab from URL? Maybe not needed for state, but cleaner for history.
-        // router.replace('/settings'); 
-    };
-
-    // ... existing loading state ...
+    const {
+        user,
+        userProfile,
+        isLoading,
+        profileForm,
+        passwordForm,
+        generalState,
+        setGeneralState,
+        notificationsState,
+        setNotificationsState,
+        dataState,
+        setDataState,
+        activeTab,
+        view,
+        tabs,
+        showBilling,
+        isSyncing,
+        showConnectDialog,
+        setShowConnectDialog,
+        isSavingProfile,
+        isSavingPassword,
+        isSavingGeneral,
+        isSavingNotifications,
+        isSavingData,
+        generalDirtyRef,
+        notificationsDirtyRef,
+        dataDirtyRef,
+        handleUpdateProfile,
+        handleChangePassword,
+        handleSaveGeneral,
+        handleSaveNotifications,
+        handleSaveData,
+        handleConnectGoogle,
+        onDialogConfirm,
+        handleTabSelect,
+        handleBack
+    } = useSettingsPage();
 
     if (isLoading) {
         return (
