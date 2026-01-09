@@ -15,11 +15,14 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse {
     };
 }
 
+import { connection } from 'next/server';
+
 /**
  * Get the singleton system settings.
  * Creates default settings if none exist.
  */
 export async function getSystemSettings() {
+    await connection();
     const db = await getMongoDb();
     let settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
 
