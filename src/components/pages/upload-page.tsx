@@ -13,7 +13,15 @@ import { useUser } from '@/lib/firebase/provider';
 
 export function UploadPage() {
     const { toast } = useToast();
-    const [files, setFiles] = useState<File[]>([]);
+
+    interface UploadItem {
+        id: string;
+        file: File;
+        status: 'pending' | 'uploading' | 'success' | 'error';
+        error?: string;
+    }
+
+    const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
     const [isUploading, startUploadTransition] = useTransition();
     const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
@@ -31,9 +39,18 @@ export function UploadPage() {
         return <div className="flex justify-center p-8"><Spinner size="lg" /></div>;
     }
 
+    const addFiles = (newFiles: File[]) => {
+        const newItems: UploadItem[] = newFiles.map(file => ({
+            id: Math.random().toString(36).substring(7),
+            file,
+            status: 'pending'
+        }));
+        setUploadItems(prev => [...prev, ...newItems]);
+    };
+
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFiles(Array.from(event.target.files));
+            addFiles(Array.from(event.target.files));
         }
     };
 
@@ -42,7 +59,7 @@ export function UploadPage() {
         event.stopPropagation();
         setIsDragging(false);
         if (event.dataTransfer.files) {
-            setFiles(Array.from(event.dataTransfer.files));
+            addFiles(Array.from(event.dataTransfer.files));
         }
     };
 
@@ -58,30 +75,78 @@ export function UploadPage() {
         setIsDragging(false);
     };
 
-    const removeFile = (index: number) => {
-        setFiles(files.filter((_, i) => i !== index));
+    const removeFile = (id: string) => {
+        setUploadItems(prev => prev.filter(item => item.id !== id));
+    };
+
+    const updateItemStatus = (id: string, status: UploadItem['status'], error?: string) => {
+        setUploadItems(prev => prev.map(item =>
+            item.id === id ? { ...item, status, error } : item
+        ));
     };
 
     const handleUpload = async () => {
-        if (files.length === 0) {
-            toast({ title: 'No Files Selected', description: 'Please select one or more files to upload.', status: 'warning' });
+        const pendingItems = uploadItems.filter(item => item.status === 'pending' || item.status === 'error');
+
+        if (pendingItems.length === 0) {
+            toast({ title: 'No Files to Upload', description: 'All files are already uploaded or none selected.', status: 'warning' });
             return;
         }
 
         startUploadTransition(async () => {
-            const formData = new FormData();
-            files.forEach(file => {
-                formData.append('files', file);
+            // Mark all pending as uploading first
+            setUploadItems(prev => prev.map(item =>
+                (item.status === 'pending' || item.status === 'error') ? { ...item, status: 'uploading', error: undefined } : item
+            ));
+
+            const uploadPromises = pendingItems.map(async (item) => {
+                const formData = new FormData();
+                formData.append('files', item.file);
+                try {
+                    const result = await uploadRecordings(formData);
+                    if (result.success) {
+                        updateItemStatus(item.id, 'success');
+                        return { success: true };
+                    } else {
+                        updateItemStatus(item.id, 'error', result.error || 'Upload failed');
+                        return { success: false, error: result.error };
+                    }
+                } catch (error) {
+                    console.error(`Failed to upload ${item.file.name}`, error);
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    updateItemStatus(item.id, 'error', errorMessage);
+                    return { success: false, error: errorMessage };
+                }
             });
 
-            const result = await uploadRecordings(formData);
+            // Run all uploads in parallel
+            const results = await Promise.all(uploadPromises);
 
-            if (result.success) {
-                toast({ title: 'Upload Successful', description: `${result.count} file(s) have been uploaded successfully.`, status: 'success' });
-                setFiles([]);
+            // Aggregate results
+            const successCount = results.filter(r => r.success).length;
+            const failures = results.filter(r => !r.success);
+
+            if (successCount > 0) {
+                if (failures.length > 0) {
+                    toast({
+                        title: 'Partially Successful',
+                        description: `Uploaded ${successCount} file(s). Failed: ${failures.length} file(s).`,
+                        status: 'warning'
+                    });
+                } else {
+                    toast({
+                        title: 'Upload Successful',
+                        description: `${successCount} file(s) have been uploaded successfully.`,
+                        status: 'success'
+                    });
+                }
                 router.refresh();
             } else {
-                toast({ title: 'Upload Failed', description: result.error || 'An unknown error occurred.', status: 'danger' });
+                toast({
+                    title: 'Upload Failed',
+                    description: failures[0]?.error || 'No files were uploaded.',
+                    status: 'danger'
+                });
             }
         });
     };
@@ -134,9 +199,12 @@ export function UploadPage() {
                                 <p className="text-sm text-default-500 mb-2 max-w-sm text-center px-4">
                                     or click to browse
                                 </p>
-                                <p className="text-xs text-default-400 mb-6 text-center font-medium">
-                                    Max file size: 2GB
-                                </p>
+                                <div className="flex items-center gap-2 mb-6 px-3 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full border border-yellow-500/20">
+                                    <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                                    <p className="text-xs font-semibold text-center">
+                                        Max file size: 2GB per file
+                                    </p>
+                                </div>
 
                                 <div className="flex flex-wrap justify-center gap-3 text-xs text-default-400 font-mono bg-default-100/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-default-200/50">
                                     <span>MP3</span>
@@ -163,22 +231,22 @@ export function UploadPage() {
 
                 {/* Right Column: File List */}
                 <div className="lg:col-span-7 space-y-6">
-                    {files.length > 0 ? (
+                    {uploadItems.length > 0 ? (
                         <>
                             <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl">
                                 <Card.Content className="p-4 sm:p-6">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-default-100 pb-4">
                                         <div>
                                             <h3 className="font-bold text-xl text-foreground">Selected Files</h3>
-                                            <p className="text-small text-default-500 mt-1">{files.length} file(s) ready</p>
+                                            <p className="text-small text-default-500 mt-1">{uploadItems.length} file(s) ready</p>
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto">
-                                            <Button size="sm" variant="ghost" onPress={() => setFiles([])} className="font-medium text-danger hover:bg-danger/10 flex-1 sm:flex-none">
+                                            <Button size="sm" variant="ghost" onPress={() => setUploadItems([])} className="font-medium text-danger hover:bg-danger/10 flex-1 sm:flex-none">
                                                 Clear All
                                             </Button>
                                             <Button
                                                 onPress={handleUpload}
-                                                isDisabled={isUploading}
+                                                isDisabled={isUploading || uploadItems.every(i => i.status === 'success')}
                                                 variant="primary"
                                                 className={`font-semibold shadow-md shadow-primary/20 flex-1 sm:flex-none ${isUploading ? 'opacity-80' : 'hover:scale-[1.02]'}`}
                                                 size="sm"
@@ -190,16 +258,31 @@ export function UploadPage() {
                                     </div>
 
                                     <ul className="space-y-3">
-                                        {files.map((file, index) => (
-                                            <li key={index} className="group flex items-center justify-between p-3 rounded-xl border border-default-200 bg-background/40 hover:bg-default-100/50 transition-all duration-200">
+                                        {uploadItems.map((item) => (
+                                            <li key={item.id} className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${item.status === 'error' ? 'border-danger/50 bg-danger/5' :
+                                                    item.status === 'success' ? 'border-success/50 bg-success/5' :
+                                                        'border-default-200 bg-background/40 hover:bg-default-100/50'
+                                                }`}>
                                                 <div className="flex items-center gap-4 overflow-hidden w-full">
-                                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
-                                                        <File className="h-5 w-5" />
+                                                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.status === 'error' ? 'bg-danger/10 text-danger' :
+                                                            item.status === 'success' ? 'bg-success/10 text-success' :
+                                                                'bg-primary/10 text-primary'
+                                                        }`}>
+                                                        {item.status === 'uploading' ? (
+                                                            <Spinner size="sm" color="current" />
+                                                        ) : (
+                                                            <File className="h-5 w-5" />
+                                                        )}
                                                     </div>
                                                     <div className="flex flex-col overflow-hidden min-w-0 flex-1">
-                                                        <span className="text-sm font-medium truncate text-foreground">{file.name}</span>
-                                                        <span className="text-xs text-default-500 font-mono">
-                                                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-medium truncate text-foreground">{item.file.name}</span>
+                                                            {item.status === 'success' && <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">DONE</span>}
+                                                            {item.status === 'error' && <span className="text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">FAILED</span>}
+                                                        </div>
+                                                        <span className="text-xs text-default-500 font-mono flex items-center gap-2">
+                                                            {(item.file.size / 1024 / 1024).toFixed(2)} MB
+                                                            {item.error && <span className="text-danger">- {item.error}</span>}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -207,8 +290,9 @@ export function UploadPage() {
                                                     variant="ghost"
                                                     isIconOnly
                                                     size="sm"
-                                                    onPress={() => removeFile(index)}
+                                                    onPress={() => removeFile(item.id)}
                                                     className="text-default-400 hover:text-danger hover:bg-danger/10"
+                                                    isDisabled={isUploading}
                                                 >
                                                     <X className="h-4 w-4" />
                                                 </Button>
