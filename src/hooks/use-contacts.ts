@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import type { ContactResponse } from '@/lib/db/types';
 import { authFetch } from '@/lib/api-client';
-import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
 
 interface UseContactsResult {
     data: ContactResponse[] | null;
@@ -11,80 +11,76 @@ interface UseContactsResult {
     error: Error | null;
     refetch: () => Promise<void>;
     totalCount: number;
-    loadMore: () => Promise<void>;
+    loadMore: () => void;
     hasMore: boolean;
+    isLoadingMore: boolean;
 }
+
+const LIMIT = 20;
 
 /**
  * Hook to fetch contacts for the current user.
  * Uses the API route with Firebase ID token authentication.
  */
 export function useContacts(): UseContactsResult {
-    // The following useState declarations are being replaced or modified by the useSWR line.
-    // Based on the instruction, the useSWR line is inserted after these,
-    // but the variables declared in useSWR (data, isLoading, error) conflict with existing ones.
-    // Assuming the intent is to replace the state management for these variables with useSWR.
-    // The instruction shows `const [isLoading, setIsLoading] = useState(true);` etc.
-    // followed by the useSWR line. This implies the useSWR is meant to take over.
-    // I will remove the conflicting useState declarations and keep the ones not covered by useSWR.
-    // The instruction also shows `setData(null);` inside the useSWR block, implying `data` state still exists.
-    // This is a bit contradictory. I will follow the instruction literally for the insertion.
+    const getKey = (pageIndex: number, previousPageData: ContactResponse[] | null) => {
+        // Validation: if previous page is empty, we reached the end
+        if (previousPageData && !previousPageData.length) return null;
 
-    // Original: const [data, setData] = useState<ContactResponse[] | null>(null);
-    // Original: const [isLoading, setIsLoading] = useState(true);
-    // Original: const [error, setError] = useState<Error | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [page, setPage] = useState(0);
+        // SWR key for this page
+        const skip = pageIndex * LIMIT;
+        return `/api/contacts?limit=${LIMIT}&skip=${skip}`;
+    };
 
-    const { data: contactsData, isLoading, error, mutate } = useSWR<ContactResponse[]>(
-        ['/api/contacts', page],
-        async () => {
-            const skip = page * 20;
-            const response = await authFetch(`/api/contacts?limit=20&skip=${skip}`);
+    const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactResponse[]>(
+        getKey,
+        async (url: string) => {
+            const response = await authFetch(url);
             if (!response.ok) throw new Error('Failed to fetch contacts');
             const result = await response.json();
-            setTotalCount(result.totalCount);
-            if (result.contacts.length < 20) setHasMore(false);
-            return result.contacts as ContactResponse[];
+            // We return just the contacts array for this page
+            // Note: totalCount is in the result but useSWRInfinite expects an array of items for data.
+            // To handle totalCount properly we might need a separate fetch or to attach it to the array.
+            // For now, let's attach totalCount to the array object or just ignore it if safe.
+            // But wait, the previous code used totalCount.
+            // Let's modify the return type slightly to separate them if possible or just store contacts.
+            // Actually, best practice here to keep it simple: just return contacts.
+            // We can get totalCount from the first page's response if we could, but SWR fetcher return structure matters.
+
+            // Hack/Pattern: Attach metadata to the array
+            const contacts = result.contacts as ContactResponse[];
+            (contacts as any).totalCount = result.totalCount;
+            return contacts;
         },
         {
             revalidateOnFocus: false,
+            initialSize: 1,
         }
     );
 
-    const LIMIT = 20;
+    // Flatten pages into a single array
+    const contactsData = pages ? pages.flat() : null;
 
-    const loadMore = useCallback(async () => {
-        if (isLoading || !hasMore) return;
+    // Extract totalCount from the first page if available
+    const totalCount = pages && pages[0] ? (pages[0] as any).totalCount : 0;
 
-        const nextPage = page + 1;
-        const skip = nextPage * LIMIT;
+    const hasMore = contactsData ? contactsData.length < totalCount : true;
+    const isLoadingMore = isLoading || (size > 0 && pages && typeof pages[size - 1] === 'undefined');
 
-        try {
-            const response = await authFetch(`/api/contacts?limit=${LIMIT}&skip=${skip}`);
-            if (!response.ok) throw new Error('Failed to load more');
-            const result = await response.json();
-
-            if (result.contacts.length < LIMIT) {
-                setHasMore(false);
-            }
-
-            mutate((prev) => [...(prev || []), ...result.contacts], false);
-            setPage(nextPage);
-        } catch (error) {
-            console.error(error);
-        }
-    }, [page, isLoading, hasMore, mutate]);
+    const loadMore = useCallback(() => {
+        if (isLoadingMore || !hasMore) return;
+        setSize(size + 1);
+    }, [isLoadingMore, hasMore, setSize, size]);
 
     return {
         data: contactsData || null,
-        isLoading,
+        isLoading: isLoading && !contactsData, // True only on initial load
         error: error || null,
-        refetch: async () => { setPage(0); setHasMore(true); mutate(); },
+        refetch: async () => { await mutate(); },
         totalCount,
         loadMore,
-        hasMore
+        hasMore,
+        isLoadingMore
     };
 }
 

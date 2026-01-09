@@ -59,11 +59,13 @@ export async function POST(request: NextRequest) {
         (await cookies()).set(options);
 
         return NextResponse.json({ status: 'success' }, { status: 200 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error creating session:', error);
         // RETURN ACTUAL ERROR FOR DEBUGGING
+        const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
         return NextResponse.json(
-            { error: error.message || 'Internal Server Error', stack: error.stack },
+            { error: errorMessage, stack: errorStack },
             { status: 500 }
         );
     }

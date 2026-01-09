@@ -57,6 +57,7 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Button className="hidden" aria-hidden="true" />
       <Modal.Backdrop>
         <Modal.Container>
           <Modal.Dialog>

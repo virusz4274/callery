@@ -5,14 +5,15 @@ import { useContacts } from '@/hooks/use-contacts';
 import { ContactsPage } from '@/components/pages/contacts-page';
 
 export function ContactsWrapper() {
-    const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, totalCount } = useContacts();
+    const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, isLoadingMore, totalCount } = useContacts();
 
     // Use API response directly (no transformation needed)
     const allContacts = contactsData ?? [];
 
-    if (isLoadingContacts) {
+    // Show loading only on initial fetch, not during pagination
+    if (isLoadingContacts && allContacts.length === 0) {
         return <div className="p-4">Loading contacts...</div>;
     }
 
-    return <ContactsPage allContacts={allContacts} loadMore={loadMore} hasMore={hasMore} totalCount={totalCount} />;
+    return <ContactsPage allContacts={allContacts} loadMore={loadMore} hasMore={hasMore} isLoadingMore={isLoadingMore} totalCount={totalCount} />;
 }

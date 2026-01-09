@@ -1,9 +1,9 @@
 
 "use client"
 
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import type { Contact } from '@/lib/types';
-import { Card, Avatar, Button, Dropdown, Separator, Spinner, Chip, Tooltip } from '@heroui/react';
+import { Card, Avatar, Button, Dropdown, Separator, Spinner, Chip } from '@heroui/react';
 import { Phone, Mic, MoreVertical, ChevronRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -17,7 +17,44 @@ type ContactsPageProps = {
 
 import { useUser } from '@/lib/firebase/provider';
 
-export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }: ContactsPageProps) {
+function ContactPhoneDisplay({ phoneNumbers }: { phoneNumbers?: string[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!phoneNumbers || phoneNumbers.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      <Chip size="sm" variant="soft" color="default">
+        <Phone className="w-3 h-3 mr-1" />
+        {phoneNumbers[0]}
+      </Chip>
+
+      {isExpanded && phoneNumbers.slice(1).map((num, i) => (
+        <Chip key={i} size="sm" variant="soft" color="default">
+          <Phone className="w-3 h-3 mr-1" />
+          {num}
+        </Chip>
+      ))}
+
+      {!isExpanded && phoneNumbers.length > 1 && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(true);
+          }}
+          role="button"
+          className="cursor-pointer"
+        >
+          <Chip size="sm" variant="soft" className="cursor-pointer hover:bg-default-200 transition-colors">
+            +{phoneNumbers.length - 1} more
+          </Chip>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, isLoadingMore = false }: ContactsPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
@@ -64,12 +101,19 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
   }
 
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const isLoadingMoreRef = useRef(isLoadingMore);
+
+  // Keep ref in sync without triggering effect
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
 
   useEffect(() => {
     if (!loadMore || !hasMore) return;
 
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
+      // Guard against multiple calls
+      if (entries[0].isIntersecting && !isLoadingMoreRef.current) {
         loadMore();
       }
     }, { threshold: 0.1 });
@@ -79,7 +123,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
     }
 
     return () => observer.disconnect();
-  }, [loadMore, hasMore]);
+  }, [loadMore, hasMore, isLoadingMore]);
 
   if (isUserLoading || !user) {
     return <div className="flex h-[50vh] items-center justify-center">Loading...</div>;
@@ -141,36 +185,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
                                 </div>
                               )}
 
-                              <div className="flex items-center gap-2 mt-2">
-                                {contact.phoneNumbers && contact.phoneNumbers.length > 0 && (
-                                  <>
-                                    <Chip size="sm" variant="soft" color="default">
-                                      <Phone className="w-3 h-3 mr-1" />
-                                      {contact.phoneNumbers[0]}
-                                    </Chip>
-
-                                    {contact.phoneNumbers.length > 1 && (
-                                      <Tooltip>
-                                        <Tooltip.Trigger>
-                                          <Chip size="sm" variant="soft" className="cursor-help">
-                                            +{contact.phoneNumbers.length - 1} more
-                                          </Chip>
-                                        </Tooltip.Trigger>
-                                        <Tooltip.Content className="p-0">
-                                          <div className="px-3 py-2">
-                                            <div className="text-small font-bold mb-1">Additional Numbers</div>
-                                            <div className="flex flex-col gap-1">
-                                              {contact.phoneNumbers.slice(1).map((num, i) => (
-                                                <div key={i} className="text-xs text-default-500 font-mono">{num}</div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        </Tooltip.Content>
-                                      </Tooltip>
-                                    )}
-                                  </>
-                                )}
-                              </div>
+                              <ContactPhoneDisplay phoneNumbers={contact.phoneNumbers} />
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
@@ -182,16 +197,15 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
                             </div>
                             <div onClick={(e) => e.stopPropagation()}>
                               <Dropdown>
-                                <Button variant="ghost" isIconOnly size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground">
+                                <Dropdown.Trigger className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground p-1.5 rounded-md hover:bg-default-100 cursor-pointer">
                                   <MoreVertical className="h-4 w-4" />
                                   <span className="sr-only">Actions</span>
-                                </Button>
+                                </Dropdown.Trigger>
                                 <Dropdown.Popover>
                                   <Dropdown.Menu aria-label="Contact actions" onAction={(key) => {
                                     if (key === 'view') handleContactClick(contact.name);
                                   }}>
-                                    <Dropdown.Item key="view">View Recordings</Dropdown.Item>
-                                    <Dropdown.Item key="edit">Edit Contact</Dropdown.Item>
+                                    <Dropdown.Item id="view">View Recordings</Dropdown.Item>
                                   </Dropdown.Menu>
                                 </Dropdown.Popover>
                               </Dropdown>
@@ -216,9 +230,18 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
             )}
 
             {/* Sentinel for Infinite Scroll */}
-            <div ref={sentinelRef} className="py-4 w-full flex justify-center min-h-[40px]">
-              {hasMore && <Spinner size="sm" color="current" className="text-default-400" />}
-            </div>
+            {hasMore && (
+              <>
+                {!isLoadingMore && (
+                  <div ref={sentinelRef} className="py-4 w-full flex justify-center min-h-[40px]" />
+                )}
+                {isLoadingMore && (
+                  <div className="py-4 w-full flex justify-center min-h-[40px]">
+                    <Spinner size="sm" color="current" className="text-default-400" />
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
         </Card.Content>
