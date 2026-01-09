@@ -1,7 +1,9 @@
 import { getAnnouncements } from '@/app/actions/admin-announcements';
 import { AnnouncementsList } from '@/components/admin/announcements-list';
+import { connection } from 'next/server';
 
 export default async function AnnouncementsPage() {
+    await connection();
     const announcements = await getAnnouncements();
 
     return (

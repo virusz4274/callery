@@ -82,7 +82,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0 }:
   }, [loadMore, hasMore]);
 
   if (isUserLoading || !user) {
-    return <div className="flex h-[50vh] items-center justify-center"><Spinner size="lg" /></div>;
+    return <div className="flex h-[50vh] items-center justify-center">Loading...</div>;
   }
 
   return (

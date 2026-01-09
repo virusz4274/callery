@@ -1,0 +1,18 @@
+'use client';
+
+import React from 'react';
+import { useContacts } from '@/hooks/use-contacts';
+import { ContactsPage } from '@/components/pages/contacts-page';
+
+export function ContactsWrapper() {
+    const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, totalCount } = useContacts();
+
+    // Use API response directly (no transformation needed)
+    const allContacts = contactsData ?? [];
+
+    if (isLoadingContacts) {
+        return <div className="p-4">Loading contacts...</div>;
+    }
+
+    return <ContactsPage allContacts={allContacts} loadMore={loadMore} hasMore={hasMore} totalCount={totalCount} />;
+}
