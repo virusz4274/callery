@@ -1,6 +1,7 @@
 
 import * as dotenv from 'dotenv';
 dotenv.config();
+import { fileURLToPath } from 'url';
 
 import { Plan } from '@/lib/db/types';
 import { ObjectId } from 'mongodb';
@@ -170,7 +171,40 @@ export async function initializeDatabase(): Promise<void> {
     console.log('1. Atlas Search Index (for keyword/full-text search):');
     console.log('   - Index name: recordings_text_search');
     console.log('   - Collection: recordings');
-    console.log('   - See implementation_plan.md for the full index definition');
+    console.log('   - JSON Configuration:');
+    console.log(JSON.stringify({
+        "mappings": {
+            "dynamic": false,
+            "fields": {
+                "firebaseUid": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "contactName": {
+                    "type": "string"
+                },
+                "fileName": {
+                    "type": "string"
+                },
+                "fullTranscript": {
+                    "type": "document",
+                    "fields": {
+                        "text": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "tags": {
+                    "type": "string"
+                },
+                "standardizedDisplayName": {
+                    "type": "string"
+                }
+            }
+        }
+    }, null, 2));
     console.log('');
     console.log('2. Atlas Vector Search Index (for semantic search):');
     console.log('   - Index name: recordings_vector_search');
@@ -210,7 +244,7 @@ export async function testConnection(): Promise<boolean> {
 
 // Allow running this file directly for initialization
 // Usage: npx tsx src/lib/db/init.ts
-if (require.main === module) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
     (async () => {
         const connected = await testConnection();
         if (connected) {

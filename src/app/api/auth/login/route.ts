@@ -59,8 +59,12 @@ export async function POST(request: NextRequest) {
         (await cookies()).set(options);
 
         return NextResponse.json({ status: 'success' }, { status: 200 });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating session:', error);
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // RETURN ACTUAL ERROR FOR DEBUGGING
+        return NextResponse.json(
+            { error: error.message || 'Internal Server Error', stack: error.stack },
+            { status: 500 }
+        );
     }
 }
