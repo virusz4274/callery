@@ -121,7 +121,7 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
     // Update contact stats if linked
     if (data.contactId) {
         const { incrementContactRecordings } = await import('./contacts');
-        await incrementContactRecordings(data.contactId, data.firebaseUid, now, 1);
+        await incrementContactRecordings(data.contactId.toString(), data.firebaseUid, now, 1);
     }
 
     return {
@@ -181,7 +181,7 @@ export async function deleteRecording(
         if (result.contactId) {
             const { incrementContactRecordings } = await import('./contacts');
             // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
-            await incrementContactRecordings(result.contactId, firebaseUid, new Date(), -1);
+            await incrementContactRecordings(result.contactId.toString(), firebaseUid, new Date(), -1);
         }
     }
 
@@ -231,7 +231,7 @@ export async function deleteRecordings(
         for (const recording of recordings) {
             if (recording.contactId) {
                 // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
-                await incrementContactRecordings(recording.contactId, firebaseUid, new Date(), -1);
+                await incrementContactRecordings(recording.contactId.toString(), firebaseUid, new Date(), -1);
             }
         }
     }
