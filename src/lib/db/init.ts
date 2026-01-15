@@ -118,14 +118,20 @@ export async function initializeDatabase(): Promise<void> {
                 _id: new ObjectId(),
                 name: 'Pro',
                 description: 'Power user access',
-                price: 25,
+                price: 29,
                 currency: 'USD',
                 interval: 'monthly',
-                limits: { storage: 5 * 1024 * 1024 * 1024, transcription: 120 * 60 }, // 5GB, 120 mins
-                features: ['More Storage', 'Priority Support'],
+                limits: { storage: 10 * 1024 * 1024 * 1024, transcription: 1000 * 60 }, // 10GB, 1000 mins
+                features: [
+                    '10 GB Storage',
+                    'Advanced AI Transcription',
+                    'Priority Email Support',
+                    'Data Export',
+                    'Detailed Analytics'
+                ],
                 isDefault: false,
                 isActive: true,
-                stripePriceId: '', // Placeholder
+                stripePriceId: 'price_1SpxUMSMMnKTS4i96ePY7SpU', // Real Stripe Price ID
                 createdAt: now,
                 updatedAt: now
             },
@@ -140,7 +146,7 @@ export async function initializeDatabase(): Promise<void> {
                 features: ['Unlimited Access', 'Internal Use'],
                 isDefault: false,
                 isActive: true,
-                stripePriceId: '', // Placeholder
+                stripePriceId: '', // Internal use only
                 createdAt: now,
                 updatedAt: now
             },
