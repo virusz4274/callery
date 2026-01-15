@@ -1,0 +1,19 @@
+{
+    "id": "evt_1Mvx...",
+    "object": "event",
+    "type": "invoice.created",
+    "data": {
+        "object": {
+            "id": "in_1Mvx...",
+            "object": "invoice",
+            "amount_due": 6300,
+            "currency": "usd",
+            "lines": {
+                "object": "list",
+                "data":
+            },
+            "subtotal": 6300,
+            "total": 6300
+        }
+    }
+}
