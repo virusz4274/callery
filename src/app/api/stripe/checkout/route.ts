@@ -16,10 +16,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { priceId, successUrl, cancelUrl } = await req.json();
+        const { priceId, planName, successUrl, cancelUrl } = await req.json();
 
-        if (!priceId) {
-            return NextResponse.json({ error: 'Missing priceId' }, { status: 400 });
+        let finalPriceId = priceId;
+
+        // Lookup Plan if only planName is provided
+        if (!finalPriceId && planName) {
+            const { getMongoDb, Collections } = await import('@/lib/mongodb');
+            const db = await getMongoDb();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const plan = await db.collection(Collections.PLANS).findOne({ name: planName });
+            if (plan && plan.stripePriceId) {
+                finalPriceId = plan.stripePriceId;
+            }
+        }
+
+        if (!finalPriceId) {
+            return NextResponse.json({ error: 'Missing priceId or invalid planName' }, { status: 400 });
         }
 
         // 2. Get User from DB
@@ -49,9 +62,10 @@ export async function POST(req: NextRequest) {
         // 4. Create Stripe Checkout Session
         const session = await stripe.checkout.sessions.create({
             customer: stripeCustomerId,
+            client_reference_id: uid, // Explicitly link session to user
             line_items: [
                 {
-                    price: priceId,
+                    price: finalPriceId,
                     quantity: 1,
                 },
             ],

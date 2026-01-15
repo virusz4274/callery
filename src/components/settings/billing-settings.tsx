@@ -43,6 +43,28 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
     const isTrial = planName === 'Free Trial';
     const isFree = planName === 'Free';
 
+    const [isLoadingPortal, setIsLoadingPortal] = useState(false);
+
+    const handlePortal = async () => {
+        setIsLoadingPortal(true);
+        try {
+            const res = await authFetch('/api/stripe/portal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ returnUrl: window.location.href }),
+            });
+
+            if (!res.ok) throw new Error('Failed to create portal session');
+
+            const { url } = await res.json();
+            window.location.href = url;
+        } catch (error) {
+            console.error('Portal error:', error);
+            toast({ title: 'Error', description: 'Could not redirect to billing portal.', status: 'danger' });
+            setIsLoadingPortal(false);
+        }
+    };
+
     const handleToggleOverage = async (newValue: boolean) => {
         setIsTogglingRules(true);
         try {
@@ -93,8 +115,13 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                         : 'Manage your plan and billing details.'}
                                 </p>
                             </div>
-                            <Button variant="secondary" className="mt-4 sm:mt-0" onPress={() => window.open('https://stripe.com', '_blank')}>
-                                Update Payment Method
+                            <Button
+                                variant="secondary"
+                                className="mt-4 sm:mt-0"
+                                onPress={handlePortal}
+                                isDisabled={isFree || isLoadingPortal} // Portal usually requires a customer ID
+                            >
+                                {isLoadingPortal ? <Spinner size="sm" /> : 'Update Payment Method'}
                             </Button>
                         </div>
 
@@ -166,7 +193,9 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                 </Button>
                             </Link>
                             {!isFree && (
-                                <Button variant="danger-soft">Cancel Subscription</Button>
+                                <Button variant="danger-soft" onPress={handlePortal} isDisabled={isLoadingPortal}>
+                                    {isLoadingPortal ? <Spinner size="sm" color="danger" /> : 'Cancel Subscription'}
+                                </Button>
                             )}
                         </div>
                     </Card.Content>
