@@ -21,6 +21,7 @@ import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
 import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
+import { reportUsage } from '@/lib/stripe/usage';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
@@ -196,6 +197,7 @@ export async function uploadRecordings(
 
           // Update user's storage usage
           await incrementStorageUsed(firebaseUid, buffer.length);
+          await reportUsage(firebaseUid, 'storage', buffer.length / (1024 * 1024 * 1024)); // Convert bytes to GB for Stripe
 
           // Auto-transcription
           const user = await findUserByFirebaseUid(firebaseUid);
@@ -254,6 +256,7 @@ export async function uploadRecordings(
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(duration);
                 await incrementTranscriptionUsed(firebaseUid, billedDuration);
+                await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
                 console.log(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
 
                 // Delete from ElevenLabs

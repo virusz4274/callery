@@ -116,12 +116,12 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                 </p>
                             </div>
                             <Button
-                                variant="secondary"
-                                className="mt-4 sm:mt-0"
+                                variant="primary"
+                                className="mt-4 sm:mt-0 font-medium"
                                 onPress={handlePortal}
-                                isDisabled={isFree || isLoadingPortal} // Portal usually requires a customer ID
+                                isDisabled={isFree || isLoadingPortal}
                             >
-                                {isLoadingPortal ? <Spinner size="sm" /> : 'Update Payment Method'}
+                                {isLoadingPortal ? <Spinner size="sm" color="current" /> : 'Manage Subscription'}
                             </Button>
                         </div>
 
@@ -185,19 +185,6 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                 </Switch>
                             </div>
                         )}
-
-                        <div className="flex flex-col gap-4 sm:flex-row pt-4">
-                            <Link href="/pricing">
-                                <Button variant="secondary">
-                                    Upgrade / Change Plan
-                                </Button>
-                            </Link>
-                            {!isFree && (
-                                <Button variant="danger-soft" onPress={handlePortal} isDisabled={isLoadingPortal}>
-                                    {isLoadingPortal ? <Spinner size="sm" color="danger" /> : 'Cancel Subscription'}
-                                </Button>
-                            )}
-                        </div>
                     </Card.Content>
                 </Card>
 
@@ -219,7 +206,7 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                     </Card.Content>
                 </Card>
             </div>
-        </SettingsPage>
+        </SettingsPage >
     );
 }
 

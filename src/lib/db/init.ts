@@ -78,97 +78,137 @@ export async function initializeDatabase(): Promise<void> {
         console.error('⚠️ Admin Logs index creation failed:', e);
     }
 
-    // Seed Initial Plans if empty
-    const plansCount = await db.collection(Collections.PLANS).countDocuments();
-    if (plansCount === 0) {
-        console.log('🌱 Seeding initial plans...');
-        const now = new Date();
-        const initialPlans: Plan[] = [
+    // Seed or Update Plans
+    console.log('🌱 Seeding/Updating plans...');
+    const now = new Date();
+
+    // Define all plans with their logic
+    const plansToSeed: Plan[] = [
+        {
+            _id: new ObjectId(), // Note: verify_plans script might fail if we keep generating new IDs for updates. 
+            // Better strategy: Look up by Name. If exists, update. If not, insert.
+            name: 'Free Trial',
+            // ... (rest of fields)
+        } as any // Temporary cast to fix later
+    ];
+
+    // let's construct the array properly inside the loop or map
+
+    const planDefinitions = [
+        {
+            name: 'Free Trial',
+            description: '30 days of full access',
+            price: 0,
+            currency: 'USD',
+            interval: 'monthly',
+            limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 },
+            features: ['Standard Storage', 'Community Support', '30-Day Limit'],
+            isDefault: true,
+            isActive: true,
+            stripePriceId: '',
+        },
+        {
+            name: 'Standard',
+            description: 'For regular usage',
+            price: 10,
+            currency: 'USD',
+            interval: 'monthly',
+            limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 },
+            features: ['Standard Storage', 'Email Support'],
+            isDefault: false,
+            isActive: true,
+            stripePriceId: '', // TODO: Add Standard Price ID
+            stripeStoragePriceId: '', // TODO: Add Standard Metered Storage Price ID (if different rate)
+            stripeTranscriptionPriceId: '', // TODO: Add Standard Metered Transcription Price ID
+        },
+        {
+            name: 'Pro',
+            description: 'Power user access',
+            price: 29,
+            currency: 'USD',
+            interval: 'monthly',
+            limits: { storage: 10 * 1024 * 1024 * 1024, transcription: 1000 * 60 },
+            features: [
+                '10 GB Storage',
+                'Advanced AI Transcription',
+                'Priority Email Support',
+                'Data Export',
+                'Detailed Analytics'
+            ],
+            isDefault: false,
+            isActive: true,
+            stripePriceId: 'price_1SpxUMSMMnKTS4i96ePY7SpU', // Pro Base License
+            stripeStoragePriceId: 'price_1SpxUNSMMnKTS4i9gKSDdzOG', // Pro Storage (Metered)
+            stripeTranscriptionPriceId: 'price_1SpxUMSMMnKTS4i9vgYkQ1bD', // Pro Transcription (Metered)
+        },
+        {
+            name: 'Lifetime',
+            description: 'One-time payment for platform access',
+            price: 299, // Example
+            currency: 'USD',
+            interval: 'lifetime',
+            limits: { storage: 0, transcription: 0 }, // 0 limits implies PAYG from byte 0? Or do they get some free allowance?
+            // "There is no provided quotas for lifetime... only pay-per-usage" -> Limits = 0.
+            features: ['Lifetime Access', 'Pay-as-you-go Storage', 'Pay-as-you-go Transcription'],
+            isDefault: false,
+            isActive: true,
+            stripePriceId: '', // TODO: Add Lifetime One-Time Price ID
+            stripeStoragePriceId: '', // TODO: Add Lifetime Metered Storage Price ID
+            stripeTranscriptionPriceId: '', // TODO: Add Lifetime Metered Transcription Price ID
+        },
+        {
+            name: 'Internal',
+            description: 'Team & Family unrestricted access',
+            price: 0,
+            currency: 'USD',
+            interval: 'lifetime',
+            limits: { storage: 1024 * 1024 * 1024 * 1024, transcription: 99999 * 60 },
+            features: ['Unlimited Access', 'Internal Use'],
+            isDefault: false,
+            isActive: true,
+            stripePriceId: '',
+        },
+        {
+            name: 'Custom',
+            description: 'Enterprise needs',
+            price: 0,
+            currency: 'USD',
+            interval: 'yearly',
+            limits: { storage: 0, transcription: 0 },
+            features: ['Talk to Sales', 'Custom SLA'],
+            isDefault: false,
+            isActive: true,
+            stripePriceId: '',
+        }
+    ];
+
+    for (const def of planDefinitions) {
+        // Upsert by name
+        await db.collection(Collections.PLANS).updateOne(
+            { name: def.name },
             {
-                _id: new ObjectId(),
-                name: 'Free Trial',
-                description: '30 days of full access',
-                price: 0,
-                currency: 'USD',
-                interval: 'monthly',
-                limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 }, // 1GB, 60 mins
-                features: ['Standard Storage', 'Community Support', '30-Day Limit'],
-                isDefault: true,
-                isActive: true,
-                stripePriceId: '', // Placeholder
-                createdAt: now,
-                updatedAt: now
+                $set: {
+                    description: def.description,
+                    price: def.price,
+                    currency: def.currency,
+                    interval: def.interval as any,
+                    limits: def.limits,
+                    features: def.features,
+                    isDefault: def.isDefault,
+                    isActive: def.isActive,
+                    stripePriceId: def.stripePriceId,
+                    stripeStoragePriceId: (def as any).stripeStoragePriceId,
+                    stripeTranscriptionPriceId: (def as any).stripeTranscriptionPriceId,
+                    updatedAt: now
+                },
+                $setOnInsert: {
+                    createdAt: now
+                }
             },
-            {
-                _id: new ObjectId(),
-                name: 'Standard',
-                description: 'For regular usage',
-                price: 10,
-                currency: 'USD',
-                interval: 'monthly',
-                limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 }, // 1GB, 60 mins
-                features: ['Standard Storage', 'Email Support'],
-                isDefault: false,
-                isActive: true,
-                stripePriceId: '', // Placeholder
-                createdAt: now,
-                updatedAt: now
-            },
-            {
-                _id: new ObjectId(),
-                name: 'Pro',
-                description: 'Power user access',
-                price: 29,
-                currency: 'USD',
-                interval: 'monthly',
-                limits: { storage: 10 * 1024 * 1024 * 1024, transcription: 1000 * 60 }, // 10GB, 1000 mins
-                features: [
-                    '10 GB Storage',
-                    'Advanced AI Transcription',
-                    'Priority Email Support',
-                    'Data Export',
-                    'Detailed Analytics'
-                ],
-                isDefault: false,
-                isActive: true,
-                stripePriceId: 'price_1SpxUMSMMnKTS4i96ePY7SpU', // Real Stripe Price ID
-                createdAt: now,
-                updatedAt: now
-            },
-            {
-                _id: new ObjectId(),
-                name: 'Internal',
-                description: 'Team & Family unrestricted access',
-                price: 0,
-                currency: 'USD',
-                interval: 'lifetime',
-                limits: { storage: 1024 * 1024 * 1024 * 1024, transcription: 99999 * 60 }, // 1TB, Unlimited
-                features: ['Unlimited Access', 'Internal Use'],
-                isDefault: false,
-                isActive: true,
-                stripePriceId: '', // Internal use only
-                createdAt: now,
-                updatedAt: now
-            },
-            {
-                _id: new ObjectId(),
-                name: 'Custom',
-                description: 'Enterprise needs',
-                price: 0,
-                currency: 'USD',
-                interval: 'yearly',
-                limits: { storage: 0, transcription: 0 }, // Custom limits applied manually
-                features: ['Talk to Sales', 'Custom SLA'],
-                isDefault: false,
-                isActive: true,
-                stripePriceId: '', // Placeholder
-                createdAt: now,
-                updatedAt: now
-            }
-        ];
-        await db.collection(Collections.PLANS).insertMany(initialPlans);
-        console.log('✅ Initial plans seeded');
+            { upsert: true }
+        );
     }
+    console.log('✅ Plans seeded/updated');
 
     console.log('🎉 Database initialization complete!');
     console.log('');
