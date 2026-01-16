@@ -1,0 +1,38 @@
+'use server';
+
+import { getMongoDb, Collections } from '@/lib/mongodb';
+import { Plan } from '@/lib/db/types';
+
+export type PublicPlan = {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+    interval: 'monthly' | 'yearly' | 'lifetime';
+    features: string[];
+    stripePriceId: string;
+};
+
+export async function getPublishedPlans(): Promise<PublicPlan[]> {
+    const db = await getMongoDb();
+    // Fetch only active plans, excluding Free/Trial which are system defaults usually not "sold"
+    // Also exclude plans without a stripePriceId
+    const plans = await db.collection<Plan>(Collections.PLANS)
+        .find({ isActive: true, stripePriceId: { $ne: '' } })
+        .sort({ price: 1 })
+        .toArray();
+
+    return plans
+        .filter(p => !['Free', 'Free Trial'].includes(p.name)) // Filter out system plans
+        .map(p => ({
+            id: p._id.toString(),
+            name: p.name,
+            description: p.description || '',
+            price: p.price,
+            currency: p.currency,
+            interval: p.interval,
+            features: p.features,
+            stripePriceId: p.stripePriceId, // Needed for checkout
+        }));
+}

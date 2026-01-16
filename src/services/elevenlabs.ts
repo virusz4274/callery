@@ -1,24 +1,13 @@
 import { TranscriptionSegment } from '@/lib/db/types';
 
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
-type ElevenLabsWord = {
-    text: string;
-    start: number;
-    end: number;
-    type: 'word' | 'spacing';
-    speaker_id: string;
-    logprob: number;
-};
 
-type ElevenLabsResponse = {
-    language_code: string;
-    language_probability: number;
-    text: string;
-    words: ElevenLabsWord[];
-    transcription_id: string;
-};
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+
+const client = new ElevenLabsClient({
+    apiKey: process.env.ELEVENLABS_API_KEY,
+});
 
 /**
  * Transcribe audio using ElevenLabs Scribe API.
@@ -30,47 +19,55 @@ export async function transcribeAudio(fileUrl: string): Promise<{
     segments: TranscriptionSegment[];
     transcriptionId: string;
 }> {
-    if (!ELEVENLABS_API_KEY) {
+    if (!process.env.ELEVENLABS_API_KEY) {
         throw new Error('ELEVENLABS_API_KEY is not defined');
     }
 
-    const formData = new FormData();
-    formData.append('model_id', process.env.ELEVENLABS_MODEL_ID || 'scribe_v2');
-    formData.append('cloud_storage_url', fileUrl); // Use URL instead of file upload
-    formData.append('diarize', 'true');
+    try {
+        // The SDK might expect 'file' as a Blob/Stream usually.
+        // But the user instructed to use 'cloud_storage_url'.
+        // We might need to cast to 'any' if the SDK types are strict about 'file'.
+        const response = await client.speechToText.convert({
+            modelId: process.env.ELEVENLABS_MODEL_ID || 'scribe_v2',
+            diarize: true,
+            cloudStorageUrl: fileUrl,
+        });
 
-    const response = await fetch(process.env.ELEVENLABS_API_URL || 'https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: {
-            'xi-api-key': ELEVENLABS_API_KEY,
-        },
-        body: formData,
-    });
+        // Map SDK response to our format
+        // The SDK response structure usually matches the API JSON response.
+        const result = response as any;
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
+        // Process the response into segments
+        const segments = processWordsIntoSegments(result.words || []);
+
+        return {
+            text: result.text,
+            languageCode: result.language_code,
+            segments,
+            transcriptionId: result.transcription_id,
+        };
+    } catch (error) {
+        console.error('ElevenLabs Transcription Error:', error);
+        throw error;
     }
-
-    const result = (await response.json()) as ElevenLabsResponse;
-
-    // Process the response into segments
-    const segments = processWordsIntoSegments(result.words);
-
-    return {
-        text: result.text,
-        languageCode: result.language_code,
-        segments,
-        transcriptionId: result.transcription_id,
-    };
 }
+
+type ElevenLabsWord = {
+    text: string;
+    start: number;
+    end: number;
+    type: 'word' | 'spacing';
+    speaker_id: string;
+    logprob: number;
+};
 
 /**
  * Delete a transcription from ElevenLabs.
  * Should be called after saving the data to MongoDB.
  */
 export async function deleteTranscript(transcriptionId: string): Promise<void> {
-    if (!ELEVENLABS_API_KEY) {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
         throw new Error('ELEVENLABS_API_KEY is not defined');
     }
 
@@ -78,11 +75,15 @@ export async function deleteTranscript(transcriptionId: string): Promise<void> {
     const response = await fetch(`${baseUrl}/transcripts/${transcriptionId}`, {
         method: 'DELETE',
         headers: {
-            'xi-api-key': ELEVENLABS_API_KEY,
+            'xi-api-key': apiKey,
         },
     });
 
     if (!response.ok) {
+        if (response.status === 404) {
+            console.warn(`[ElevenLabs] Transcript ${transcriptionId} not found during deletion (already deleted?)`);
+            return;
+        }
         const errorText = await response.text();
         throw new Error(`Failed to delete transcript: ${response.status} ${errorText}`);
     }
