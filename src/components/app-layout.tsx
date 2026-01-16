@@ -13,6 +13,7 @@ import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { signOut, sendEmailVerification } from 'firebase/auth';
 import { Spinner } from '@heroui/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
+import { BillingAlert } from '@/components/billing-alert';
 
 import { SystemSettingsResponse } from '@/lib/db/types';
 
@@ -23,6 +24,7 @@ type AppLayoutProps = {
 
 export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const { toast } = useToast();
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -130,6 +132,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
           user={user}
           onResend={handleResendVerification}
         />
+        <BillingAlert userProfile={userProfile} />
         <AnnouncementBanner />
         {children}
       </main>

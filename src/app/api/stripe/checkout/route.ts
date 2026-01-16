@@ -59,16 +59,34 @@ export async function POST(req: NextRequest) {
             await updateUser(uid, { stripeCustomerId });
         }
 
+        // Lookup Plan details to add metered prices
+        const { getMongoDb, Collections } = await import('@/lib/mongodb');
+        const db = await getMongoDb();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const planObj = await db.collection(Collections.PLANS).findOne({
+            $or: [{ stripePriceId: finalPriceId }, { name: planName }]
+        });
+
+        const lineItems = [
+            {
+                price: finalPriceId,
+                quantity: 1,
+            },
+        ];
+
+        // Add metered prices if they exist in the plan
+        if (planObj?.stripeStoragePriceId) {
+            lineItems.push({ price: planObj.stripeStoragePriceId, quantity: 1 }); // Metered prices don't really have 'quantity' in checkout but needed for sub
+        }
+        if (planObj?.stripeTranscriptionPriceId) {
+            lineItems.push({ price: planObj.stripeTranscriptionPriceId, quantity: 1 });
+        }
+
         // 4. Create Stripe Checkout Session
         const session = await stripe.checkout.sessions.create({
             customer: stripeCustomerId,
             client_reference_id: uid, // Explicitly link session to user
-            line_items: [
-                {
-                    price: finalPriceId,
-                    quantity: 1,
-                },
-            ],
+            line_items: lineItems,
             mode: 'subscription',
             success_url: successUrl || `${req.nextUrl.origin}/settings?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl || `${req.nextUrl.origin}/settings`,

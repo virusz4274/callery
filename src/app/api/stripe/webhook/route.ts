@@ -48,6 +48,17 @@ export async function POST(req: NextRequest) {
                 break;
             }
 
+            case 'invoice.payment_failed':
+            case 'invoice.payment_action_required': {
+                const invoice = event.data.object as Stripe.Invoice;
+                // If the invoice is associated with a subscription, sync it to update status to 'past_due' or 'unpaid'
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if ((invoice as any).subscription) {
+                    await syncSubscription((invoice as any).subscription as string);
+                }
+                break;
+            }
+
             case 'invoice.payment_succeeded': {
                 const invoice = event.data.object as Stripe.Invoice;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any

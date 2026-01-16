@@ -46,12 +46,20 @@ export async function GET(request: NextRequest) {
             role: user.role,
             plan: user.plan,
             timezone: user.timezone,
+            // Settings
             notificationSettings: user.notificationSettings,
             storageSettings: user.storageSettings,
+            transcriptionSettings: user.transcriptionSettings,
+            billingSettings: user.billingSettings,
+            // Usage
             storageUsed: user.storageUsed,
             storageAllocation: user.storageAllocation,
             transcriptionUsed: user.transcriptionUsed,
             transcriptionAllocation: user.transcriptionAllocation,
+            totalRecordings: user.totalRecordings,
+            // Billing Status
+            stripeSubscriptionStatus: user.stripeSubscriptionStatus,
+            trialEndsAt: user.trialEndsAt?.toISOString(),
             lastLoginAt: user.lastLoginAt?.toISOString(),
         };
 

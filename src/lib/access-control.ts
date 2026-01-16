@@ -60,6 +60,22 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
         };
     }
 
+    // 2. Check Subscription Status (Billing Failure)
+    if (user.stripeSubscriptionStatus === 'past_due' || user.stripeSubscriptionStatus === 'unpaid') {
+        return {
+            allowed: false,
+            reason: 'Your account is restricted due to a failed payment. Please update your payment method.'
+        };
+    }
+
+    // Check for Canceled + Period End (Already implicitly handled by sync logic moving it to 'canceled' status, but double check date)
+    if (user.stripeSubscriptionStatus === 'canceled') {
+        // If canceled, strict check on date
+        if (user.stripeCurrentPeriodEnd && new Date() > user.stripeCurrentPeriodEnd) {
+            return { allowed: false, reason: 'Your subscription has been canceled and the billing period has ended.' };
+        }
+    }
+
     // 2. Check Limits
     const currentUsage = user.storageUsed || 0;
     const allocation = user.storageAllocation || 0;
@@ -125,6 +141,18 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
             allowed: false,
             reason: 'Your free trial has expired. Please upgrade to continue transcribing.'
         };
+    }
+
+    // 2. Check Subscription Status (Billing Failure)
+    if (user.stripeSubscriptionStatus === 'past_due' || user.stripeSubscriptionStatus === 'unpaid') {
+        return {
+            allowed: false,
+            reason: 'Your account is restricted due to a failed payment. Please update your payment method.'
+        };
+    }
+
+    if (user.stripeSubscriptionStatus === 'canceled' && user.stripeCurrentPeriodEnd && new Date() > user.stripeCurrentPeriodEnd) {
+        return { allowed: false, reason: 'Your subscription has been canceled.' };
     }
 
     // 2. Check Limits

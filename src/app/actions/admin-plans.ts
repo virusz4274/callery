@@ -11,6 +11,8 @@ function mapPlan(plan: Plan): PlanResponse {
         name: plan.name,
         description: plan.description,
         stripePriceId: plan.stripePriceId,
+        stripeStoragePriceId: plan.stripeStoragePriceId,
+        stripeTranscriptionPriceId: plan.stripeTranscriptionPriceId,
         price: plan.price,
         currency: plan.currency,
         interval: plan.interval,
