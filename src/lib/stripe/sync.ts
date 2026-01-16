@@ -9,6 +9,8 @@ import { stripe } from '@/lib/stripe';
  * This is idempotent and can be called from webhooks or the frontend.
  */
 export async function syncSubscription(subscriptionId: string) {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+
     const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
     });
@@ -130,10 +132,11 @@ export async function syncSubscription(subscriptionId: string) {
         updateData.transcriptionAllocation = plan.limits.transcription;
 
         // Force enable overage for Lifetime plans (they are purely usage-based)
-        if (plan.name === 'Lifetime') {
+        // Only do this when switching TO Lifetime. If they are already on it, respect their current setting.
+        if (plan.name === 'Lifetime' && user.plan !== 'Lifetime') {
             updateData['billingSettings.allowOverage'] = true;
         } else {
-            // Do not reset allowOverage logic here, strictly managed by user settings unless critical
+            // Do not force overwrite if already on Lifetime or other plans
             delete updateData['billingSettings.allowOverage'];
         }
     } else {

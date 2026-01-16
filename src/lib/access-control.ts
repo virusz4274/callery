@@ -11,7 +11,15 @@ export interface AccessResult {
 /**
  * Check if a user's free trial has expired.
  */
+// Check environment variable for billing bypass
+const IS_BILLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
+
+/**
+ * Check if a user's free trial has expired.
+ */
 export function isTrialExpired(user: User): boolean {
+    if (!IS_BILLING_ENABLED) return false;
+
     if (user.plan !== 'Free Trial' && user.plan !== 'Free') {
         return false; // Paid plans don't expire in this sense (they might go past_due, handled by Stripe logic usually)
     }
@@ -48,6 +56,8 @@ export function checkUserAccess(user: User): AccessResult {
  * Check if user can upload a file of a given size.
  */
 export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult {
+    if (!IS_BILLING_ENABLED) return { allowed: true };
+
     if (user.disabled) {
         return { allowed: false, reason: 'Account disabled.' };
     }
@@ -83,10 +93,7 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
 
     // Plans: Free Trial, Paid (Monthly/Yearly), Lifetime
 
-    if (user.plan === 'Lifetime') {
-        // Lifetime: "No free storage... Every action is pay-per-use" -> Always allowed (metered)
-        return { allowed: true };
-    }
+
 
     if (user.plan === 'Free Trial' || user.plan === 'Free') {
         // Trial: "Storage limit (GB)... If user exceeds -> Block?"
@@ -131,6 +138,8 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
  * Check if user can transcribe audio of a given duration (in seconds).
  */
 export function checkTranscriptionAccess(user: User, secondsToAdd: number): AccessResult {
+    if (!IS_BILLING_ENABLED) return { allowed: true };
+
     if (user.disabled) {
         return { allowed: false, reason: 'Account disabled.' };
     }
@@ -160,10 +169,7 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
     const allocation = user.transcriptionAllocation || 0;
     const newUsage = currentUsage + secondsToAdd;
 
-    if (user.plan === 'Lifetime') {
-        // Lifetime: Pay-per-use, always allowed
-        return { allowed: true };
-    }
+
 
     if (user.plan === 'Free Trial' || user.plan === 'Free') {
         // Trial: Enforce HARD LIMIT to prevent abuse
