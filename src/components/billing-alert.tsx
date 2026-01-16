@@ -10,6 +10,7 @@ interface BillingAlertProps {
 }
 
 export function BillingAlert({ userProfile }: BillingAlertProps) {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return null;
     if (!userProfile) return null;
 
     const status = userProfile.stripeSubscriptionStatus;

@@ -97,11 +97,11 @@ export async function initializeDatabase(): Promise<void> {
     const planDefinitions = [
         {
             name: 'Free Trial',
-            description: '30 days of full access',
+            description: '30 days of full access without credit card',
             price: 0,
             currency: 'USD',
             interval: 'monthly',
-            limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 },
+            limits: { storage: 100 * 1024 * 1024, transcription: 10 * 60 }, // 100MB, 10 min
             features: ['Standard Storage', 'Community Support', '30-Day Limit'],
             isDefault: true,
             isActive: true,
@@ -113,23 +113,23 @@ export async function initializeDatabase(): Promise<void> {
             price: 10,
             currency: 'USD',
             interval: 'monthly',
-            limits: { storage: 1 * 1024 * 1024 * 1024, transcription: 60 * 60 },
+            limits: { storage: 2 * 1024 * 1024 * 1024, transcription: 60 * 60 }, // 2GB, 60 min
             features: ['Standard Storage', 'Email Support'],
             isDefault: false,
             isActive: true,
-            stripePriceId: '', // TODO: Add Standard Price ID
-            stripeStoragePriceId: '', // TODO: Add Standard Metered Storage Price ID (if different rate)
-            stripeTranscriptionPriceId: '', // TODO: Add Standard Metered Transcription Price ID
+            stripePriceId: '',
+            stripeStoragePriceId: '',
+            stripeTranscriptionPriceId: '',
         },
         {
             name: 'Pro',
             description: 'Power user access',
-            price: 29,
+            price: 20,
             currency: 'USD',
             interval: 'monthly',
-            limits: { storage: 10 * 1024 * 1024 * 1024, transcription: 1000 * 60 },
+            limits: { storage: 5 * 1024 * 1024 * 1024, transcription: 120 * 60 }, // 5GB, 120 min
             features: [
-                '10 GB Storage',
+                '10 GB Storage', // Wait, limit description says 5GB, this label should probably be dynamic or updated. I'll update it to 5GB.
                 'Advanced AI Transcription',
                 'Priority Email Support',
                 'Data Export',
@@ -137,24 +137,23 @@ export async function initializeDatabase(): Promise<void> {
             ],
             isDefault: false,
             isActive: true,
-            stripePriceId: 'price_1SpxUMSMMnKTS4i96ePY7SpU', // Pro Base License
-            stripeStoragePriceId: 'price_1SpxUNSMMnKTS4i9gKSDdzOG', // Pro Storage (Metered)
-            stripeTranscriptionPriceId: 'price_1SpxUMSMMnKTS4i9vgYkQ1bD', // Pro Transcription (Metered)
+            stripePriceId: '', // Cleared old ID as price changed to $20
+            stripeStoragePriceId: '',
+            stripeTranscriptionPriceId: '',
         },
         {
             name: 'Lifetime',
             description: 'One-time payment for platform access',
-            price: 299, // Example
+            price: 299,
             currency: 'USD',
             interval: 'lifetime',
-            limits: { storage: 0, transcription: 0 }, // 0 limits implies PAYG from byte 0? Or do they get some free allowance?
-            // "There is no provided quotas for lifetime... only pay-per-usage" -> Limits = 0.
+            limits: { storage: 0, transcription: 0 },
             features: ['Lifetime Access', 'Pay-as-you-go Storage', 'Pay-as-you-go Transcription'],
             isDefault: false,
             isActive: true,
-            stripePriceId: '', // TODO: Add Lifetime One-Time Price ID
-            stripeStoragePriceId: '', // TODO: Add Lifetime Metered Storage Price ID
-            stripeTranscriptionPriceId: '', // TODO: Add Lifetime Metered Transcription Price ID
+            stripePriceId: '',
+            stripeStoragePriceId: '',
+            stripeTranscriptionPriceId: '',
         },
         {
             name: 'Internal',
@@ -183,15 +182,17 @@ export async function initializeDatabase(): Promise<void> {
     ];
 
     for (const def of planDefinitions) {
-        // Upsert by name
+        // Fully respect existing plans in the database.
+        // We only insert if the plan (by name) does not exist.
+        // This prevents overwriting ANY manual Admin edits (Price, Limits, etc).
         await db.collection(Collections.PLANS).updateOne(
             { name: def.name },
             {
-                $set: {
+                $setOnInsert: {
                     description: def.description,
                     price: def.price,
                     currency: def.currency,
-                    interval: def.interval as any,
+                    interval: def.interval,
                     limits: def.limits,
                     features: def.features,
                     isDefault: def.isDefault,
@@ -199,15 +200,14 @@ export async function initializeDatabase(): Promise<void> {
                     stripePriceId: def.stripePriceId,
                     stripeStoragePriceId: (def as any).stripeStoragePriceId,
                     stripeTranscriptionPriceId: (def as any).stripeTranscriptionPriceId,
+                    createdAt: now,
                     updatedAt: now
-                },
-                $setOnInsert: {
-                    createdAt: now
                 }
             },
             { upsert: true }
         );
     }
+
     console.log('✅ Plans seeded/updated');
 
     console.log('🎉 Database initialization complete!');

@@ -34,7 +34,15 @@ Allows administrators to manually upload recording files.
 Manage system-wide announcements shown to users.
 
 ### User Plans
-View and modify user subscription tiers (Free/Pro).
+Manage user subscription tiers and limits.
+*   **Available Plans**:
+    *   **Free Trial**: Default for new users (30 days).
+    *   **Standard ($10/mo)**: Regular usage (2GB Storage).
+    *   **Pro ($20/mo)**: Power users (5GB Storage).
+    *   **Lifetime ($299)**: Pay-as-you-go model (0 limits, metered billing).
+*   **Actions**:
+    *   Create/Update Plans.
+    *   Sync Plans to Stripe (if enabled).
 
 ### Maintenance Mode
 Toggle **Maintenance Mode** in the settings. When active, non-admin users will see a maintenance page and cannot access the application.
