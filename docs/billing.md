@@ -136,6 +136,17 @@ Now create Prices that charge based on these Meters.
 
 ### 4. Configure Customer Portal
 
+The application relies on the **default** Customer Portal configuration. You must enable specific features in the Dashboard.
+
+1.  Go to **Settings > Billing > Customer Portal**.
+2.  **Enable** the portal if not already active.
+3.  **Features**:
+    *   [x] **Allow customers to cancel subscriptions**.
+    *   [x] **Allow customers to switch plans**.
+        *   **CRITICAL**: You must manually add the **Standard** and **Pro** products to the "Products" list in this section. If you don't add them, users can't switch to them.
+    *   [x] **Allow customers to update payment methods**.
+    *   [x] **Allow customers to view invoice history**.
+4.  **Save** changes.
 
 ### 5. Update Application Config
 
@@ -168,12 +179,4 @@ Copy the Price IDs into `src/lib/db/init.ts`...
 ```
 
 Then re-run: `npx tsx src/lib/db/init.ts`
-1.  Go to **Settings > Billing > Customer Portal**.
-2.  **Enable** the portal.
-3.  **Features**:
-    *   Allow customers to cancel subscriptions.
-    *   Allow customers to switch plans (add the Standard and Pro products/prices you created).
-    *   Allow customers to update payment methods.
-    *   Allow customers to view invoice history.
-4.  **Save** changes.
 

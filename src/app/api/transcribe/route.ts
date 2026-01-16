@@ -60,14 +60,20 @@ export async function POST(req: NextRequest) {
                 const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
                 const result = await transcribeAudio(fileUrl);
 
-                // Parallelize LLM operations
-                const [summary, transliteratedSegments] = await Promise.all([
-                    generateSummary(result.text, result.languageCode),
-                    generateTransliteration(result.segments, result.languageCode)
-                ]);
+                // Parallelize LLM operations ONLY if text exists
+                let summary = '';
+                let transliteratedSegments = result.segments;
+                let summaryEmbedding: number[] = [];
 
-                // Generate embedding from summary
-                const summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                if (result.text && result.text.trim()) {
+                    [summary, transliteratedSegments] = await Promise.all([
+                        generateSummary(result.text, result.languageCode),
+                        generateTransliteration(result.segments, result.languageCode)
+                    ]);
+
+                    // Generate embedding from summary
+                    summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                }
 
                 // Save Result
                 await updateRecording(recordingId, uid, {

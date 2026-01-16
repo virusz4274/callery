@@ -55,6 +55,60 @@ export async function updateUser(
     return result;
 }
 
+
+
+/**
+ * Helper to ensure a user has a Stripe Customer ID.
+ */
+async function ensureStripeCustomer(user: User): Promise<User> {
+    // 1. Check if billing is enabled
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+        return user;
+    }
+
+    // 2. Check if already has ID
+    if (user.stripeCustomerId) {
+        return user;
+    }
+
+    try {
+        // 3. Import Stripe (lazy load to avoid init issues if disabled)
+        const { stripe } = await import('@/lib/stripe');
+        const db = await getMongoDb();
+
+        console.log(`[ensureStripeCustomer] Creating Stripe Customer for ${user._id}`);
+
+        // 4. Create Stripe Customer
+        const customer = await stripe.customers.create({
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`.trim() || user.name,
+            metadata: {
+                firebaseUid: user.firebaseUid,
+                userId: user._id.toString(),
+            },
+        });
+
+        // 5. Update DB
+        // We use findOneAndUpdate to get the fresh document
+        const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
+            { _id: user._id },
+            { $set: { stripeCustomerId: customer.id, updatedAt: new Date() } },
+            { returnDocument: 'after' }
+        );
+
+        if (result) {
+            console.log(`[ensureStripeCustomer] Created Stripe Customer ID: ${customer.id}`);
+            return result as User;
+        }
+
+    } catch (error) {
+        console.error(`[ensureStripeCustomer] Failed to create Stripe ID for ${user._id}:`, error);
+        // We don't throw here to avoid blocking login, but Portal will fail later.
+    }
+
+    return user;
+}
+
 /**
  * Ensure a user profile exists, creating one if necessary.
  * This is called after Firebase Auth login.
@@ -69,7 +123,9 @@ export async function ensureUserProfile(
     const existingUser = await findUserByFirebaseUid(firebaseUid);
 
     if (existingUser) {
-        return { user: existingUser, wasCreated: false };
+        // Ensure Stripe ID exists (BACKFILL for existing users)
+        const updatedUser = await ensureStripeCustomer(existingUser);
+        return { user: updatedUser, wasCreated: false };
     }
 
     const db = await getMongoDb();
@@ -102,7 +158,7 @@ export async function ensureUserProfile(
     const lastName = nameParts.slice(1).join(' ') || '';
 
     try {
-        const newUser = await createUser({
+        let newUser = await createUser({
             firebaseUid,
             email,
             firstName,
@@ -138,6 +194,9 @@ export async function ensureUserProfile(
             lastLoginAt: new Date(),
         });
 
+        // Ensure Stripe ID exists (NEW users)
+        newUser = await ensureStripeCustomer(newUser);
+
         return { user: newUser, wasCreated: true };
     } catch (error: unknown) {
         // Handle race condition: Duplicate key error (E11000) means user was created by another request
@@ -145,7 +204,9 @@ export async function ensureUserProfile(
         if (err.code === 11000 || err.message?.includes('E11000') || err.message?.includes('duplicate key')) {
             const user = await findUserByFirebaseUid(firebaseUid);
             if (user) {
-                return { user, wasCreated: false };
+                // Determine if we need to backfill the racer too
+                const updatedUser = await ensureStripeCustomer(user);
+                return { user: updatedUser, wasCreated: false };
             }
         }
         throw error;

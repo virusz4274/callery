@@ -1,14 +1,12 @@
-
-'use client';
-
-import React, { useState } from 'react';
-import { Card, Button, Chip, Spinner, Switch, Tooltip } from '@heroui/react';
+import { useState } from 'react';
+import { Card, Button, Chip, Spinner, Switch, Tooltip, Modal } from '@heroui/react';
 import { SettingsPage } from './settings-page';
 import Link from 'next/link';
 import { UserResponse } from '@/lib/db/types';
-import { Info } from 'lucide-react';
+import { Info, Check } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
 import { authFetch } from '@/lib/api-client';
+import { getPublishedPlans, PublicPlan } from '@/app/actions/plans';
 
 type Invoice = {
     id: string;
@@ -42,8 +40,14 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
 
     const isTrial = planName === 'Free Trial';
     const isFree = planName === 'Free';
+    const canManageSubscription = !isTrial && !isFree; // Only paid plans can manage via Portal
 
     const [isLoadingPortal, setIsLoadingPortal] = useState(false);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+    // Upgrade Modal State
+    const [availablePlans, setAvailablePlans] = useState<PublicPlan[]>([]);
+    const [isLoadingPlans, setIsLoadingPlans] = useState(false);
 
     const handlePortal = async () => {
         setIsLoadingPortal(true);
@@ -54,14 +58,64 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                 body: JSON.stringify({ returnUrl: window.location.href }),
             });
 
-            if (!res.ok) throw new Error('Failed to create portal session');
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to create portal session');
+            }
 
             const { url } = await res.json();
             window.location.href = url;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Portal error:', error);
-            toast({ title: 'Error', description: 'Could not redirect to billing portal.', status: 'danger' });
+            toast({
+                title: 'Billing Portal Error',
+                description: error.message || 'Could not redirect to billing portal.',
+                status: 'danger'
+            });
             setIsLoadingPortal(false);
+        }
+    };
+
+    const handleUpgradeModal = async () => {
+        setIsLoadingPlans(true);
+        try {
+            const plans = await getPublishedPlans();
+            setAvailablePlans(plans);
+        } catch (error) {
+            console.error('Failed to fetch plans:', error);
+            toast({ title: 'Error', description: 'Could not load plans.', status: 'danger' });
+        } finally {
+            setIsLoadingPlans(false);
+        }
+    };
+
+    const handleCheckout = async (priceId: string) => {
+        setIsCheckingOut(true);
+        try {
+            const res = await authFetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    priceId,
+                    returnUrl: window.location.href
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to start checkout');
+            }
+
+            const { url } = await res.json();
+            window.location.href = url;
+        } catch (error: any) {
+            console.error('Checkout error:', error);
+            toast({
+                title: 'Checkout Error',
+                description: error.message || 'Could not start checkout.',
+                status: 'danger'
+            });
+            setIsCheckingOut(false);
         }
     };
 
@@ -115,14 +169,78 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                                         : 'Manage your plan and billing details.'}
                                 </p>
                             </div>
-                            <Button
-                                variant="primary"
-                                className="mt-4 sm:mt-0 font-medium"
-                                onPress={handlePortal}
-                                isDisabled={isFree || isLoadingPortal}
-                            >
-                                {isLoadingPortal ? <Spinner size="sm" color="current" /> : 'Manage Subscription'}
-                            </Button>
+                            {/* Action Button: Subscribe (Trial) vs Manage (Paid) */}
+                            {canManageSubscription ? (
+                                <Button
+                                    variant="primary"
+                                    className="mt-4 sm:mt-0 font-medium"
+                                    onPress={handlePortal}
+                                    isDisabled={isLoadingPortal}
+                                >
+                                    {isLoadingPortal ? <Spinner size="sm" color="current" /> : 'Manage Subscription'}
+                                </Button>
+                            ) : (
+                                <Modal>
+                                    <Button
+                                        variant="primary"
+                                        className="mt-4 sm:mt-0 font-medium"
+                                        onPress={handleUpgradeModal}
+                                    >
+                                        Upgrade Plan
+                                    </Button>
+                                    <Modal.Backdrop>
+                                        <Modal.Container>
+                                            <Modal.Dialog className="sm:max-w-xl">
+                                                <Modal.CloseTrigger />
+                                                <Modal.Header>
+                                                    <Modal.Heading>Upgrade Your Plan</Modal.Heading>
+                                                </Modal.Header>
+                                                <Modal.Body>
+                                                    {isLoadingPlans ? (
+                                                        <div className="flex justify-center py-10">
+                                                            <Spinner size="lg" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {availablePlans.map((plan) => (
+                                                                <div key={plan.id} className="border border-default-200 rounded-lg p-4 hover:border-primary transition-colors">
+                                                                    <h3 className="font-bold text-xl">{plan.name}</h3>
+                                                                    <div className="text-2xl font-bold my-2">
+                                                                        ${plan.price} <span className="text-sm font-normal text-default-500">
+                                                                            /{plan.interval}
+                                                                        </span>
+                                                                    </div>
+                                                                    <ul className="space-y-2 mb-6">
+                                                                        {plan.features.slice(0, 4).map((feat, i) => (
+                                                                            <li key={i} className="flex items-center gap-2 text-sm text-default-600">
+                                                                                <Check className="w-4 h-4 text-success" />
+                                                                                {feat}
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                    <Button
+                                                                        className="w-full"
+                                                                        variant="primary"
+                                                                        onPress={() => handleCheckout(plan.stripePriceId)}
+                                                                        isDisabled={isCheckingOut}
+                                                                    >
+                                                                        {isCheckingOut ? <Spinner size="sm" /> : `Choose ${plan.name}`}
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </Modal.Body>
+                                                <Modal.Footer>
+                                                    <Button variant="ghost" slot="close">
+                                                        Close
+                                                    </Button>
+                                                </Modal.Footer>
+                                            </Modal.Dialog>
+                                        </Modal.Container>
+                                    </Modal.Backdrop>
+                                </Modal>
+                            )}
                         </div>
 
                         {/* Usage Bars */}

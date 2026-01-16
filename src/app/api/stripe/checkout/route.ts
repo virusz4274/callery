@@ -2,102 +2,66 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { findUserByFirebaseUid } from '@/lib/db/users';
 
 export async function POST(req: NextRequest) {
     try {
-        // 1. Authenticate User
+        // 1. Authenticate
         let uid = await getFirebaseUidFromSession();
         if (!uid) {
             uid = await getUserFromRequest(req);
         }
-
         if (!uid) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { priceId, planName, successUrl, cancelUrl } = await req.json();
+        const { priceId, returnUrl } = await req.json();
 
-        let finalPriceId = priceId;
-
-        // Lookup Plan if only planName is provided
-        if (!finalPriceId && planName) {
-            const { getMongoDb, Collections } = await import('@/lib/mongodb');
-            const db = await getMongoDb();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const plan = await db.collection(Collections.PLANS).findOne({ name: planName });
-            if (plan && plan.stripePriceId) {
-                finalPriceId = plan.stripePriceId;
-            }
+        if (!priceId) {
+            return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
         }
 
-        if (!finalPriceId) {
-            return NextResponse.json({ error: 'Missing priceId or invalid planName' }, { status: 400 });
-        }
-
-        // 2. Get User from DB
+        // 2. Get User
         const user = await findUserByFirebaseUid(uid);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // 3. Get or Create Stripe Customer ID
-        let stripeCustomerId = user.stripeCustomerId;
-
-        if (!stripeCustomerId) {
-            const customer = await stripe.customers.create({
-                email: user.email,
-                name: user.name || `${user.firstName} ${user.lastName}`,
-                metadata: {
-                    firebaseUid: uid,
-                    userId: user._id.toString(),
-                },
-            });
-            stripeCustomerId = customer.id;
-
-            // Save to DB
-            await updateUser(uid, { stripeCustomerId });
+        // Ensure stripeCustomerId exists (it should now, but safety check)
+        if (!user.stripeCustomerId) {
+            // This checks strictly. If missing, we could create it here too, but users.ts handles it on login.
+            return NextResponse.json({ error: 'No billing account found. Please log out and back in.' }, { status: 400 });
         }
 
-        // Lookup Plan details to add metered prices
-        const { getMongoDb, Collections } = await import('@/lib/mongodb');
-        const db = await getMongoDb();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const planObj = await db.collection(Collections.PLANS).findOne({
-            $or: [{ stripePriceId: finalPriceId }, { name: planName }]
-        });
+        // 3. Determine Mode (Subscription vs Payment)
+        // We need to know if the price is recurring. 
+        // We can fetch the price or just assume subscription unless told otherwise.
+        // For efficiency, let's fetch the price details to be sure, or catch error.
+        const price = await stripe.prices.retrieve(priceId);
+        const mode = price.type === 'recurring' ? 'subscription' : 'payment';
 
-        const lineItems = [
-            {
-                price: finalPriceId,
-                quantity: 1,
-            },
-        ];
-
-        // Add metered prices if they exist in the plan
-        if (planObj?.stripeStoragePriceId) {
-            lineItems.push({ price: planObj.stripeStoragePriceId, quantity: 1 }); // Metered prices don't really have 'quantity' in checkout but needed for sub
-        }
-        if (planObj?.stripeTranscriptionPriceId) {
-            lineItems.push({ price: planObj.stripeTranscriptionPriceId, quantity: 1 });
-        }
-
-        // 4. Create Stripe Checkout Session
+        // 4. Create Checkout Session
         const session = await stripe.checkout.sessions.create({
-            customer: stripeCustomerId,
-            client_reference_id: uid, // Explicitly link session to user
-            line_items: lineItems,
-            mode: 'subscription',
-            success_url: successUrl || `${req.nextUrl.origin}/settings?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: cancelUrl || `${req.nextUrl.origin}/settings`,
+            customer: user.stripeCustomerId,
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: 1,
+                },
+            ],
+            mode: mode,
+            success_url: returnUrl || `${req.nextUrl.origin}/settings?success=true`,
+            cancel_url: returnUrl || `${req.nextUrl.origin}/settings?canceled=true`,
+            allow_promotion_codes: true,
+            billing_address_collection: 'required',
             metadata: {
                 firebaseUid: uid,
                 userId: user._id.toString(),
             },
-            allow_promotion_codes: true,
         });
 
         return NextResponse.json({ url: session.url });
+
     } catch (error) {
         console.error('Stripe Checkout Error:', error);
         return NextResponse.json(

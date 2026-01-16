@@ -52,7 +52,9 @@ export async function syncSubscription(subscriptionId: string) {
 
         for (const req of requiredPrices) {
             if (req.id) {
-                const hasItem = subscription.items.data.some(i => i.price.id === req.id);
+                // Always refresh before checking to get latest state (other webhooks may have already added items)
+                const currentItems = (await stripe.subscriptions.retrieve(subscriptionId)).items.data;
+                const hasItem = currentItems.some(i => i.price.id === req.id);
                 if (!hasItem) {
                     console.log(`[Sync] Missing required metered item (${req.type}) for plan ${plan.name}. Adding...`);
                     try {
@@ -61,8 +63,11 @@ export async function syncSubscription(subscriptionId: string) {
                             price: req.id,
                         });
                         subscriptionUpdated = true;
-                    } catch (err) {
-                        console.error(`[Sync] Failed to add missing metered item ${req.id}:`, err);
+                    } catch (err: any) {
+                        // Ignore 'already exists' errors (race condition with other webhooks)
+                        if (err?.code !== 'resource_already_exists' && !err?.message?.includes('already using that Price')) {
+                            console.error(`[Sync] Failed to add missing metered item ${req.id}:`, err);
+                        }
                     }
                 }
             }
@@ -85,36 +90,10 @@ export async function syncSubscription(subscriptionId: string) {
         }
     }
 
-    // ENFORCE BILLING THRESHOLDS
-    // We want to charge users automatically if their metered usage exceeds a certain amount (e.g., $10).
-    // This requires setting `billing_thresholds` on the Subscription Item.
-    if (plan && status === 'active') {
-        const thresholdAmountCents = 1000; // $10.00
-
-        for (const item of subscription.items.data) {
-            const priceId = item.price.id;
-            const isMetered = item.price.recurring?.usage_type === 'metered';
-
-            if (isMetered && (priceId === plan.stripeStoragePriceId || priceId === plan.stripeTranscriptionPriceId)) {
-                // Check if threshold is already set to avoid unnecessary API calls
-                // Note: Stripe API returns null if not set.
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const thresholds = item.billing_thresholds as any;
-                if (!thresholds || thresholds.amount_total !== thresholdAmountCents) {
-                    try {
-                        console.log(`[Sync] Setting billing threshold to $${thresholdAmountCents / 100} for item ${item.id} (${priceId})`);
-                        await stripe.subscriptionItems.update(item.id, {
-                            billing_thresholds: {
-                                amount_total: thresholdAmountCents
-                            }
-                        } as any);
-                    } catch (err) {
-                        console.error(`[Sync] Failed to set billing threshold for item ${item.id}:`, err);
-                    }
-                }
-            }
-        }
-    }
+    // NOTE: Billing thresholds for Meters API v2 are configured on the Meter itself in the Stripe Dashboard,
+    // not on subscription items. The previous code that set `billing_thresholds.amount_total` was incorrect
+    // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
+    // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
     const updateData: any = {
         stripeSubscriptionId: subscription.id,
