@@ -8,7 +8,7 @@ const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
 function getBaseUrl() {
   // Use the reliable environment variable provided by App Hosting.
   // Fall back to localhost for local development/Cloud Workstation.
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
 }
 
 

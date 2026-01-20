@@ -19,8 +19,12 @@ Stores user profile information and settings.
 | `role` | `'user' \| 'admin'` | User role. |
 | `plan` | `'Free' \| 'Pro'` | Subscription plan. |
 | `timezone` | `string` | User's preferred timezone. |
-| `storageUsed` | `number` | Storage used in bytes/GB. |
-| `storageAllocation` | `number` | Total storage limit. |
+| `storageUsed` | `number` | Storage used in bytes. |
+| `storageAllocation` | `number` | Storage limit in bytes. |
+| `transcriptionUsed` | `number` | Transcription used in seconds. |
+| `transcriptionAllocation` | `number` | Transcription limit in seconds. |
+| `stripeSubscriptionStatus` | `string` | Stripe status (active, past_due, etc.). |
+| `trialEndsAt` | `Date` | Timestamp when free trial expires. |
 | `createdAt` | `Date` | Account creation timestamp. |
 | `updatedAt` | `Date` | Last update timestamp. |
 
@@ -28,16 +32,27 @@ Stores user profile information and settings.
 ```typescript
 notificationSettings: {
     activityDigest: 'off' | 'weekly' | 'monthly';
-    ingestSuccess: boolean;
-    ingestFail: boolean;
 }
-storageSettings: {
-    deletionPolicy: 'never' | '3m' | '6m' | '1y';
-}
-transcriptionSettings: {
-    autoTranscribe: boolean;
+billingSettings: {
+    allowOverage: boolean; // "Pay Per Usage" toggle
 }
 ```
+
+---
+
+### **`plans`**
+Stores subscription plan definitions.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `name` | `string` | Plan name (e.g., "Free Trial", "Pro"). |
+| `price` | `number` | Cost in cents/units. |
+| `limits` | `object` | `{ storage: number, transcription: number }` |
+| `stripePriceId` | `string` | Stripe Price ID for base plan. |
+| `stripeStoragePriceId` | `string` | Stripe Price ID for Metered Storage. |
+| `stripeTranscriptionPriceId` | `string` | Stripe Price ID for Metered Transcription. |
+| `features` | `string[]` | List of features for UI display. |
 
 ---
 
@@ -93,6 +108,7 @@ Stores contact information synced from Google Contacts or manually added.
 
 ## Relationships
 
+*   **User -> Plans**: Loose coupling via `plan` name string (or `planId` if migrated).
 *   **User -> Recordings**: One-to-Many (via `userId`).
 *   **User -> Contacts**: One-to-Many (via `userId`).
 *   **Contact -> Recordings**: One-to-Many (via `contactId`).
@@ -100,5 +116,6 @@ Stores contact information synced from Google Contacts or manually added.
 ## Indexes
 
 *   `users`: `firebaseUid` (unique), `email` (unique).
+*   `plans`: `name` (unique).
 *   `recordings`: `userId`, `contactId`, `recordedAt`, `r2Key`.
 *   `contacts`: `userId`, `phoneNumbers`, `name` (text index for search).

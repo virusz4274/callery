@@ -136,6 +136,8 @@ export interface Plan {
     name: string;
     description?: string;
     stripePriceId: string; // ID of the Price in Stripe (e.g., price_H5ggY...)
+    stripeStoragePriceId?: string; // ID for Metered Storage
+    stripeTranscriptionPriceId?: string; // ID for Metered Transcription
     price: number;
     currency: string;
     interval: 'monthly' | 'yearly' | 'lifetime';
@@ -289,6 +291,8 @@ export interface UserResponse {
     billingSettings: {
         allowOverage: boolean;
     };
+    stripeSubscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'unpaid' | 'incomplete' | 'incomplete_expired' | 'trialing' | 'paused';
+    trialEndsAt?: string;
     totalRecordings: number;
     lastLoginAt?: string;
 }
@@ -298,6 +302,8 @@ export interface PlanResponse {
     name: string;
     description?: string;
     stripePriceId: string;
+    stripeStoragePriceId?: string;
+    stripeTranscriptionPriceId?: string;
     price: number;
     currency: string;
     interval: 'monthly' | 'yearly' | 'lifetime';
@@ -344,18 +350,18 @@ export interface AdminLogResponse {
 
 export interface TranscriptionWord {
     text: string;
-    start: number;
-    end: number;
-    type: 'word' | 'spacing';
-    speaker_id: string;
+    start?: number;
+    end?: number;
+    type: 'word' | 'spacing' | 'audio_event';
+    speakerId?: string;  // camelCase to match SDK
     logprob: number;
 }
 
 export interface TranscriptionSegment {
     speakerId: string;
     text: string;
-    start: number;
-    end: number;
+    start?: number;
+    end?: number;
     words: TranscriptionWord[];
     transliteratedText?: string;
 }

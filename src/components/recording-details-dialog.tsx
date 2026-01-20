@@ -196,7 +196,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
                                   {segment.speakerId || 'Unknown Speaker'}
                                 </span>
                                 <span className="text-[10px] text-default-400 font-mono bg-default-50 px-1.5 rounded">
-                                  {formatDuration(segment.start)}
+                                  {formatDuration(segment.start ?? 0)}
                                 </span>
                               </div>
                               <p className="text-sm sm:text-base text-default-700 leading-relaxed">

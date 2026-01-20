@@ -27,6 +27,8 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [stripePriceId, setStripePriceId] = useState('');
+    const [stripeStoragePriceId, setStripeStoragePriceId] = useState('');
+    const [stripeTranscriptionPriceId, setStripeTranscriptionPriceId] = useState('');
     const [price, setPrice] = useState('0');
     const [interval, setInterval] = useState<'monthly' | 'yearly' | 'lifetime'>('monthly');
     const [storageGB, setStorageGB] = useState('5');
@@ -40,6 +42,8 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
             setName(planToEdit.name);
             setDescription(planToEdit.description || '');
             setStripePriceId(planToEdit.stripePriceId || '');
+            setStripeStoragePriceId(planToEdit.stripeStoragePriceId || '');
+            setStripeTranscriptionPriceId(planToEdit.stripeTranscriptionPriceId || '');
             setPrice(planToEdit.price.toString());
             setInterval(planToEdit.interval);
             setStorageGB((planToEdit.limits.storage / (1024 * 1024 * 1024)).toString());
@@ -52,6 +56,8 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
             setName('');
             setDescription('');
             setStripePriceId('');
+            setStripeStoragePriceId('');
+            setStripeTranscriptionPriceId('');
             setPrice('0');
             setInterval('monthly');
             setStorageGB('5');
@@ -69,6 +75,8 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
                 name,
                 description,
                 stripePriceId,
+                stripeStoragePriceId,
+                stripeTranscriptionPriceId,
                 price: parseFloat(price),
                 currency: 'USD',
                 interval,
@@ -117,11 +125,29 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Stripe Price ID</Label>
+                                    <Label>Stripe Price ID (Base)</Label>
                                     <Input
                                         placeholder="price_H5ggY..."
                                         value={stripePriceId}
                                         onChange={(e) => setStripePriceId(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label>Stripe Storage Price ID (Metered)</Label>
+                                    <Input
+                                        placeholder="price_..."
+                                        value={stripeStoragePriceId}
+                                        onChange={(e) => setStripeStoragePriceId(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label>Stripe Transcription Price ID (Metered)</Label>
+                                    <Input
+                                        placeholder="price_..."
+                                        value={stripeTranscriptionPriceId}
+                                        onChange={(e) => setStripeTranscriptionPriceId(e.target.value)}
                                     />
                                 </div>
 

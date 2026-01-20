@@ -21,6 +21,7 @@ import { generateSummary, generateTransliteration } from '@/services/llm';
 
 import { generateEmbedding } from '@/lib/embeddings';
 import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
+import { reportUsage } from '@/lib/stripe/usage';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
@@ -196,6 +197,7 @@ export async function uploadRecordings(
 
           // Update user's storage usage
           await incrementStorageUsed(firebaseUid, buffer.length);
+          await reportUsage(firebaseUid, 'storage', buffer.length / (1024 * 1024 * 1024)); // Convert bytes to GB for Stripe
 
           // Auto-transcription
           const user = await findUserByFirebaseUid(firebaseUid);
@@ -234,14 +236,20 @@ export async function uploadRecordings(
                 const fileUrl = await getSignedR2Url(r2Key, 1800);
                 const result = await transcribeAudio(fileUrl);
 
-                // Parallelize LLM operations
-                const [summary, transliteratedSegments] = await Promise.all([
-                  generateSummary(result.text, result.languageCode),
-                  generateTransliteration(result.segments, result.languageCode)
-                ]);
+                // Parallelize LLM operations ONLY if text exists
+                let summary = '';
+                let transliteratedSegments = result.segments;
+                let summaryEmbedding: number[] = [];
 
-                // Generate embedding from summary
-                const summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                if (result.text && result.text.trim()) {
+                  [summary, transliteratedSegments] = await Promise.all([
+                    generateSummary(result.text, result.languageCode),
+                    generateTransliteration(result.segments, result.languageCode)
+                  ]);
+
+                  // Generate embedding from summary
+                  summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                }
 
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'completed',
@@ -254,6 +262,7 @@ export async function uploadRecordings(
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(duration);
                 await incrementTranscriptionUsed(firebaseUid, billedDuration);
+                await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
                 console.log(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
 
                 // Delete from ElevenLabs

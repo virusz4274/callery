@@ -3,6 +3,7 @@
 import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
+import { reportUsage } from '@/lib/stripe/usage';
 import { cookies } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
@@ -77,6 +78,10 @@ export async function deleteRecordings(
     // Update user's storage usage
     if (totalSizeDeleted > 0) {
       await decrementStorageUsed(firebaseUid, totalSizeDeleted);
+      // Report negative usage (refund/decrement) to Stripe
+      // Convert bytes to GB and negate
+      const refundGb = -(totalSizeDeleted / (1024 * 1024 * 1024));
+      await reportUsage(firebaseUid, 'storage', refundGb);
     }
 
     if (r2Errors.length > 0) {

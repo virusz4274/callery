@@ -67,6 +67,11 @@ Fetches a list of contacts.
 
 ### `GET /api/user/profile`
 Fetches the current user's profile and settings.
+*   **Response**: `UserResponse` object.
+    *   `billingSettings`: `{ allowOverage: boolean }`
+    *   `stripeSubscriptionStatus`: Current Stripe status.
+    *   `storageUsed` / `storageAllocation`: Usage stats.
+    *   `trialEndsAt`: Date string.
 
 ### `PATCH /api/user/profile`
 Updates user settings.
