@@ -350,18 +350,18 @@ export interface AdminLogResponse {
 
 export interface TranscriptionWord {
     text: string;
-    start: number;
-    end: number;
-    type: 'word' | 'spacing';
-    speaker_id: string;
+    start?: number;
+    end?: number;
+    type: 'word' | 'spacing' | 'audio_event';
+    speakerId?: string;  // camelCase to match SDK
     logprob: number;
 }
 
 export interface TranscriptionSegment {
     speakerId: string;
     text: string;
-    start: number;
-    end: number;
+    start?: number;
+    end?: number;
     words: TranscriptionWord[];
     transliteratedText?: string;
 }
