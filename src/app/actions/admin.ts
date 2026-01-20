@@ -73,6 +73,8 @@ export async function getUsers(
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
         lastLoginAt: user.lastLoginAt?.toISOString(),
+        trialEndsAt: user.trialEndsAt?.toISOString(),
+        stripeSubscriptionStatus: user.stripeSubscriptionStatus,
     }));
 
     return {

@@ -1,8 +1,61 @@
+'use client';
 
-import { Button, Card, Separator } from "@heroui/react";
+import { Button, Card, Separator, Spinner } from "@heroui/react";
 import { Check } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/components/toast-provider";
+import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/api-client";
+
+// Use a known plan name that matches your DB Plan 'name' field
+const PRO_PLAN_NAME = 'Pro';
 
 export function PricingSection() {
+    const { toast } = useToast();
+    const router = useRouter();
+    const [isLoading, setIsLoading] = useState<string | null>(null);
+
+
+
+    const handleSubscribe = async (planName: string) => {
+        setIsLoading(planName);
+        try {
+            const response = await authFetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    planName: planName, // API will look up the priceId
+                    successUrl: `${window.location.origin}/settings?success=true`,
+                    cancelUrl: `${window.location.origin}/pricing?canceled=true`,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                if (response.status === 401) {
+                    router.push('/login?redirect=/pricing');
+                    return;
+                }
+                throw new Error(data.error || 'Failed to start checkout');
+            }
+
+            const { url } = await response.json();
+            if (url) {
+                window.location.href = url;
+            } else {
+                throw new Error('No checkout URL returned');
+            }
+        } catch (error) {
+            console.error('Checkout error:', error);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Something went wrong",
+                status: "danger",
+            });
+            setIsLoading(null);
+        }
+    };
+
     return (
         <div className="space-y-12">
             <div className="text-center">
@@ -36,16 +89,24 @@ export function PricingSection() {
                     </Card.Header>
                     <Separator />
                     <Card.Content className="gap-4">
-                        <div className="text-4xl font-bold">$15<span className="text-xl font-normal text-muted-foreground">/mo</span></div>
+                        <div className="text-4xl font-bold">$29<span className="text-xl font-normal text-muted-foreground">/mo</span></div>
                         <ul className="space-y-2">
-                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> 5 GB Storage</li>
-                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Access to Advanced AI Transcription</li>
+                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> 10 GB Storage</li>
+                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Advanced AI Transcription</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Priority Email Support</li>
                             <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Data Export</li>
+                            <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Detailed Analytics</li>
                         </ul>
                     </Card.Content>
                     <Card.Footer>
-                        <Button variant="primary" className="w-full shadow-lg">Upgrade to Pro</Button>
+                        <Button
+                            variant="primary"
+                            className="w-full shadow-lg"
+                            onPress={() => handleSubscribe(PRO_PLAN_NAME)}
+                            isDisabled={isLoading !== null}
+                        >
+                            {isLoading === PRO_PLAN_NAME ? <><Spinner size="sm" color="current" /> Processing...</> : 'Upgrade to Pro'}
+                        </Button>
                     </Card.Footer>
                 </Card>
                 <Card className="bg-card/70 backdrop-blur-xl border border-default-200">
@@ -65,7 +126,7 @@ export function PricingSection() {
                         </ul>
                     </Card.Content>
                     <Card.Footer>
-                        <Button variant="secondary" className="w-full">Contact Sales</Button>
+                        <Button variant="secondary" className="w-full" onPress={() => window.location.href = 'mailto:sales@vosift.com'}>Contact Sales</Button>
                     </Card.Footer>
                 </Card>
             </div>
@@ -73,7 +134,7 @@ export function PricingSection() {
             <div className="space-y-6">
                 <div className="text-center">
                     <h3 className="text-2xl font-bold tracking-tight">Pay-as-you-go Add-ons</h3>
-                    <p className="text-muted-foreground mt-1">Scale your features as you need them. Billed based on usage.</p>
+                    <p className="text-muted-foreground mt-1">Scale your features as you need them. Billed based on usage if you enable Overage.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <Card className="bg-card/70 backdrop-blur-xl border border-default-200">

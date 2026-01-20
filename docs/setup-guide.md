@@ -46,6 +46,11 @@ GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key
 # Google Contacts Sync
 GOOGLE_CLIENT_ID=your_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_oauth_client_secret
+
+# Stripe Billing
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
 ## Installation

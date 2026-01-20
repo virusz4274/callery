@@ -1,0 +1,24 @@
+{
+    "customer": "cus_Nf87234sdf78",
+    "items": [
+        {
+            "price": "price_1Hh123..._fixed",
+            "quantity": 1
+        },
+        {
+            "price": "price_1Hh456..._transcription_meter",
+            "comment": "No quantity needed for meters; defaults to 1 active meter"
+        },
+        {
+            "price": "price_1Hh789..._storage_meter",
+            "comment": "No quantity needed for meters"
+        }
+    ],
+    "payment_behavior": "default_incomplete",
+    "expand": [
+        "latest_invoice.payment_intent"
+    ],
+    "metadata": {
+        "internal_org_id": "org_55a99"
+    }
+}

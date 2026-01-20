@@ -16,6 +16,7 @@ const ai = new GoogleGenAI({ apiKey });
  */
 export async function generateSummary(transcript: string, languageCode: string): Promise<string> {
     if (!apiKey) return '';
+    if (!transcript || !transcript.trim()) return '';
 
     const prompt = `
 You are a helpful assistant. Please provide a concise summary (2-4 sentences) in ENGLISH of the following transcript.

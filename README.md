@@ -9,6 +9,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
 *   [**Project Structure**](docs/project-structure.md): Codebase organization and key files.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
+*   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
 
 ## Quick Start
 
