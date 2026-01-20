@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
 import { Skeleton, Card } from '@/components/ui-primitives';
@@ -13,6 +13,8 @@ function FilesBrowserContent({ user }: { user: User }) {
   const [fileSystem, setFileSystem] = useState<FileSystemNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 3;
 
   const fetchFileSystem = useCallback(async () => {
     setIsLoading(true);
@@ -25,8 +27,8 @@ function FilesBrowserContent({ user }: { user: User }) {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         if (response.status === 401) {
-          // User not authenticated yet, will retry
-          setError('Authentication pending...');
+          // User not authenticated yet, set error to trigger retry
+          setError('Authentication pending');
           return;
         }
         throw new Error(`Unexpected response type: ${contentType}`);
@@ -34,8 +36,8 @@ function FilesBrowserContent({ user }: { user: User }) {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth may not be ready yet, don't show error
-          setError('Authentication pending...');
+          // Auth may not be ready yet
+          setError('Authentication pending');
           return;
         }
         const errorData = await response.json();
@@ -44,6 +46,7 @@ function FilesBrowserContent({ user }: { user: User }) {
 
       const data = await response.json();
       setFileSystem(data.fileSystem);
+      retryCount.current = 0; // Reset on success
     } catch (err) {
       console.error('Error fetching file system:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -54,16 +57,23 @@ function FilesBrowserContent({ user }: { user: User }) {
 
   // Fetch when component mounts or user changes
   useEffect(() => {
+    retryCount.current = 0; // Reset retry count on user change
     fetchFileSystem();
   }, [fetchFileSystem, user.uid]);
 
-  // Retry if we got an auth pending error
+  // Bounded retry for auth pending errors - max 3 attempts with exponential backoff
   useEffect(() => {
-    if (error === 'Authentication pending...') {
+    if (error === 'Authentication pending' && retryCount.current < MAX_RETRIES) {
+      const delay = 500 * Math.pow(2, retryCount.current); // Exponential backoff
       const timer = setTimeout(() => {
+        retryCount.current += 1;
+        console.log(`Retrying filesystem fetch (attempt ${retryCount.current}/${MAX_RETRIES})...`);
         fetchFileSystem();
-      }, 500);
+      }, delay);
       return () => clearTimeout(timer);
+    } else if (error === 'Authentication pending' && retryCount.current >= MAX_RETRIES) {
+      console.error(`Max retries (${MAX_RETRIES}) reached for filesystem. Giving up.`);
+      setError('Unable to authenticate. Please refresh the page or try logging in again.');
     }
   }, [error, fetchFileSystem]);
 
