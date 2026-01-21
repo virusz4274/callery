@@ -32,7 +32,7 @@ lerna-debug.log*
 
 # production
 /build
-
+.open-next
 # sst
 .sst/
 .open-next/

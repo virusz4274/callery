@@ -350,11 +350,10 @@ export interface AdminLogResponse {
 
 export interface TranscriptionWord {
     text: string;
-    start?: number;
-    end?: number;
-    type: 'word' | 'spacing' | 'audio_event';
-    speakerId?: string;  // camelCase to match SDK
-    logprob: number;
+    start?: number;  // in seconds
+    end?: number;    // in seconds
+    speakerId?: string;
+    confidence?: number;  // Soniox confidence score (0-1)
 }
 
 export interface TranscriptionSegment {

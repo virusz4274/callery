@@ -9,7 +9,7 @@ This guide will help you set up the VoSift application locally.
 *   **Firebase Project**: With Authentication enabled.
 *   **Cloudflare R2**: Bucket for file storage.
 *   **Google Cloud Project**: For Google People API (Contact Sync).
-*   **ElevenLabs Account**: For transcription.
+*   **Soniox Account**: For transcription.
 *   **Google Gemini API Key**: For summarization.
 
 ## Environment Variables
@@ -40,7 +40,9 @@ R2_SECRET_ACCESS_KEY=your_secret_key
 R2_BUCKET_NAME=your_bucket_name
 
 # AI Services
-ELEVENLABS_API_KEY=your_elevenlabs_key
+SONIOX_API_KEY=your_soniox_key
+SONIOX_API_BASE_URL=https://api.soniox.com
+SONIOX_MODEL_ID=stt-async-v3
 GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key
 
 # Google Contacts Sync

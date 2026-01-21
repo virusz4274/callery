@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRecordingById, updateRecording } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
-import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
+import { GeminiService } from '@/services/ai/gemini-service';
+import { SonioxService } from '@/services/transcription/soniox-service';
+import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
-import { generateSummary, generateTransliteration } from '@/services/llm';
-
-import { generateEmbedding } from '@/lib/embeddings';
-import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
+
+const aiService = new GeminiService();
+const transcriptionService = new SonioxService();
 
 export async function POST(req: NextRequest) {
     try {
@@ -47,6 +48,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
+        // Set status to processing immediately for UI feedback
+        await updateRecording(recordingId, uid, { transcriptionStatus: 'processing' });
+        console.log(`[API/Transcribe] Starting background job for ${recordingId}`);
+
         // 3. Check Transcription Access
         const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
         if (!transcriptionAccess.allowed) {
@@ -54,11 +59,12 @@ export async function POST(req: NextRequest) {
         }
 
         // 5. Trigger Background Transcription
-        // We use after() to run this in the background, returning immediately to the client.
         after(async () => {
             try {
                 const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
-                const result = await transcribeAudio(fileUrl);
+                console.log(`[API/Transcribe] Processing ${recordingId}...`);
+                const result = await transcriptionService.transcribe(fileUrl, recording.duration);
+                console.log(`[API/Transcribe] Transcription received for ${recordingId}`);
 
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
@@ -66,16 +72,18 @@ export async function POST(req: NextRequest) {
                 let summaryEmbedding: number[] = [];
 
                 if (result.text && result.text.trim()) {
+                    console.log(`[API/Transcribe] Running AI summary and transliteration for ${recordingId}`);
                     [summary, transliteratedSegments] = await Promise.all([
-                        generateSummary(result.text, result.languageCode),
-                        generateTransliteration(result.segments, result.languageCode)
+                        aiService.generateSummary(result.text, result.languageCode),
+                        aiService.generateTransliteration(result.segments, result.languageCode)
                     ]);
 
                     // Generate embedding from summary
-                    summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                    summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
                 }
 
                 // Save Result
+                console.log(`[API/Transcribe] Saving results for ${recordingId}`);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'completed',
                     fullTranscript: transliteratedSegments, // This now includes transliteratedText
@@ -87,15 +95,16 @@ export async function POST(req: NextRequest) {
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
+                console.log(`[API/Transcribe] Job completed for ${recordingId}`);
 
-                // Delete from ElevenLabs
+                // Delete from Soniox
                 try {
-                    await deleteTranscript(result.transcriptionId);
+                    await transcriptionService.deleteTranscript(result.transcriptionId);
                 } catch (deleteError) {
-                    console.error('Failed to delete transcript from ElevenLabs:', deleteError);
+                    console.error('Failed to delete transcript from Soniox:', deleteError);
                 }
             } catch (error) {
-                console.error('Background transcription error:', error);
+                console.error('[API/Transcribe] Background job failed:', error);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'failed',
                 });

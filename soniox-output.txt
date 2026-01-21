@@ -1,0 +1,2136 @@
+{
+  "id": "158fc74d-cc90-449b-b436-dfcdbc96bdff",
+  "text": "ആ, എന്തിനാ? പൈസ തന്നായിരുന്നോ? ഒന്നും അക്കൗണ്ടിലോട്ട് ഇട്ടേക്കാവോ? എന്റെ അക്കൗണ്ടിൽ അതുകൊണ്ടാ ചോദിക്കുക. ഫെഡറലിലോട്ട് ഇട്ടാൽ മതി. ഫെഡറൽ, നിനക്ക് കമ്പനി അക്കൗണ്ട് കൊണ്ട് അല്ലാണ്ട്, അപ്പൊ അതുകൊണ്ടാ ചോദിച്ചത്. എന്റെ പേഴ്സണൽ അക്കൗണ്ടിലോട്ട് ഇട്ടാൽ മതി. അതിന്റെ ലാസ്റ്റ് നമ്പർ വല്ലം അറിയാമോ? ആ, പേഴ്സണൽ അക്കൗണ്ടിന്റെ ലാസ്റ്റ്. അല്ല, പേര് കാണിക്കത്തില്ലേ? പേര്? രണ്ടും എന്റെ പേര് തന്നെയാണ് ഇട്ടേക്കുന്നത്. പേര് കാണുമല്ലോ, നോക്കാം. ആ, 6793. 6793.",
+  "tokens": [
+    {
+      "text": "ആ",
+      "start_ms": 1080,
+      "end_ms": 1140,
+      "confidence": 0.6115574836730957,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 1200,
+      "end_ms": 1260,
+      "confidence": 0.5723303556442261,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " എ",
+      "start_ms": 1320,
+      "end_ms": 1380,
+      "confidence": 0.8772104382514954,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്",
+      "start_ms": 1380,
+      "end_ms": 1440,
+      "confidence": 0.8327032327651978,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "തിന",
+      "start_ms": 1440,
+      "end_ms": 1500,
+      "confidence": 0.8090174198150635,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാ",
+      "start_ms": 1620,
+      "end_ms": 1680,
+      "confidence": 0.9978481531143188,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 1680,
+      "end_ms": 1740,
+      "confidence": 0.9961729049682617,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 1980,
+      "end_ms": 2040,
+      "confidence": 0.6098024845123291,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൈ",
+      "start_ms": 2040,
+      "end_ms": 2100,
+      "confidence": 0.9997075200080872,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "സ",
+      "start_ms": 2160,
+      "end_ms": 2220,
+      "confidence": 0.9997527003288269,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ത",
+      "start_ms": 2280,
+      "end_ms": 2340,
+      "confidence": 0.4759330451488495,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്ന",
+      "start_ms": 2400,
+      "end_ms": 2460,
+      "confidence": 0.992562472820282,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ായിരുന്ന",
+      "start_ms": 2520,
+      "end_ms": 2580,
+      "confidence": 0.6715356111526489,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 2760,
+      "end_ms": 2820,
+      "confidence": 0.9870416522026062,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 2940,
+      "end_ms": 3000,
+      "confidence": 0.9980416297912598,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഒ",
+      "start_ms": 3480,
+      "end_ms": 3540,
+      "confidence": 0.8572421669960022,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്ന",
+      "start_ms": 3720,
+      "end_ms": 3780,
+      "confidence": 0.796674370765686,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ും",
+      "start_ms": 3780,
+      "end_ms": 3840,
+      "confidence": 0.506761908531189,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 3900,
+      "end_ms": 3960,
+      "confidence": 0.6708418130874634,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 4380,
+      "end_ms": 4440,
+      "confidence": 0.9920713305473328,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൗ",
+      "start_ms": 4440,
+      "end_ms": 4500,
+      "confidence": 0.9993226528167725,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 4560,
+      "end_ms": 4620,
+      "confidence": 0.9918936491012573,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ില",
+      "start_ms": 4680,
+      "end_ms": 4740,
+      "confidence": 0.8917273283004761,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 4740,
+      "end_ms": 4800,
+      "confidence": 0.9983493089675903,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട്",
+      "start_ms": 4800,
+      "end_ms": 4860,
+      "confidence": 0.9926050305366516,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഇ",
+      "start_ms": 4860,
+      "end_ms": 4860,
+      "confidence": 0.9988837838172913,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട",
+      "start_ms": 4920,
+      "end_ms": 4980,
+      "confidence": 0.9996870756149292,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േക്ക",
+      "start_ms": 5040,
+      "end_ms": 5100,
+      "confidence": 0.9973211884498596,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാവ",
+      "start_ms": 5160,
+      "end_ms": 5220,
+      "confidence": 0.6010721325874329,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 5280,
+      "end_ms": 5340,
+      "confidence": 0.9938138723373413,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 5400,
+      "end_ms": 5460,
+      "confidence": 0.9990851283073425,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " എ",
+      "start_ms": 6360,
+      "end_ms": 6420,
+      "confidence": 0.5892520546913147,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്റെ",
+      "start_ms": 6480,
+      "end_ms": 6540,
+      "confidence": 0.7147493362426758,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 6600,
+      "end_ms": 6660,
+      "confidence": 0.9979221224784851,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 6660,
+      "end_ms": 6720,
+      "confidence": 0.9992431402206421,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൗ",
+      "start_ms": 6720,
+      "end_ms": 6780,
+      "confidence": 0.9998038411140442,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 6840,
+      "end_ms": 6900,
+      "confidence": 0.9658756852149963,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ിൽ",
+      "start_ms": 6900,
+      "end_ms": 6960,
+      "confidence": 0.5949844121932983,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 6960,
+      "end_ms": 7020,
+      "confidence": 0.7253283858299255,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ത",
+      "start_ms": 7140,
+      "end_ms": 7200,
+      "confidence": 0.9607393741607666,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ുക",
+      "start_ms": 7200,
+      "end_ms": 7260,
+      "confidence": 0.9997144341468811,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൊ",
+      "start_ms": 7260,
+      "end_ms": 7260,
+      "confidence": 0.9998362064361572,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 7260,
+      "end_ms": 7320,
+      "confidence": 0.999177098274231,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാ",
+      "start_ms": 7320,
+      "end_ms": 7380,
+      "confidence": 0.8332579135894775,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ച",
+      "start_ms": 7380,
+      "end_ms": 7440,
+      "confidence": 0.994382917881012,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 7500,
+      "end_ms": 7560,
+      "confidence": 0.9999924898147583,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ദ",
+      "start_ms": 7560,
+      "end_ms": 7620,
+      "confidence": 0.9998230338096619,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ിക്ക",
+      "start_ms": 7620,
+      "end_ms": 7680,
+      "confidence": 0.5885686278343201,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ുക",
+      "start_ms": 7680,
+      "end_ms": 7740,
+      "confidence": 0.7828622460365295,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 7740,
+      "end_ms": 7800,
+      "confidence": 0.9827691912651062,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഫ",
+      "start_ms": 8160,
+      "end_ms": 8220,
+      "confidence": 0.9324897527694702,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "െ",
+      "start_ms": 8220,
+      "end_ms": 8280,
+      "confidence": 0.999366819858551,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ഡ",
+      "start_ms": 8280,
+      "end_ms": 8340,
+      "confidence": 0.9919618964195251,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "റ",
+      "start_ms": 8340,
+      "end_ms": 8400,
+      "confidence": 0.9977942109107971,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല",
+      "start_ms": 8460,
+      "end_ms": 8520,
+      "confidence": 0.5217581987380981,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ില",
+      "start_ms": 8520,
+      "end_ms": 8580,
+      "confidence": 0.9605968594551086,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 8580,
+      "end_ms": 8640,
+      "confidence": 0.9998096823692322,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട്",
+      "start_ms": 8640,
+      "end_ms": 8700,
+      "confidence": 0.9954778552055359,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഇ",
+      "start_ms": 8700,
+      "end_ms": 8760,
+      "confidence": 0.9999329447746277,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട",
+      "start_ms": 8760,
+      "end_ms": 8820,
+      "confidence": 0.9992101192474365,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാൽ",
+      "start_ms": 8880,
+      "end_ms": 8940,
+      "confidence": 0.9986562132835388,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " മ",
+      "start_ms": 9000,
+      "end_ms": 9060,
+      "confidence": 0.9999544024467468,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "തി",
+      "start_ms": 9120,
+      "end_ms": 9180,
+      "confidence": 0.9993789792060852,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 9240,
+      "end_ms": 9300,
+      "confidence": 0.9909669756889343,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഫ",
+      "start_ms": 10080,
+      "end_ms": 10140,
+      "confidence": 0.9965752959251404,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "െ",
+      "start_ms": 10140,
+      "end_ms": 10200,
+      "confidence": 0.9998835325241089,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ഡ",
+      "start_ms": 10200,
+      "end_ms": 10260,
+      "confidence": 0.999648928642273,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "റ",
+      "start_ms": 10260,
+      "end_ms": 10320,
+      "confidence": 0.9978991746902466,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൽ",
+      "start_ms": 10320,
+      "end_ms": 10380,
+      "confidence": 0.8743895292282104,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 10380,
+      "end_ms": 10440,
+      "confidence": 0.7602447271347046,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " നി",
+      "start_ms": 10440,
+      "end_ms": 10500,
+      "confidence": 0.49174830317497253,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന",
+      "start_ms": 10560,
+      "end_ms": 10620,
+      "confidence": 0.435674786567688,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക്",
+      "start_ms": 10620,
+      "end_ms": 10680,
+      "confidence": 0.9998557567596436,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ക",
+      "start_ms": 10680,
+      "end_ms": 10740,
+      "confidence": 0.9950809478759766,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "മ്പ",
+      "start_ms": 10740,
+      "end_ms": 10800,
+      "confidence": 0.9990843534469604,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "നി",
+      "start_ms": 10860,
+      "end_ms": 10920,
+      "confidence": 0.9948739409446716,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 10980,
+      "end_ms": 11040,
+      "confidence": 0.9997590184211731,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 11040,
+      "end_ms": 11100,
+      "confidence": 0.999873161315918,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൗ",
+      "start_ms": 11100,
+      "end_ms": 11160,
+      "confidence": 0.999809205532074,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട്",
+      "start_ms": 11220,
+      "end_ms": 11280,
+      "confidence": 0.9812514781951904,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " കൊ",
+      "start_ms": 11340,
+      "end_ms": 11400,
+      "confidence": 0.8273651003837585,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട്",
+      "start_ms": 11400,
+      "end_ms": 11460,
+      "confidence": 0.8340840935707092,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 11460,
+      "end_ms": 11520,
+      "confidence": 0.9740691781044006,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല്ല",
+      "start_ms": 11520,
+      "end_ms": 11580,
+      "confidence": 0.9405263662338257,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാ",
+      "start_ms": 11580,
+      "end_ms": 11640,
+      "confidence": 0.33914434909820557,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട്",
+      "start_ms": 11640,
+      "end_ms": 11700,
+      "confidence": 0.636731743812561,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 11760,
+      "end_ms": 11820,
+      "confidence": 0.3823051154613495,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 11820,
+      "end_ms": 11820,
+      "confidence": 0.9976717233657837,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "പ്പ",
+      "start_ms": 11820,
+      "end_ms": 11880,
+      "confidence": 0.9833643436431885,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൊ",
+      "start_ms": 11880,
+      "end_ms": 11940,
+      "confidence": 0.9968575239181519,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 11940,
+      "end_ms": 12000,
+      "confidence": 0.9994667172431946,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ത",
+      "start_ms": 12000,
+      "end_ms": 12060,
+      "confidence": 0.9996751546859741,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ുക",
+      "start_ms": 12060,
+      "end_ms": 12120,
+      "confidence": 0.9998867511749268,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൊ",
+      "start_ms": 12120,
+      "end_ms": 12180,
+      "confidence": 0.9999749660491943,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 12180,
+      "end_ms": 12240,
+      "confidence": 0.9794173836708069,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാ",
+      "start_ms": 12240,
+      "end_ms": 12300,
+      "confidence": 0.9932326078414917,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ച",
+      "start_ms": 12300,
+      "end_ms": 12360,
+      "confidence": 0.999776303768158,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 12360,
+      "end_ms": 12420,
+      "confidence": 0.9999903440475464,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ദ",
+      "start_ms": 12420,
+      "end_ms": 12480,
+      "confidence": 0.9999594688415527,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ിച്ച",
+      "start_ms": 12480,
+      "end_ms": 12540,
+      "confidence": 0.942765474319458,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ത്.",
+      "start_ms": 12540,
+      "end_ms": 12600,
+      "confidence": 0.979684591293335,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " എ",
+      "start_ms": 12660,
+      "end_ms": 12720,
+      "confidence": 0.9905733466148376,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്റെ",
+      "start_ms": 12720,
+      "end_ms": 12780,
+      "confidence": 0.9988448619842529,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 13020,
+      "end_ms": 13080,
+      "confidence": 0.9665484428405762,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േ",
+      "start_ms": 13080,
+      "end_ms": 13140,
+      "confidence": 0.998723566532135,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ഴ്",
+      "start_ms": 13140,
+      "end_ms": 13200,
+      "confidence": 0.9982054233551025,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "സ",
+      "start_ms": 13200,
+      "end_ms": 13260,
+      "confidence": 0.9998617172241211,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ",
+      "start_ms": 13260,
+      "end_ms": 13320,
+      "confidence": 0.9998301267623901,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൽ",
+      "start_ms": 13320,
+      "end_ms": 13380,
+      "confidence": 0.9998587369918823,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 13380,
+      "end_ms": 13440,
+      "confidence": 0.999851405620575,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 13440,
+      "end_ms": 13500,
+      "confidence": 0.9998594522476196,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൗ",
+      "start_ms": 13500,
+      "end_ms": 13560,
+      "confidence": 0.999852180480957,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 13560,
+      "end_ms": 13620,
+      "confidence": 0.9703248739242554,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ില",
+      "start_ms": 13620,
+      "end_ms": 13680,
+      "confidence": 0.969657838344574,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 13680,
+      "end_ms": 13740,
+      "confidence": 0.9997898936271667,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട്",
+      "start_ms": 13740,
+      "end_ms": 13800,
+      "confidence": 0.9986101984977722,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഇ",
+      "start_ms": 13860,
+      "end_ms": 13920,
+      "confidence": 0.9999581575393677,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട",
+      "start_ms": 13920,
+      "end_ms": 13980,
+      "confidence": 0.9991268515586853,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാൽ",
+      "start_ms": 13980,
+      "end_ms": 14040,
+      "confidence": 0.9996125102043152,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " മ",
+      "start_ms": 14040,
+      "end_ms": 14100,
+      "confidence": 0.9999678134918213,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "തി",
+      "start_ms": 14160,
+      "end_ms": 14220,
+      "confidence": 0.9999603033065796,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 14280,
+      "end_ms": 14340,
+      "confidence": 0.9999563694000244,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അതി",
+      "start_ms": 15480,
+      "end_ms": 15540,
+      "confidence": 0.9685099720954895,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്റെ",
+      "start_ms": 15660,
+      "end_ms": 15720,
+      "confidence": 0.9997416138648987,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ല",
+      "start_ms": 15780,
+      "end_ms": 15840,
+      "confidence": 0.9983992576599121,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാസ്",
+      "start_ms": 15840,
+      "end_ms": 15900,
+      "confidence": 0.9995474219322205,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "റ്റ്",
+      "start_ms": 15900,
+      "end_ms": 15960,
+      "confidence": 0.9995349645614624,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ന",
+      "start_ms": 16020,
+      "end_ms": 16080,
+      "confidence": 0.9876788854598999,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "മ്പ",
+      "start_ms": 16080,
+      "end_ms": 16140,
+      "confidence": 0.9998181462287903,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ർ",
+      "start_ms": 16140,
+      "end_ms": 16200,
+      "confidence": 0.9983287453651428,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " വ",
+      "start_ms": 16260,
+      "end_ms": 16320,
+      "confidence": 0.9652627110481262,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല്ല",
+      "start_ms": 16320,
+      "end_ms": 16380,
+      "confidence": 0.9655945301055908,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ം",
+      "start_ms": 16440,
+      "end_ms": 16500,
+      "confidence": 0.90159010887146,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 16500,
+      "end_ms": 16560,
+      "confidence": 0.9955177903175354,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "റിയ",
+      "start_ms": 16560,
+      "end_ms": 16620,
+      "confidence": 0.999832034111023,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാമ",
+      "start_ms": 16680,
+      "end_ms": 16740,
+      "confidence": 0.7722253203392029,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 16740,
+      "end_ms": 16800,
+      "confidence": 0.9999819397926331,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 16860,
+      "end_ms": 16920,
+      "confidence": 0.9999358057975769,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ആ",
+      "start_ms": 17100,
+      "end_ms": 17160,
+      "confidence": 0.9687258005142212,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 19380,
+      "end_ms": 19440,
+      "confidence": 0.5347113609313965,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 19620,
+      "end_ms": 19680,
+      "confidence": 0.99410080909729,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േ",
+      "start_ms": 19740,
+      "end_ms": 19800,
+      "confidence": 0.9994844198226929,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ഴ്",
+      "start_ms": 19800,
+      "end_ms": 19860,
+      "confidence": 0.9988362193107605,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "സ",
+      "start_ms": 19860,
+      "end_ms": 19920,
+      "confidence": 0.9983055591583252,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ",
+      "start_ms": 19920,
+      "end_ms": 19980,
+      "confidence": 0.9992128610610962,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൽ",
+      "start_ms": 20040,
+      "end_ms": 20100,
+      "confidence": 0.9999418258666992,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 20160,
+      "end_ms": 20220,
+      "confidence": 0.999933123588562,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 20220,
+      "end_ms": 20280,
+      "confidence": 0.9999043941497803,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ൗ",
+      "start_ms": 20340,
+      "end_ms": 20400,
+      "confidence": 0.9999436140060425,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ണ്ട",
+      "start_ms": 20460,
+      "end_ms": 20520,
+      "confidence": 0.9804621934890747,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ിന്റെ",
+      "start_ms": 20760,
+      "end_ms": 20820,
+      "confidence": 0.9997624754905701,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ല",
+      "start_ms": 21000,
+      "end_ms": 21060,
+      "confidence": 0.9996406435966492,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാസ്",
+      "start_ms": 21060,
+      "end_ms": 21120,
+      "confidence": 0.9997368454933167,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "റ്റ്",
+      "start_ms": 21180,
+      "end_ms": 21240,
+      "confidence": 0.9986735582351685,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 22140,
+      "end_ms": 22200,
+      "confidence": 0.8764960169792175,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " അ",
+      "start_ms": 22260,
+      "end_ms": 22320,
+      "confidence": 0.42751747369766235,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല്ല",
+      "start_ms": 22320,
+      "end_ms": 22380,
+      "confidence": 0.9989050626754761,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 22440,
+      "end_ms": 22500,
+      "confidence": 0.9982818365097046,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 22500,
+      "end_ms": 22560,
+      "confidence": 0.9995810985565186,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േര",
+      "start_ms": 22560,
+      "end_ms": 22620,
+      "confidence": 0.9711506366729736,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "്",
+      "start_ms": 22680,
+      "end_ms": 22740,
+      "confidence": 0.9944632649421692,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " കാണ",
+      "start_ms": 22800,
+      "end_ms": 22860,
+      "confidence": 0.6590519547462463,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ിക്ക",
+      "start_ms": 22980,
+      "end_ms": 23040,
+      "confidence": 0.661868691444397,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ത്തി",
+      "start_ms": 23040,
+      "end_ms": 23100,
+      "confidence": 0.9984714388847351,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല്ല",
+      "start_ms": 23160,
+      "end_ms": 23220,
+      "confidence": 0.9997983574867249,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േ",
+      "start_ms": 23220,
+      "end_ms": 23280,
+      "confidence": 0.7982107996940613,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 23280,
+      "end_ms": 23340,
+      "confidence": 0.8035473823547363,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 24780,
+      "end_ms": 24840,
+      "confidence": 0.7809696197509766,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േര",
+      "start_ms": 24900,
+      "end_ms": 24960,
+      "confidence": 0.9985652565956116,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "്",
+      "start_ms": 24960,
+      "end_ms": 25020,
+      "confidence": 0.9913392066955566,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "?",
+      "start_ms": 25080,
+      "end_ms": 25140,
+      "confidence": 0.4714825451374054,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " രണ്ട",
+      "start_ms": 25440,
+      "end_ms": 25500,
+      "confidence": 0.4119715988636017,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ും",
+      "start_ms": 25560,
+      "end_ms": 25620,
+      "confidence": 0.4314611256122589,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " എ",
+      "start_ms": 25680,
+      "end_ms": 25740,
+      "confidence": 0.9951159954071045,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്റെ",
+      "start_ms": 25740,
+      "end_ms": 25800,
+      "confidence": 0.999849796295166,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 25860,
+      "end_ms": 25920,
+      "confidence": 0.9989244341850281,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േര",
+      "start_ms": 25920,
+      "end_ms": 25980,
+      "confidence": 0.9951764345169067,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "്",
+      "start_ms": 25980,
+      "end_ms": 26040,
+      "confidence": 0.9993433356285095,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ത",
+      "start_ms": 26040,
+      "end_ms": 26100,
+      "confidence": 0.9992442727088928,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ന്ന",
+      "start_ms": 26100,
+      "end_ms": 26160,
+      "confidence": 0.8518156409263611,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "െയ",
+      "start_ms": 26160,
+      "end_ms": 26220,
+      "confidence": 0.9990233778953552,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാണ്",
+      "start_ms": 26220,
+      "end_ms": 26280,
+      "confidence": 0.8135553598403931,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ഇ",
+      "start_ms": 26280,
+      "end_ms": 26340,
+      "confidence": 0.9415628910064697,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ട്ട",
+      "start_ms": 26400,
+      "end_ms": 26460,
+      "confidence": 0.9960287809371948,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േ",
+      "start_ms": 26520,
+      "end_ms": 26580,
+      "confidence": 0.998558521270752,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്കുന്ന",
+      "start_ms": 26580,
+      "end_ms": 26640,
+      "confidence": 0.9997981190681458,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ത്.",
+      "start_ms": 26700,
+      "end_ms": 26760,
+      "confidence": 0.8861339688301086,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " പ",
+      "start_ms": 27660,
+      "end_ms": 27720,
+      "confidence": 0.45891475677490234,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "േര",
+      "start_ms": 28080,
+      "end_ms": 28140,
+      "confidence": 0.9258557558059692,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "്",
+      "start_ms": 28140,
+      "end_ms": 28200,
+      "confidence": 0.999913215637207,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " കാണ",
+      "start_ms": 28260,
+      "end_ms": 28320,
+      "confidence": 0.8907625079154968,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ു",
+      "start_ms": 28380,
+      "end_ms": 28440,
+      "confidence": 0.6084312796592712,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "മ",
+      "start_ms": 28440,
+      "end_ms": 28500,
+      "confidence": 0.9828813672065735,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ല്ല",
+      "start_ms": 28500,
+      "end_ms": 28560,
+      "confidence": 0.9543018341064453,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 28560,
+      "end_ms": 28620,
+      "confidence": 0.9975702166557312,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 28620,
+      "end_ms": 28680,
+      "confidence": 0.5525419116020203,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ന",
+      "start_ms": 28680,
+      "end_ms": 28740,
+      "confidence": 0.8929930925369263,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ോ",
+      "start_ms": 28800,
+      "end_ms": 28860,
+      "confidence": 0.9880749583244324,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ക്ക",
+      "start_ms": 28860,
+      "end_ms": 28920,
+      "confidence": 0.9739961624145508,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "ാം",
+      "start_ms": 28920,
+      "end_ms": 28980,
+      "confidence": 0.9868232011795044,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 29040,
+      "end_ms": 29100,
+      "confidence": 0.9993637204170227,
+      "speaker": "2",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " ആ",
+      "start_ms": 31680,
+      "end_ms": 31740,
+      "confidence": 0.7056790590286255,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ",",
+      "start_ms": 31740,
+      "end_ms": 31740,
+      "confidence": 0.9738680720329285,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " 6",
+      "start_ms": 31740,
+      "end_ms": 31740,
+      "confidence": 0.6750814914703369,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "7",
+      "start_ms": 31980,
+      "end_ms": 32040,
+      "confidence": 0.9951080083847046,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "9",
+      "start_ms": 32160,
+      "end_ms": 32220,
+      "confidence": 0.9987227320671082,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "3",
+      "start_ms": 32460,
+      "end_ms": 32520,
+      "confidence": 0.9986989498138428,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 32640,
+      "end_ms": 32700,
+      "confidence": 0.9113814830780029,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": " 6",
+      "start_ms": 35040,
+      "end_ms": 35100,
+      "confidence": 0.7165794968605042,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "7",
+      "start_ms": 35460,
+      "end_ms": 35520,
+      "confidence": 0.9998183846473694,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "9",
+      "start_ms": 35880,
+      "end_ms": 35940,
+      "confidence": 0.99993896484375,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": "3",
+      "start_ms": 36240,
+      "end_ms": 36300,
+      "confidence": 0.9999342560768127,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    },
+    {
+      "text": ".",
+      "start_ms": 37860,
+      "end_ms": 37920,
+      "confidence": 0.8949846029281616,
+      "speaker": "1",
+      "language": null,
+      "is_audio_event": null,
+      "translation_status": null
+    }
+  ]
+}

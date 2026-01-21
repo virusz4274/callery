@@ -14,17 +14,20 @@ import { createRecording, updateRecording } from '@/lib/db/recordings';
 import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
-import { transcribeAudio, deleteTranscript } from '@/services/elevenlabs';
+import { GeminiService } from '@/services/ai/gemini-service';
+import { SonioxService } from '@/services/transcription/soniox-service';
 import { parseContactFromFilename } from '@/lib/utils/filename-parser';
 import { calculateBilledDuration } from '@/lib/utils/billing';
-import { generateSummary, generateTransliteration } from '@/services/llm';
 
-import { generateEmbedding } from '@/lib/embeddings';
 import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { reportUsage } from '@/lib/stripe/usage';
 
 // Initialize Firebase Admin
+// Initialize Firebase Admin
 getFirebaseAdminApp();
+
+const aiService = new GeminiService();
+const transcriptionService = new SonioxService();
 
 
 
@@ -234,7 +237,7 @@ export async function uploadRecordings(
                 });
 
                 const fileUrl = await getSignedR2Url(r2Key, 1800);
-                const result = await transcribeAudio(fileUrl);
+                const result = await transcriptionService.transcribe(fileUrl, duration);
 
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
@@ -243,12 +246,12 @@ export async function uploadRecordings(
 
                 if (result.text && result.text.trim()) {
                   [summary, transliteratedSegments] = await Promise.all([
-                    generateSummary(result.text, result.languageCode),
-                    generateTransliteration(result.segments, result.languageCode)
+                    aiService.generateSummary(result.text, result.languageCode),
+                    aiService.generateTransliteration(result.segments, result.languageCode)
                   ]);
 
                   // Generate embedding from summary
-                  summaryEmbedding = summary ? await generateEmbedding(summary) : [];
+                  summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
                 }
 
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
@@ -265,8 +268,8 @@ export async function uploadRecordings(
                 await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
                 console.log(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
 
-                // Delete from ElevenLabs
-                await deleteTranscript(result.transcriptionId);
+                // Delete from Soniox
+                await transcriptionService.deleteTranscript(result.transcriptionId);
                 console.log(`[uploadRecordings] Background: Transcription complete for ${createdRecording._id.toString()}`);
               } catch (transcriptionError) {
                 console.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);

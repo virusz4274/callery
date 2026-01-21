@@ -4,9 +4,11 @@
 import React, { useMemo, useState, useTransition } from 'react';
 import type { Recording, Contact } from '@/lib/types';
 import { Button, Chip, SearchField } from '@heroui/react';
+import { useToast } from '@/components/toast-provider'; // Correct import path
 import { RecordingsTable } from '@/components/recordings-table'; // Resolves to /index.tsx
 import { Users, Phone, Clock, BarChart, Search, Sparkles, Filter, Calendar, ArrowUpAz, ArrowDownAz, SlidersHorizontal } from 'lucide-react';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
+import { initializeFirebase } from '@/lib/firebase/client';
 import { StatsCard } from './dashboard/stats-card';
 import { DashboardBackground } from './dashboard/background';
 
@@ -73,6 +75,54 @@ export function RecordingsDashboard({
     const clearSemanticSearch = () => {
         setSemanticQuery('');
         setSemanticResults(null);
+    };
+
+    const { toast } = useToast();
+
+    const handleRetryTranscription = async (recording: Recording) => {
+        toast({
+            title: 'Starting transcription...',
+            status: 'default',
+        });
+
+        try {
+            const { auth } = initializeFirebase();
+            const token = await auth.currentUser?.getIdToken();
+
+            if (!token) {
+                throw new Error('You must be logged in to transcribe recordings.');
+            }
+
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ recordingId: recording.id }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to start transcription');
+            }
+
+            toast({
+                title: 'Transcription started',
+                description: 'The recording is being processed in the background.',
+                status: 'success',
+            });
+
+            // Optionally refresh or invalidate data here if needed
+            // onRecordingsChange?.(); 
+        } catch (error) {
+            console.error('Retry failed:', error);
+            toast({
+                title: 'Transcription failed',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                status: 'danger',
+            });
+        }
     };
 
     const filteredRecordings = React.useMemo(() => {
@@ -317,6 +367,7 @@ export function RecordingsDashboard({
                 totalCount={displayTotalCount}
                 itemsPerPage={itemsPerPage}
                 onRecordingsChange={onRecordingsChange}
+                onRetryTranscription={handleRetryTranscription}
             />
         </div>
     );
