@@ -7,15 +7,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { authFetch } from '@/lib/api-client';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { syncGoogleContacts } from '@/app/actions/contacts';
 
-const profileFormSchema = z.object({
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
-});
+// Extracted Hooks
+import { useProfileSettings } from '@/hooks/settings/use-profile-settings';
+import { useNotificationSettings } from '@/hooks/settings/use-notification-settings';
+import { usePreferenceSettings } from '@/hooks/settings/use-preference-settings';
 
 const passwordFormSchema = z.object({
     currentPassword: z.string().min(1, 'Current password is required for security.'),
@@ -37,78 +36,50 @@ export function useSettingsPage() {
     const { userProfile, isProfileLoading } = useUserProfile(user);
     const auth = useAuth();
 
-    // State
-    const [generalState, setGeneralState] = useState({ timezone: '' });
-    const [notificationsState, setNotificationsState] = useState({
-        activityDigest: 'weekly' as 'off' | 'weekly' | 'monthly',
-        ingestSuccess: true,
-        ingestFail: true,
-    });
-    const [dataState, setDataState] = useState({
-        deletionPolicy: 'never',
-        transcriptionSettings: { autoTranscribe: true }
-    });
+    // Extracted Hooks Usage
+    const {
+        profileForm,
+        isSavingProfile,
+        handleUpdateProfile
+    } = useProfileSettings(user, userProfile);
 
-    const [isSavingProfile, setSavingProfile] = useState(false);
+    const {
+        notificationsState,
+        setNotificationsState,
+        isSavingNotifications,
+        handleSaveNotifications,
+        notificationsDirtyRef
+    } = useNotificationSettings(userProfile);
+
+    const {
+        generalState,
+        setGeneralState,
+        isSavingGeneral,
+        handleSaveGeneral,
+        generalDirtyRef,
+        dataState,
+        setDataState,
+        isSavingData,
+        handleSaveData,
+        dataDirtyRef
+    } = usePreferenceSettings(user, userProfile);
+
+    // Password State
     const [isSavingPassword, setSavingPassword] = useState(false);
-    const [isSavingGeneral, setSavingGeneral] = useState(false);
-    const [isSavingNotifications, setSavingNotifications] = useState(false);
-    const [isSavingData, setSavingData] = useState(false);
-
-    const [isSyncing, startSyncTransition] = useTransition();
-    const [showConnectDialog, setShowConnectDialog] = useState(false);
-    const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
-
-    const [activeTab, setActiveTab] = useState(defaultTab);
-    const [view, setView] = useState<'list' | 'detail'>('list');
-
-    // Forms
-    const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-        resolver: zodResolver(profileFormSchema),
-        defaultValues: { firstName: '', lastName: '' },
-    });
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
         defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' }
     });
 
-    // Refs for dirty checking
-    const lastProfileRef = useRef('');
-    const generalDirtyRef = useRef(false);
-    const notificationsDirtyRef = useRef(false);
-    const dataDirtyRef = useRef(false);
+    // View State
+    const [activeTab, setActiveTab] = useState(defaultTab);
+    const [view, setView] = useState<'list' | 'detail'>('list');
+
+    // Google Sync State
+    const [isSyncing, startSyncTransition] = useTransition();
+    const [showConnectDialog, setShowConnectDialog] = useState(false);
+    const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
     const processedCodeRef = useRef<string | null>(null);
-
-    // Sync state with profile
-    useEffect(() => {
-        if (userProfile) {
-            const profileHash = JSON.stringify({
-                firstName: userProfile.firstName,
-                lastName: userProfile.lastName,
-                timezone: userProfile.timezone,
-                notifications: userProfile.notificationSettings,
-                storage: userProfile.storageSettings
-            });
-
-            if (profileHash === lastProfileRef.current) return;
-            lastProfileRef.current = profileHash;
-
-            if (!profileForm.formState.isDirty) {
-                profileForm.reset({
-                    firstName: userProfile.firstName || '',
-                    lastName: userProfile.lastName || '',
-                });
-            }
-            if (!generalDirtyRef.current) setGeneralState({ timezone: userProfile.timezone || '' });
-            if (userProfile.notificationSettings && !notificationsDirtyRef.current) setNotificationsState(userProfile.notificationSettings);
-            if (!dataDirtyRef.current) {
-                setDataState({
-                    deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never',
-                    transcriptionSettings: userProfile.transcriptionSettings || { autoTranscribe: true }
-                });
-            }
-        }
-    }, [userProfile, profileForm]);
 
     // Auth protection
     useEffect(() => {
@@ -156,25 +127,6 @@ export function useSettingsPage() {
         }
     }, [searchParams]);
 
-    // Handlers
-    const handleUpdateProfile = async (values: z.infer<typeof profileFormSchema>) => {
-        if (!user) return;
-        setSavingProfile(true);
-        try {
-            const response = await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ firstName: values.firstName, lastName: values.lastName }),
-            });
-            if (!response.ok) throw new Error('Failed to update profile');
-            toast({ title: 'Profile Updated', status: 'success' });
-        } catch (error: unknown) {
-            toast({ title: 'Update Failed', description: error instanceof Error ? error.message : 'Unknown error', status: 'danger' });
-        } finally {
-            setSavingProfile(false);
-        }
-    };
-
     const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
         if (!user || !user.email) return;
         setSavingPassword(true);
@@ -192,44 +144,6 @@ export function useSettingsPage() {
             setSavingPassword(false);
             passwordForm.reset();
         }
-    };
-
-    const handleSaveGeneral = async () => {
-        if (!user || !generalState.timezone) return;
-        setSavingGeneral(true);
-        try {
-            await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: generalState.timezone }),
-            });
-            toast({ title: 'Preferences Saved', status: 'success' });
-            generalDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingGeneral(false); }
-    };
-
-    const handleSaveNotifications = async () => {
-        setSavingNotifications(true);
-        try {
-            await authFetch('/api/user/profile', { method: 'PATCH', body: JSON.stringify({ notificationSettings: notificationsState }) });
-            toast({ title: 'Notifications Saved', status: 'success' });
-            notificationsDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingNotifications(false); }
-    };
-
-    const handleSaveData = async () => {
-        setSavingData(true);
-        try {
-            await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    storageSettings: { deletionPolicy: dataState.deletionPolicy },
-                    transcriptionSettings: dataState.transcriptionSettings
-                })
-            });
-            toast({ title: 'Policy Saved', status: 'success' });
-            dataDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingData(false); }
     };
 
     const handleConnectGoogle = () => {

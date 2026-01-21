@@ -13,7 +13,7 @@ CallOrganizer is a modern web application for managing, transcribing, and organi
 *   **Authentication**: Firebase Auth (Google Sign-In, Anonymous).
 *   **AI Services**:
     *   **Google Gemini**: Summarization and analysis.
-    *   **ElevenLabs**: Transcription and diarization.
+    *   **Soniox**: Transcription and diarization.
 *   **External Integrations**:
     *   **Google People API**: Contact synchronization.
 
@@ -35,7 +35,7 @@ graph TD
     
     subgraph "External Services"
         Gemini[Google Gemini]
-        Eleven[ElevenLabs]
+        Soniox[Soniox]
         GPeople[Google People API]
     end
 
@@ -46,7 +46,7 @@ graph TD
     Client -->|Auth| Firebase
     API -->|Verify Token| Firebase
     API -->|Summarize| Gemini
-    API -->|Transcribe| Eleven
+    API -->|Transcribe| Soniox
     API -->|Sync Contacts| GPeople
 ```
 
@@ -62,7 +62,7 @@ graph TD
     *   Efficient indexing for search and retrieval.
 
 3.  **Transcription & Intelligence**:
-    *   Diarized transcription using ElevenLabs.
+    *   Diarized transcription using Soniox.
     *   Semantic search and summarization powered by LLMs (Gemini).
 
 4.  **Contact Management**:

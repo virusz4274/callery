@@ -27,7 +27,7 @@ This document provides a high-level overview of the `vosift` codebase organizati
 │   ├── lib/            # Shared libraries and utilities
 │   │   ├── db/         # Database connection and types
 │   │   ├── firebase/   # Firebase Auth & Admin initialization
-│   │   ├── elevenlabs.ts # Transcription service
+│   │   ├── soniox-service.ts # Transcription service
 │   │   ├── llm.ts      # AI summarization service
 │   │   └── r2.ts       # Cloudflare R2 utilities
 │   ├── themes/         # Theme configurations

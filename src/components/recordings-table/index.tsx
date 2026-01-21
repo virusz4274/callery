@@ -22,7 +22,8 @@ export function RecordingsTable({
     setPage,
     totalCount,
     itemsPerPage,
-    onRecordingsChange
+    onRecordingsChange,
+    onRetryTranscription
 }: RecordingsTableProps) {
     const { toast } = useToast();
     const router = useRouter();
@@ -125,6 +126,7 @@ export function RecordingsTable({
                             selection={selection}
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
+                            onRetryTranscription={onRetryTranscription}
                         />
                         <RecordingsTableMobile
                             recordings={recordings}
@@ -132,6 +134,7 @@ export function RecordingsTable({
                             selection={selection}
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
+                            onRetryTranscription={onRetryTranscription}
                         />
                     </Card.Content>
 

@@ -1,6 +1,8 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { generateEmbedding } from '@/lib/embeddings';
+import { GeminiService } from '@/services/ai/gemini-service';
 import { Recording } from '@/lib/db/types';
+
+const aiService = new GeminiService();
 
 export interface SearchResult extends Recording {
     searchScore: number;
@@ -18,7 +20,7 @@ export async function searchRecordingsByVector(
 
     try {
         const db = await getMongoDb();
-        const queryEmbedding = await generateEmbedding(query);
+        const queryEmbedding = await aiService.generateEmbedding(query);
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
             console.warn('Empty embedding generated for query:', query);

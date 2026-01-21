@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { Recording } from '@/lib/types';
 import { Checkbox, Avatar, Button, Dropdown } from '@heroui/react';
-import { Play, MoreHorizontal, Download, Trash2, FileText } from 'lucide-react';
+import { Play, MoreHorizontal, Download, Trash2, FileText, RefreshCcw } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
 import { TableSelectionState } from './types';
@@ -19,13 +19,15 @@ interface RecordingsTableDesktopProps {
     selection: TableSelectionState;
     onOpenDialog: (recording: Recording) => void;
     onDeleteRequest: (recordings: Recording[]) => void;
+    onRetryTranscription?: (recording: Recording) => void;
 }
 
 export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
     recordings,
     selection,
     onOpenDialog,
-    onDeleteRequest
+    onDeleteRequest,
+    onRetryTranscription
 }: RecordingsTableDesktopProps) {
     const { isAllSelected, toggleSelectAll, isSelected, toggleSelect } = selection;
 
@@ -142,6 +144,15 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                         >
                                                             <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-secondary" /> View Transcript</div>
                                                         </Dropdown.Item>
+                                                        {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending' || rec.transcriptionStatus === 'processing') && onRetryTranscription && (
+                                                            <Dropdown.Item
+                                                                key="retry"
+                                                                textValue="Retry Transcription"
+                                                                onPress={() => onRetryTranscription(rec)}
+                                                            >
+                                                                <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
+                                                            </Dropdown.Item>
+                                                        )}
                                                         <Dropdown.Item key="download" textValue="Download">
                                                             <div className="flex items-center gap-2"><Download className="h-4 w-4 text-success" /> Download</div>
                                                         </Dropdown.Item>

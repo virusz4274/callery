@@ -8,7 +8,8 @@ export type RecordingsTableProps = {
     setPage: (page: number) => void;
     totalCount: number;
     itemsPerPage: number;
-    onRecordingsChange?: () => void;
+    onRecordingsChange?: () => Promise<void> | void;
+    onRetryTranscription?: (recording: Recording) => void;
 };
 
 export type TableSelectionState = {

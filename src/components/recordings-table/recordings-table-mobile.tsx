@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { Recording, Contact } from '@/lib/types';
 import { Avatar, Button, Dropdown } from '@heroui/react';
-import { MoreHorizontal, FileText } from 'lucide-react';
+import { MoreHorizontal, FileText, RefreshCcw } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
 import { TableSelectionState } from './types';
@@ -20,13 +20,15 @@ interface RecordingsTableMobileProps {
     selection: TableSelectionState;
     onOpenDialog: (recording: Recording) => void;
     onDeleteRequest: (recordings: Recording[]) => void;
+    onRetryTranscription?: (recording: Recording) => void;
 }
 
 export const RecordingsTableMobile = memo(function RecordingsTableMobile({
     recordings,
     selection,
     onOpenDialog,
-    onDeleteRequest
+    onDeleteRequest,
+    onRetryTranscription
 }: RecordingsTableMobileProps) {
     const { isSelected, toggleSelect } = selection;
 
@@ -87,6 +89,11 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                             <Dropdown.Item key="view" onPress={() => onOpenDialog(rec)}>
                                                 <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-secondary" /> View Transcript</div>
                                             </Dropdown.Item>
+                                            {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending' || rec.transcriptionStatus === 'processing') && onRetryTranscription && (
+                                                <Dropdown.Item key="retry" onPress={() => onRetryTranscription(rec)}>
+                                                    <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
+                                                </Dropdown.Item>
+                                            )}
                                             <Dropdown.Item key="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>
                                                 Delete
                                             </Dropdown.Item>
