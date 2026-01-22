@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "build:worker": "npm run build && npx opennextjs-cloudflare build --openNextConfigPath ./open-next.config.ts",
     "deploy": "wrangler deploy",
-    "preview": "wrangler dev",
+    "preview": "wrangler dev --port 9000",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {

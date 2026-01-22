@@ -12,7 +12,44 @@
     "kv_namespaces": [
         {
             "binding": "NEXT_CACHE_WORKERS_KV",
-            "id": "create-namespace-result"
+            "id": "81ca9d0db7ad4a83b4f601faae8dd64d"
+        }
+    ],
+    "vars": {
+        "NEXT_PUBLIC_ENABLE_BILLING": "true",
+        "NEXT_PUBLIC_GOOGLE_REDIRECT_URI": "https://vosift.virusz4274.tech/api/auth/google/callback",
+        "// Database": "--------------------------------------------------",
+        "MONGODB_URI": "mongodb+srv://admin:61Q7DOXI9bFhQM£3M@call-memo-cluster1.p794tnf.mongodb.net/callmemo?appName=call-memo-cluster1&retryWrites=true&w=majority",
+        "// AI Models & Keys": "-------------------------------------------",
+        "GEMINI_MODEL_SUMMARY": "gemini-3-flash-preview",
+        "GEMINI_MODEL_TRANSLITERATION": "gemini-3-flash-preview",
+        "GOOGLE_GENERATIVE_AI_API_KEY": "AIzaSyAp-WC1Ha3qCyCGYn3egYkZcbQfqSfcqlQ",
+        "// Soniox Config": "----------------------------------------------",
+        "SONIOX_API_BASE_URL": "https://api.soniox.com",
+        "SONIOX_MODEL_ID": "stt-async-v3",
+        "SONIOX_API_KEY": "1e02bd432143a016c7a8d2c80e87c847e0c8b413207e9a917b76f50cebde83b4",
+        "// Storage (R2)": "-----------------------------------------------",
+        "R2_BUCKET_NAME": "call-memo-recordings",
+        "R2_ENDPOINT": "https://22c4114fc23e0a38b7075b1d90b71cb3.r2.cloudflarestorage.com",
+        "R2_ACCESS_KEY_ID": "c37494516bc85d0cea01ebf06dc859e7",
+        "R2_SECRET_ACCESS_KEY": "dddc35fef20ff3638a768c528495bb263918d3ab5bd47293975f78076abaf95a",
+        "// Stripe Config": "----------------------------------------------",
+        "STRIPE_SECRET_KEY": "sk_test_51SnBtQSMMnKTS4i94bKhWTe0Kvm3NHrYjlVXZC1W3AHXZJzpeolGutixPErCuE3iebeMBfoVyjni9rKVcXfHfTzZ00DZjy55D0",
+        "STRIPE_WEBHOOK_SECRET": "whsec_0ad34914f74e7da602207acfc6c41e46e5e6ce8ce2be1274a516448ebc5db326",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SnBtQSMMnKTS4i98xZo8tEjrXdvDOqZBERQuWr4dJTCxEw795LRLaiRspBeKTfSexhka6CNWKIZMUAlZrdUwcVP00siVfppKh",
+        "// Firebase & Google Auth": "---------------------------------------",
+        "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "471505702598-u4joat1skhhdgn5qb5ecol295rdvpnbk.apps.googleusercontent.com",
+        "GOOGLE_CLIENT_SECRET": "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",
+        "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyCMazCpAoKONfce8-rebvySgP1gOkJjigs",
+        "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "studio-2463297382-22017.firebaseapp.com",
+        "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "studio-2463297382-22017",
+        "NEXT_PUBLIC_FIREBASE_APP_ID": "1:471505702598:web:0c78e368cd5f45510a11c7"
+    },
+    "workers_dev": true,
+    "routes": [
+        {
+            "pattern": "vosift.virusz4274.tech",
+            "custom_domain": true
         }
     ],
     "build": {
