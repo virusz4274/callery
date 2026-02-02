@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth } from '@/lib/firebase/admin';
+// import { getAdminAuth } from '@/lib/firebase/admin';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
 
         // Verify the ID token and create a session cookie
         const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+
+        const { getAdminAuth } = await import('@/lib/firebase/admin');
         const auth = getAdminAuth();
 
         // Verify the token to get user details

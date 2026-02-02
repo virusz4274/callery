@@ -1,12 +1,11 @@
 
 import type { NextConfig } from 'next';
-import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
-initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
   /* config options here */
-  serverExternalPackages: ["jose", "jwks-rsa"],
+
+  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '2000mb',

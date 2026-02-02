@@ -1,57 +1,51 @@
-import { initializeApp, getApps, getApp, App, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { firebaseConfig } from './config';
+import { getApps, getApp, initializeApp, cert, type App } from 'firebase-admin/app';
+import { getAuth, type Auth } from 'firebase-admin/auth';
+import { existsSync } from 'fs';
+import path from 'path';
 
 /**
- * Returns a singleton instance of the Firebase Admin App.
- * Support for FIREBASE_SERVICE_ACCOUNT environment variable.
+ * Get the fully initialized Firebase Admin app.
+ * Ensures singleton pattern (reusing existing app if created).
  */
 export function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
         return getApp();
     }
 
-    // Check for environment variable first
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (serviceAccountJson) {
+    // 1. Try to load from local file (Dev / Docker with mount)
+    const localServiceAccountPath = path.join(process.cwd(), 'service-account.json');
+
+    if (existsSync(localServiceAccountPath)) {
         try {
-            const serviceAccount = JSON.parse(serviceAccountJson);
             return initializeApp({
-                credential: cert(serviceAccount),
-                projectId: firebaseConfig.projectId,
+                credential: cert(localServiceAccountPath),
             });
-        } catch (e) {
-            console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e);
+        } catch (error) {
+            console.error('[Firebase Admin] Failed to load local service-account.json:', error);
+            // Fallthrough to env var
         }
     }
 
-    // Check for file in project root
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const fs = require('fs');
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const path = require('path');
-        const serviceAccountPath = path.join(process.cwd(), 'service-account.json');
-
-        if (fs.existsSync(serviceAccountPath)) {
-            const fileContent = fs.readFileSync(serviceAccountPath, 'utf8');
-            const serviceAccount = JSON.parse(fileContent);
+    // 2. Fallback to Environment Variable (Production / Vercel)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
             return initializeApp({
                 credential: cert(serviceAccount),
-                projectId: firebaseConfig.projectId,
             });
+        } catch (error) {
+            console.error('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', error);
+            throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT environment variable');
         }
-    } catch (e) {
-        console.warn("Failed to load service-account.json:", e);
     }
 
-    // Fallback to default (may use ADC in cloud)
-    console.warn('Falling back to Application Default Credentials (ADC)');
-    return initializeApp({
-        projectId: firebaseConfig.projectId,
-    });
+    throw new Error('Missing Firebase Admin credentials. Please provide service-account.json or FIREBASE_SERVICE_ACCOUNT env var.');
 }
 
-export function getAdminAuth() {
-    return getAuth(getFirebaseAdminApp());
+/**
+ * Get the Firebase Admin Auth service.
+ */
+export function getAdminAuth(): Auth {
+    const app = getFirebaseAdminApp();
+    return getAuth(app);
 }

@@ -5,7 +5,20 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {};
+
+
+// Standard options for Next.js/Serverless environments (Vercel/Docker)
+// We limit pool size to avoid exhausting connections in serverless functions,
+// but keep it high enough for performance.
+const options: any = {
+    maxPoolSize: 10, // Adjust based on your plan/concurrency needs
+    minPoolSize: 0,
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000, // Close sockets after inactivity
+};
+
+console.log('[MongoDB] Using Standard/Serverless optimizations');
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -21,13 +34,19 @@ if (process.env.NODE_ENV === 'development') {
     // is preserved across module reloads caused by HMR (Hot Module Replacement).
     if (!global._mongoClientPromise) {
         client = new MongoClient(uri, options);
-        global._mongoClientPromise = client.connect();
+        console.log('Creating new MongoDB client (dev)...');
+        global._mongoClientPromise = client.connect()
+            .then(c => { console.log('MongoDB Connected (dev)'); return c; })
+            .catch(err => { console.error('MongoDB Connection Error (dev):', err); throw err; });
     }
     clientPromise = global._mongoClientPromise;
 } else {
     // In production mode, it's best to not use a global variable.
     client = new MongoClient(uri, options);
-    clientPromise = client.connect();
+    console.log('Creating new MongoDB client (prod/worker)...');
+    clientPromise = client.connect()
+        .then(c => { console.log('MongoDB Connected (prod/worker)'); return c; })
+        .catch(err => { console.error('MongoDB Connection Error (prod/worker):', err); throw err; });
 }
 
 /**

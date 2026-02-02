@@ -4,8 +4,7 @@ export default [
     ...nextConfig,
     {
         ignores: [
-            ".wrangler/**",
-            ".open-next/**",
+
         ],
     },
 ];
