@@ -7,6 +7,7 @@ import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control'
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
+import { logger } from '@/lib/logger';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
 
         // Set status to processing immediately for UI feedback
         await updateRecording(recordingId, uid, { transcriptionStatus: 'processing' });
-        console.log(`[API/Transcribe] Starting background job for ${recordingId}`);
+        logger.info(`[API/Transcribe] Starting background job for ${recordingId}`);
 
         // 3. Check Transcription Access
         const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
@@ -62,9 +63,9 @@ export async function POST(req: NextRequest) {
         after(async () => {
             try {
                 const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
-                console.log(`[API/Transcribe] Processing ${recordingId}...`);
+                logger.info(`[API/Transcribe] Processing ${recordingId}...`);
                 const result = await transcriptionService.transcribe(fileUrl, recording.duration);
-                console.log(`[API/Transcribe] Transcription received for ${recordingId}`);
+                logger.info(`[API/Transcribe] Transcription received for ${recordingId}`);
 
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
                 let summaryEmbedding: number[] = [];
 
                 if (result.text && result.text.trim()) {
-                    console.log(`[API/Transcribe] Running AI summary and transliteration for ${recordingId}`);
+                    logger.info(`[API/Transcribe] Running AI summary and transliteration for ${recordingId}`);
                     [summary, transliteratedSegments] = await Promise.all([
                         aiService.generateSummary(result.text, result.languageCode),
                         aiService.generateTransliteration(result.segments, result.languageCode)
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
                 }
 
                 // Save Result
-                console.log(`[API/Transcribe] Saving results for ${recordingId}`);
+                logger.info(`[API/Transcribe] Saving results for ${recordingId}`);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'completed',
                     fullTranscript: transliteratedSegments, // This now includes transliteratedText
@@ -95,16 +96,16 @@ export async function POST(req: NextRequest) {
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
-                console.log(`[API/Transcribe] Job completed for ${recordingId}`);
+                logger.info(`[API/Transcribe] Job completed for ${recordingId}`);
 
                 // Delete from Soniox
                 try {
                     await transcriptionService.deleteTranscript(result.transcriptionId);
                 } catch (deleteError) {
-                    console.error('Failed to delete transcript from Soniox:', deleteError);
+                    logger.error('Failed to delete transcript from Soniox:', deleteError);
                 }
             } catch (error) {
-                console.error('[API/Transcribe] Background job failed:', error);
+                logger.error('[API/Transcribe] Background job failed:', error);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'failed',
                 });
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Transcription start error:', error);
+        logger.error('Transcription start error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }

@@ -2,59 +2,66 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Settings, Shield, Users, LayoutDashboard, Upload, CreditCard, Megaphone } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
+import { navigationConfig } from '@/config/navigation';
 
 export function MobileNav() {
   const pathname = usePathname()
   const { user } = useUser();
   const { userProfile } = useUserProfile(user);
 
-  const loggedInNavItems = [
-    { href: "/", name: "Recordings", icon: LayoutDashboard },
-    { href: "/contacts", name: "Contacts", icon: Users },
-    { href: "/upload", name: "Upload", icon: Upload },
-    { href: "/settings", name: "Settings", icon: Settings },
-  ]
-
-  if (userProfile?.role === 'admin') {
-    loggedInNavItems.splice(2, 0, { href: "/admin", name: "Admin", icon: Shield });
-  }
-
-  const adminNavItems = [
-    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Plans', href: '/admin/plans', icon: CreditCard },
-    { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
-  ];
-
-  const loggedOutNavItems = [
-    { href: "/", name: "Home", icon: LayoutDashboard },
-    { href: "/#features", name: "Features", icon: Users },
-    { href: "/#pricing", name: "Pricing", icon: CreditCard },
-    { href: "/login", name: "Login", icon: Settings },
-  ];
-
-  let navItems = user ? loggedInNavItems : loggedOutNavItems.slice(0, 5);
+  let navItems = [];
 
   if (pathname.startsWith('/admin')) {
-    navItems = adminNavItems;
+    // Admin View
+    navItems = [...navigationConfig.admin];
+  } else if (user) {
+    // Logged In User View (Bottom Bar handles main items)
+    // We typically want limited items on the bottom bar for mobile
+    // Let's use the main navigation items, but maybe limit to 4-5
+    navItems = [...navigationConfig.main];
+    if (userProfile?.role === 'admin') {
+      // Insert Admin link
+      // Ideally keeping bottom bar to 4-5 items max. 
+      // Let's replace 'File' or 'Upload' or just append if space?
+      // Current design had 4 items + Admin. Let's just append Admin.
+      navItems = [
+        ...navigationConfig.main.slice(0, 2), // Recordings, Contacts
+        navigationConfig.adminLink,           // Admin
+        ...navigationConfig.main.slice(2)     // Files, Upload
+      ];
+    }
+  } else {
+    // Public View
+    // Usually standard mobile menu handles this, but if we want a bottom bar for public:
+    navItems = [
+      { href: "/", name: "Home", icon: navigationConfig.main[0].icon }, // Reusing dashboard icon for Home
+      ...navigationConfig.public
+    ];
+    // Add Login for public bottom bar
+    navItems.push({ href: "/login", name: "Login", icon: navigationConfig.adminLink.icon }); // Using shield/lock icon type for Login placeholder
   }
 
+  // Limit to 5 items max for bottom bar to avoid crowding
+  const displayItems = navItems.slice(0, 5);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/80 backdrop-blur-lg md:hidden pb-[env(safe-area-inset-bottom)]">
       <nav className="flex items-center justify-around px-2 pt-3 pb-3">
-        {navItems.map((item) => {
-          // For admin dashboard (/admin), exact match is preferred to avoid highlighting it for all admin routes
-          // For other admin routes, startsWith is better to keep the tab active on sub-pages
+        {displayItems.map((item) => {
           const isAdminRoute = pathname.startsWith('/admin');
-          const isActive = isAdminRoute
-            ? (item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href))
-            : pathname === item.href;
+          // Logic to highlight active tab
+          // For Admin: /admin should highlight Dashboard, /admin/users -> Users
+          // For User: / -> Recordings, /contacts -> Contacts
+
+          let isActive = false;
+          if (isAdminRoute && userProfile?.role === 'admin') {
+            isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+          } else {
+            isActive = pathname === item.href;
+          }
 
           return (
             <Link

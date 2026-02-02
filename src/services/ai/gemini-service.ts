@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { TranscriptionSegment } from '@/lib/db/types';
 import { IAIService } from './types';
+import { logger } from '@/lib/logger';
 
 export class GeminiService implements IAIService {
     private ai: GoogleGenAI;
@@ -10,7 +11,7 @@ export class GeminiService implements IAIService {
         this.apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
         if (!this.apiKey) {
-            console.warn('GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY is not defined. AI features will be disabled.');
+            logger.warn('GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY is not defined. AI features will be disabled.');
         }
 
         // Initialize even if key is missing to avoid crash on constructor, but methods will check.
@@ -37,7 +38,7 @@ ${transcript.substring(0, 100000)} [Truncated if too long]
             });
             return result.text || '';
         } catch (error) {
-            console.error('Error generating summary:', error);
+            logger.error('Error generating summary:', error);
             // Fallback to empty string on error to not block flow
             return '';
         }
@@ -96,7 +97,7 @@ ${JSON.stringify(segments)}
             }));
 
         } catch (error) {
-            console.error('Error generating transliteration:', error);
+            logger.error('Error generating transliteration:', error);
             return segments;
         }
     }
@@ -111,7 +112,7 @@ ${JSON.stringify(segments)}
             });
             return result.embeddings?.[0]?.values || [];
         } catch (error) {
-            console.error('Error generating embedding:', error);
+            logger.error('Error generating embedding:', error);
             return [];
         }
     }

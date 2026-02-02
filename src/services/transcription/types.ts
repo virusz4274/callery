@@ -20,3 +20,24 @@ export interface ITranscriptionService {
      */
     deleteTranscript(transcriptionId: string): Promise<void>;
 }
+
+export interface SonioxPollResponse {
+    status: string;
+    tokens?: {
+        text: string;
+        start_ms: number;
+        end_ms: number;
+        speaker: number;
+        confidence: number;
+    }[];
+    words?: {
+        text: string;
+        start_ms: number;
+        end_ms: number;
+        speaker: number;
+        confidence: number;
+    }[];
+    text?: string;
+    detected_language?: string;
+    error_message?: string;
+}

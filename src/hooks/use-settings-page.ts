@@ -92,27 +92,69 @@ export function useSettingsPage() {
         const state = searchParams.get('g_state');
         const error = searchParams.get('error');
 
+        // 1. Handle Error
         if (error) {
             toast({ title: 'Google Sync Failed', description: error.replace(/\+/g, ' ') || 'Could not sync with your Google account.', status: 'danger' });
+            // Clean URL
             const newParams = new URLSearchParams(searchParams.toString());
             newParams.delete('error');
-            router.replace(`/settings?${newParams.toString()}`);
-        } else if (code && state && !isSyncing) {
-            if (processedCodeRef.current === code) return;
-            processedCodeRef.current = code;
+            router.replace(`/settings?${newParams.toString()}`, { scroll: false });
+            return;
+        }
 
-            // Remove params immediately to prevent double-invocation
-            const newParams = new URLSearchParams(searchParams.toString());
-            newParams.delete('g_code');
-            newParams.delete('g_state');
-            router.replace(`/settings?${newParams.toString()}`);
+        // 2. Handle Sync
+        if (code && state && !isSyncing) {
+            // 3. De-duplicate using Ref and SessionStorage (for Strict Mode/Dev resilience)
+            if (typeof window !== 'undefined') {
+                const storageKey = `google_sync_${code}`;
+                if (sessionStorage.getItem(storageKey)) {
+
+                    // Ensure URL is clean if we skipped
+                    const newParams = new URLSearchParams(searchParams.toString());
+                    newParams.delete('g_code');
+                    newParams.delete('g_state');
+                    // Only replace if params exist to avoid loop
+                    if (searchParams.has('g_code')) {
+                        router.replace(`/settings?${newParams.toString()}`, { scroll: false });
+                    }
+                    return;
+                }
+                sessionStorage.setItem(storageKey, 'processing');
+            }
+
+            if (processedCodeRef.current === code) return;
+            processedCodeRef.current = code; // Mark as processing immediately
 
             startSyncTransition(async () => {
-                const result = await syncGoogleContacts(code);
-                if (result.success) {
-                    toast({ title: 'Sync Successful', description: `${result.count} contacts were found and synced.`, status: 'success' });
-                } else {
-                    toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
+
+                try {
+                    // Start a timeout race to detect hangs
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Request timed out after 30s')), 30000)
+                    );
+
+
+                    const result = await Promise.race([
+                        syncGoogleContacts(code),
+                        timeoutPromise
+                    ]) as Awaited<ReturnType<typeof syncGoogleContacts>>;
+
+
+                    if (result.success) {
+                        toast({ title: 'Sync Started', description: result.message || 'Contacts are syncing in the background.', status: 'success' });
+                    } else {
+                        toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
+                    }
+                } catch (err) {
+                    console.error('Google sync error:', err);
+                    toast({ title: 'Sync Error', description: err instanceof Error ? err.message : 'Unexpected error', status: 'danger' });
+                } finally {
+                    // Clean URL AFTER action completes to prevent cancellation
+
+                    const newParams = new URLSearchParams(searchParams.toString());
+                    newParams.delete('g_code');
+                    newParams.delete('g_state');
+                    router.replace(`/settings?${newParams.toString()}`, { scroll: false });
                 }
             });
         }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { linkCustomerToUser, syncSubscription } from '@/lib/stripe/sync';
 import Stripe from 'stripe';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
         }
         event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err: any) {
-        console.error(`Webhook Error: ${err.message}`);
+        logger.error(`Webhook Error: ${err.message}`);
         return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
                 const firebaseUid = session.client_reference_id || session.metadata?.firebaseUid;
 
                 if (!session.customer || !firebaseUid) {
-                    console.error('Missing customer or firebaseUid (client_reference_id) in session');
+                    logger.error('Missing customer or firebaseUid (client_reference_id) in session');
                     break;
                 }
 
@@ -69,10 +70,10 @@ export async function POST(req: NextRequest) {
             }
 
             default:
-            // console.log(`Unhandled event type ${event.type}`);
+            // logger.debug(`Unhandled event type ${event.type}`);
         }
     } catch (err: any) {
-        console.error(`Error processing webhook: ${err.message}`);
+        logger.error(`Error processing webhook: ${err.message}`);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 

@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react';
 import type { Recording, Contact } from '@/lib/types';
-import { Button, Chip, SearchField } from '@heroui/react';
+import { Button, Chip, SearchField, Select, ListBox, Input } from '@heroui/react';
 import { useToast } from '@/components/toast-provider'; // Correct import path
 import { RecordingsTable } from '@/components/recordings-table'; // Resolves to /index.tsx
 import { Users, Phone, Clock, BarChart, Search, Sparkles, Filter, Calendar, ArrowUpAz, ArrowDownAz, SlidersHorizontal } from 'lucide-react';
@@ -308,19 +308,33 @@ export function RecordingsDashboard({
                         <Filter className="w-4 h-4 text-default-500" />
                         <span className="text-sm font-medium text-default-700">Sort:</span>
                     </div>
-                    <select
-                        className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        value={`${currentSort.by}-${currentSort.order}`}
-                        onChange={(e) => {
-                            const [by, order] = e.target.value.split('-');
-                            onSortChange(by as 'date' | 'duration', order as 'asc' | 'desc');
+                    <Select
+                        className="w-48"
+                        aria-label="Sort by"
+                        placeholder="Sort by"
+                        defaultSelectedKeys={[`${currentSort.by}-${currentSort.order}`]}
+                        selectedKeys={[`${currentSort.by}-${currentSort.order}`]}
+                        onSelectionChange={(keys) => {
+                            const selected = Array.from(keys)[0] as string;
+                            if (selected) {
+                                const [by, order] = selected.split('-');
+                                onSortChange(by as 'date' | 'duration', order as 'asc' | 'desc');
+                            }
                         }}
                     >
-                        <option value="date-desc">Newest First</option>
-                        <option value="date-asc">Oldest First</option>
-                        <option value="duration-desc">Longest Duration</option>
-                        <option value="duration-asc">Shortest Duration</option>
-                    </select>
+                        <Select.Trigger>
+                            <Select.Value />
+                            <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover>
+                            <ListBox selectionMode="single">
+                                <ListBox.Item key="date-desc" textValue="Newest First">Newest First</ListBox.Item>
+                                <ListBox.Item key="date-asc" textValue="Oldest First">Oldest First</ListBox.Item>
+                                <ListBox.Item key="duration-desc" textValue="Longest Duration">Longest Duration</ListBox.Item>
+                                <ListBox.Item key="duration-asc" textValue="Shortest Duration">Shortest Duration</ListBox.Item>
+                            </ListBox>
+                        </Select.Popover>
+                    </Select>
 
                     <div className="w-px h-6 bg-default-200 mx-2 hidden sm:block"></div>
 
@@ -329,20 +343,20 @@ export function RecordingsDashboard({
                         <span className="text-sm font-medium text-default-700">Date Range:</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input
+                        <Input
                             type="date"
-                            className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            className="w-40"
+                            aria-label="Start Date"
                             value={currentDateFilter.start || ''}
                             onChange={(e) => onDateFilterChange(e.target.value || undefined, currentDateFilter.end)}
-                            placeholder="Start Date"
                         />
                         <span className="text-default-400">-</span>
-                        <input
+                        <Input
                             type="date"
-                            className="h-9 rounded-lg border border-default-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            className="w-40"
+                            aria-label="End Date"
                             value={currentDateFilter.end || ''}
                             onChange={(e) => onDateFilterChange(currentDateFilter.start, e.target.value || undefined)}
-                            placeholder="End Date"
                         />
                     </div>
 
