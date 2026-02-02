@@ -19,7 +19,7 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # local env files
-.env*.local
+#.env*.local
 #.env
 #service-account.json
 
