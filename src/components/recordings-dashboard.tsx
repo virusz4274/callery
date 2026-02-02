@@ -312,10 +312,10 @@ export function RecordingsDashboard({
                         className="w-48"
                         aria-label="Sort by"
                         placeholder="Sort by"
-                        defaultSelectedKeys={[`${currentSort.by}-${currentSort.order}`]}
-                        selectedKeys={[`${currentSort.by}-${currentSort.order}`]}
-                        onSelectionChange={(keys) => {
-                            const selected = Array.from(keys)[0] as string;
+                        defaultSelectedKey={`${currentSort.by}-${currentSort.order}`}
+                        selectedKey={`${currentSort.by}-${currentSort.order}`}
+                        onSelectionChange={(key) => {
+                            const selected = key as string;
                             if (selected) {
                                 const [by, order] = selected.split('-');
                                 onSortChange(by as 'date' | 'duration', order as 'asc' | 'desc');

@@ -81,7 +81,7 @@ export default function SupportPage() {
                         </TextField>
                         <TextField>
                             <Label>Message</Label>
-                            <TextArea placeholder="Describe your issue..." minRows={4} />
+                            <TextArea placeholder="Describe your issue..." rows={4} />
                         </TextField>
                         <div className="flex justify-end mt-4">
                             <Button className="bg-primary text-white" type="submit">

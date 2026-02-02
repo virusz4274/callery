@@ -86,7 +86,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
                 Login
               </Link>
               <Link href="/signup">
-                <Button color="primary" size="sm" className="font-medium rounded-full px-6">
+                <Button size="sm" className="font-medium rounded-full px-6 bg-primary text-white">
                   Sign Up
                 </Button>
               </Link>
