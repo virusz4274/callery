@@ -1,6 +1,7 @@
-import { ITranscriptionService, TranscriptionResult } from './types';
+import { ITranscriptionService, TranscriptionResult, SonioxPollResponse } from './types';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logSystemEvent } from '@/lib/db/system-log';
+import { logger } from '@/lib/logger';
 
 export class SonioxService implements ITranscriptionService {
     private apiKey: string;
@@ -9,7 +10,7 @@ export class SonioxService implements ITranscriptionService {
 
     constructor() {
         if (!process.env.SONIOX_API_KEY) {
-            console.warn('SONIOX_API_KEY is not defined. Transcription will fail.');
+            logger.warn('SONIOX_API_KEY is not defined. Transcription will fail.');
         }
         this.apiKey = process.env.SONIOX_API_KEY || '';
         this.baseUrl = process.env.SONIOX_API_BASE_URL || 'https://api.soniox.com';
@@ -22,7 +23,7 @@ export class SonioxService implements ITranscriptionService {
         }
 
         try {
-            console.log(`[Soniox] Requesting transcription for: ${fileUrl}`);
+            logger.debug(`[Soniox] Requesting transcription for: ${fileUrl}`);
             const startResponse = await fetch(`${this.baseUrl}/v1/transcriptions`, {
                 method: 'POST',
                 headers: {
@@ -38,7 +39,7 @@ export class SonioxService implements ITranscriptionService {
 
             if (!startResponse.ok) {
                 const errorText = await startResponse.text();
-                console.error(`[Soniox] Start Error (${startResponse.status}): ${errorText}`);
+                logger.error(`[Soniox] Start Error (${startResponse.status}): ${errorText}`);
 
                 // Handle Billing/Quota Errors
                 if (startResponse.status === 402 || startResponse.status === 429 || (startResponse.status === 403 && errorText.includes('quota'))) {
@@ -63,11 +64,11 @@ export class SonioxService implements ITranscriptionService {
             const transcriptionId = startData.id;
 
             if (!transcriptionId) {
-                console.error('[Soniox] No transcription ID in response:', startData);
+                logger.error('[Soniox] No transcription ID in response:', startData);
                 throw new Error('No transcription_id returned from Soniox');
             }
 
-            console.log(`[Soniox] Started transcription ID: ${transcriptionId}`);
+            logger.info(`[Soniox] Started transcription ID: ${transcriptionId}`);
 
             // 2. Poll for Completion
             // Smart Delay: Wait for ~30% of audio duration (capped at 30s) before first poll
@@ -77,10 +78,10 @@ export class SonioxService implements ITranscriptionService {
                 : 2000;
 
             const safeWaitMs = Math.max(initialWaitMs, 2000);
-            console.log(`[Soniox] Smart Polling: Waiting ${safeWaitMs}ms before first check (Duration: ${durationSeconds || '?'}s)`);
+            logger.debug(`[Soniox] Smart Polling: Waiting ${safeWaitMs}ms before first check (Duration: ${durationSeconds || '?'}s)`);
 
             // Poll every 2 seconds, with max 500 attempts (~15 mins)
-            let resultData: any = null;
+            let resultData: SonioxPollResponse | null = null;
             let status = 'QUEUED';
             let attempts = 0;
             const maxAttempts = 500;
@@ -104,19 +105,19 @@ export class SonioxService implements ITranscriptionService {
 
                 if (!pollResponse.ok) {
                     // If polling fails, log but maybe retry?
-                    console.warn(`[Soniox] Polling failed: ${pollResponse.status}`);
+                    logger.warn(`[Soniox] Polling failed: ${pollResponse.status}`);
                     continue;
                 }
 
-                const data = await pollResponse.json();
+                const data = (await pollResponse.json()) as SonioxPollResponse;
                 status = (data.status || 'UNKNOWN').toUpperCase();
 
-                console.log(`[Soniox] Poll #${attempts} raw:`, JSON.stringify(data));
-                console.log(`[Soniox] Poll #${attempts} parsed: status=${status}, tokens=${(data.tokens || data.words || [])?.length || 0}, text=${!!data.text}`);
+                // Removed verbose logs per audit
+                // logger.debug(`[Soniox] Poll #${attempts} status: ${status}`);
 
                 // Check for completion
                 if (status === 'COMPLETED') {
-                    console.log(`[Soniox] Transcription status is COMPLETED at attempt ${attempts}. Fetching full transcript...`);
+                    logger.info(`[Soniox] Transcription status is COMPLETED at attempt ${attempts}. Fetching full transcript...`);
 
                     // Final fetch for the actual transcript data
                     const transcriptResponse = await fetch(`${this.baseUrl}/v1/transcriptions/${transcriptionId}/transcript`, {
@@ -128,35 +129,35 @@ export class SonioxService implements ITranscriptionService {
 
                     if (!transcriptResponse.ok) {
                         const err = await transcriptResponse.text();
-                        console.error(`[Soniox] Failed to fetch transcript data (${transcriptResponse.status}): ${err}`);
+                        logger.error(`[Soniox] Failed to fetch transcript data (${transcriptResponse.status}): ${err}`);
                         throw new Error(`Failed to fetch Soniox transcript data: ${transcriptResponse.status}`);
                     }
 
-                    resultData = await transcriptResponse.json();
-                    console.log(`[Soniox] Successfully fetched transcript data. Tokens: ${resultData.tokens?.length || 0}`);
+                    resultData = await transcriptResponse.json() as SonioxPollResponse;
+                    logger.info(`[Soniox] Successfully fetched transcript data. Tokens: ${resultData.tokens?.length || 0}`);
                     break;
                 } else if (status === 'FAILED') {
-                    console.error('[Soniox] Transcription status FAILED:', data.error_message);
+                    logger.error('[Soniox] Transcription status FAILED:', data.error_message);
                     throw new Error(`Soniox transcription failed: ${data.error_message || 'Unknown error'}`);
                 }
 
-                // If not completed yet, show short log
-                if (attempts % 5 === 0) {
-                    console.log(`[Soniox] Still waiting for ${transcriptionId}... (Status: ${status})`);
+                // Keep heartbeat log less frequent
+                if (attempts % 10 === 0) {
+                    logger.debug(`[Soniox] Still waiting for ${transcriptionId}... (Status: ${status})`);
                 }
             }
 
             if (!resultData) {
-                console.error(`[Soniox] Polling timed out or failed after ${attempts} attempts`);
+                logger.error(`[Soniox] Polling timed out or failed after ${attempts} attempts`);
                 throw new Error('Transcription timed out or did not complete successfully.');
             }
 
-            console.log('[Soniox] Beginning result processing...');
+            logger.debug('[Soniox] Beginning result processing...');
             const words = resultData.tokens || resultData.words || [];
             const segments = this.processWordsIntoSegments(words);
 
             const detectedLanguage = resultData.detected_language || 'unknown';
-            console.log(`[Soniox] Processed ${segments.length} segments. Language: ${detectedLanguage}`);
+            logger.info(`[Soniox] Processed ${segments.length} segments. Language: ${detectedLanguage}`);
 
             // Construct full text from words if not provided directly
             // Soniox results often include full text, but let's build it if segments exist check
@@ -171,7 +172,7 @@ export class SonioxService implements ITranscriptionService {
             };
 
         } catch (error) {
-            console.error('[Soniox] Transcription Error:', error);
+            logger.error('[Soniox] Transcription Error:', error);
             throw error;
         }
     }
@@ -189,13 +190,13 @@ export class SonioxService implements ITranscriptionService {
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    console.warn(`[Soniox] Transcript ${transcriptionId} not found (already deleted?)`);
+                    logger.warn(`[Soniox] Transcript ${transcriptionId} not found (already deleted?)`);
                     return;
                 }
-                console.error(`[Soniox] Failed to delete transcript: ${response.status}`);
+                logger.error(`[Soniox] Failed to delete transcript: ${response.status}`);
             }
         } catch (error) {
-            console.error('[Soniox] Delete Error:', error);
+            logger.error('[Soniox] Delete Error:', error);
         }
     }
 

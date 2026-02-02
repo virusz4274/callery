@@ -21,8 +21,8 @@ import { calculateBilledDuration } from '@/lib/utils/billing';
 
 import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { reportUsage } from '@/lib/stripe/usage';
+import { logger } from '@/lib/logger';
 
-// Initialize Firebase Admin
 // Initialize Firebase Admin
 getFirebaseAdminApp();
 
@@ -99,7 +99,7 @@ export async function uploadRecordings(
             const metadata = await parseBuffer(buffer, file.type || 'audio/mpeg');
             duration = metadata.format.duration || 0;
           } catch (e) {
-            console.warn(`[uploadRecordings] Failed to extract duration for ${file.name}:`, e);
+            logger.warn(`[uploadRecordings] Failed to extract duration for ${file.name}:`, e);
           }
 
           // Parse contact info from filename if possible
@@ -112,7 +112,7 @@ export async function uploadRecordings(
 
           // Validate MIME type
           if (!validateAudioMimeType(mimeType)) {
-            console.warn(`[uploadRecordings] Skipping file ${file.name}: Invalid MIME type ${mimeType}`);
+            logger.warn(`[uploadRecordings] Skipping file ${file.name}: Invalid MIME type ${mimeType}`);
             return { success: false, error: `${file.name} (invalid format)` };
           }
 
@@ -196,7 +196,7 @@ export async function uploadRecordings(
           };
 
           const createdRecording = await createRecording(recordingData);
-          console.log(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
+          logger.info(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
 
           // Update user's storage usage
           await incrementStorageUsed(firebaseUid, buffer.length);
@@ -216,7 +216,7 @@ export async function uploadRecordings(
                 // Check Transcription Access
                 const transcriptionAccess = await checkTranscriptionAccess(freshUser, duration);
                 if (!transcriptionAccess.allowed) {
-                  console.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${transcriptionAccess.reason}`);
+                  logger.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${transcriptionAccess.reason}`);
                   // We don't fail the recording (it's uploaded), just the transcription status?
                   // Or keep it 'pending' so they can try manually later?
                   // 'failed' implies it broke. 'pending' implies waiting. 
@@ -230,7 +230,7 @@ export async function uploadRecordings(
                   return;
                 }
 
-                console.log(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
+                logger.info(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
 
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'processing',
@@ -239,24 +239,43 @@ export async function uploadRecordings(
                 const fileUrl = await getSignedR2Url(r2Key, 1800);
                 const result = await transcriptionService.transcribe(fileUrl, duration);
 
+                // CRITICAL FIX: Save raw transcript IMMEDIATELY
+                // This ensures the user sees the text even if AI summary/transliteration takes time or fails
+                logger.info(`[uploadRecordings] Soniox finished. Saving raw transcript for ${createdRecording._id}...`);
+                await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                  fullTranscript: result.segments, // Save raw segments first
+                  languageCode: result.languageCode,
+                  // Keep status as 'processing' so UI knows we are still working on summary/AI
+                  transcriptionStatus: 'processing',
+                });
+
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
                 let transliteratedSegments = result.segments;
                 let summaryEmbedding: number[] = [];
 
                 if (result.text && result.text.trim()) {
-                  [summary, transliteratedSegments] = await Promise.all([
+                  logger.info(`[uploadRecordings] AI Processing Start for ${createdRecording._id}...`);
+
+                  // Run generation in parallel
+                  const [summaryResult, translitResult] = await Promise.all([
                     aiService.generateSummary(result.text, result.languageCode),
                     aiService.generateTransliteration(result.segments, result.languageCode)
                   ]);
 
+                  summary = summaryResult;
+                  transliteratedSegments = translitResult;
+
                   // Generate embedding from summary
-                  summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
+                  if (summary) {
+                    summaryEmbedding = await aiService.generateEmbedding(summary);
+                  }
                 }
 
+                logger.info(`[uploadRecordings] Finalizing recording ${createdRecording._id}...`);
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'completed',
-                  fullTranscript: transliteratedSegments,
+                  fullTranscript: transliteratedSegments, // Update with transliterated version
                   languageCode: result.languageCode,
                   summary,
                   summaryEmbedding,
@@ -266,13 +285,13 @@ export async function uploadRecordings(
                 const billedDuration = calculateBilledDuration(duration);
                 await incrementTranscriptionUsed(firebaseUid, billedDuration);
                 await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
-                console.log(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
+                logger.info(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
 
                 // Delete from Soniox
                 await transcriptionService.deleteTranscript(result.transcriptionId);
-                console.log(`[uploadRecordings] Background: Transcription complete for ${createdRecording._id.toString()}`);
+                logger.info(`[uploadRecordings] Background: Transcription & AI Complete for ${createdRecording._id.toString()}`);
               } catch (transcriptionError) {
-                console.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
+                logger.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'failed',
                 });
@@ -282,7 +301,7 @@ export async function uploadRecordings(
 
           return { success: true };
         } catch (error) {
-          console.error(`[uploadRecordings] ❌ Failed to upload file ${file.name}:`, error);
+          logger.error(`[uploadRecordings] ❌ Failed to upload file ${file.name}:`, error);
           return { success: false, error: file.name };
         }
       })
@@ -297,7 +316,7 @@ export async function uploadRecordings(
     }
   });
 
-  console.log(`[uploadRecordings] Complete. Uploaded: ${uploadedCount}, Errors: ${errors.length}`);
+  logger.info(`[uploadRecordings] Complete. Uploaded: ${uploadedCount}, Errors: ${errors.length}`);
 
   if (errors.length > 0) {
     return {

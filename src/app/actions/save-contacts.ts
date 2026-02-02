@@ -51,9 +51,7 @@ export async function saveContactsToMongoDB(
                                 contact.name
                             );
 
-                            if (migratedCount > 0) {
-                                console.log(`Migrated ${migratedCount} recordings for contact ${foundContact.name}`);
-                            }
+
                         }
                     }
                 });

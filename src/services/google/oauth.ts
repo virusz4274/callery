@@ -1,6 +1,6 @@
-import { OAuth2Client } from 'google-auth-library';
+import { google } from 'googleapis';
 
-export function getOAuth2Client(redirectUri?: string): OAuth2Client {
+export function getOAuth2Client(redirectUri?: string) {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -13,7 +13,7 @@ export function getOAuth2Client(redirectUri?: string): OAuth2Client {
   // Use the passed redirectUri, or fall back to the environment variable
   const callbackUrl = redirectUri || process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
 
-  return new OAuth2Client(
+  return new google.auth.OAuth2(
     clientId,
     clientSecret,
     callbackUrl

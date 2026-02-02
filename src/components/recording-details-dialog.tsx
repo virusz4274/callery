@@ -12,6 +12,7 @@ import {
 } from '@heroui/react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { Loader2, Wand2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
@@ -152,14 +153,36 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
                     <div className="flex items-center gap-2">
                       {/* Transliteration Toggle */}
                       {recording.fullTranscript?.some(s => s.transliteratedText) && (
-                        <Button
-                          size="sm"
-                          variant={showTransliteration ? "primary" : "secondary"}
-                          onPress={() => setShowTransliteration(!showTransliteration)}
-                          className="text-xs h-8 px-3"
-                        >
-                          {showTransliteration ? "Original" : "Transliteration"}
-                        </Button>
+                        <div className="flex items-center bg-default-100/50 rounded-lg p-1 gap-1 h-9 border border-default-200/50">
+                          <button
+                            onClick={() => setShowTransliteration(false)}
+                            className={`relative px-3 h-full rounded-md text-xs font-medium transition-colors z-10 ${!showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"
+                              }`}
+                          >
+                            {!showTransliteration && (
+                              <motion.div
+                                layoutId="active-pill"
+                                className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                              />
+                            )}
+                            Original
+                          </button>
+                          <button
+                            onClick={() => setShowTransliteration(true)}
+                            className={`relative px-3 h-full rounded-md text-xs font-medium transition-colors z-10 ${showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"
+                              }`}
+                          >
+                            {showTransliteration && (
+                              <motion.div
+                                layoutId="active-pill"
+                                className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                              />
+                            )}
+                            Transliteration
+                          </button>
+                        </div>
                       )}
 
                       {recording.transcriptionStatus !== 'completed' && (

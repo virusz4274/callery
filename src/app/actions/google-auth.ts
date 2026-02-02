@@ -21,6 +21,7 @@ export async function getGoogleAuthUrl() {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
+    prompt: 'consent', // Force consent screen to ensure scopes are granted and we get a refresh token
     // A random string for security
     state: Math.random().toString(36).substring(2, 15),
   });

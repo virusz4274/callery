@@ -152,6 +152,7 @@ export async function updateContact(
  * Upsert multiple contacts (create or update based on phone number).
  * Used for syncing contacts from Google.
  * Handles merging of duplicates and relinking of recordings.
+ * Uses sequential processing with in-memory tracking to handle intra-batch duplicates and prevent E11000 errors.
  */
 export async function upsertContacts(
     firebaseUid: string,
@@ -167,37 +168,79 @@ export async function upsertContacts(
     const db = await getMongoDb();
     const collection = db.collection<Contact>(Collections.CONTACTS);
     const recordingsCollection = db.collection(Collections.RECORDINGS);
+    const { ObjectId } = await import('mongodb');
     const now = new Date();
 
     let created = 0;
     let updated = 0;
-    let deleted = 0; // For tracking merges
+
+    // 1. Pre-fetch existing contacts
+    const existingContacts = await collection.find({ firebaseUid }).toArray();
+    const googleIdMap = new Map<string, Contact>();
+    const phoneMap = new Map<string, Contact>();
+
+    existingContacts.forEach(c => {
+        if (c.googleContactId) googleIdMap.set(c.googleContactId, c);
+        if (c.phoneNumbers && Array.isArray(c.phoneNumbers)) {
+            c.phoneNumbers.forEach(p => {
+                if (!phoneMap.has(p)) phoneMap.set(p, c);
+            });
+        }
+    });
+
+    // 2. Track processed items in this batch to handle intra-batch duplicates
+    // Maps Phone Number -> Contact ID (of the document handled in this batch)
+    const batchProcessedPhones = new Map<string, import('mongodb').ObjectId>();
+    // Maps Google ID -> Contact ID
+    const batchProcessedGoogleIds = new Map<string, import('mongodb').ObjectId>();
 
     for (const contact of contacts) {
         const [firstName, ...lastNameParts] = contact.name.split(' ');
         const lastName = lastNameParts.join(' ');
 
-        // 1. Find by Google ID
-        let googleMatch = contact.googleContactId
-            ? await collection.findOne({ firebaseUid, googleContactId: contact.googleContactId })
-            : null;
+        // A. Resolve Match Candidates
 
-        // 2. Find by Phone Numbers (if no Google ID match or to check for conflicts)
-        // We only care about phone match if it's NOT the same doc as googleMatch
-        let phoneMatch = null;
+        // 1. Check Google ID (DB + Batch)
+        let googleMatchId: import('mongodb').ObjectId | undefined = undefined;
+        let googleMatchDoc: Contact | undefined = undefined;
+
+        if (contact.googleContactId) {
+            // Check batch first
+            if (batchProcessedGoogleIds.has(contact.googleContactId)) {
+                googleMatchId = batchProcessedGoogleIds.get(contact.googleContactId);
+            } else if (googleIdMap.has(contact.googleContactId)) {
+                googleMatchDoc = googleIdMap.get(contact.googleContactId);
+                googleMatchId = googleMatchDoc?._id;
+            }
+        }
+
+        // 2. Check Phone Numbers (DB + Batch)
+        let phoneMatchId: import('mongodb').ObjectId | undefined = undefined;
+        let phoneMatchDoc: Contact | undefined = undefined;
+
         if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-            phoneMatch = await collection.findOne({
-                firebaseUid,
-                phoneNumbers: { $in: contact.phoneNumbers },
-                // Exclude the already matched doc if it exists
-                ...(googleMatch ? { _id: { $ne: googleMatch._id } } : {})
-            });
+            for (const p of contact.phoneNumbers) {
+                // Check batch first
+                if (batchProcessedPhones.has(p)) {
+                    phoneMatchId = batchProcessedPhones.get(p);
+                    break;
+                }
+                // Check DB
+                if (phoneMap.has(p)) {
+                    const found = phoneMap.get(p);
+                    // Exclude if it's the same doc as established google match
+                    if (found && (!googleMatchId || !found._id.equals(googleMatchId))) {
+                        phoneMatchDoc = found;
+                        phoneMatchId = found._id;
+                        break;
+                    }
+                }
+            }
         }
 
         const contactData = {
             name: contact.name,
             email: contact.email || '',
-            phoneNumbers: contact.phoneNumbers,
             googleContactId: contact.googleContactId,
             jobTitle: contact.jobTitle || undefined,
             company: contact.company || undefined,
@@ -206,92 +249,76 @@ export async function upsertContacts(
             updatedAt: now,
         };
 
-        if (googleMatch && phoneMatch) {
-            // MERGE SCENARIO: Found two different contacts (one by ID, one by Phone)
-            // Strategy: Merge PhoneMatch INTO GoogleMatch (Google is source of truth)
+        let targetId: import('mongodb').ObjectId | undefined = undefined;
 
-            // 1. Relink recordings from PhoneMatch to GoogleMatch
-            await recordingsCollection.updateMany(
-                { contactId: phoneMatch._id },
-                { $set: { contactId: googleMatch._id } }
-            );
+        // B. Handle Scenarios using IDs
+        if (googleMatchId && phoneMatchId && !googleMatchId.equals(phoneMatchId)) {
+            // MERGE SCENARIO: Google Match AND separate Phone Match exist.
+            // Priority: Google Match wins. Phone Match is merged/deleted.
 
-            // 2. Update stats on GoogleMatch
-            const totalRecordings = (googleMatch.totalRecordings || 0) + (phoneMatch.totalRecordings || 0);
-            const lastRecordingAt = [googleMatch.lastRecordingAt, phoneMatch.lastRecordingAt]
-                .filter(d => d)
-                .sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] || null;
+            if (phoneMatchDoc) {
+                // 1. Relink recordings
+                await recordingsCollection.updateMany(
+                    { contactId: phoneMatchDoc._id },
+                    { $set: { contactId: googleMatchId } }
+                );
+                // 2. Delete phone doc
+                await collection.deleteOne({ _id: phoneMatchDoc._id });
+                updated++;
 
-            // 3. Update GoogleMatch with new data + merged stats
-            // We also merge any unique phone numbers from phoneMatch that weren't in the new list
-            const mergedPhoneNumbers = Array.from(new Set([
-                ...contact.phoneNumbers,
-                ...(phoneMatch.phoneNumbers || [])
-            ]));
+                // Clean maps
+                if (phoneMatchDoc.phoneNumbers) phoneMatchDoc.phoneNumbers.forEach(p => phoneMap.delete(p));
+                const { incrementContactCount } = await import('./users');
+                await incrementContactCount(firebaseUid, -1);
+            }
+            targetId = googleMatchId;
+        } else if (googleMatchId) {
+            targetId = googleMatchId;
+        } else if (phoneMatchId) {
+            targetId = phoneMatchId;
+        }
 
+        // C. Perform DB Action
+        const finalPhoneNumbers = contact.phoneNumbers || [];
+
+        if (targetId) {
+            // Update
             await collection.updateOne(
-                { _id: googleMatch._id },
+                { _id: targetId },
                 {
-                    $set: {
-                        ...contactData,
-                        phoneNumbers: mergedPhoneNumbers,
-                        totalRecordings,
-                        lastRecordingAt
-                    }
+                    $set: contactData,
+                    $addToSet: { phoneNumbers: { $each: finalPhoneNumbers } }
                 }
             );
-
-            // 4. Delete PhoneMatch
-            await collection.deleteOne({ _id: phoneMatch._id });
-            updated++;
-            deleted++;
-
-            // Decrement count for the deleted duplicate
-            const { incrementContactCount } = await import('./users');
-            await incrementContactCount(firebaseUid, -1);
-
-        } else if (googleMatch) {
-            // Update existing Google Contact
-            await collection.updateOne(
-                { _id: googleMatch._id },
-                { $set: contactData }
-            );
             updated++;
 
-            // Ensure recordings are linked (in case new numbers were added)
-            if (contactData.phoneNumbers?.length) {
-                await linkRecordingsToContact(googleMatch._id, contactData.phoneNumbers, firebaseUid);
-            }
-        } else if (phoneMatch) {
-            // Found by phone only - "Adopt" this manual contact as the Google Contact
-            await collection.updateOne(
-                { _id: phoneMatch._id },
-                { $set: contactData }
-            );
-            updated++;
-
-            // Ensure recordings are linked
-            if (contactData.phoneNumbers?.length) {
-                await linkRecordingsToContact(phoneMatch._id, contactData.phoneNumbers, firebaseUid);
+            if (finalPhoneNumbers.length > 0) {
+                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
             }
         } else {
-            // New Contact
-            const result = await collection.insertOne({
+            // New Insert
+            const res = await collection.insertOne({
                 ...contactData,
                 firebaseUid,
                 createdAt: now,
+                phoneNumbers: finalPhoneNumbers,
                 totalRecordings: 0,
-                lastRecordingAt: null,
+                lastRecordingAt: null
             } as Contact);
+            targetId = res.insertedId;
             created++;
 
-            // Link existing recordings
-            if (contactData.phoneNumbers?.length) {
-                await linkRecordingsToContact(result.insertedId, contactData.phoneNumbers, firebaseUid);
+            if (finalPhoneNumbers.length > 0) {
+                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
             }
         }
-    }
 
+        // D. Update Batch Tracking
+        if (targetId) {
+            if (contact.googleContactId) batchProcessedGoogleIds.set(contact.googleContactId, targetId);
+            finalPhoneNumbers.forEach(p => batchProcessedPhones.set(p, targetId!));
+        }
+    }
 
     if (created > 0) {
         const { incrementContactCount } = await import('./users');
@@ -321,9 +348,6 @@ export async function incrementContactRecordings(
     };
 
     // Only update lastRecordingAt if we are adding a recording (positive amount)
-    // For deletions, we'd ideally recalculate, but skipping for now to keep it simple/performant
-    // or we could just leave it as the last time *activity* happened.
-    // Let's update it if amount > 0.
     if (amount > 0) {
         update.$set.lastRecordingAt = recordingDate;
     }
