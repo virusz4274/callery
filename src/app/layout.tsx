@@ -43,7 +43,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Fetch system settings on the server
+  console.log('[RootLayout] Calling getSystemSettings...');
   const settings = await getSystemSettings();
+  console.log('[RootLayout] getSystemSettings returned.');
 
   return (
     <html lang="en" suppressHydrationWarning>
