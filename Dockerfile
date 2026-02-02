@@ -39,8 +39,7 @@ COPY --from=builder /app/.env ./
 COPY --from=builder /app/service-account.json ./
 
 # Set the correct permission for prerender cache
-mkdir .next
-chown nextjs:nodejs .next
+RUN mkdir -p .next && chown nextjs:nodejs .next
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
