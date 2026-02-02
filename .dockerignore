@@ -6,3 +6,7 @@ README.md
 .next
 .git
 
+# Local env files
+.env.local
+.env.development
+.env.test
