@@ -18,11 +18,12 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
             <Dropdown.Trigger className="ml-2 cursor-pointer">
                 <Avatar
                     className="transition-transform"
-                    color="primary"
+                    color="accent"
                     size="sm"
-                    src={user.photoURL || undefined}
-                    name={(user.displayName || user.email || "U").charAt(0).toUpperCase()}
-                />
+                >
+                    <Avatar.Image src={user.photoURL || undefined} />
+                    <Avatar.Fallback>{(user.displayName || user.email || "U").charAt(0).toUpperCase()}</Avatar.Fallback>
+                </Avatar>
             </Dropdown.Trigger>
             <Dropdown.Popover placement="bottom end">
                 <Dropdown.Menu aria-label="Profile Actions">
@@ -54,7 +55,7 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
                             <p>Privacy Policy</p>
                         </div>
                     </Dropdown.Item>
-                    <Dropdown.Item key="logout" color="danger" onPress={onLogout} textValue="Log Out">
+                    <Dropdown.Item key="logout" variant="danger" onPress={onLogout} textValue="Log Out">
                         <div className="flex items-center gap-2">
                             <LogOut className="h-4 w-4" />
                             <p>Log Out</p>
