@@ -34,7 +34,7 @@ docker build -t call-memo .
 
 **Run the Container:**
 ```bash
-docker run -p 3000:3000 call-memo
+docker run -p 9000:3000 call-memo
 ```
 *Note: Since you authorized baking secrets into the image, you do NOT need to mount files or pass env vars at runtime. The image is self-contained.*
 

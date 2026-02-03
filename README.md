@@ -4,12 +4,13 @@ A modern web application for managing, transcribing, and organizing phone call r
 
 ## Documentation
 
-*   [**Setup Guide**](docs/setup-guide.md): Installation, environment variables, and running locally.
-*   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
-*   [**Data Model**](docs/data-model.md): MongoDB schema and types.
-*   [**Project Structure**](docs/project-structure.md): Codebase organization and key files.
-*   [**API Reference**](docs/api-reference.md): API endpoints documentation.
-*   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
+**[📚 View Full Documentation](docs/README.md)**
+
+*   **[User Guide](docs/user-guide.md)**: Features and usage instructions.
+*   **[Setup Guide](docs/setup-guide.md)**: Local development setup.
+*   **[API Reference](docs/api-reference.md)**: API endpoints.
+*   **[Billing System](docs/billing.md)**: Plans and Stripe integration.
+*   **[Changelog](CHANGELOG.md)**: Version history.
 
 ## Quick Start
 
@@ -31,4 +32,4 @@ A modern web application for managing, transcribing, and organizing phone call r
     npm run dev
     ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:9000](http://localhost:9000) with your browser to see the result.

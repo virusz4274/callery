@@ -29,6 +29,7 @@ The system supports the following plan tiers:
     *   **Base Fee**: Covers the included storage/transcription limits.
     *   **Limits**: Enforced by default.
     *   **Overage**: If "Pay Per Usage" is enabled in settings, usage beyond the limit is billed via Stripe Metered Billing. If disabled, actions are blocked.
+    *   **Storage Allowance**: Based on **stored bytes** (Google Drive-style), billed by peak stored bytes per billing period.
 
 3.  **Lifetime**:
     *   One-time payment for platform access.
@@ -43,9 +44,22 @@ This setting controls whether a user can exceed their plan limits.
     *   User can upload/transcribe beyond limits.
     *   Excess usage is reported to Stripe and billed at the end of the billing cycle.
     *   *Default for Lifetime users.*
-*   **Disabled**:
     *   User is strictly blocked from uploading or transcribing once limits are reached.
     *   *Default for Standard/Pro users.*
+
+### Overage Billing Example (Important)
+
+**Scenario**: User is on the **Pro Plan** (5 GB limit) and has "Pay Per Usage" enabled. They upload files totaling **10 GB**.
+
+1.  **Month 1**:
+    *   **Usage**: 10 GB total (5 GB included + 5 GB overage).
+    *   **Bill**: $20 (Base Plan) + (5 GB * Storage Rate).
+2.  **Month 2** (User keeps files, uploads nothing new):
+    *   **Usage**: 10 GB total is re-reported at start of month.
+    *   **Bill**: $20 (Base Plan) + (5 GB * Storage Rate).
+    *   **Reason**: Storage is a recurring cost. You pay for the space you occupy *every month*.
+3.  **Transcription**:
+    *   Transcription is **billed once** upon usage. If you transcribe 100 minutes in Month 1, you pay for it in Month 1. You are **not** billed again for those minutes in Month 2, even if you keep the text.
 
 ## Backend Architecture
 
@@ -64,10 +78,13 @@ See [Data Model](data-model.md) for full `User` and `Plan` schemas. Key fields:
 *   **Sync (`src/lib/stripe/sync.ts`)**:
     *   Webhooks (`invoice.payment_succeeded`, `customer.subscription.updated`) trigger a sync.
     *   **Self-Healing**: Automatically re-adds missing metered subscription items (Storage/Transcription) if they are dropped during a plan switch.
-    *   **Billing Thresholds**: Sets a $10 threshold on metered items to trigger automatic invoicing if usage spikes.
+    *   **Billing Thresholds**: Configure thresholds on the Stripe Meter itself (optional).
 
 *   **Usage Reporting (`src/lib/stripe/usage.ts`)**:
-    *   Usage is reported to Stripe (`stripe.subscriptionItems.createUsageRecord`) whenever a file is uploaded (storage) or transcribed (transcription).
+    *   Usage is reported to Stripe via **Meter Events**.
+    *   **Storage** is billed by **peak stored bytes per billing period** (deletions do not reduce the billed peak).
+    *   A baseline storage event is sent at the start of each billing period, and updates are sent only when a new peak is reached.
+    *   Transcription usage is tracked in **seconds**, rounded to 15-second blocks.
     *   Only reports if the user has a valid Stripe subscription and is not on a Free/Trial plan.
 
 ### Access Control (`src/lib/access-control.ts`)
@@ -91,7 +108,8 @@ Centralized logic determines if a user action is allowed:
 
 ## Stripe Dashboard Setup
 
-To make the billing system work, you must manually configure Products and Prices in the Stripe Dashboard.
+To make the billing system work, you must manually configure Products, Prices, and Meters in the Stripe Dashboard.
+For full step-by-step instructions, see `docs/stripe-setup.md`.
 
 ### 1. Create Base Plan Products
 For each paid plan (Standard, Pro, Lifetime), create a Product:
@@ -114,25 +132,29 @@ You must create **Meters** in Stripe to track usage.
 
 1.  Go to **Billing > Meters**.
 2.  **Storage Meter**:
-    *   **Name**: Storage Usage
-    *   **Event Name**: `storage_usage_gb` (CRITICAL: Must match exactly)
-    *   **Aggregation**: Sum
-    *   **Value Settings**: "Events include a value to sum"
+    *   **Name**: Storage Usage (Bytes)
+    *   **Event Name**: `storage_usage_bytes` (CRITICAL: Must match exactly)
+    *   **Aggregation**: Last (we report the peak stored bytes)
+    *   **Value Settings**: "Events include a value"
 3.  **Transcription Meter**:
-    *   **Name**: Transcription Usage
-    *   **Event Name**: `transcription_usage_min` (CRITICAL: Must match exactly)
+    *   **Name**: Transcription Usage (Seconds)
+    *   **Event Name**: `transcription_usage_seconds` (CRITICAL: Must match exactly)
     *   **Aggregation**: Sum
     *   **Value Settings**: "Events include a value to sum"
+    *   **Note**: Values are whole seconds (rounded to 15-second blocks).
 
 ### 3. Create Metered Prices
 Now create Prices that charge based on these Meters.
 
 1.  Create a Product (e.g., "VoSift Usage").
 2.  Add a Price:
-    *   **Pricing Model**: Package or Per-Unit.
+    *   **Pricing Model**: Per-Unit.
     *   **Usage Type**: Metered.
-    *   **Meter**: Select "Storage Usage" (or "Transcription Usage").
+    *   **Meter**: Select "Storage Usage (Bytes)" (or "Transcription Usage (Seconds)").
     *   **Recurring**: Monthly.
+    *   **Recommended**: Use **Per package** pricing so you can set per‑GB and per‑minute rates directly.
+    *   **Storage**: package size `1,000,000,000` (bytes) with price = $/GB.
+    *   **Transcription**: package size `60` (seconds) with price = $/minute.
 
 ### 4. Configure Customer Portal
 
@@ -179,4 +201,3 @@ Copy the Price IDs into `src/lib/db/init.ts`...
 ```
 
 Then re-run: `npx tsx src/lib/db/init.ts`
-

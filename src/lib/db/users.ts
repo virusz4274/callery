@@ -186,6 +186,7 @@ export async function ensureUserProfile(
             },
             storageUsed: 0,
             storageAllocation,
+            storagePeakUsed: 0,
             transcriptionUsed: 0,
             transcriptionAllocation,
             totalContacts: 0,
@@ -220,16 +221,19 @@ export async function ensureUserProfile(
 export async function incrementStorageUsed(
     firebaseUid: string,
     bytes: number
-): Promise<void> {
+): Promise<User | null> {
     const db = await getMongoDb();
 
-    await db.collection<User>(Collections.USERS).updateOne(
+    const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
         { firebaseUid },
         {
             $inc: { storageUsed: bytes },
             $set: { updatedAt: new Date() }
-        }
+        },
+        { returnDocument: 'after' }
     );
+
+    return result as User | null;
 }
 
 /**
@@ -248,6 +252,68 @@ export async function decrementStorageUsed(
             $set: { updatedAt: new Date() }
         }
     );
+}
+
+/**
+ * Update the user's storage peak usage for the current billing period.
+ * Should be called when storage usage increases or when a new period begins.
+ */
+export async function setStoragePeakUsed(
+    firebaseUid: string,
+    peakBytes: number,
+    periodEnd?: Date
+): Promise<User | null> {
+    const db = await getMongoDb();
+    const updateData: Record<string, unknown> = {
+        storagePeakUsed: peakBytes,
+        updatedAt: new Date(),
+    };
+
+    if (periodEnd) {
+        updateData.storagePeakPeriodEnd = periodEnd;
+    }
+
+    const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
+        { firebaseUid },
+        { $set: updateData },
+        { returnDocument: 'after' }
+    );
+
+    return result as User | null;
+}
+
+/**
+ * Bump the storage peak only if the new value is higher.
+ * Returns true if the peak was updated.
+ */
+export async function bumpStoragePeakUsed(
+    firebaseUid: string,
+    peakBytes: number,
+    periodEnd?: Date
+): Promise<boolean> {
+    const db = await getMongoDb();
+    const updateData: Record<string, unknown> = {
+        storagePeakUsed: peakBytes,
+        updatedAt: new Date(),
+    };
+
+    if (periodEnd) {
+        updateData.storagePeakPeriodEnd = periodEnd;
+    }
+
+    const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
+        {
+            firebaseUid,
+            $or: [
+                { storagePeakUsed: { $exists: false } },
+                { storagePeakUsed: { $lt: peakBytes } },
+            ],
+        },
+        { $set: updateData },
+        { returnDocument: 'after' }
+    );
+
+    return !!result;
 }
 
 /**
@@ -345,6 +411,8 @@ export async function checkAndResetUsageCycle(user: User): Promise<User> {
                 $set: {
                     transcriptionUsed: 0, // Reset monthly transcription usage
                     stripeCurrentPeriodEnd: nextPeriodEnd,
+                    storagePeakUsed: user.storageUsed,
+                    storagePeakPeriodEnd: nextPeriodEnd,
                     updatedAt: new Date(),
                 }
             },

@@ -16,15 +16,27 @@ Stores user profile information and settings.
 | `lastName` | `string` | Last name. |
 | `name` | `string` | Full name (computed or stored). |
 | `phoneNumber` | `string` | User's primary phone number. |
+| `photoURL` | `string` | (Optional) Profile picture URL. |
 | `role` | `'user' \| 'admin'` | User role. |
-| `plan` | `'Free' \| 'Pro'` | Subscription plan. |
+| `plan` | `string` | Subscription plan name. |
+| `disabled` | `boolean` | (Optional) Account disabled status. |
 | `timezone` | `string` | User's preferred timezone. |
 | `storageUsed` | `number` | Storage used in bytes. |
 | `storageAllocation` | `number` | Storage limit in bytes. |
+| `storagePeakUsed` | `number` | Peak stored bytes for the current billing period. |
+| `storagePeakPeriodEnd` | `Date` | Billing period end associated with `storagePeakUsed`. |
 | `transcriptionUsed` | `number` | Transcription used in seconds. |
 | `transcriptionAllocation` | `number` | Transcription limit in seconds. |
+| `totalContacts` | `number` | Total number of contacts. |
+| `totalRecordings` | `number` | Total number of recordings. |
+| `totalDuration` | `number` | Total duration of all recordings. |
+| `stripeCustomerId` | `string` | Stripe Customer ID. |
+| `stripeSubscriptionId` | `string` | Stripe Subscription ID. |
+| `stripePriceId` | `string` | Current Stripe Price ID. |
 | `stripeSubscriptionStatus` | `string` | Stripe status (active, past_due, etc.). |
+| `stripeCurrentPeriodEnd` | `Date` | End of current Stripe billing period. |
 | `trialEndsAt` | `Date` | Timestamp when free trial expires. |
+| `lastLoginAt` | `Date` | Last login timestamp. |
 | `createdAt` | `Date` | Account creation timestamp. |
 | `updatedAt` | `Date` | Last update timestamp. |
 
@@ -32,9 +44,17 @@ Stores user profile information and settings.
 ```typescript
 notificationSettings: {
     activityDigest: 'off' | 'weekly' | 'monthly';
+    ingestSuccess: boolean;
+    ingestFail: boolean;
 }
 billingSettings: {
     allowOverage: boolean; // "Pay Per Usage" toggle
+}
+storageSettings: {
+    deletionPolicy: 'never' | '3m' | '6m' | '1y';
+}
+transcriptionSettings: {
+    autoTranscribe: boolean;
 }
 ```
 
@@ -47,12 +67,19 @@ Stores subscription plan definitions.
 | :--- | :--- | :--- |
 | `_id` | `ObjectId` | Unique identifier. |
 | `name` | `string` | Plan name (e.g., "Free Trial", "Pro"). |
+| `description` | `string` | (Optional) Brief plan description. |
 | `price` | `number` | Cost in cents/units. |
+| `currency` | `string` | Currency code (e.g., 'USD'). |
+| `interval` | `'monthly' \| 'yearly' \| 'lifetime'` | Billing interval. |
 | `limits` | `object` | `{ storage: number, transcription: number }` |
 | `stripePriceId` | `string` | Stripe Price ID for base plan. |
 | `stripeStoragePriceId` | `string` | Stripe Price ID for Metered Storage. |
 | `stripeTranscriptionPriceId` | `string` | Stripe Price ID for Metered Transcription. |
 | `features` | `string[]` | List of features for UI display. |
+| `isDefault` | `boolean` | Whether this is the default plan. |
+| `isActive` | `boolean` | Whether the plan is currently available. |
+| `createdAt` | `Date` | Creation timestamp. |
+| `updatedAt` | `Date` | Last update timestamp. |
 
 ---
 
@@ -62,31 +89,43 @@ Stores metadata for audio recordings.
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `_id` | `ObjectId` | Unique identifier. |
-| `userId` | `string` | Reference to the owner (Firebase UID). |
+| `firebaseUid` | `string` | Reference to the owner (Firebase UID). |
 | `contactId` | `ObjectId` | Reference to `contacts` collection (optional). |
 | `contactName` | `string` | Cached contact name. |
 | `phoneNumber` | `string` | Phone number associated with the call. |
 | `r2Key` | `string` | Key/Path in Cloudflare R2 storage. |
 | `fileName` | `string` | Original file name. |
+| `fileSize` | `number` | Size of file in bytes. |
+| `mimeType` | `string` | MIME type of file. |
 | `duration` | `number` | Duration in seconds. |
+| `standardizedDisplayName` | `string` | (Optional) Cached display name for UI. |
 | `transcriptionStatus` | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Current status of transcription. |
+| `languageCode` | `string` | Language code (e.g., 'en-US'). |
 | `summary` | `string` | AI-generated summary of the call. |
+| `summaryEmbedding` | `number[]` | Vector embedding of the summary. |
+| `transcriptEmbedding` | `number[]` | (Deprecated) Vector embedding of transcript. |
+| `tags` | `string[]` | Array of tags. |
+| `isStarred` | `boolean` | Starred status. |
+| `isArchived` | `boolean` | Archived status. |
 | `recordedAt` | `Date` | Date the call took place. |
 | `createdAt` | `Date` | Date the record was created. |
+| `updatedAt` | `Date` | Last update timestamp. |
 
 **Transcript Structure:**
 ```typescript
 fullTranscript: {
     speakerId: string;
     text: string;
-    start: number;
-    end: number;
+    start?: number;
+    end?: number;
     words: {
         text: string;
-        start: number;
-        end: number;
-        speaker_id: string;
+        start?: number;
+        end?: number;
+        speakerId?: string;
+        confidence?: number;
     }[];
+    transliteratedText?: string;
 }[]
 ```
 
@@ -98,24 +137,78 @@ Stores contact information synced from Google Contacts or manually added.
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `_id` | `ObjectId` | Unique identifier. |
-| `userId` | `string` | Owner reference (Firebase UID). |
+| `firebaseUid` | `string` | Owner reference (Firebase UID). |
 | `googleContactId` | `string` | ID from Google People API. |
 | `name` | `string` | Contact's full name. |
 | `phoneNumbers` | `string[]` | List of phone numbers. |
 | `email` | `string` | Contact's email. |
+| `firstName` | `string` | First name. |
+| `lastName` | `string` | Last name. |
+| `jobTitle` | `string` | Job title. |
+| `company` | `string` | Company name. |
 | `totalRecordings` | `number` | Cache of total recordings with this contact. |
 | `lastRecordingAt` | `Date` | Timestamp of the last conversation. |
+| `createdAt` | `Date` | Creation timestamp. |
+| `updatedAt` | `Date` | Last update timestamp. |
+
+---
+
+### **`system_settings`**
+Singleton document for global system configuration.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `allowSignups` | `boolean` | Toggle to allow/block new signups. |
+| `maintenanceMode` | `boolean` | Toggle maintenance mode. |
+| `defaultPlanId` | `ObjectId` | Reference to the default plan for new users. |
+| `updatedAt` | `Date` | Last update timestamp. |
+
+---
+
+### **`announcements`**
+System-wide announcements.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `title` | `string` | Announcement title. |
+| `message` | `string` | Announcement body content. |
+| `type` | `'info' \| 'warning' \| 'alert' \| 'success'` | Visual type. |
+| `isActive` | `boolean` | Whether the announcement is currently active. |
+| `startDate` | `Date` | Start date to display. |
+| `endDate` | `Date` | (Optional) End date. |
+| `createdBy` | `ObjectId` | Admin ID who created it. |
+| `createdAt` | `Date` | Creation timestamp. |
+
+---
+
+### **`admin_logs`**
+Audit trail for admin actions.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `adminId` | `string` | ID of the admin who performed the action. |
+| `adminEmail` | `string` | Cached email of the admin. |
+| `action` | `string` | Action type (e.g., "USER_BAN", "PLAN_UPDATE"). |
+| `targetId` | `string` | (Optional) ID of the affected resource. |
+| `targetType` | `string` | (Optional) Type of affected resource. |
+| `details` | `object` | Snapshot of changes or arguments. |
+| `ipAddress` | `string` | (Optional) IP address. |
+| `createdAt` | `Date` | Creation timestamp. |
 
 ## Relationships
 
-*   **User -> Plans**: Loose coupling via `plan` name string (or `planId` if migrated).
-*   **User -> Recordings**: One-to-Many (via `userId`).
-*   **User -> Contacts**: One-to-Many (via `userId`).
+*   **User -> Plans**: Reference by `plan` name or dynamic lookup.
+*   **User -> Recordings**: One-to-Many (via `firebaseUid`).
+*   **User -> Contacts**: One-to-Many (via `firebaseUid`).
 *   **Contact -> Recordings**: One-to-Many (via `contactId`).
 
 ## Indexes
 
-*   `users`: `firebaseUid` (unique), `email` (unique).
+*   `users`: `firebaseUid` (unique), `email`.
 *   `plans`: `name` (unique).
-*   `recordings`: `userId`, `contactId`, `recordedAt`, `r2Key`.
-*   `contacts`: `userId`, `phoneNumbers`, `name` (text index for search).
+*   `recordings`: `firebaseUid`, `contactId`, `recordedAt`, `r2Key`.
+*   `contacts`: `firebaseUid`, `phoneNumbers` (unique per user), `name` (text).
+*   `admin_logs`: `createdAt` (desc), `adminId`, `action`.

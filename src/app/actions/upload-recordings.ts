@@ -11,7 +11,7 @@ import {
   getSignedR2Url
 } from '@/lib/r2';
 import { createRecording, updateRecording } from '@/lib/db/recordings';
-import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
+import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle, setStoragePeakUsed, bumpStoragePeakUsed } from '@/lib/db/users';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
 import { GeminiService } from '@/services/ai/gemini-service';
@@ -199,8 +199,25 @@ export async function uploadRecordings(
           logger.info(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
 
           // Update user's storage usage
-          await incrementStorageUsed(firebaseUid, buffer.length);
-          await reportUsage(firebaseUid, 'storage', buffer.length / (1024 * 1024 * 1024)); // Convert bytes to GB for Stripe
+          const updatedUser = await incrementStorageUsed(firebaseUid, buffer.length);
+
+          if (updatedUser) {
+            const currentStorage = updatedUser.storageUsed || 0;
+            const currentPeak = updatedUser.storagePeakUsed || 0;
+            const periodEnd = updatedUser.stripeCurrentPeriodEnd ? new Date(updatedUser.stripeCurrentPeriodEnd) : undefined;
+            const peakPeriodEnd = updatedUser.storagePeakPeriodEnd ? new Date(updatedUser.storagePeakPeriodEnd) : undefined;
+            const periodMismatch = periodEnd && (!peakPeriodEnd || periodEnd.getTime() !== peakPeriodEnd.getTime());
+            if (periodMismatch) {
+              await setStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
+              // Report peak stored bytes for the billing period.
+              await reportUsage(firebaseUid, 'storage', currentStorage);
+            } else if (currentStorage > currentPeak) {
+              const updated = await bumpStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
+              if (updated) {
+                await reportUsage(firebaseUid, 'storage', currentStorage);
+              }
+            }
+          }
 
           // Auto-transcription
           const user = await findUserByFirebaseUid(firebaseUid);
@@ -284,7 +301,7 @@ export async function uploadRecordings(
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(duration);
                 await incrementTranscriptionUsed(firebaseUid, billedDuration);
-                await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
+                await reportUsage(firebaseUid, 'transcription', billedDuration); // Seconds for Stripe Meter
                 logger.info(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
 
                 // Delete from Soniox

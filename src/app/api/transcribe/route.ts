@@ -8,6 +8,7 @@ import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { logger } from '@/lib/logger';
+import { reportUsage } from '@/lib/stripe/usage';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
+                await reportUsage(uid, 'transcription', billedDuration);
                 logger.info(`[API/Transcribe] Job completed for ${recordingId}`);
 
                 // Delete from Soniox

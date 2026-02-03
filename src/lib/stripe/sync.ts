@@ -3,6 +3,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User, Plan } from '@/lib/db/types';
 import { updateUser } from '@/lib/db/users';
 import { stripe } from '@/lib/stripe';
+import { reportUsage } from '@/lib/stripe/usage';
 
 /**
  * Syncs a Stripe Subscription to the MongoDB User document.
@@ -95,6 +96,7 @@ export async function syncSubscription(subscriptionId: string) {
     // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
     // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {
         stripeSubscriptionId: subscription.id,
         stripeSubscriptionStatus: status, // Cast to specific enum if needed
@@ -104,6 +106,15 @@ export async function syncSubscription(subscriptionId: string) {
         // 'billingSettings.allowOverage': false, // Removed: Handled efficiently in plan check
         updatedAt: new Date(),
     };
+
+    const newPeriodEnd = updateData.stripeCurrentPeriodEnd as Date;
+    const oldPeriodEnd = user.stripeCurrentPeriodEnd ? new Date(user.stripeCurrentPeriodEnd) : null;
+    const periodChanged = !oldPeriodEnd || newPeriodEnd.getTime() !== oldPeriodEnd.getTime();
+
+    if (periodChanged) {
+        updateData.storagePeakUsed = user.storageUsed || 0;
+        updateData.storagePeakPeriodEnd = newPeriodEnd;
+    }
 
     if (plan && status === 'active') {
         updateData.plan = plan.name;
@@ -130,6 +141,11 @@ export async function syncSubscription(subscriptionId: string) {
     await updateUser(user.firebaseUid, updateData);
 
     console.log(`[Sync] Updated subscription for user ${user.firebaseUid} (${user.email}) to ${status}`);
+
+    // If a new billing period started, report the current stored bytes so Stripe has a baseline for this period.
+    if (periodChanged) {
+        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0);
+    }
 }
 
 /**
