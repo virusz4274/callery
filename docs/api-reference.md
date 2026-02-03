@@ -81,6 +81,11 @@ Updates user settings.
 Ensures a user profile exists in MongoDB. Called after Firebase Auth login.
 *   **Body**: `{ firebaseUid, email, displayName, firstName, lastName }`
 
+### `PATCH /api/user/billing-settings`
+Toggles "Pay Per Usage" (Overage) settings.
+*   **Body**: `{ allowOverage: boolean }`
+*   **Notes**: Triggers immediate usage reporting to Stripe if enabled. Fails for Free Tier users.
+
 ## Filesystem
 
 ### `GET /api/filesystem`
@@ -100,3 +105,21 @@ Triggers background transcription and summarization for a specific recording.
 Fetches dashboard statistics (total calls, duration, recent activity).
 
 
+## Billing (Stripe)
+
+### `POST /api/stripe/webhook`
+Handles asynchronous events from Stripe.
+*   **Events Handled**:
+    *   `checkout.session.completed`: Upgrades user plan after successful payment.
+    *   `invoice.payment_succeeded`: Process subscription renewals.
+    *   `customer.subscription.updated`: Syncs status changes (cancellations, etc.).
+    *   `customer.subscription.deleted`: Downgrades user to free plan.
+
+### `POST /api/stripe/checkout`
+Creates a Stripe Checkout session for subscription upgrades.
+*   **Body**: `{ priceId: string }`
+*   **Response**: `{ url: string }` (Redirect URL to Stripe)
+
+### `POST /api/stripe/portal`
+Creates a Billing Portal session for users to manage their subscription.
+*   **Response**: `{ url: string }` (Redirect URL to Stripe)

@@ -47,3 +47,25 @@ Manage user subscription tiers and limits.
 ### Maintenance Mode
 Toggle **Maintenance Mode** in the settings. When active, non-admin users will see a maintenance page and cannot access the application.
 
+## Audit Logs
+Located at `/admin/logs` (if implemented in UI).
+
+Tracks critical actions performed by administrators for security and accountability.
+*   **Actions Logged**: User bans, plan changes, setting updates, etc.
+*   **Data Stored**: Admin ID, timestamp, and details of the change.
+
+## System Limits
+*   **Max File Upload Size**: 2GB (Configured in `next.config.ts`).
+*   **Timeout**: Varies by host (Vercel has 60s timeout for Server Actions).
+
+## CLI Utility Scripts
+
+The `scripts/` directory contains several tools for system administration and debugging. Run these using `npx tsx scripts/<script-name>.ts`.
+
+*   **`check-db.ts`**: Verifies MongoDB connection and lists collections/indexes.
+*   **`verify_plans_and_usage.ts`**: Audits user plans against Stripe subscriptions and recalculates usage stats.
+*   **`fix-speaker-ids.ts`**: Repairs speaker ID data in transcripts if corrupted.
+*   **`debug-contacts.ts`**: Helper to debug Google Contact sync issues for a specific user.
+*   **`debug-transcripts.ts`**: Inspects raw transcript data for a recording.
+*   **`test-recording.ts`**: Simulates a recording upload flow.
+

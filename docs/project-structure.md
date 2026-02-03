@@ -27,8 +27,13 @@ This document provides a high-level overview of the `vosift` codebase organizati
 │   ├── lib/            # Shared libraries and utilities
 │   │   ├── db/         # Database connection and types
 │   │   ├── firebase/   # Firebase Auth & Admin initialization
-│   │   ├── soniox-service.ts # Transcription service
-│   │   ├── llm.ts      # AI summarization service
+│   ├── services/       # Business logic and external service integrations
+│   │   ├── ai/         # AI services (Gemini)
+│   │   ├── google/     # Google API integrations (People/Contacts)
+│   │   └── transcription/ # Transcription services (Soniox)
+│   ├── lib/            # Shared libraries and utilities
+│   │   ├── db/         # Database connection and types
+│   │   ├── firebase/   # Firebase Auth & Admin initialization
 │   │   └── r2.ts       # Cloudflare R2 utilities
 │   ├── themes/         # Theme configurations
 │   └── types/          # Global TypeScript definitions
@@ -44,8 +49,12 @@ This document provides a high-level overview of the `vosift` codebase organizati
 *   `tailwind.config.ts`: Visual design tokens and Tailwind setup.
 *   `.env`: Environment variables (API keys, DB URIs).
 
-### **Core Logic (`src/app/actions` & `src/lib`)**
+### **Core Logic (`src/app/actions`, `src/services` & `src/lib`)**
 *   `src/app/actions`: Server Actions for business logic (e.g., `upload-recordings.ts`, `admin.ts`).
+*   `src/services/`: encapsulated business logic and integrations.
+    *   `ai/gemini-service.ts`: Google Gemini integration.
+    *   `transcription/soniox-service.ts`: Soniox transcription service.
+    *   `google/`: Google Contacts sync logic.
 *   `src/lib/db/init.ts`: MongoDB connection handler.
 *   `src/lib/firebase/`: Firebase client/admin setup.
 *   `src/lib/r2.ts`: Cloudflare R2 storage utilities.

@@ -1,9 +1,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid } from '@/lib/db/users'; // updateUser generic function?
+import { findUserByFirebaseUid, setStoragePeakUsed } from '@/lib/db/users'; // updateUser generic function?
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
+import { reportUsage } from '@/lib/stripe/usage';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
@@ -45,6 +46,18 @@ export async function PATCH(req: NextRequest) {
                 }
             }
         );
+
+        // If overage is enabled, send a baseline storage event so Stripe has usage for this period.
+        if (allowOverage) {
+            const refreshedUser = await findUserByFirebaseUid(uid);
+            if (refreshedUser) {
+                const periodEnd = refreshedUser.stripeCurrentPeriodEnd
+                    ? new Date(refreshedUser.stripeCurrentPeriodEnd)
+                    : undefined;
+                await setStoragePeakUsed(uid, refreshedUser.storageUsed || 0, periodEnd);
+                await reportUsage(uid, 'storage', refreshedUser.storageUsed || 0);
+            }
+        }
 
         return NextResponse.json({ success: true, allowOverage });
 

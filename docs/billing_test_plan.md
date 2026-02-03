@@ -41,15 +41,15 @@ This document outlines manual tests to verify all billing features work correctl
 
 ## Test 3: Metered Storage Usage
 
-**Goal**: Verify storage uploads report usage to Stripe.
+**Goal**: Verify storage uploads report peak stored bytes to Stripe (Last aggregation).
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 3.1 | Ensure user is on Standard with PayPerUsage OFF | User blocked at 2GB |
 | 3.2 | Enable PayPerUsage in settings | Toggle enabled |
 | 3.3 | Upload files totaling 3GB | Upload succeeds (overage allowed) |
-| 3.4 | Check Stripe Dashboard → Billing → Meters → Storage | Events logged for this customer |
-| 3.5 | Check CLI for `billing.meter_event.created` | Event visible |
+| 3.4 | Check Stripe Dashboard → Billing → Meters → Storage | Meter shows latest peak value |
+| 3.5 | Check CLI for `billing.meter_event.created` | Event visible (`storage_usage_bytes`) |
 
 ---
 
@@ -61,7 +61,7 @@ This document outlines manual tests to verify all billing features work correctl
 |------|--------|-----------------|
 | 4.1 | Upload an audio file (e.g., 2 min) | File uploaded |
 | 4.2 | Wait for auto-transcription to complete | Transcription status: "completed" |
-| 4.3 | Check Stripe Dashboard → Meters → Transcription | Usage event logged (~2 min, rounded to 15s blocks) |
+| 4.3 | Check Stripe Dashboard → Meters → Transcription | Usage event logged (seconds, rounded to 15s blocks) |
 | 4.4 | Check user's transcription usage in app | Counter increased |
 
 ---
@@ -81,23 +81,35 @@ This document outlines manual tests to verify all billing features work correctl
 > To speed this up, you can manually report usage via CLI:
 > ```bash
 > stripe billing meter_events create \
->   --event_name=storage_usage_gb \
+>   --event_name=storage_usage_bytes \
 >   --payload[stripe_customer_id]=cus_XXXXX \
->   --payload[value]=500
+>   --payload[value]=1000000000
 > ```
 
 ---
 
-## Test 6: Delete Storage (Refund/Credit)
+## Test 6: Delete Storage (Peak Remains)
 
-**Goal**: Verify deleting files reports negative usage.
+**Goal**: Verify deleting files reduces in-app usage but does **not** reduce Stripe usage.
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 6.1 | Note current storage usage in Stripe Meters | e.g., 5GB |
 | 6.2 | Delete 2GB worth of recordings in app | Files deleted |
-| 6.3 | Check Stripe Dashboard → Meters → Storage | Negative event logged (-2 or similar) |
-| 6.4 | Check CLI logs | `[Usage] Sent Meter Event 'storage_usage_gb' (Value: -X)` |
+| 6.3 | Check Stripe Dashboard → Meters → Storage | Usage does **not** decrease (peak remains) |
+| 6.4 | Check UI usage bars | Storage used decreases in app |
+
+---
+
+## Test 6b: New Billing Period Baseline
+
+**Goal**: Verify a baseline storage event is sent when a new billing period starts.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 6b.1 | Note current stored bytes in DB | e.g., 8GB |
+| 6b.2 | Wait for period rollover (Stripe test clock) | `customer.subscription.updated` webhook fires |
+| 6b.3 | Check Stripe Meters → Storage | New event logged with current stored bytes |
 
 ---
 
@@ -204,9 +216,9 @@ stripe billing meters list
 
 # Manually report usage
 stripe billing meter_events create \
-  --event_name=storage_usage_gb \
+  --event_name=storage_usage_bytes \
   --payload[stripe_customer_id]=cus_XXXXX \
-  --payload[value]=10
+  --payload[value]=1000000000
 
 # List subscriptions for a customer
 stripe subscriptions list --customer=cus_XXXXX

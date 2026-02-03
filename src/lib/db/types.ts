@@ -32,6 +32,8 @@ export interface User {
     };
     storageUsed: number;
     storageAllocation: number;
+    storagePeakUsed?: number;
+    storagePeakPeriodEnd?: Date;
     transcriptionUsed: number;
     transcriptionAllocation: number;
     totalContacts: number;

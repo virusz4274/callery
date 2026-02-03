@@ -5,6 +5,9 @@ import { User, Plan } from '@/lib/db/types';
 
 /**
  * Reports metered usage to Stripe for a specific user.
+ * Storage events should represent PEAK stored bytes for the billing period.
+ * Transcription is tracked in SECONDS (rounded to 15s blocks).
+ * Stripe Meter Event values must be whole numbers.
  */
 export async function reportUsage(
     firebaseUid: string,
@@ -12,7 +15,11 @@ export async function reportUsage(
     quantity: number
 ) {
     if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
-    if (quantity === 0) return;
+    if (!Number.isFinite(quantity)) return;
+
+    // Stripe requires integer values for meter events.
+    const value = Math.trunc(quantity);
+    if (value === 0) return;
 
     try {
         const db = await getMongoDb();
@@ -24,7 +31,7 @@ export async function reportUsage(
         }
 
         // Event Names must match what you configured in Stripe Dashboard
-        const eventName = type === 'storage' ? 'storage_usage_gb' : 'transcription_usage_min';
+        const eventName = type === 'storage' ? 'storage_usage_bytes' : 'transcription_usage_seconds';
 
         // Stripe V2 Meter Events
         // We send the 'value' as the quantity. The Stripe Meter must be configured to aggregate by 'sum'.
@@ -33,12 +40,12 @@ export async function reportUsage(
             event_name: eventName,
             payload: {
                 stripe_customer_id: user.stripeCustomerId,
-                value: quantity.toString(), // Payload values are strings in V2 API
+                value: value.toString(), // Payload values are strings in V2 API
             },
             timestamp: Math.floor(Date.now() / 1000),
         });
 
-        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${quantity}) for user ${firebaseUid}`);
+        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${value}) for user ${firebaseUid}`);
 
     } catch (error) {
         console.error(`[Usage] Failed to report usage for ${firebaseUid}:`, error);

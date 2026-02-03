@@ -4,7 +4,7 @@ This guide will help you set up the VoSift application locally.
 
 ## Prerequisites
 
-*   **Node.js**: v18 or later.
+*   **Node.js**: v18 or later (v20 recommended, matches Dockerfile).
 *   **MongoDB**: v6.0 or later (or MongoDB Atlas).
 *   **Firebase Project**: With Authentication enabled.
 *   **Cloudflare R2**: Bucket for file storage.
@@ -20,21 +20,19 @@ Create a `.env` file in the root directory with the following variables:
 # MongoDB
 MONGODB_URI=mongodb://localhost:27017/vosift
 
-# Firebase (Client & Admin)
+# Firebase (Client)
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@your_project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-
-# Authentication
-SESSION_COOKIE_SECRET=complex_secret_string_min_32_chars
+# Firebase (Admin)
+# Option A: file-based (recommended for local/dev)
+# Place service-account.json in the project root.
+# Option B: env-based (recommended for Vercel)
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account", ...}
 
 # Cloudflare R2
-R2_ACCOUNT_ID=your_account_id
+R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
 R2_BUCKET_NAME=your_bucket_name
@@ -45,14 +43,30 @@ SONIOX_API_BASE_URL=https://api.soniox.com
 SONIOX_MODEL_ID=stt-async-v3
 GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key
 
-# Google Contacts Sync
-GOOGLE_CLIENT_ID=your_oauth_client_id
+# Google Contacts Sync (OAuth)
+# Either NEXT_PUBLIC_GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID is required.
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_oauth_client_secret
+NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
+
+# App URL
+NEXT_PUBLIC_APP_URL=http://localhost:9000
 
 # Stripe Billing
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+NEXT_PUBLIC_ENABLE_BILLING=true
+
+# Optional UI flags
+NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+# Optional UI flags
+NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+
+# Monitoring (Sentry)
+# Sentry DSN is optional (hardcoded fallback exists, but env var is preferred)
+SENTRY_DSN=https://...
+NEXT_PUBLIC_SENTRY_DSN=https://...
+SENTRY_AUTH_TOKEN=...
 ```
 
 ## Installation
@@ -82,7 +96,7 @@ Start the development server:
 npm run dev
 ```
 
-The application will be available at `http://localhost:9002`.
+The application will be available at `http://localhost:9000`.
 
 ## Scripts
 
@@ -92,3 +106,36 @@ The application will be available at `http://localhost:9002`.
 *   `npm run lint`: Run ESLint.
 *   `npm run typecheck`: Run TypeScript compiler check.
 
+## Quality Checks
+To ensure code quality before pushing changes:
+
+```bash
+npm run typecheck
+npm run lint
+```
+
+## Running with Docker
+
+You can also run the application using Docker and Docker Compose. This is useful for ensuring a consistent environment.
+
+1.  **Prerequisites**:
+    *   Docker and Docker Compose installed on your machine.
+    *   `.env` file created (see [Environment Variables](#environment-variables)).
+
+2.  **Build and Run**:
+    ```bash
+    docker-compose up -d --build
+    ```
+
+3.  **Access the App**:
+    The application will be running at [http://localhost:9000](http://localhost:9000).
+
+4.  **Stop the App**:
+    ```bash
+    docker-compose down
+    ```
+
+5.  **View Logs**:
+    ```bash
+    docker-compose logs -f
+    ```
