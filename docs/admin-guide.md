@@ -42,7 +42,13 @@ Manage user subscription tiers and limits.
     *   **Lifetime ($299)**: Pay-as-you-go model (0 limits, metered billing).
 *   **Actions**:
     *   Create/Update Plans.
+    *   Create/Update Plans.
     *   Sync Plans to Stripe (if enabled).
+
+### Usage Adjustment (Forgiveness)
+Admins can manually adjust a user's `storageUsed` or `transcriptionUsed` values from the User Detail view.
+*   **Purpose**: Resolve accidental overages or grant credits without Stripe complications.
+*   **Effect**: Reducing usage prevents Stripe from billing for that amount at the end of the month.
 
 ### Maintenance Mode
 Toggle **Maintenance Mode** in the settings. When active, non-admin users will see a maintenance page and cannot access the application.

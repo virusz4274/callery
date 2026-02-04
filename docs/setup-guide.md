@@ -9,6 +9,7 @@ This guide will help you set up the VoSift application locally.
 *   **Firebase Project**: With Authentication enabled.
 *   **Cloudflare R2**: Bucket for file storage.
 *   **Google Cloud Project**: For Google People API (Contact Sync).
+*   **SMTP Server**: For sending export emails (e.g., SendGrid, Mailgun, or Gmail).
 *   **Soniox Account**: For transcription.
 *   **Google Gemini API Key**: For summarization.
 
@@ -67,6 +68,13 @@ NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 SENTRY_DSN=https://...
 NEXT_PUBLIC_SENTRY_DSN=https://...
 SENTRY_AUTH_TOKEN=...
+
+# Email (SMTP) for Exports
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=user
+SMTP_PASS=password
+SMTP_FROM="Call Organizer <no-reply@example.com>"
 ```
 
 ## Installation

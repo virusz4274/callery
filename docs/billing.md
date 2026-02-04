@@ -115,6 +115,15 @@ Centralized logic determines if a user action is allowed:
     *   **Pay Per Usage Toggle**: User control for overage billing.
     *   **Usage Bars**: Visual representation of current usage vs limits.
 
+### Code Implementation
+*   **Component**: `src/components/settings/billing-settings.tsx`
+    *   Handles the UI for plan display, usage bars, and the "Pay Per Usage" switch.
+*   **State Management**: `src/hooks/use-settings-page.ts`
+    *   Manages the async state for portal redirects and setting updates.
+*   **API Interactions**:
+    *   `POST /api/stripe/portal`: Generates the portal URL.
+    *   `PATCH /api/user/billing-settings`: Updates the `allowOverage` flag.
+
 ## Stripe Dashboard Setup
 
 To make the billing system work, you must manually configure Products, Prices, and Meters in the Stripe Dashboard.

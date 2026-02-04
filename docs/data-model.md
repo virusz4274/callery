@@ -201,6 +201,24 @@ Audit trail for admin actions.
 | `ipAddress` | `string` | (Optional) IP address. |
 | `createdAt` | `Date` | Creation timestamp. |
 
+---
+
+### **`export_jobs`**
+Tracks background data export tasks.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `firebaseUid` | `string` | User reference. |
+| `status` | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Job status. |
+| `progress` | `number` | Progress (0-100). |
+| `totalRecordings` | `number` | Total items to process. |
+| `processedRecordings` | `number` | Items completed so far. |
+| `parts` | `Array` | List of generated archive parts `{ key, size, url }`. |
+| `error` | `string` | Error message if failed. |
+| `createdAt` | `Date` | Creation timestamp. |
+| `updatedAt` | `Date` | Last update timestamp. |
+
 ## Relationships
 
 *   **User -> Plans**: Reference by `plan` name or dynamic lookup.

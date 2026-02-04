@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
+import { startExport, getExportStatus } from '@/app/actions/export';
+import type { ExportJobResponse } from '@/lib/db/types';
+import { useInterval } from '@/hooks/use-interval';
 import { syncGoogleContacts } from '@/app/actions/contacts';
 
 // Extracted Hooks
@@ -80,6 +83,50 @@ export function useSettingsPage() {
     const [showConnectDialog, setShowConnectDialog] = useState(false);
     const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
     const processedCodeRef = useRef<string | null>(null);
+
+    // Export State
+    const [exportJob, setExportJob] = useState<ExportJobResponse | null>(null);
+    const [isExportStarting, setIsExportStarting] = useState(false);
+
+    // Poll export status
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        const checkStatus = async () => {
+            const status = await getExportStatus();
+            setExportJob(status);
+            if (status?.status === 'completed' || status?.status === 'failed') {
+                clearInterval(interval);
+            }
+        };
+
+        // Initial check
+        checkStatus();
+
+        if (exportJob?.status === 'pending' || exportJob?.status === 'processing' || isExportStarting) {
+            interval = setInterval(checkStatus, 3000);
+        }
+
+        return () => clearInterval(interval);
+    }, [isExportStarting, exportJob?.status]);
+
+    const handleStartExport = async () => {
+        setIsExportStarting(true);
+        try {
+            const result = await startExport();
+            if (result.success) {
+                toast({ title: 'Export Started', description: 'We are preparing your files. You will receive an email when ready.', status: 'success' });
+                // Trigger immediate polling
+                setExportJob({ id: 'temp', status: 'pending', progress: 0, createdAt: new Date().toISOString() });
+            } else {
+                toast({ title: 'Export Failed', description: result.message || 'Could not start export.', status: 'danger' });
+            }
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to start export.', status: 'danger' });
+        } finally {
+            setIsExportStarting(false);
+        }
+    };
 
     // Auth protection
     useEffect(() => {
@@ -262,6 +309,9 @@ export function useSettingsPage() {
         handleConnectGoogle,
         onDialogConfirm,
         handleTabSelect,
-        handleBack
+        handleBack,
+        exportJob,
+        isExportStarting,
+        handleStartExport
     };
 }

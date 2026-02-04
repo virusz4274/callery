@@ -8,15 +8,28 @@ The application favors Server Actions for mutations and data fetching in Server 
 
 ### **Uploads & Recordings**
 *   `upload-recordings.ts`:
-    *   `uploadRecordings`: Handles server-side file upload to R2, creates metadata in MongoDB, and triggers background transcription/summarization using Soniox and Gemini.
+    *   `uploadRecordings`: Handles server-side file upload to R2, creates metadata in MongoDB, and triggers background transcription/summarization.
 *   `delete-recordings.ts`: Handles deletion of recording metadata and R2 files.
 *   `search-actions.ts`:
-    *   `searchRecordingsAction`: Performs semantic vector search on recording summaries using Gemini embeddings.
+    *   `searchRecordingsAction`: Performs semantic vector search on recording summaries.
+*   `export.ts`:
+    *   `startExport`: Triggers a background job to archive all user data (Recordings + Transcripts).
+    *   `getExportStatus`: Polls the status of the active export job.
+
+### **Notifications & System**
+*   `notifications.ts`:
+    *   `fetchNotifications`: Gets recent alerts for the user.
+    *   `readNotification` / `readAllNotifications`: Marks alerts as read.
+    *   `clearAllNotifications`: Deletes all history.
+*   `notifications.ts` (Admin):
+    *   `sendTestNotification`: Dev tool for testing.
 
 ### **Admin**
 *   `admin.ts`: System-wide statistics.
 *   `admin-plans.ts`: Manage user subscription plans.
-*   `admin-announcements.ts`: System announcements.
+*   `admin-announcements.ts`:
+    *   `getAnnouncements`: List all system announcements.
+    *   `createAnnouncement` / `updateAnnouncement` / `deleteAnnouncement`: CRUD for global banners.
 *   `audit-log.ts`: Admin action logging.
 
 ### **Contacts**
@@ -47,6 +60,11 @@ Fetches a list of recordings for the authenticated user with standard filtering 
 
 ### `GET /api/recordings/[id]`
 Fetches details of a specific recording.
+
+### `GET /api/recordings/[id]/play`
+Generates a temporary signed URL for streaming audio from Cloudflare R2.
+*   **Response**: `{ playbackUrl: string, expiresAt: number }`
+*   **Security**: Validates ownership before signing. URL expires in 1 hour.
 
 ### `DELETE /api/recordings/[id]`
 Deletes a recording and its associated file from Cloudflare R2.

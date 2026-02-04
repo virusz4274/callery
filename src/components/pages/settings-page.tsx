@@ -48,7 +48,10 @@ export function SettingsPage() {
         handleConnectGoogle,
         onDialogConfirm,
         handleTabSelect,
-        handleBack
+        handleBack,
+        exportJob,
+        isExportStarting,
+        handleStartExport
     } = useSettingsPage();
 
     if (isLoading) {
@@ -179,6 +182,11 @@ export function SettingsPage() {
                                     showConnectDialog={showConnectDialog}
                                     onDialogConfirm={onDialogConfirm}
                                     onOpenChangeDialog={setShowConnectDialog}
+
+                                    // Export
+                                    exportJob={exportJob}
+                                    isExportStarting={isExportStarting}
+                                    onStartExport={handleStartExport}
                                 />
                             )}
                             {activeTab === 'notifications' && (
