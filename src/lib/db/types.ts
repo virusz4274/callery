@@ -181,6 +181,20 @@ export interface Announcement {
 }
 
 /**
+ * In-App Notification document.
+ */
+export interface Notification {
+    _id: ObjectId;
+    userId: ObjectId;
+    type: 'info' | 'success' | 'warning' | 'error';
+    title: string;
+    message: string;
+    isRead: boolean;
+    link?: string;
+    createdAt: Date;
+}
+
+/**
  * Audit Log document.
  */
 export interface AdminLog {
@@ -213,6 +227,8 @@ export type UpdateSystemSettingsInput = Partial<Omit<SystemSettings, '_id' | 'up
 
 export type CreateAnnouncementInput = Omit<Announcement, '_id' | 'createdAt' | 'createdBy'>;
 export type UpdateAnnouncementInput = Partial<Omit<Announcement, '_id' | 'createdAt' | 'createdBy'>>;
+
+export type CreateNotificationInput = Omit<Notification, '_id' | 'createdAt'>;
 
 // API response types (with string _id for JSON serialization)
 
@@ -336,6 +352,16 @@ export interface AnnouncementResponse {
     isActive: boolean;
     startDate: string;
     endDate?: string;
+    createdAt: string;
+}
+
+export interface NotificationResponse {
+    id: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    title: string;
+    message: string;
+    isRead: boolean;
+    link?: string;
     createdAt: string;
 }
 

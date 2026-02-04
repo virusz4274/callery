@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         const mode = price.type === 'recurring' ? 'subscription' : 'payment';
 
         // 4. Create Checkout Session
-        const session = await stripe.checkout.sessions.create({
+        const sessionParams: any = {
             customer: user.stripeCustomerId,
             line_items: [
                 {
@@ -58,7 +58,18 @@ export async function POST(req: NextRequest) {
                 firebaseUid: uid,
                 userId: user._id.toString(),
             },
-        });
+        };
+
+        // Add Billing Threshold for Subscriptions (Charge immediately if overage > $10)
+        if (mode === 'subscription') {
+            sessionParams.subscription_data = {
+                billing_thresholds: {
+                    amount_gte: 1000, // 1000 cents = $10.00 USD
+                },
+            };
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionParams);
 
         return NextResponse.json({ url: session.url });
 

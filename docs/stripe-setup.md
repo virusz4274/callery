@@ -88,6 +88,16 @@ Set these through the Admin panel:
 3. We only send a new storage event when a **new peak** is reached.
 4. Transcription usage events are sent as **seconds** (rounded to 15s blocks in code).
 
+### Billing Thresholds (Automated)
+The application is configured to automatically charge users when their unbilled usage (overage) exceeds **$10.00**.
+
+*   **New Subscriptions**: The code in `src/app/api/stripe/checkout` automatically applies `billing_thresholds: { amount_gte: 1000 }` to all new subscriptions.
+*   **Existing Subscriptions**: You can apply this rule to existing users by running the backfill script:
+    ```bash
+    npx tsx scripts/set-billing-thresholds.ts
+    ```
+*   **Effect**: When a user's metered usage hits $10, Stripe immediately invoices and charges them, resetting their unbilled balance. Their monthly billing cycle date remains unchanged.
+
 ## Notes on Testing
 
 Use the existing test plan in `docs/billing_test_plan.md` for end‑to‑end verification.

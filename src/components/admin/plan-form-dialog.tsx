@@ -6,8 +6,10 @@ import {
     Button,
     Input,
     Checkbox,
-    Label // Using Label as per manage-plan-dialog
-    // Removed Select/SelectItem as they seem complex/unavailable
+    Label,
+    Select,
+    ListBox,
+    TextArea
 } from '@heroui/react';
 import { PlanResponse } from '@/lib/db/types';
 import { createPlan, updatePlan } from '@/app/actions/admin-plans';
@@ -18,6 +20,12 @@ type PlanFormDialogProps = {
     onClose: () => void;
     planToEdit?: PlanResponse | null;
 };
+
+const INTERVALS = [
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+    { value: 'lifetime', label: 'Lifetime' },
+];
 
 export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogProps) {
     const router = useRouter();
@@ -106,87 +114,100 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
 
     return (
         <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Button className="hidden" aria-hidden="true" />
-            <Modal.Backdrop>
+            <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog>
+                    <Modal.Dialog className="w-full max-w-2xl bg-card p-6 rounded-xl shadow-xl border border-default-200">
                         <Modal.Header>
-                            <h2 className="text-lg font-bold">{planToEdit ? 'Edit Plan' : 'Create New Plan'}</h2>
+                            <h2 className="text-xl font-bold">{planToEdit ? 'Edit Plan' : 'Create New Plan'}</h2>
                         </Modal.Header>
                         <Modal.Body>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
                                 <div className="flex flex-col gap-2">
-                                    <Label>Plan Name</Label>
+                                    <Label className="text-sm font-medium">Plan Name</Label>
                                     <Input
                                         placeholder="e.g. Enterprise"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Stripe Price ID (Base)</Label>
+                                    <Label className="text-sm font-medium">Stripe Price ID (Base)</Label>
                                     <Input
                                         placeholder="price_H5ggY..."
                                         value={stripePriceId}
                                         onChange={(e) => setStripePriceId(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Stripe Storage Price ID (Metered)</Label>
+                                    <Label className="text-sm font-medium">Stripe Storage Price ID (Metered)</Label>
                                     <Input
                                         placeholder="price_..."
                                         value={stripeStoragePriceId}
                                         onChange={(e) => setStripeStoragePriceId(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Stripe Transcription Price ID (Metered)</Label>
+                                    <Label className="text-sm font-medium">Stripe Transcription Price ID (Metered)</Label>
                                     <Input
                                         placeholder="price_..."
                                         value={stripeTranscriptionPriceId}
                                         onChange={(e) => setStripeTranscriptionPriceId(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Price (USD)</Label>
+                                    <Label className="text-sm font-medium">Price (USD)</Label>
                                     <Input
                                         type="number"
                                         placeholder="0.00"
                                         value={price}
                                         onChange={(e) => setPrice(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="md:col-span-2 flex flex-col gap-2">
-                                    <Label>Description</Label>
+                                    <Label className="text-sm font-medium">Description</Label>
                                     <Input
                                         placeholder="Short description for the pricing table"
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Billing Interval</Label>
-                                    {/* Using native select for simplicity */}
-                                    <select
-                                        className="h-10 w-full rounded-md border border-default-200 bg-default-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        value={interval}
-                                        onChange={(e) => setInterval(e.target.value as 'monthly' | 'yearly' | 'lifetime')}
+                                    <Label className="text-sm font-medium">Billing Interval</Label>
+                                    <Select
+                                        selectedKey={interval}
+                                        onSelectionChange={(key) => setInterval(key as 'monthly' | 'yearly' | 'lifetime')}
                                     >
-                                        <option value="monthly">Monthly</option>
-                                        <option value="yearly">Yearly</option>
-                                        <option value="lifetime">Lifetime</option>
-                                    </select>
+                                        <Select.Trigger className="w-full">
+                                            <Select.Value />
+                                            <Select.Indicator />
+                                        </Select.Trigger>
+                                        <Select.Popover>
+                                            <ListBox>
+                                                {INTERVALS.map((item) => (
+                                                    <ListBox.Item key={item.value} id={item.value} textValue={item.label}>
+                                                        {item.label}
+                                                    </ListBox.Item>
+                                                ))}
+                                            </ListBox>
+                                        </Select.Popover>
+                                    </Select>
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Status & Visibility</Label>
-                                    <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-medium">Status & Visibility</Label>
+                                    <div className="flex flex-col gap-2 pt-2">
                                         <Checkbox isSelected={isActive} onChange={() => setIsActive(!isActive)}>
                                             Active (Visible)
                                         </Checkbox>
@@ -196,34 +217,39 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
                                     </div>
                                 </div>
 
-                                <div className="md:col-span-2 divider my-2 font-bold text-sm">Limits</div>
+                                <div className="md:col-span-2 flex items-center gap-2 mt-4 font-bold text-sm text-default-500">
+                                    <div className="h-px flex-1 bg-default-200"></div>
+                                    <span>Limits</span>
+                                    <div className="h-px flex-1 bg-default-200"></div>
+                                </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Storage (GB)</Label>
+                                    <Label className="text-sm font-medium">Storage (GB)</Label>
                                     <Input
                                         type="number"
                                         value={storageGB}
                                         onChange={(e) => setStorageGB(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Transcription (Min)</Label>
+                                    <Label className="text-sm font-medium">Transcription (Min)</Label>
                                     <Input
                                         type="number"
                                         value={transcriptionMinutes}
                                         onChange={(e) => setTranscriptionMinutes(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div className="md:col-span-2 flex flex-col gap-2">
-                                    <Label>Features (One per line)</Label>
-                                    <textarea
-                                        className="w-full p-2 rounded-lg border border-default-200 bg-default-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        rows={4}
+                                    <Label className="text-sm font-medium">Features (One per line)</Label>
+                                    <TextArea
                                         placeholder="Feature 1&#10;Feature 2&#10;Feature 3"
                                         value={featuresInput}
                                         onChange={(e) => setFeaturesInput(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
                             </div>

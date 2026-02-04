@@ -7,6 +7,7 @@ export type LogActionType =
     | 'USER_UNBAN'
     | 'USER_ROLE_UPDATE'
     | 'USER_LIMITS_UPDATE'
+    | 'USER_USAGE_UPDATE'
     | 'USER_DELETE'
     | 'PLAN_CREATE'
     | 'PLAN_UPDATE'

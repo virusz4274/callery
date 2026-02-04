@@ -42,24 +42,24 @@ export function StatsCard({
 
     return (
         <Card className="border-none bg-gradient-to-br from-content1/50 to-content2/50 backdrop-blur-xl shadow-medium hover:shadow-lg transition-all duration-300">
-            <Card.Content className="p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-default-500 uppercase tracking-wider">{title}</p>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className="text-4xl font-bold text-foreground">{value}</span>
+            <Card.Content className="p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                        <p className="text-[10px] sm:text-xs font-medium text-default-500 uppercase tracking-wider truncate">{title}</p>
+                        <div className="mt-1 flex items-baseline gap-1 sm:gap-2 flex-wrap">
+                            <span className="text-xl sm:text-2xl font-bold text-foreground truncate">{value}</span>
                             {(trend || trendLabel) && (
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getTrendColor(trendType)}`}>
+                                <span className={`text-[8px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getTrendColor(trendType)} whitespace-nowrap`}>
                                     {trend || trendLabel}
                                 </span>
                             )}
                         </div>
                     </div>
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${iconBgClassName} ${iconClassName}`}>
-                        <Icon className="h-6 w-6" />
+                    <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl shadow-sm ${iconBgClassName}`}>
+                        <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${iconClassName}`} />
                     </div>
                 </div>
-                <div className="mt-6 h-2 w-full rounded-full bg-default-100/50 overflow-hidden">
+                <div className="mt-3 h-1 sm:h-1.5 w-full rounded-full bg-default-100/50 overflow-hidden">
                     <div
                         className={`h-full rounded-full bg-gradient-to-r ${progressColorClass} ${progressShadowClass}`}
                         style={{ width: `${Math.min(100, Math.max(0, progressValue))}%` }}

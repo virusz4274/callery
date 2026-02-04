@@ -22,6 +22,7 @@ import { calculateBilledDuration } from '@/lib/utils/billing';
 import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { reportUsage } from '@/lib/stripe/usage';
 import { logger } from '@/lib/logger';
+import { createNotification } from '@/lib/notifications';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
@@ -307,11 +308,26 @@ export async function uploadRecordings(
                 // Delete from Soniox
                 await transcriptionService.deleteTranscript(result.transcriptionId);
                 logger.info(`[uploadRecordings] Background: Transcription & AI Complete for ${createdRecording._id.toString()}`);
+
+                await createNotification(
+                  freshUser._id,
+                  'success',
+                  'Transcription Ready',
+                  `Your recording "${createdRecording.standardizedDisplayName || createdRecording.fileName}" has been processed successfully.`,
+                  `/?id=${createdRecording._id.toString()}`
+                );
               } catch (transcriptionError) {
                 logger.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'failed',
                 });
+                
+                await createNotification(
+                  user._id,
+                  'error',
+                  'Transcription Failed',
+                  `Processing failed for "${createdRecording.fileName}".`,
+                );
               }
             });
           }

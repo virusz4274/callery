@@ -2,6 +2,7 @@
 
 import React, { useTransition } from 'react';
 import { AdminStatsCard } from '@/components/admin/admin-stats-card';
+import { HealthDashboard } from '@/components/admin/health-dashboard';
 import { Users, Phone, HardDrive, FileAudio, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button, Card, Spinner } from '@heroui/react';
 import Link from 'next/link';
@@ -57,6 +58,8 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
                     </Link>
                 </div>
             </div>
+
+            <HealthDashboard />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <AdminStatsCard

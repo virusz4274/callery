@@ -43,21 +43,37 @@ This document provides a high-level overview of the `vosift` codebase organizati
 
 ## Key Files & Modules
 
-### **Configuration**
+### **Root Configuration**
 *   `package.json`: Dependencies and scripts.
 *   `next.config.ts`: Next.js configuration.
 *   `tailwind.config.ts`: Visual design tokens and Tailwind setup.
 *   `.env`: Environment variables (API keys, DB URIs).
+*   `instrumentation.ts`: Next.js instrumentation hook (Sentry initialization).
+*   `sentry.*.config.ts`: Sentry configuration for Server, Edge, and Client.
 
 ### **Core Logic (`src/app/actions`, `src/services` & `src/lib`)**
-*   `src/app/actions`: Server Actions for business logic (e.g., `upload-recordings.ts`, `admin.ts`).
-*   `src/services/`: encapsulated business logic and integrations.
-    *   `ai/gemini-service.ts`: Google Gemini integration.
+*   `src/app/actions`: Server Actions for business logic (Primary Backend).
+    *   `upload-recordings.ts`: Handles server-side file upload to R2 and triggers AI processing.
+    *   `search-actions.ts`: Semantic search using Vector Search (Gemini embeddings).
+    *   `admin.ts` & `admin-*.ts`: Administrative functions.
+*   `src/services/`: Encapsulated business logic and integrations.
+    *   `ai/gemini-service.ts`: Google Gemini integration (Summarization, Embeddings).
     *   `transcription/soniox-service.ts`: Soniox transcription service.
     *   `google/`: Google Contacts sync logic.
-*   `src/lib/db/init.ts`: MongoDB connection handler.
-*   `src/lib/firebase/`: Firebase client/admin setup.
-*   `src/lib/r2.ts`: Cloudflare R2 storage utilities.
+*   `src/lib/db/`: Database logic.
+    *   `init.ts`: Database initialization and seeding.
+    *   `search.ts`: Vector Search implementation using MongoDB Atlas.
+    *   `types.ts`: TypeScript interfaces for Data Models.
+*   `src/lib/stripe/`: Billing logic (Sync, Usage Reporting).
+
+### **Scripts (`scripts/`)**
+Utility scripts for maintenance and debugging. Run via `npx tsx scripts/<name>.ts`.
+*   `check-db.ts`: Verify MongoDB connection.
+*   `verify_plans_and_usage.ts`: Audit user plans and recalculate usage stats.
+*   `fix-speaker-ids.ts`: Repair corrupt speaker IDs in transcripts.
+*   `check-user-stripe.ts`: Debug Stripe customer/subscription links.
+*   `debug-contacts.ts`: Debug Google Contact sync.
+*   `debug-transcripts.ts`: Inspect raw transcript data.
 
 ### **API Routes (`src/app/api`)**
 *   `/api/auth`: Handles session management.

@@ -22,16 +22,11 @@ import { connection } from 'next/server';
  * Creates default settings if none exist.
  */
 export async function getSystemSettings() {
-    console.log('[getSystemSettings] Starting...');
     await connection();
-    console.log('[getSystemSettings] Next.js connection() pass');
     const db = await getMongoDb();
-    console.log('[getSystemSettings] Got DB instance, finding settings...');
     let settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
-    console.log('[getSystemSettings] findOne result:', settings ? 'Found' : 'Not Found');
 
     if (!settings) {
-        console.log('[getSystemSettings] Creating default settings...');
         // Initialize default settings
         const defaultSettings: SystemSettings = {
             _id: new ObjectId(),
@@ -41,10 +36,8 @@ export async function getSystemSettings() {
         };
         await db.collection(Collections.SYSTEM_SETTINGS).insertOne(defaultSettings);
         settings = defaultSettings;
-        console.log('[getSystemSettings] Default settings created.');
     }
 
-    console.log('[getSystemSettings] Returning settings.');
     return mapSettings(settings);
 }
 

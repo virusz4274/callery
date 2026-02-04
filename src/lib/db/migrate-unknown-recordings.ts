@@ -1,144 +1,68 @@
-import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 import { Recording } from '@/lib/db/types';
-import { copyR2Object, deleteFromR2, sanitizePhoneNumber } from '@/lib/r2';
 
 /**
- * Migrate recordings from unknown_{phoneNumber} folder to proper {contactId} folder
- * when a contact is saved.
- * 
- * @param firebaseUid - User's Firebase UID
- * @param contactId - The newly created/saved contact ID
- * @param phoneNumbers - Array of phone numbers for the contact
- * @param contactName - Optional contact name for name-based matching
+ * Migrates recordings that match a contact's phone number but are not linked to any contact.
+ * This is typically run after a new contact is created.
  */
 export async function migrateUnknownRecordingsToContact(
     firebaseUid: string,
     contactId: string,
     phoneNumbers: string[],
-    contactName?: string
+    contactName: string
 ): Promise<number> {
-    if ((!phoneNumbers || phoneNumbers.length === 0) && !contactName) {
-        return 0;
-    }
-
     const db = await getMongoDb();
-    const recordingsCollection = db.collection<Recording>(Collections.RECORDINGS);
+    
+    // Clean phone numbers for matching (strip non-digits, etc if needed, 
+    // but typically we match exact string as stored)
+    // Assuming phoneNumbers are already standardized or we match loosely.
+    // For now, exact match on the 'phoneNumber' field.
 
-    let migratedCount = 0;
-
-    // 1. Migrate by Phone Number
-    if (phoneNumbers && phoneNumbers.length > 0) {
-        for (const phoneNumber of phoneNumbers) {
-            const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
-            const unknownFolderPrefix = `${firebaseUid}/unknown_${sanitizedPhone}/`;
-
-            // Find all recordings in the unknown_{phoneNumber} folder
-            const unknownRecordings = await recordingsCollection.find({
-                firebaseUid,
-                r2Key: { $regex: `^${unknownFolderPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` },
-            }).toArray();
-
-            console.log(`Found ${unknownRecordings.length} recordings for unknown phone ${phoneNumber}`);
-
-            for (const recording of unknownRecordings) {
-                try {
-                    // Extract the file path after the unknown folder
-                    // Old key: {firebaseUid}/unknown_{phoneNumber}/{year}/{month}/{filename}
-                    // New key: {firebaseUid}/{contactId}/{year}/{month}/{filename}
-                    const pathAfterUnknown = recording.r2Key.substring(unknownFolderPrefix.length);
-                    const newR2Key = `${firebaseUid}/${contactId}/${pathAfterUnknown}`;
-
-                    // Copy R2 object to new location (preserving metadata)
-                    await copyR2Object(recording.r2Key, newR2Key);
-
-                    // Update MongoDB record
-                    await recordingsCollection.updateOne(
-                        { _id: recording._id },
-                        {
-                            $set: {
-                                r2Key: newR2Key,
-                                contactId: new ObjectId(contactId),
-                                updatedAt: new Date(),
-                            },
-                        }
-                    );
-
-                    // Delete old R2 object
-                    await deleteFromR2(recording.r2Key);
-
-                    migratedCount++;
-                    console.log(`Migrated recording ${recording._id} from ${recording.r2Key} to ${newR2Key}`);
-                } catch (error) {
-                    console.error(`Failed to migrate recording ${recording._id}:`, error);
-                }
+    const result = await db.collection<Recording>(Collections.RECORDINGS).updateMany(
+        {
+            firebaseUid,
+            phoneNumber: { $in: phoneNumbers },
+            contactId: null // Only migrate if not already linked
+        },
+        {
+            $set: {
+                contactId: new ObjectId(contactId),
+                contactName: contactName,
+                updatedAt: new Date()
             }
         }
+    );
+
+    if (result.modifiedCount > 0) {
+        // We should also update the contact's stats (recording count)
+        // circular dependency risk if we import from contacts.ts directly?
+        // Let's rely on manual update or a separate helper.
+        
+        // Dynamic import to break potential cycles if this function is called from contacts.ts
+        const { incrementContactRecordings } = await import('@/lib/db/contacts');
+        
+        // We don't know the exact date distribution of the migrated recordings easily 
+        // without another query. For simplicity, we just increment the count 
+        // and set the lastRecordingAt to now (or we could find the latest).
+        
+        // Let's find the latest recording date among the migrated ones
+        const latestRecording = await db.collection<Recording>(Collections.RECORDINGS)
+            .find({ 
+                firebaseUid, 
+                contactId: new ObjectId(contactId) 
+            })
+            .sort({ recordedAt: -1 })
+            .limit(1)
+            .next();
+
+        await incrementContactRecordings(
+            contactId, 
+            firebaseUid, 
+            latestRecording?.recordedAt || new Date(), 
+            result.modifiedCount
+        );
     }
 
-    // 2. Migrate by Contact Name (Case-Insensitive)
-    if (contactName) {
-        // Find recordings where contactId is null AND contactName matches
-        // We use a case-insensitive regex for the name
-        const nameRegex = new RegExp(`^${contactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-
-        try {
-            const unknownNameRecordings = await recordingsCollection.find({
-                firebaseUid,
-                contactId: null,
-                contactName: { $regex: nameRegex }
-            }).toArray();
-
-            console.log(`Found ${unknownNameRecordings.length} recordings for contact name match "${contactName}"`);
-
-            for (const recording of unknownNameRecordings) {
-                try {
-                    // Start new key path
-                    const parts = recording.r2Key.split('/');
-                    if (parts.length < 4) {
-                        console.warn(`Skipping malformed R2 key: ${recording.r2Key}`);
-                        continue;
-                    }
-
-                    // expected: [uid, folder, year, month, filename]
-                    // we want to replace 'folder' with 'contactId'
-                    const filename = parts.pop();
-                    const month = parts.pop();
-                    const year = parts.pop();
-                    // what remains is the prefix path, likely just uid and folder
-
-                    const newR2Key = `${firebaseUid}/${contactId}/${year}/${month}/${filename}`;
-
-                    // Copy R2 object to new location (preserving metadata)
-                    await copyR2Object(recording.r2Key, newR2Key);
-
-                    // Update MongoDB record
-                    await recordingsCollection.updateOne(
-                        { _id: recording._id },
-                        {
-                            $set: {
-                                r2Key: newR2Key,
-                                contactId: new ObjectId(contactId),
-                                // Standardize name if it was just a partial match/different case
-                                contactName: contactName,
-                                updatedAt: new Date(),
-                            },
-                        }
-                    );
-
-                    // Delete old R2 object
-                    await deleteFromR2(recording.r2Key);
-
-                    migratedCount++;
-                    console.log(`Migrated recording ${recording._id} (name match) from ${recording.r2Key} to ${newR2Key}`);
-                } catch (error) {
-                    console.error(`Failed to migrate recording ${recording._id} (name match):`, error);
-                }
-            }
-        } catch (err) {
-            console.error(`Error migrating by name for ${contactName}:`, err);
-        }
-    }
-
-    return migratedCount;
+    return result.modifiedCount;
 }

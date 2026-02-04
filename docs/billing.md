@@ -80,6 +80,15 @@ See [Data Model](data-model.md) for full `User` and `Plan` schemas. Key fields:
     *   **Self-Healing**: Automatically re-adds missing metered subscription items (Storage/Transcription) if they are dropped during a plan switch.
     *   **Billing Thresholds**: Configure thresholds on the Stripe Meter itself (optional).
 
+### Passive Recurring Billing (The "Inactive User" Check)
+
+Crucially, the system ensures that users are billed for storage they continue to occupy, even if they do not use the app during a billing cycle.
+
+1.  **Trigger**: When a billing period renews, Stripe sends a `invoice.payment_succeeded` or `customer.subscription.updated` webhook.
+2.  **Action**: The `syncSubscription` logic detects the new period (`periodChanged`).
+3.  **Result**: The system immediately reports the user's *current* `storageUsed` from MongoDB to Stripe as the baseline for the new month.
+4.  **Outcome**: The user is billed for their existing 95GB (for example) even if they never log in or upload new files in Month 2.
+
 *   **Usage Reporting (`src/lib/stripe/usage.ts`)**:
     *   Usage is reported to Stripe via **Meter Events**.
     *   **Storage** is billed by **peak stored bytes per billing period** (deletions do not reduce the billed peak).

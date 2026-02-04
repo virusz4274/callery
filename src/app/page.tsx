@@ -34,10 +34,6 @@ function AuthenticatedDashboard() {
     [searchParams]
   );
 
-  // State for new filters
-  const [currentSort, setCurrentSort] = useState<{ by: 'date' | 'duration'; order: 'asc' | 'desc' }>({ by: 'date', order: 'desc' });
-  const [currentDateFilter, setCurrentDateFilter] = useState<{ start?: string; end?: string }>({});
-
   const contactName = filter.type === 'contact' ? filter.value || undefined : undefined;
 
   // Fetch recordings with pagination
@@ -46,15 +42,9 @@ function AuthenticatedDashboard() {
     skip: (page - 1) * LIMIT,
     includeArchived: false,
     contactName,
-    sortBy: currentSort.by,
-    sortOrder: currentSort.order,
-    startDate: currentDateFilter.start,
-    endDate: currentDateFilter.end
   });
 
   const allRecordings = recordingsData ?? [];
-
-  const searchQuery = searchParams.get('q') || '';
 
   if (isLoadingRecordings || isLoadingContacts || isLoadingStats) {
     return (
@@ -75,18 +65,9 @@ function AuthenticatedDashboard() {
       <RecordingsDashboard
         allRecordings={allRecordings}
         allContacts={allContacts}
-        filter={filter}
-        searchQuery={searchQuery}
         stats={stats}
-        page={page}
-        setPage={setPage}
-        totalCount={totalCount}
         itemsPerPage={LIMIT}
         onRecordingsChange={refetchRecordings}
-        onSortChange={(by, order) => setCurrentSort({ by, order })}
-        onDateFilterChange={(start, end) => setCurrentDateFilter({ start, end })}
-        currentSort={currentSort}
-        currentDateFilter={currentDateFilter}
       />
     </Suspense>
   );

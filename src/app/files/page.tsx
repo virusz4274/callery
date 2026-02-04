@@ -128,7 +128,7 @@ function FilesBrowserContent({ user }: { user: User }) {
     return null;
   }
 
-  return <FileBrowserPage rootNode={fileSystem} />;
+  return <FileBrowserPage rootNode={fileSystem} onRefresh={fetchFileSystem} />;
 }
 
 export default function FilesPage() {

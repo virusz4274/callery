@@ -25,10 +25,24 @@ Welcome to **CallOrganizer**! This guide explains how to use the application to 
 *   **Transcript**: Read the synchronized transcript. Click any sentence to jump to that point in the audio.
 *   **Search**: Use the search bar inside the transcript to find specific keywords.
 
-### Search & Filtering
-The dashboard features **Semantic Search**. You don't need to match exact keywords.
+### Semantic Search
+The dashboard features **Semantic Search** powered by AI (Vector Embeddings).
+*   **Concept Matching**: You don't need to match exact keywords.
 *   *Example*: Searching for "pricing discussion" will find calls where money or quotes were discussed, even if the word "pricing" wasn't used.
+*   **Search Bar**: Use the global search bar at the top of the Recordings Dashboard.
+
+### Filtering
 *   **Filters**: Filter by Date Range, Contact, or Duration.
+*   **Tags**: Filter by manually applied tags.
+
+### Sharing Recordings
+You can securely share individual recordings with anyone, even if they don't have a VoSift account.
+1.  Open the recording detail view.
+2.  Click the **Share** button in the top header.
+3.  Select an **expiration time** (1 Hour, 24 Hours, or 7 Days).
+4.  Click **Generate Link**.
+5.  Copy the link and send it.
+    *   *Note*: The recipient gets a read-only view of the audio, transcript, and summary. They cannot edit or delete the file.
 
 ## 3. Contacts
 
@@ -57,6 +71,17 @@ If enabled in **Settings > Billing**:
 
 ## 5. Settings
 
+### Profile
+*   **Update Info**: Change your display name and time zone.
+*   **Export**: Download a copy of your data (GDPR compliance).
+
+### Billing Settings
+*   **Manage Subscription**: View current plan, upgrade/downgrade, or cancel via the Stripe Customer Portal.
+*   **Pay Per Usage (Overage)**:
+    *   **Toggle On**: Allows you to upload/transcribe beyond your plan's included limits. You will be billed for the extra usage at the end of the month.
+    *   **Toggle Off**: Strict limits are enforced. You cannot upload more files once your storage limit is reached.
+
+### Notifications
+*   **In-App Alerts**: Click the **Bell Icon** in the top navigation bar to view your notification history (e.g., "Transcription Ready").
+*   **Email Alerts**: Configure digest frequency (Weekly/Monthly) and alerts for successful/failed uploads in the Settings page.
 *   **Theme**: Toggle between Light and Dark mode.
-*   **Notifications**: Configure email alerts.
-*   **Data**: Export your data or request account deletion.

@@ -153,7 +153,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                                 <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
                                                             </Dropdown.Item>
                                                         )}
-                                                        <Dropdown.Item key="download" textValue="Download">
+                                                        <Dropdown.Item key="download" textValue="Download" onPress={() => console.log('Download clicked')}>
                                                             <div className="flex items-center gap-2"><Download className="h-4 w-4 text-success" /> Download</div>
                                                         </Dropdown.Item>
                                                         <Dropdown.Item
