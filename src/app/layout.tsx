@@ -32,7 +32,6 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
   themeColor: '#ffffff',
 };
 
@@ -46,12 +45,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Fetch system settings on the server
-  console.log('[RootLayout] Calling getSystemSettings...');
   const settings = await getSystemSettings();
-  console.log('[RootLayout] getSystemSettings returned.');
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"

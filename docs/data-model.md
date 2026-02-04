@@ -104,6 +104,9 @@ Stores metadata for audio recordings.
 | `summary` | `string` | AI-generated summary of the call. |
 | `summaryEmbedding` | `number[]` | Vector embedding of the summary. |
 | `transcriptEmbedding` | `number[]` | (Deprecated) Vector embedding of transcript. |
+| `transliteratedTranscript` | `string` | (Optional) Transliterated text (e.g., Manglish). |
+| `translatedTranscript` | `string` | (Optional) Translated text (e.g., English). |
+| `additionalTranscriptions` | `object` | Flexible bucket for other variations. |
 | `tags` | `string[]` | Array of tags. |
 | `isStarred` | `boolean` | Starred status. |
 | `isArchived` | `boolean` | Archived status. |

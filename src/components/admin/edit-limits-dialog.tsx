@@ -59,13 +59,12 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
 
     return (
         <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Button className="hidden" aria-hidden="true" />
-            <Modal.Backdrop>
+            <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog>
+                    <Modal.Dialog className="w-full max-w-md bg-card p-6 rounded-xl shadow-xl border border-default-200">
                         <Modal.CloseTrigger />
                         <Modal.Header>
-                            <Modal.Heading>Edit Limits for {user.name}</Modal.Heading>
+                            <Modal.Heading className="text-xl font-bold">Edit Limits for {user.name}</Modal.Heading>
                         </Modal.Header>
                         <Modal.Body>
                             <div className="space-y-4 py-4">
@@ -75,23 +74,25 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="storage">Storage Allocation (GB)</Label>
+                                        <Label htmlFor="storage" className="text-sm font-medium">Storage Allocation (GB)</Label>
                                         <Input
                                             id="storage"
                                             type="number"
                                             min="0"
                                             value={storageGB}
                                             onChange={(e) => setStorageGB(e.target.value)}
+                                            className="w-full"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="transcription">Transcription (Minutes)</Label>
+                                        <Label htmlFor="transcription" className="text-sm font-medium">Transcription (Minutes)</Label>
                                         <Input
                                             id="transcription"
                                             type="number"
                                             min="0"
                                             value={transcriptionMin}
                                             onChange={(e) => setTranscriptionMin(e.target.value)}
+                                            className="w-full"
                                         />
                                     </div>
                                 </div>

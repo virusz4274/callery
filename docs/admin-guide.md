@@ -21,11 +21,11 @@ A visual interface to explore the Cloudflare R2 storage bucket.
 ## Manual Upload
 Located at `/upload`.
 
-Allows administrators to manually upload recording files.
+Allows administrators (and users) to manually upload recording files.
 *   **Process**:
     1.  Select file.
-    2.  System generates a presigned URL.
-    3.  File is uploaded directly to R2.
+    2.  System processes upload server-side.
+    3.  File is stored in Cloudflare R2.
     4.  System triggers post-processing (transcription/summarization).
 
 ## Management Actions

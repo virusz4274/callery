@@ -3,6 +3,10 @@
 @import "../themes/customtheme.css";
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  /* HeroUI Default Theme */
     * {
         @apply border-border;
     }

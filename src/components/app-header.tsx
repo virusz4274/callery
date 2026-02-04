@@ -7,6 +7,7 @@ import { Button, Input } from "@heroui/react";
 import { Search } from 'lucide-react';
 import { Logo } from './icons';
 import { ThemeSwitcher } from './theme-switcher';
+import { NotificationCenter } from './notifications/notification-center';
 import { UserDropdown } from './navigation/user-dropdown';
 import { MainNav } from './navigation/main-nav';
 import { MobileMenu } from './navigation/mobile-menu';
@@ -32,20 +33,23 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
   }
 
   const isSearchablePage = ['/', '/contacts'].includes(pathname);
+  const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="w-full max-w-full mx-auto flex h-16 items-center px-4 md:px-6">
 
-        {/* Mobile Menu */}
-        <MobileMenu
-          user={user}
-          userProfile={userProfile}
-          searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
-          isSearchablePage={isSearchablePage}
-          getSearchPlaceholder={getSearchPlaceholder}
-        />
+        {/* Mobile Menu - Only show if burger menu is enabled */}
+        {showHamburger && (
+          <MobileMenu
+            user={user}
+            userProfile={userProfile}
+            searchQuery={searchQuery}
+            onSearchChange={onSearchChange}
+            isSearchablePage={isSearchablePage}
+            getSearchPlaceholder={getSearchPlaceholder}
+          />
+        )}
 
         {/* Logo */}
         <div className="mr-4 flex">
@@ -77,6 +81,8 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
           )}
 
           <ThemeSwitcher />
+
+          {user && <NotificationCenter />}
 
           {user ? (
             <UserDropdown user={user} userProfile={userProfile} onLogout={onLogout} />

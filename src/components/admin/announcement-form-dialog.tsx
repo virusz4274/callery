@@ -11,8 +11,10 @@ import {
     Label,
     ListBox
 } from '@heroui/react';
+import { DatePicker } from '@/components/ui/date-picker';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { createAnnouncement, updateAnnouncement } from '@/app/actions/admin-announcements';
+import { parseAbsoluteToLocal, getLocalTimeZone, now, ZonedDateTime } from '@internationalized/date';
 
 type AnnouncementFormDialogProps = {
     isOpen: boolean;
@@ -36,14 +38,18 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
     const [type, setType] = useState<'info' | 'warning' | 'alert' | 'success'>(announcementToEdit?.type as 'info' | 'warning' | 'alert' | 'success' || 'info');
     const [isActive, setIsActive] = useState(announcementToEdit ? announcementToEdit.isActive : true);
 
-    // Dates need careful formatting for Input type="datetime-local" if used, or just type="date"
-    // Using simple text or standard inputs for now
-    // Default start date to now if new
-    const defaultStart = announcementToEdit ? new Date(announcementToEdit.startDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16);
-    const [startDate, setStartDate] = useState(defaultStart);
+    // Date State handling with @internationalized/date
+    const [startDate, setStartDate] = useState<ZonedDateTime>(
+        announcementToEdit
+            ? parseAbsoluteToLocal(new Date(announcementToEdit.startDate).toISOString())
+            : now(getLocalTimeZone())
+    );
 
-    const defaultEnd = announcementToEdit?.endDate ? new Date(announcementToEdit.endDate).toISOString().slice(0, 16) : '';
-    const [endDate, setEndDate] = useState(defaultEnd);
+    const [endDate, setEndDate] = useState<ZonedDateTime | null>(
+        announcementToEdit?.endDate
+            ? parseAbsoluteToLocal(new Date(announcementToEdit.endDate).toISOString())
+            : null
+    );
 
     const [loading, setLoading] = useState(false);
 
@@ -55,8 +61,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                 message,
                 type,
                 isActive,
-                startDate: new Date(startDate),
-                endDate: endDate ? new Date(endDate) : undefined,
+                startDate: startDate.toDate(),
+                endDate: endDate ? endDate.toDate() : undefined,
             };
 
             if (isEditing && announcementToEdit) {
@@ -75,43 +81,43 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
 
     return (
         <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Button className="hidden" aria-hidden="true" />
-            <Modal.Backdrop>
+            <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog>
+                    <Modal.Dialog className="w-full max-w-2xl bg-card p-6 rounded-xl shadow-xl border border-default-200">
                         <Modal.CloseTrigger />
                         <Modal.Header>
-                            <Modal.Heading>{isEditing ? 'Edit Announcement' : 'New Announcement'}</Modal.Heading>
+                            <Modal.Heading className="text-xl font-bold">{isEditing ? 'Edit Announcement' : 'New Announcement'}</Modal.Heading>
                         </Modal.Header>
                         <Modal.Body>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <Label>Title</Label>
+                            <div className="flex flex-col gap-6 py-4">
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-medium">Title</Label>
                                     <Input
                                         placeholder="e.g. Scheduled Maintenance"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>Message</Label>
+                                <div className="flex flex-col gap-2">
+                                    <Label className="text-sm font-medium">Message</Label>
                                     <TextArea
                                         placeholder="Enter full details..."
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
+                                        className="w-full"
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Type</Label>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-sm font-medium">Type</Label>
                                         <Select
                                             selectedKey={type}
                                             onSelectionChange={(key) => setType(key as 'info' | 'warning' | 'alert' | 'success')}
                                         >
-                                            <Label>Type</Label>
-                                            <Select.Trigger>
+                                            <Select.Trigger className="w-full">
                                                 <Select.Value />
                                                 <Select.Indicator />
                                             </Select.Trigger>
@@ -124,31 +130,48 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                                             </Select.Popover>
                                         </Select>
                                     </div>
-                                    <div className="flex items-center justify-between pt-6">
-                                        <Label>Active</Label>
-                                        <Switch isSelected={isActive} onChange={setIsActive}>
-                                            <Switch.Control>
-                                                <Switch.Thumb />
-                                            </Switch.Control>
-                                        </Switch>
+
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-sm font-medium">Status</Label>
+                                        <div className="flex items-center justify-between h-10 px-3 border border-default-200 rounded-md">
+                                            <span className="text-sm text-default-500">Active</span>
+                                            <Switch isSelected={isActive} onChange={setIsActive}>
+                                                <Switch.Control>
+                                                    <Switch.Thumb />
+                                                </Switch.Control>
+                                            </Switch>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Start Date</Label>
-                                        <Input
-                                            type="datetime-local"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-sm font-medium">Start Date & Time</Label>
+                                        <DatePicker
+                                            showTime
+                                            date={startDate.toDate()}
+                                            setDate={(d) => {
+                                                if (d) {
+                                                    setStartDate(parseAbsoluteToLocal(d.toISOString()));
+                                                }
+                                            }}
+                                            className="w-full"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>End Date (Optional)</Label>
-                                        <Input
-                                            type="datetime-local"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
+                                    <div className="flex flex-col gap-2">
+                                        <Label className="text-sm font-medium">End Date & Time (Optional)</Label>
+                                        <DatePicker
+                                            showTime
+                                            date={endDate ? endDate.toDate() : undefined}
+                                            setDate={(d) => {
+                                                if (d) {
+                                                    setEndDate(parseAbsoluteToLocal(d.toISOString()));
+                                                } else {
+                                                    setEndDate(null);
+                                                }
+                                            }}
+                                            className="w-full"
+                                            placeholder="Pick end date"
                                         />
                                     </div>
                                 </div>

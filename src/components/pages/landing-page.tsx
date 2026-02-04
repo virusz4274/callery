@@ -17,12 +17,12 @@ export function LandingPage() {
                 {/* Social Proof */}
                 <section className="py-12 border-y border-default-100 bg-default-50/50">
                     <div className="container mx-auto px-4 text-center">
-                        <p className="text-small font-medium text-default-400 mb-6 uppercase tracking-wider">Trusted by innovative teams at</p>
+                        <p className="text-small font-medium text-default-400 mb-6 uppercase tracking-wider">Trusted by professionals in</p>
                         <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-                            {/* Placeholder Company Logos */}
-                            {['Acme Corp', 'GlobalTech', 'Nebula', 'Circle', 'FoxRun'].map((name) => (
+                            {/* Industries instead of Fake Logos */}
+                            {['Finance', 'Healthcare', 'Legal', 'Technology', 'Education'].map((name) => (
                                 <div key={name} className="text-xl font-bold font-serif text-default-600 flex items-center gap-2">
-                                    <div className="h-6 w-6 rounded-full bg-current" />
+                                    <div className="h-6 w-6 rounded-full bg-current opacity-20" />
                                     {name}
                                 </div>
                             ))}

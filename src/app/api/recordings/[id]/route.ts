@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
 
-        return NextResponse.json(toRecordingResponse(recording, playbackUrl));
+        return NextResponse.json({ recording: toRecordingResponse(recording, playbackUrl) });
     } catch (error) {
         console.error('Error fetching recording:', error);
         return NextResponse.json({ error: 'Failed to fetch recording' }, { status: 500 });
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
-        return NextResponse.json(toRecordingResponse(recording));
+        return NextResponse.json({ recording: toRecordingResponse(recording) });
     } catch (error) {
         console.error('Error updating recording:', error);
         return NextResponse.json({ error: 'Failed to update recording' }, { status: 500 });

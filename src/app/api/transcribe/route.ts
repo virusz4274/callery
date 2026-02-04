@@ -9,6 +9,7 @@ import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
+import { createNotification } from '@/lib/notifications';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
@@ -106,11 +107,27 @@ export async function POST(req: NextRequest) {
                 } catch (deleteError) {
                     logger.error('Failed to delete transcript from Soniox:', deleteError);
                 }
+
+                await createNotification(
+                    user._id,
+                    'success',
+                    'Transcription Ready',
+                    `Your recording "${recording.standardizedDisplayName || recording.fileName}" is ready.`,
+                    `/?id=${recordingId}`
+                );
+
             } catch (error) {
                 logger.error('[API/Transcribe] Background job failed:', error);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'failed',
                 });
+                
+                await createNotification(
+                    user._id,
+                    'error',
+                    'Transcription Failed',
+                    `Processing failed for "${recording.fileName}".`,
+                );
             }
         });
 

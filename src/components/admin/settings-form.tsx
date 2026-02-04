@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
-import { Card, Button, Switch } from '@heroui/react';
+import { Card, Button, Switch, Select, ListBox, Label } from '@heroui/react';
 import { SystemSettingsResponse, PlanResponse } from '@/lib/db/types';
 import { updateSystemSettings } from '@/app/actions/admin-settings';
 import { useRouter } from 'next/navigation';
@@ -86,19 +86,28 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                     <h3 className="text-lg font-semibold mb-4">Onboarding Defaults</h3>
                     <div className="grid gap-4 max-w-md">
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">Default Plan for New Users</label>
-                            <select
-                                className="h-10 w-full rounded-md border border-default-200 bg-default-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                value={defaultPlanId}
-                                onChange={(e) => setDefaultPlanId(e.target.value)}
+                            <Label className="text-sm font-medium">Default Plan for New Users</Label>
+                            <Select
+                                selectedKey={defaultPlanId}
+                                onSelectionChange={(key) => setDefaultPlanId(key as string)}
+                                placeholder="Select a plan"
                             >
-                                <option value="" disabled>Select a plan</option>
-                                {plans.filter(p => p.isActive).map((plan) => (
-                                    <option key={plan.id} value={plan.id}>
-                                        {plan.name} ({plan.price === 0 ? 'Free' : `$${plan.price}`})
-                                    </option>
-                                ))}
-                            </select>
+                                <Label>Default Plan</Label>
+                                <Select.Trigger>
+                                    <Select.Value />
+                                    <Select.Indicator />
+                                </Select.Trigger>
+                                <Select.Popover>
+                                    <ListBox>
+                                        <ListBox.Item key="" id="" textValue="None">None</ListBox.Item>
+                                        {plans.filter(p => p.isActive).map((plan) => (
+                                            <ListBox.Item key={plan.id} id={plan.id} textValue={plan.name}>
+                                                {plan.name} ({plan.price === 0 ? 'Free' : `$${plan.price}`})
+                                            </ListBox.Item>
+                                        ))}
+                                    </ListBox>
+                                </Select.Popover>
+                            </Select>
                         </div>
                         <p className="text-xs text-default-500">
                             New users will automatically be assigned to this plan upon registration.

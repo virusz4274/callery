@@ -7,17 +7,18 @@ import { RecordingResponse } from '@/lib/db/types';
 export interface SearchResponse {
     success: boolean;
     results: RecordingResponse[];
+    totalCount?: number;
     error?: string;
 }
 
-export async function searchRecordingsAction(query: string): Promise<SearchResponse> {
+export async function searchRecordingsAction(query: string, page: number = 1, pageSize: number = 10): Promise<SearchResponse> {
     try {
         const uid = await getFirebaseUidFromSession();
         if (!uid) {
             return { success: false, results: [], error: 'Unauthorized' };
         }
 
-        const searchResults = await searchRecordingsByVector(query, uid);
+        const { results: searchResults, totalCount } = await searchRecordingsByVector(query, uid, page, pageSize);
 
         // Convert to response type (serialize dates/IDs)
         const formattedResults: RecordingResponse[] = searchResults.map(rec => ({
@@ -45,9 +46,10 @@ export async function searchRecordingsAction(query: string): Promise<SearchRespo
             // For now keeping it compatible with RecordingResponse
         }));
 
-        return { success: true, results: formattedResults };
+        return { success: true, results: formattedResults, totalCount };
     } catch (error) {
         console.error('Search action error:', error);
         return { success: false, results: [], error: 'Search failed' };
     }
 }
+

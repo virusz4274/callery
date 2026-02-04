@@ -57,6 +57,15 @@
 
     --accent: oklch(0.6204 0.195 253.83);
     --accent-foreground: var(--snow);
+    --color-accent: var(--accent);
+
+    --primary: var(--accent);
+    --primary-foreground: var(--accent-foreground);
+    --color-primary: var(--primary);
+
+    --secondary: oklch(0.602 0.159 303.37);
+    --secondary-foreground: var(--snow);
+    --color-secondary: var(--secondary);
 
     /* Form Fields */
     --field-background: var(--white);
@@ -68,12 +77,15 @@
     /* Status Colors */
     --success: oklch(0.7329 0.1935 150.81);
     --success-foreground: var(--eclipse);
+    --color-success: var(--success);
 
     --warning: oklch(0.7819 0.1585 72.33);
     --warning-foreground: var(--eclipse);
+    --color-warning: var(--warning);
 
     --danger: oklch(0.6532 0.2328 25.74);
     --danger-foreground: var(--snow);
+    --color-danger: var(--danger);
 
     /* Component Colors */
     --segment: var(--white);
@@ -125,6 +137,18 @@
     --default: oklch(27.4% 0.006 286.033);
     --default-foreground: var(--snow);
 
+    --accent: oklch(0.6204 0.195 253.83);
+    --accent-foreground: var(--snow);
+    --color-accent: var(--accent);
+
+    --primary: var(--accent);
+    --primary-foreground: var(--accent-foreground);
+    --color-primary: var(--primary);
+
+    --secondary: oklch(0.602 0.159 303.37);
+    --secondary-foreground: var(--snow);
+    --color-secondary: var(--secondary);
+
     /* Form Fields */
     --field-background: var(--default);
     --field-on-background: var(--surface);
@@ -133,9 +157,15 @@
     /* Status Colors */
     --warning: oklch(0.8203 0.1388 76.34);
     --warning-foreground: var(--eclipse);
+    --color-warning: var(--warning);
 
     --danger: oklch(0.594 0.1967 24.63);
     --danger-foreground: var(--snow);
+    --color-danger: var(--danger);
+
+    --success: oklch(0.7329 0.1935 150.81); /* Adding success back if missing or just ensuring it's here */
+    --success-foreground: var(--eclipse);
+    --color-success: var(--success);
 
     /* Component Colors */
     --segment: oklch(0.3964 0.01 285.93);
@@ -148,8 +178,8 @@
     --link: var(--foreground);
 
     /* Shadows */
-    --surface-shadow: 0 0 0 0 transparent inset; /* No shadow on dark mode */
-    --overlay-shadow: 0 0 0 0 transparent inset; /* No shadow on dark mode */
-    --field-shadow: 0 0 0 0 transparent inset; /* Transparent shadow to allow ring utilities to work */
+    --surface-shadow: 0 0 0 1px var(--default) inset; /* Subtle border for dark mode */
+    --overlay-shadow: 0 0 0 1px var(--default) inset, 0 4px 16px 0 rgba(0, 0, 0, 0.4);
+    --field-shadow: 0 0 0 1px var(--default) inset; /* Border for fields */
   }
 }

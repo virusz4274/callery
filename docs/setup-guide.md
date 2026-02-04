@@ -88,6 +88,38 @@ SENTRY_AUTH_TOKEN=...
     npx tsx src/lib/db/init.ts
     ```
 
+## 4. Search Indexes (MongoDB Atlas)
+
+For Search features to work, you must create **Search Indexes** in the MongoDB Atlas UI.
+
+### 1. Vector Search Index (Semantic Search)
+*   **Index Name**: `recordings_vector_search`
+*   **Collection**: `recordings`
+*   **Type**: Vector Search
+*   **Configuration (JSON)**:
+    ```json
+    {
+      "fields": [
+        {
+          "numDimensions": 3072,
+          "path": "summaryEmbedding",
+          "similarity": "cosine",
+          "type": "vector"
+        },
+        {
+          "path": "firebaseUid",
+          "type": "filter"
+        }
+      ]
+    }
+    ```
+
+### 2. Full-Text Search Index (Optional)
+*   **Index Name**: `recordings_text_search`
+*   **Collection**: `recordings`
+*   **Type**: Search
+*   **Mappings**: (See `src/lib/db/init.ts` output for config)
+
 ## Running Locally
 
 Start the development server:

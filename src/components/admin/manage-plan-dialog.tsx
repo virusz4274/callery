@@ -15,6 +15,7 @@ import {
 import { PlanResponse } from '@/lib/db/types';
 import type { User } from '@/lib/types';
 import { updateContactPlan } from '@/app/actions/update-contact-plan';
+import { useRouter } from 'next/navigation';
 
 type ManagePlanDialogProps = {
   user: User;
@@ -24,6 +25,7 @@ type ManagePlanDialogProps = {
 };
 
 export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDialogProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState(user.plan);
   const [loading, setLoading] = useState(false);
@@ -32,9 +34,10 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
     setLoading(true);
     try {
       await updateContactPlan(user.id, selectedPlan);
+      // Refresh to show updated plan in table
+      router.refresh();
+      toast({ title: 'Success', description: 'Plan updated successfully', status: 'success' });
       onClose();
-      // In a real app, you'd trigger a refresh or update UI state
-      window.location.reload();
     } catch {
       toast({ title: 'Error', description: 'Failed to update plan', status: 'danger' });
     } finally {

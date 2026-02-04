@@ -8,14 +8,16 @@ The application favors Server Actions for mutations and data fetching in Server 
 
 ### **Uploads & Recordings**
 *   `upload-recordings.ts`:
-    *   `getPresignedUrl`: Generates R2 upload URL.
-    *   `processRecording`: Initiates transcription/summarization.
+    *   `uploadRecordings`: Handles server-side file upload to R2, creates metadata in MongoDB, and triggers background transcription/summarization using Soniox and Gemini.
 *   `delete-recordings.ts`: Handles deletion of recording metadata and R2 files.
+*   `search-actions.ts`:
+    *   `searchRecordingsAction`: Performs semantic vector search on recording summaries using Gemini embeddings.
 
 ### **Admin**
 *   `admin.ts`: System-wide statistics.
 *   `admin-plans.ts`: Manage user subscription plans.
 *   `admin-announcements.ts`: System announcements.
+*   `audit-log.ts`: Admin action logging.
 
 ### **Contacts**
 *   `save-contacts.ts`: CRUD for contacts.
@@ -34,11 +36,13 @@ Creates or verifies a session cookie based on the Firebase ID token.
 ## Recordings
 
 ### `GET /api/recordings`
-Fetches a list of recordings for the authenticated user.
+Fetches a list of recordings for the authenticated user with standard filtering and sorting.
 *   **Query Params**:
-    *   `limit` (default: 50)
-    *   `offset` (default: 0)
-    *   `search` (optional search term)
+    *   `limit` (default: 100)
+    *   `page` (default: 1)
+    *   `sortBy` (`date` | `duration`)
+    *   `sortOrder` (`asc` | `desc`)
+    *   `contactName`, `startDate`, `endDate`, `includeArchived`
 *   **Response**: `RecordingResponse[]`
 
 ### `GET /api/recordings/[id]`
@@ -46,9 +50,6 @@ Fetches details of a specific recording.
 
 ### `DELETE /api/recordings/[id]`
 Deletes a recording and its associated file from Cloudflare R2.
-
-### `POST /api/process/recording`
-*Moved to Server Action: `upload-recordings.ts`*
 
 ## Uploads
 
@@ -59,9 +60,6 @@ Deletes a recording and its associated file from Cloudflare R2.
 ### `GET /api/contacts`
 Fetches a list of contacts.
 *   **Query Params**: `limit`, `skip`.
-
-### `POST /api/contacts/sync`
-*Moved to Server Action: `contacts.ts`*
 
 ## Users
 
@@ -95,9 +93,9 @@ Returns a hierarchical file tree structure of the user's recordings, organized b
 ## Transcription
 
 ### `POST /api/transcribe`
-Triggers background transcription and summarization for a specific recording.
+Manually triggers background transcription and summarization for an existing recording. Useful for retries or if auto-transcribe is disabled.
 *   **Body**: `{ recordingId: string }`
-*   **Note**: Uses Next.js `after()` for background processing. Returns `processing` status immediately.
+*   **Note**: Uses Next.js `after()` for background processing. Returns `processing` status immediately. Enforces billing/limits.
 
 ## Statistics
 

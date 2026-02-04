@@ -15,6 +15,7 @@ import {
 import { MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ManagePlanDialog } from './manage-plan-dialog';
 import { EditLimitsDialog } from './edit-limits-dialog';
+import { EditUsageDialog } from './edit-usage-dialog';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   toggleUserStatus,
@@ -42,6 +43,7 @@ export function UserManagementTable({
 }: UserManagementTableProps) {
   const [userToManage, setUserToManage] = useState<UserResponse | null>(null);
   const [userToEditLimits, setUserToEditLimits] = useState<UserResponse | null>(null);
+  const [userToEditUsage, setUserToEditUsage] = useState<UserResponse | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -110,6 +112,7 @@ export function UserManagementTable({
   const closeDialog = () => {
     setUserToManage(null);
     setUserToEditLimits(null);
+    setUserToEditUsage(null);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -216,6 +219,10 @@ export function UserManagementTable({
                           Manage Plan
                         </Dropdown.Item>
 
+                        <Dropdown.Item key="usage" onPress={() => setUserToEditUsage(user)}>
+                          Adjust Usage
+                        </Dropdown.Item>
+
                         <Dropdown.Item key="role" onPress={() => handleToggleRole(user.id, user.role)}>
                           {user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
                         </Dropdown.Item>
@@ -295,6 +302,14 @@ export function UserManagementTable({
         <EditLimitsDialog
           user={userToEditLimits}
           isOpen={!!userToEditLimits}
+          onClose={closeDialog}
+        />
+      )}
+
+      {userToEditUsage && (
+        <EditUsageDialog
+          user={userToEditUsage}
+          isOpen={!!userToEditUsage}
           onClose={closeDialog}
         />
       )}

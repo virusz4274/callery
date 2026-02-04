@@ -252,6 +252,52 @@ export async function updateUserLimits(
 }
 
 /**
+ * Update user usage (Forgiveness/Adjustment).
+ * Allows admins to manually set storageUsed and transcriptionUsed.
+ */
+export async function updateUserUsage(
+    userId: string,
+    usage: { storageUsed: number; transcriptionUsed: number }
+) {
+    const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
+
+    // Get previous values for audit log
+    const oldUser = await db.collection<User>(Collections.USERS).findOne({ _id: new ObjectId(userId) });
+
+    await db.collection<User>(Collections.USERS).updateOne(
+        { _id: new ObjectId(userId) },
+        {
+            $set: {
+                storageUsed: usage.storageUsed,
+                transcriptionUsed: usage.transcriptionUsed,
+                updatedAt: new Date()
+            }
+        }
+    );
+
+    await logAdminAction(
+        admin._id.toString(),
+        'USER_USAGE_UPDATE',
+        {
+            oldStorageUsed: oldUser?.storageUsed,
+            newStorageUsed: usage.storageUsed,
+            oldTranscriptionUsed: oldUser?.transcriptionUsed,
+            newTranscriptionUsed: usage.transcriptionUsed
+        },
+        userId,
+        'USER'
+    );
+
+    revalidatePath('/admin/users');
+    revalidatePath(`/admin/users/${userId}`);
+}
+
+/**
  * Get all recordings for a specific user.
  */
 export async function getUserRecordings(userId: string) {
