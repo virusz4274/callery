@@ -28,7 +28,15 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ]
-  }
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: `https://studio-2463297382-22017.firebaseapp.com/__/auth/:path*`,
+      },
+    ];
+  },
 }
 
 
