@@ -16,6 +16,7 @@
 *   **[Billing System](billing.md)**: Logic for plans, limits, and Stripe integration.
 *   **[Stripe Setup](stripe-setup.md)**: Configuration guide for Stripe Dashboard.
 *   **[Google Cloud Setup](google-cloud-setup.md)**: Configuring Firebase and Google People API.
+*   **[R2 Lifecycle](R2_LIFECYCLE.md)**: Configuring auto-deletion for exports.
 
 ## Testing
 *   **[Billing Test Plan](billing_test_plan.md)**: Manual test cases for billing.

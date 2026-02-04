@@ -83,3 +83,10 @@ Utility scripts for maintenance and debugging. Run via `npx tsx scripts/<name>.t
 
 ### **UI Components (`src/components`)**
 Organized by feature (e.g., `pages/admin`) or by type (`ui` for atomic components). Uses **HeroUI** for the design system.
+
+#### **Key Components**:
+*   `pages/file-browser-page.tsx`: Main interface for the improved File Browser.
+*   `recording-view/recording-content.tsx`: Handles media playback, transcript display, and **Transliteration** toggles.
+*   `settings/`: Reorganized settings tabs.
+    *   `billing-settings.tsx`: Subscription management.
+    *   `data-settings.tsx`: Export and Google Sync controls.

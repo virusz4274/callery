@@ -23,6 +23,11 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'VoSift',
   },
+  icons: {
+    icon: '/icons/android-chrome-192x192.png',
+    apple: '/icons/android-chrome-192x192.png',
+    shortcut: '/icons/android-chrome-192x192.png',
+  },
   formatDetection: {
     telephone: false,
   },

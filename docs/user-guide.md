@@ -19,10 +19,20 @@ Welcome to **CallOrganizer**! This guide explains how to use the application to 
     *   **Diarization** (Distinguishing speakers).
     *   **Summarization** (AI-generated summary).
 
+### File Browser
+*   **Navigation**: Browse your uploaded files and folders in a hierarchical view.
+*   **View Details**: 
+    1.  Click the **Three Dots** (menu) icon on a file.
+    2.  Select **View Details** to open a popup with the audio player, transcript, and AI summary.
+*   **Delete**:
+    1.  Click the **Three Dots** (menu) icon on a file.
+    2.  Select **Delete** to permanently remove the recording and its transcripts.
+
 ### Playing & Viewing
 *   Click any recording in the dashboard to open the **Detail View**.
 *   **Player**: Use the audio player to listen.
 *   **Transcript**: Read the synchronized transcript. Click any sentence to jump to that point in the audio.
+*   **Transliteration**: Toggle between **Original** and **Transliteration** modes (if available) to view the transcript in a different script.
 *   **Search**: Use the search bar inside the transcript to find specific keywords.
 
 ### Semantic Search
@@ -42,13 +52,14 @@ You can securely share individual recordings with anyone, even if they don't hav
 3.  Select an **expiration time** (1 Hour, 24 Hours, or 7 Days).
 4.  Click **Generate Link**.
 5.  Copy the link and send it.
-    *   *Note*: The recipient gets a read-only view of the audio, transcript, and summary. They cannot edit or delete the file.
+    *   **Secure Access**: The recipient gets a read-only view. No login required.
+    *   **Features**: They can play audio, read user-friendly transcripts, and view the summary.
 
 ## 3. Contacts
 
 ### Google Sync
-1.  Go to **Settings > General**.
-2.  Click **Connect Google Contacts**.
+1.  Go to **Settings > Data**.
+2.  Click **Connect** in the "Sync Google Contacts" section.
 3.  Grant permission.
 4.  The app will import your contacts and display them in the **Contacts** tab.
 
@@ -71,17 +82,31 @@ If enabled in **Settings > Billing**:
 
 ## 5. Settings
 
-### Profile
-*   **Update Info**: Change your display name and time zone.
-*   **Export**: Download a copy of your data (GDPR compliance).
+The settings area is organized into the following tabs:
 
-### Billing Settings
-*   **Manage Subscription**: View current plan, upgrade/downgrade, or cancel via the Stripe Customer Portal.
-*   **Pay Per Usage (Overage)**:
-    *   **Toggle On**: Allows you to upload/transcribe beyond your plan's included limits. You will be billed for the extra usage at the end of the month.
-    *   **Toggle Off**: Strict limits are enforced. You cannot upload more files once your storage limit is reached.
+### 👤 Profile
+*   **Update Info**: Change your display name.
+*   **Change Password**: Update your login credentials.
 
-### Notifications
-*   **In-App Alerts**: Click the **Bell Icon** in the top navigation bar to view your notification history (e.g., "Transcription Ready").
-*   **Email Alerts**: Configure digest frequency (Weekly/Monthly) and alerts for successful/failed uploads in the Settings page.
-*   **Theme**: Toggle between Light and Dark mode.
+### ⚙️ General
+*   **Timezone**: Set your preferred timezone for date displays.
+
+### 💾 Data
+*   **Google Sync**: Connect your Google Contacts account.
+*   **Transcription Settings**: Enable/Disable auto-transcription for new uploads.
+*   **Deletion Policy**: Set an automatic deletion policy (e.g., "Delete after 3 months") to manage storage.
+*   **Export Data**:
+    1.  Request a full backup of your recordings and transcripts.
+    2.  Includes a **Premium Offline Viewer** (HTML) that works without internet.
+    3.  You will receive an email with download links (valid for 7 days).
+    4.  Extract all zip parts into a single folder and open `viewer.html` to browse your data offline.
+
+### 🔔 Notifications
+*   **Activity Digest**: Configure summary emails (Weekly/Monthly).
+*   **Alerts**: Toggle notifications for successful or failed uploads.
+
+### 💳 Billing
+*   **Plan Overview**: View your current plan and trial status.
+*   **Usage Stats**: Track your Storage and Transcription usage against your plan limits.
+*   **Pay Per Usage**: Toggle overage billing on/off.
+*   **Manage Subscription**: Link to the Stripe Customer Portal to upgrade, downgrade, or cancel.

@@ -209,6 +209,29 @@ export interface AdminLog {
     createdAt: Date;
 }
 
+/**
+ * Export Job document.
+ */
+export interface ExportJob {
+    _id: ObjectId;
+    firebaseUid: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    progress: number; // 0-100
+    totalRecordings: number;
+    processedRecordings: number;
+    parts?: {
+        url: string; // R2 Signed URL (or public if bucket is public, likely signed)
+        size: number;
+        expiresAt: Date;
+        key: string; // R2 Key
+    }[];
+    error?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    startedAt?: Date;
+    completedAt?: Date;
+}
+
 // Input types for creating new documents (without _id and timestamps)
 
 export type CreateUserInput = Omit<User, '_id' | 'createdAt' | 'updatedAt'>;
@@ -229,6 +252,8 @@ export type CreateAnnouncementInput = Omit<Announcement, '_id' | 'createdAt' | '
 export type UpdateAnnouncementInput = Partial<Omit<Announcement, '_id' | 'createdAt' | 'createdBy'>>;
 
 export type CreateNotificationInput = Omit<Notification, '_id' | 'createdAt'>;
+
+export type CreateExportJobInput = Omit<ExportJob, '_id' | 'createdAt' | 'updatedAt'>;
 
 // API response types (with string _id for JSON serialization)
 
@@ -370,10 +395,23 @@ export interface AdminLogResponse {
     adminId: string;
     adminEmail: string;
     action: string;
+    details: Record<string, unknown>;
     targetId?: string;
     targetType?: string;
-    details: Record<string, unknown>;
     createdAt: string;
+}
+
+export interface ExportJobResponse {
+    id: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    progress: number;
+    parts?: {
+        url: string;
+        expiresAt: string;
+    }[];
+    error?: string;
+    createdAt: string;
+    completedAt?: string;
 }
 
 export interface TranscriptionWord {
