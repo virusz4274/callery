@@ -19,6 +19,7 @@ export async function getRecordingsByUser(
         skip?: number;
         includeArchived?: boolean;
         contactName?: string;
+        contactId?: string;
         sortBy?: 'date' | 'duration';
         sortOrder?: 'asc' | 'desc';
         startDate?: string;
@@ -33,6 +34,9 @@ export async function getRecordingsByUser(
     }
     if (options?.contactName) {
         query.contactName = options.contactName;
+    }
+    if (options?.contactId) {
+        query.contactId = new ObjectId(options.contactId);
     }
 
     if (options?.startDate || options?.endDate) {
@@ -249,6 +253,7 @@ export async function getRecordingsForApi(
         skip?: number;
         includeArchived?: boolean;
         contactName?: string;
+        contactId?: string;
         sortBy?: 'date' | 'duration';
         sortOrder?: 'asc' | 'desc';
         startDate?: string;
@@ -268,12 +273,13 @@ export async function countRecordingsByUser(
     options?: {
         includeArchived?: boolean;
         contactName?: string;
+        contactId?: string;
         startDate?: string;
         endDate?: string;
     }
 ): Promise<number> {
     // If filtering, we must query the collection
-    if (options?.contactName || options?.startDate || options?.endDate) {
+    if (options?.contactName || options?.contactId || options?.startDate || options?.endDate) {
         const db = await getMongoDb();
         const query: Record<string, unknown> = { firebaseUid };
 
@@ -283,6 +289,10 @@ export async function countRecordingsByUser(
 
         if (options.contactName) {
             query.contactName = options.contactName;
+        }
+
+        if (options.contactId) {
+            query.contactId = new ObjectId(options.contactId);
         }
 
         if (options.startDate || options.endDate) {
@@ -363,4 +373,67 @@ export async function getDashboardStats(firebaseUid: string): Promise<DashboardS
         unknownCallers,
         avgDuration: totalRecordings > 0 ? Math.round(totalDuration / totalRecordings) : 0
     };
+}
+
+/**
+ * Policy duration mapping in days.
+ */
+const POLICY_DAYS: Record<string, number> = {
+    '3m': 90,
+    '6m': 180,
+    '1y': 365,
+};
+
+/**
+ * Get recordings that should be deleted based on user deletion policies.
+ * Returns recordings grouped by firebaseUid for batch processing.
+ * 
+ * @param batchSize - Maximum number of recordings to return per user (default: 100)
+ */
+export async function getExpiredRecordings(
+    batchSize: number = 100
+): Promise<{ firebaseUid: string; recordings: Recording[] }[]> {
+    const db = await getMongoDb();
+    const now = new Date();
+
+    // Find users with active deletion policies
+    const usersWithPolicies = await db.collection<{
+        firebaseUid: string;
+        storageSettings: { deletionPolicy: string };
+    }>(Collections.USERS)
+        .find({
+            'storageSettings.deletionPolicy': { $in: ['3m', '6m', '1y'] }
+        })
+        .project({ firebaseUid: 1, 'storageSettings.deletionPolicy': 1 })
+        .toArray();
+
+    const results: { firebaseUid: string; recordings: Recording[] }[] = [];
+
+    for (const user of usersWithPolicies) {
+        const policy = user.storageSettings?.deletionPolicy;
+        const days = POLICY_DAYS[policy];
+
+        if (!days) continue;
+
+        const cutoffDate = new Date(now);
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+
+        const expiredRecordings = await db
+            .collection<Recording>(Collections.RECORDINGS)
+            .find({
+                firebaseUid: user.firebaseUid,
+                recordedAt: { $lt: cutoffDate },
+            })
+            .limit(batchSize)
+            .toArray();
+
+        if (expiredRecordings.length > 0) {
+            results.push({
+                firebaseUid: user.firebaseUid,
+                recordings: expiredRecordings,
+            });
+        }
+    }
+
+    return results;
 }

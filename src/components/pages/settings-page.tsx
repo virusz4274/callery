@@ -10,6 +10,7 @@ import { NotificationsSettings } from '@/components/settings/notifications-setti
 import { BillingSettings } from '@/components/settings/billing-settings';
 import { ClientOnly } from '@/components/client-only';
 import { Skeleton } from '@heroui/react';
+import { OverviewSettings } from '@/components/settings/overview-settings';
 import { useSettingsPage } from '@/hooks/use-settings-page';
 
 export function SettingsPage() {
@@ -77,7 +78,7 @@ export function SettingsPage() {
 
     // New Master-Detail Layout
     return (
-        <div className="w-full h-full min-h-screen p-4 sm:p-6 relative">
+        <div className="w-full h-full min-h-screen relative">
             {/* Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
                 <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl opacity-40 animate-pulse" />
@@ -100,7 +101,7 @@ export function SettingsPage() {
                         </button>
 
                         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                            {view === 'detail' && window.innerWidth < 1024 ? tabs.find(t => t.id === activeTab)?.label || 'Settings' : 'Settings'}
+                            {view === 'detail' && window.innerWidth < 1024 ? tabs.find((t: any) => t.id === activeTab)?.label || 'Settings' : 'Settings'}
                         </h1>
                     </div>
                     {/* Hide description on mobile detail view to save space? Or keep it? */}
@@ -117,7 +118,7 @@ export function SettingsPage() {
                         // Mobile Logic: Show only if view is list, or on desktop always show
                         view === 'detail' ? "hidden lg:flex" : "flex"
                     )}>
-                        {tabs.map((tab) => (
+                        {tabs.map((tab: any) => (
                             <button
                                 key={tab.id}
                                 onClick={() => handleTabSelect(tab.id)}
@@ -144,6 +145,9 @@ export function SettingsPage() {
                         view === 'list' ? "hidden lg:block" : "block"
                     )}>
                         <ClientOnly>
+                            {activeTab === 'overview' && (
+                                <OverviewSettings />
+                            )}
                             {activeTab === 'profile' && (
                                 <ProfileSettings
                                     user={user!}

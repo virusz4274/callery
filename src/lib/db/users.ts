@@ -5,11 +5,22 @@ import type { User, CreateUserInput, UpdateUserInput, SystemSettings, Plan } fro
 /**
  * Find a user by their Firebase UID.
  */
+// [existing code]
 export async function findUserByFirebaseUid(firebaseUid: string): Promise<User | null> {
     const db = await getMongoDb();
     const user = await db.collection<User>(Collections.USERS).findOne({ firebaseUid });
     return user;
 }
+
+/**
+ * Find a user by their Stripe Customer ID.
+ */
+export async function findUserByStripeCustomerId(customerId: string): Promise<User | null> {
+    const db = await getMongoDb();
+    const user = await db.collection<User>(Collections.USERS).findOne({ stripeCustomerId: customerId });
+    return user;
+}
+
 
 /**
  * Create a new user profile.

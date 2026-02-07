@@ -98,16 +98,22 @@ The settings area is organized into the following tabs:
     *   **Provider**: Choose between **Soniox** (Standard, 1x Cost) and **ElevenLabs** (Premium, 6x Cost).
         *   *Note: ElevenLabs files longer than 5 minutes are processed asynchronously and may feel slower to appear.*
     *   **Model**: Select specific models if available (e.g., `scribe_v2`).
-*   **Deletion Policy**: Set an automatic deletion policy (e.g., "Delete after 3 months") to manage storage.
+*   **Deletion Policy**: Set an automatic deletion policy to manage storage:
+    *   **Options**: Never, 3 Months, 6 Months, 1 Year.
+    *   **Automatic Enforcement**: A scheduled job runs daily and deletes recordings older than your chosen threshold.
+    *   *Example*: If you set "3 Months", recordings older than 90 days are automatically removed.
 *   **Export Data**:
     1.  Request a full backup of your recordings and transcripts.
     2.  Includes a **Premium Offline Viewer** (HTML) that works without internet.
-    3.  You will receive an email with download links (valid for 7 days).
+    3.  You will receive an email and an **in-app notification** when your export is ready (valid for 7 days).
     4.  Extract all zip parts into a single folder and open `viewer.html` to browse your data offline.
 
 ### 🔔 Notifications
 *   **Activity Digest**: Configure summary emails (Weekly/Monthly).
-*   **Alerts**: Toggle notifications for successful or failed uploads.
+*   **Alerts**:
+    *   **Uploads**: Successful or failed uploads.
+    *   **Exports**: Notification when data export is ready for download.
+    *   **Billing**: Alerts for payment failures or subscription cancellations.
 
 ### 💳 Billing
 *   **Plan Overview**: View your current plan and trial status.

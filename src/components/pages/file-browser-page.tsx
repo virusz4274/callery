@@ -157,7 +157,7 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
         </p>
       </div>
 
-      <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl overflow-visible transition-all duration-300">
+      <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl overflow-visible transition-all duration-300 rounded-xl md:rounded-2xl">
         <Card.Header className="flex flex-col items-start px-6 pt-6 pb-0">
           <div className="pt-2 pb-4 flex items-center flex-wrap gap-1 text-sm text-default-500">
             {breadcrumbItems.map((item, index) => {

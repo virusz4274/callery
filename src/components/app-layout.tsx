@@ -117,7 +117,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
+    <div className="flex min-h-dvh w-full flex-col bg-background">
       <AppHeader
         user={user}
         userProfile={userProfile}
@@ -127,7 +127,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
       />
 
 
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 pb-24 md:pb-6">
+      <main className="flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-6 md:py-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
         <EmailVerificationAlert
           user={user}
           onResend={handleResendVerification}

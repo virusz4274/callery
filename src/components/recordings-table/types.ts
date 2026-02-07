@@ -10,6 +10,7 @@ export type RecordingsTableProps = {
     itemsPerPage: number;
     onRecordingsChange?: () => Promise<void> | void;
     onRetryTranscription?: (recording: Recording) => void;
+    variant?: 'default' | 'flat';
 };
 
 export type TableSelectionState = {

@@ -1,9 +1,8 @@
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
 import type { Recording } from '@/lib/types';
 import { useToast } from '@/components/toast-provider';
-import { initializeFirebase } from '@/lib/firebase/client';
 import { transcribeRecordingAction } from '@/app/actions/transcription';
 
 export type SortConfig = {
@@ -16,15 +15,15 @@ export type DateFilter = {
     end?: string;
 };
 
-export function useDashboardState(allRecordings: Recording[], itemsPerPage: number = 10) {
+export function useDashboardState(itemsPerPage: number = 10) {
     const searchParams = useSearchParams();
-    const [page, setPage] = useState(1);
 
-    // Filtering State
+    // -- Standard List State --
+    const [page, setPage] = useState(1);
     const [currentSort, setCurrentSort] = useState<SortConfig>({ by: 'date', order: 'desc' });
     const [currentDateFilter, setCurrentDateFilter] = useState<DateFilter>({});
 
-    // Semantic Search State
+    // -- Semantic Search State --
     const [semanticQuery, setSemanticQuery] = useState('');
     const [semanticResults, setSemanticResults] = useState<Recording[] | null>(null);
     const [semanticTotalCount, setSemanticTotalCount] = useState(0);
@@ -32,31 +31,39 @@ export function useDashboardState(allRecordings: Recording[], itemsPerPage: numb
 
     const { toast } = useToast();
 
-    // Derived State from URL
-    const filter = useMemo(() => ({
+    // Derived State from URL (for initial load / deep linking support if needed later)
+    // Currently strictly used for the 'filterType' param in the original code, 
+    // but we can likely move this to the container or handle it via initial state if strictly needed.
+    // For now, let's keep the filter derivation if it's used for initial "Quick Filters"
+    const urlFilter = useMemo(() => ({
         type: searchParams.get('filterType'),
         value: searchParams.get('filterValue'),
     }), [searchParams]);
 
-    const searchQuery = searchParams.get('q') || '';
+    // Search param 'q' was used for client-side text filter. 
+    // We might want to pass this to the server if we want to support keyword search.
+    const urlSearchQuery = searchParams.get('q') || '';
 
-    // Handle Semantic Search
-    const handleSemanticSearch = (e?: React.FormEvent | number, targetPage: number = 1) => {
+    // -- Handlers --
+
+    const handleSemanticSearch = useCallback((e?: React.FormEvent | number, targetPage: number = 1) => {
         // If first argument is event, prevent default
-        if (e && typeof e !== 'number' && 'preventDefault' in e) e.preventDefault();
+        if (e && typeof e !== 'number' && 'preventDefault' in e) {
+            e.preventDefault();
+        }
 
-        // If called with just a page number as first arg (optional convenience)
+        // If called with just a page number as first arg
         if (typeof e === 'number') targetPage = e;
 
         if (!semanticQuery.trim()) return;
 
         startSearchTransition(async () => {
-            // If searching new query, reset page to 1
+            // Reset to page 1 if it's a new search (event passed)
             if (e && typeof e !== 'number') setPage(1);
 
             const response = await searchRecordingsAction(semanticQuery, targetPage, itemsPerPage);
             if (response.success) {
-                setSemanticResults(response.results as Recording[]);
+                setSemanticResults(response.results as any[]); // Type cast if needed, or ensure searchRecordingsAction returns compatible types
                 setSemanticTotalCount(response.totalCount || response.results.length);
                 setPage(targetPage);
             } else {
@@ -68,16 +75,16 @@ export function useDashboardState(allRecordings: Recording[], itemsPerPage: numb
                 });
             }
         });
-    };
+    }, [semanticQuery, itemsPerPage, toast, setPage]);
 
-    const clearSemanticSearch = () => {
+    const clearSemanticSearch = useCallback(() => {
         setSemanticQuery('');
         setSemanticResults(null);
         setSemanticTotalCount(0);
         setPage(1);
-    };
+    }, [setPage]);
 
-    const handleRetryTranscription = async (recording: Recording) => {
+    const handleRetryTranscription = useCallback(async (recording: Recording) => {
         toast({ title: 'Starting transcription...', status: 'default' });
 
         try {
@@ -100,97 +107,39 @@ export function useDashboardState(allRecordings: Recording[], itemsPerPage: numb
                 status: 'danger',
             });
         }
+    }, [toast]);
+
+    // -- State Setters Wrappers --
+    // When changing standard filters, we might want to clear semantic search or vice versa?
+    // For now, let's keep them independent but semantic results take precedence in the view.
+
+    const handleSetPage = (newPage: number) => {
+        if (semanticResults) {
+            handleSemanticSearch(undefined, newPage);
+        } else {
+            setPage(newPage);
+        }
     };
 
-    const filteredRecordings = useMemo(() => {
-        // If semantic search is active, return those results directly (they are already filtered & paginated by server)
-        if (semanticResults) return semanticResults;
-
-        if (!allRecordings) return [];
-
-        let result = allRecordings.filter(rec => {
-            const searchLower = searchQuery.toLowerCase();
-            const matchesSearch = searchQuery === '' ||
-                rec.contactName?.toLowerCase().includes(searchLower) ||
-                rec.phoneNumber.includes(searchLower) ||
-                rec.summary?.toLowerCase().includes(searchLower) ||
-                false;
-
-            if (!filter.type || !filter.value) return matchesSearch;
-
-            let matchesFilter = false;
-            if (filter.type === 'contact') {
-                if (filter.value === 'Unknown') {
-                    matchesFilter = !rec.contactName;
-                } else {
-                    matchesFilter = rec.contactName === filter.value;
-                }
-            } else if (filter.type === 'date') {
-                const recDate = new Date(rec.recordedAt);
-                const [filterMonth, filterYear] = filter.value?.split(' ') || [];
-                matchesFilter = recDate.toLocaleString('default', { month: 'long' }) === filterMonth &&
-                    recDate.getFullYear().toString() === filterYear;
-            }
-
-            return matchesSearch && matchesFilter;
-        });
-
-        // Apply Date Range Filter
-        if (currentDateFilter.start || currentDateFilter.end) {
-            result = result.filter(rec => {
-                const recDate = new Date(rec.recordedAt).getTime();
-                const start = currentDateFilter.start ? new Date(currentDateFilter.start).getTime() : -Infinity;
-                const end = currentDateFilter.end ? new Date(currentDateFilter.end).getTime() + 86400000 : Infinity; // Add 1 day to include end date
-                return recDate >= start && recDate < end;
-            });
-        }
-
-        // Apply Sorting
-        result.sort((a, b) => {
-            if (currentSort.by === 'date') {
-                const dateA = new Date(a.recordedAt).getTime();
-                const dateB = new Date(b.recordedAt).getTime();
-                return currentSort.order === 'asc' ? dateA - dateB : dateB - dateA;
-            } else {
-                return currentSort.order === 'asc' ? a.duration - b.duration : b.duration - a.duration;
-            }
-        });
-
-        return result;
-    }, [allRecordings, searchQuery, filter, semanticResults, currentDateFilter, currentSort]);
-
-    // Derived State for Pagination
-    const paginatedRecordings = useMemo(() => {
-        // If semantic results are active, they are ALREADY paginated by the server. Return as is.
-        if (semanticResults) return semanticResults;
-
-        const startIndex = (page - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return filteredRecordings.slice(startIndex, endIndex);
-    }, [filteredRecordings, page, itemsPerPage, semanticResults]);
-
     return {
+        // State
         page,
-        setPage: (newPage: number) => {
-            if (semanticResults) {
-                handleSemanticSearch(undefined, newPage);
-            } else {
-                setPage(newPage);
-            }
-        },
         currentSort,
-        setCurrentSort,
         currentDateFilter,
-        setCurrentDateFilter,
         semanticQuery,
-        setSemanticQuery,
         semanticResults,
+        semanticTotalCount,
         isSearching,
+        urlFilter,
+        urlSearchQuery,
+
+        // Actions
+        setPage: handleSetPage,
+        setCurrentSort,
+        setCurrentDateFilter,
+        setSemanticQuery,
         handleSemanticSearch,
         clearSemanticSearch,
         handleRetryTranscription,
-        filteredRecordings, // Full list (useful for exports or debug)
-        displayTotalCount: semanticResults ? semanticTotalCount : filteredRecordings.length,
-        displayedRecordings: paginatedRecordings
     };
 }

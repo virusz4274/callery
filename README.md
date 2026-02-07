@@ -8,6 +8,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 
 *   **[User Guide](docs/user-guide.md)**: Features and usage instructions.
 *   **[Setup Guide](docs/setup-guide.md)**: Local development setup.
+*   **[Android App](docs/android-app.md)**: Capacitor setup for mobile.
 *   **[API Reference](docs/api-reference.md)**: API endpoints.
 *   **[Billing System](docs/billing.md)**: Plans and Stripe integration.
 *   **[Changelog](CHANGELOG.md)**: Version history.
