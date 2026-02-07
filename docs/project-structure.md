@@ -65,15 +65,23 @@ This document provides a high-level overview of the `vosift` codebase organizati
     *   `search.ts`: Vector Search implementation using MongoDB Atlas.
     *   `types.ts`: TypeScript interfaces for Data Models.
 *   `src/lib/stripe/`: Billing logic (Sync, Usage Reporting).
+*   `src/lib/sharing.ts`: JWT-based signed URL generation for secure sharing.
+*   `src/lib/export-processor.ts`: Background task logic for archiving user data into ZIP files.
+*   `src/lib/export-viewer-template.ts`: HTML/JS template for the premium offline data viewer.
+*   `src/lib/api-client.ts`: Client-side authenticated fetch utility (`authFetch`).
+*   `src/lib/auth-utils.ts`: Server-side session and request authentication helpers.
+*   `src/lib/logger.ts`: Standardized logging utility with production suppression.
+*   `src/lib/email.ts`: SMTP email delivery service.
 
-### **Scripts (`scripts/`)**
-Utility scripts for maintenance and debugging. Run via `npx tsx scripts/<name>.ts`.
-*   `check-db.ts`: Verify MongoDB connection.
-*   `verify_plans_and_usage.ts`: Audit user plans and recalculate usage stats.
-*   `fix-speaker-ids.ts`: Repair corrupt speaker IDs in transcripts.
-*   `check-user-stripe.ts`: Debug Stripe customer/subscription links.
-*   `debug-contacts.ts`: Debug Google Contact sync.
-*   `debug-transcripts.ts`: Inspect raw transcript data.
+### **Scripts (`scripts/` & `src/scripts/`)**
+Utility scripts for maintenance and debugging. Run via `npx tsx <path-to-script>.ts`.
+*   **System Tools (`scripts/`)**:
+    *   `check-db.ts`: Verify MongoDB connection.
+    *   `verify_plans_and_usage.ts`: Audit user plans and recalculate usage stats.
+    *   `test-recording.ts`: Simulates a recording upload flow.
+*   **Data Maintenance (`src/scripts/`)**:
+    *   `backfill-contact-counts.ts`: Recalculates total recordings per contact.
+    *   `fix-contact-stats.ts`: Repairs corrupted contact metadata.
 
 ### **API Routes (`src/app/api`)**
 *   `/api/auth`: Handles session management.

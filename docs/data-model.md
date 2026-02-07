@@ -186,6 +186,22 @@ System-wide announcements.
 
 ---
 
+### **`notifications`**
+In-app user notifications and alerts.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Unique identifier. |
+| `userId` | `ObjectId` | Reference to the recipient user. |
+| `type` | `'info' \| 'success' \| 'warning' \| 'error'` | Notification type. |
+| `title` | `string` | Short title. |
+| `message` | `string` | Detailed message. |
+| `isRead` | `boolean` | Read status. |
+| `link` | `string` | (Optional) Action link. |
+| `createdAt` | `Date` | Creation timestamp. |
+
+---
+
 ### **`admin_logs`**
 Audit trail for admin actions.
 

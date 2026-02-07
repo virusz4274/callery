@@ -10,6 +10,7 @@ Navigate to `/admin` to access the dashboard. This route is protected and requir
 The dashboard provides a high-level view of system health:
 *   **System Stats**: Total users, recordings, and storage usage.
 *   **Orphaned Recordings**: Counts of files in R2 storage that do not have corresponding MongoDB entries.
+*   **Service Status**: Real-time health checks for MongoDB, Cloudflare R2, Google Gemini, and Soniox API.
 
 ## File Browser
 Located at `/files`.

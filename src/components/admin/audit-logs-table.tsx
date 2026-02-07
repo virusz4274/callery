@@ -13,6 +13,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AdminLogResponse } from '@/lib/db/types';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { Input } from '@heroui/react';
 
 type AuditLogsTableProps = {
     initialLogs: AdminLogResponse[];
@@ -20,6 +21,8 @@ type AuditLogsTableProps = {
     currentPage: number;
     totalPages: number;
     initialActionFilter?: string;
+    initialStartDate?: string;
+    initialEndDate?: string;
 };
 
 const ACTION_TYPES = [
@@ -31,10 +34,11 @@ const ACTION_TYPES = [
 
 export function AuditLogsTable({
     initialLogs,
-
     currentPage,
     totalPages,
-    initialActionFilter
+    initialActionFilter,
+    initialStartDate,
+    initialEndDate
 }: AuditLogsTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -55,6 +59,21 @@ export function AuditLogsTable({
             params.set('action', key.toString());
         } else {
             params.delete('action');
+        }
+        params.set('page', '1');
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    };
+
+    const handleDateChange = (type: 'startDate' | 'endDate', value: string) => {
+        const params = new URLSearchParams(searchParams);
+        if (value) {
+            // Convert native input date YYYY-MM-DD to ISO
+            const date = new Date(value);
+            params.set(type, date.toISOString());
+        } else {
+            params.delete(type);
         }
         params.set('page', '1');
         startTransition(() => {
@@ -108,7 +127,7 @@ export function AuditLogsTable({
                 {isPending && <Spinner size="sm" />}
             </div>
 
-            <div className="flex gap-4 mb-6">
+            <div className="flex gap-4 mb-6 flex-wrap">
                 <div className="w-64">
                     <Select
                         className="w-full"
@@ -131,6 +150,26 @@ export function AuditLogsTable({
                             </ListBox>
                         </Select.Popover>
                     </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm">Filter by Date</Label>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            type="date"
+                            className="w-40"
+                            aria-label="From Date"
+                            value={initialStartDate?.split('T')[0] || ''}
+                            onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        />
+                        <span className="text-default-400">to</span>
+                        <Input
+                            type="date"
+                            className="w-40"
+                            aria-label="To Date"
+                            value={initialEndDate?.split('T')[0] || ''}
+                            onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 

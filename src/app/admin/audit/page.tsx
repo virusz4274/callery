@@ -6,10 +6,10 @@ import { AdminLogResponse } from '@/lib/db/types';
 export default async function AuditPage({
     searchParams
 }: {
-    searchParams: Promise<{ page?: string; action?: string }>;
+    searchParams: Promise<{ page?: string; action?: string; startDate?: string; endDate?: string }>;
 }) {
     await connection();
-    const { page: pageParam, action: actionParam } = await searchParams;
+    const { page: pageParam, action: actionParam, startDate, endDate } = await searchParams;
     const page = Number(pageParam) || 1;
 
     // Fetch logs
@@ -17,7 +17,9 @@ export default async function AuditPage({
     let total = 0;
     let totalPages = 0;
     try {
-        const result = await getAuditLogs(page, 20, actionParam);
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
+        const result = await getAuditLogs(page, 20, actionParam, undefined, start, end);
         logs = result.logs;
         total = result.total;
         totalPages = result.totalPages;
@@ -37,6 +39,8 @@ export default async function AuditPage({
                 currentPage={page}
                 totalPages={totalPages}
                 initialActionFilter={actionParam}
+                initialStartDate={startDate}
+                initialEndDate={endDate}
             />
         </div>
     );

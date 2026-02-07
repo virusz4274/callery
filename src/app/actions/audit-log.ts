@@ -58,7 +58,9 @@ export async function getAuditLogs(
     page: number = 1,
     limit: number = 20,
     actionFilter?: string,
-    adminIdFilter?: string
+    adminIdFilter?: string,
+    startDate?: Date,
+    endDate?: Date
 ) {
     const db = await getMongoDb();
     const skip = (page - 1) * limit;
@@ -66,6 +68,12 @@ export async function getAuditLogs(
     const query: Record<string, unknown> = {};
     if (actionFilter) query.action = actionFilter;
     if (adminIdFilter) query.adminId = adminIdFilter;
+    
+    if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) (query.createdAt as any).$gte = startDate;
+        if (endDate) (query.createdAt as any).$lte = endDate;
+    }
 
     const totalLogs = await db.collection(Collections.ADMIN_LOGS).countDocuments(query);
     const logs = await db.collection<AdminLog>(Collections.ADMIN_LOGS)

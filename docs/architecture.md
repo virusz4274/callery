@@ -21,7 +21,15 @@ CallOrganizer is a modern web application for managing, transcribing, and organi
     *   **In-App**: MongoDB-backed persistent notifications + Polling/Toasts.
 *   **Sharing**:
     *   **JWT Links**: Stateless, signed URLs (`jose`) for secure, time-limited public access without DB state.
-*   **PWA**: Offline-first support via `@ducanh2912/next-pwa` with Workbox caching strategy.
+*   **PWA**:
+    *   **Framework**: Offline-first support via `@ducanh2912/next-pwa`.
+    *   **Strategy**: Workbox-powered caching.
+        *   **NetworkFirst**: Used for `/api/` routes to ensure fresh data while allowing offline fallback.
+        *   **CacheFirst**: Used for Google Fonts and static assets.
+        *   **StaleWhileRevalidate**: Used for local images, icons, and `/_next/image` requests.
+*   **Monitoring**:
+    *   **Sentry**: Full-stack error tracking and performance monitoring.
+    *   **Audit Logs**: MongoDB-backed audit trail for administrative actions.
 
 ### **System Architecture**
 
@@ -59,6 +67,47 @@ graph TD
     Actions -->|Sync Contacts| GPeople
     Actions -->|Report Usage| Stripe
 ```
+
+### **Data Storage Strategy**
+
+#### **Cloudflare R2 (Object Storage)**
+Files are organized using a hierarchical key structure to optimize for performance and logical grouping.
+
+**Key Pattern**:
+`{firebaseUid}/{contactId}/{year}/{month}/{timestamp}_{randomHash}.{extension}`
+
+*   **Partitioning**: Segregated by User ID (`firebaseUid`) for multi-tenancy.
+*   **Grouping**: Grouped by Contact ID (or `unknown_{phone}`) for efficient folder browsing.
+*   **Time-Series**: Sub-organized by Year/Month to prevent massive single-directory listings.
+*   **Uniqueness**: Uses Timestamp + Random Hash to prevent collisions.
+
+### **Service Integration Patterns**
+
+#### **1. Transcription (Soniox)**
+*   **Pattern**: Async Polling.
+*   **Workflow**:
+    1.  **Start**: Server sends audio URL to Soniox (`POST /v1/transcriptions`).
+    2.  **Smart Delay**: System waits for ~30% of the audio duration (up to 30s) before the first check, minimizing API chatter.
+    3.  **Poll**: Checks status (`GET /v1/transcriptions/{id}`) every 2 seconds.
+    4.  **Fetch**: Upon `COMPLETED` status, fetches the full transcript payload.
+    5.  **Process**: Reassembles word-level tokens into speaker segments locally.
+
+#### **2. Contact Sync (Google People API)**
+*   **Pattern**: Background Batch Processing.
+*   **Trigger**: User connects account or manual "Sync Now" action.
+*   **Execution**:
+    *   Uses `next/after` (or background job) to prevent blocking the UI.
+    *   Fetches contacts in batches of 100 via cursor pagination.
+    *   Transforms Google resource format to internal `Contact` model.
+    *   Performs bulk upserts to MongoDB.
+
+#### **3. Authentication (No Middleware)**
+*   **Strategy**: Per-Request Verification.
+*   **Reasoning**: Next.js Middleware runs on the Edge, which has limited compatibility with certain Node.js Firebase Admin SDK features.
+*   **Implementation**:
+    *   **Client**: Firebase Auth handles login and token management.
+    *   **Server**: Every Server Action or API Route calls `getUserFromRequest()` or `getFirebaseUidFromSession()`.
+    *   **Verification**: Validates the ID Token or Session Cookie against Firebase Admin.
 
 ## **Core Features**
 

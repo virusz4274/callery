@@ -11,10 +11,8 @@ import {
     Label,
     ListBox
 } from '@heroui/react';
-import { DatePicker } from '@/components/ui/date-picker';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { createAnnouncement, updateAnnouncement } from '@/app/actions/admin-announcements';
-import { parseAbsoluteToLocal, getLocalTimeZone, now, ZonedDateTime } from '@internationalized/date';
 
 type AnnouncementFormDialogProps = {
     isOpen: boolean;
@@ -29,6 +27,18 @@ const TYPES = [
     { value: 'success', label: 'Success' },
 ];
 
+/**
+ * Formats a Date object or string to YYYY-MM-DDThh:mm for datetime-local input
+ */
+function formatForInput(date: Date | string | undefined | null) {
+    if (!date) return '';
+    const d = new Date(date);
+    // Adjust for timezone to get local time string
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+    return localISOTime;
+}
+
 export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: AnnouncementFormDialogProps) {
     const isEditing = !!announcementToEdit;
 
@@ -38,18 +48,9 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
     const [type, setType] = useState<'info' | 'warning' | 'alert' | 'success'>(announcementToEdit?.type as 'info' | 'warning' | 'alert' | 'success' || 'info');
     const [isActive, setIsActive] = useState(announcementToEdit ? announcementToEdit.isActive : true);
 
-    // Date State handling with @internationalized/date
-    const [startDate, setStartDate] = useState<ZonedDateTime>(
-        announcementToEdit
-            ? parseAbsoluteToLocal(new Date(announcementToEdit.startDate).toISOString())
-            : now(getLocalTimeZone())
-    );
-
-    const [endDate, setEndDate] = useState<ZonedDateTime | null>(
-        announcementToEdit?.endDate
-            ? parseAbsoluteToLocal(new Date(announcementToEdit.endDate).toISOString())
-            : null
-    );
+    // Date State as strings for native inputs
+    const [startDate, setStartDate] = useState<string>(formatForInput(announcementToEdit?.startDate || new Date()));
+    const [endDate, setEndDate] = useState<string>(formatForInput(announcementToEdit?.endDate));
 
     const [loading, setLoading] = useState(false);
 
@@ -61,8 +62,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                 message,
                 type,
                 isActive,
-                startDate: startDate.toDate(),
-                endDate: endDate ? endDate.toDate() : undefined,
+                startDate: new Date(startDate),
+                endDate: endDate ? new Date(endDate) : undefined,
             };
 
             if (isEditing && announcementToEdit) {
@@ -147,29 +148,19 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="flex flex-col gap-2">
                                         <Label className="text-sm font-medium">Start Date & Time</Label>
-                                        <DatePicker
-                                            showTime
-                                            date={startDate.toDate()}
-                                            setDate={(d) => {
-                                                if (d) {
-                                                    setStartDate(parseAbsoluteToLocal(d.toISOString()));
-                                                }
-                                            }}
+                                        <Input
+                                            type="datetime-local"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
                                             className="w-full"
                                         />
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <Label className="text-sm font-medium">End Date & Time (Optional)</Label>
-                                        <DatePicker
-                                            showTime
-                                            date={endDate ? endDate.toDate() : undefined}
-                                            setDate={(d) => {
-                                                if (d) {
-                                                    setEndDate(parseAbsoluteToLocal(d.toISOString()));
-                                                } else {
-                                                    setEndDate(null);
-                                                }
-                                            }}
+                                        <Input
+                                            type="datetime-local"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
                                             className="w-full"
                                             placeholder="Pick end date"
                                         />
