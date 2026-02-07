@@ -5,7 +5,7 @@ import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Button, Popover } from "@heroui/react"
+import { Button, Popover, Input } from "@heroui/react"
 import { Calendar } from "@/components/ui/calendar"
 
 interface DatePickerProps {
@@ -35,7 +35,7 @@ export function DatePicker({ date, setDate, className, placeholder = "Pick a dat
                 <Button
                     variant="outline"
                     className={cn(
-                        "w-[240px] justify-start text-left font-normal bg-background/50",
+                        "w-[240px] justify-start text-left font-normal border-default-200",
                         !date && "text-muted-foreground",
                         className
                     )}
@@ -44,7 +44,7 @@ export function DatePicker({ date, setDate, className, placeholder = "Pick a dat
                     {date ? format(date, showTime ? "PPP HH:mm" : "PPP") : <span>{placeholder}</span>}
                 </Button>
             </Popover.Trigger>
-            <Popover.Content placement="bottom start" className="w-auto p-4 flex flex-col gap-4">
+            <Popover.Content className="w-auto p-4 flex flex-col gap-4 bg-content1">
                 <Calendar
                     mode="single"
                     selected={date}
@@ -54,6 +54,11 @@ export function DatePicker({ date, setDate, className, placeholder = "Pick a dat
                         if (date) {
                             newDate.setHours(date.getHours());
                             newDate.setMinutes(date.getMinutes());
+                        } else {
+                            // If no date was selected, default to current time or 00:00
+                            const now = new Date();
+                            newDate.setHours(now.getHours());
+                            newDate.setMinutes(now.getMinutes());
                         }
                         setDate(newDate);
                         if (!showTime) setIsOpen(false);
@@ -62,12 +67,13 @@ export function DatePicker({ date, setDate, className, placeholder = "Pick a dat
                 />
                 {showTime && (
                     <div className="flex items-center gap-2 border-t pt-4 border-default-100">
-                        <span className="text-xs font-medium text-default-500">Time:</span>
-                        <input
+                        <span className="text-small font-medium text-default-500 whitespace-nowrap">Time:</span>
+                        <Input
                             type="time"
                             value={timeValue}
                             onChange={handleTimeChange}
-                            className="bg-transparent border border-default-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            aria-label="Time"
+                            className="w-full h-8 min-h-8 text-small"
                         />
                     </div>
                 )}

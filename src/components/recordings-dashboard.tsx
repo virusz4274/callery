@@ -213,20 +213,25 @@ export function RecordingsDashboard({
 
                     <div className="flex items-center gap-2">
                         <CalendarIcon className="w-4 h-4 text-default-500" />
-                        <span className="text-sm font-medium text-default-700">Date Range:</span>
+                        <span className="text-sm font-medium text-default-700">Date:</span>
                     </div>
-                    <DatePickerWithRange
-                        date={{
-                            from: currentDateFilter.start ? new Date(currentDateFilter.start) : undefined,
-                            to: currentDateFilter.end ? new Date(currentDateFilter.end) : undefined
-                        }}
-                        setDate={(range) => {
-                            setCurrentDateFilter({
-                                start: range?.from ? range.from.toISOString() : undefined,
-                                end: range?.to ? range.to.toISOString() : undefined
-                            });
-                        }}
-                    />
+                    <div className="flex items-center gap-2">
+                        <Input
+                            type="date"
+                            className="w-32 h-9 text-sm"
+                            aria-label="Start Date"
+                            value={currentDateFilter.start?.split('T')[0] || ''}
+                            onChange={(e) => setCurrentDateFilter(prev => ({ ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : undefined }))}
+                        />
+                        <span className="text-default-400 text-xs">-</span>
+                        <Input
+                            type="date"
+                            className="w-32 h-9 text-sm"
+                            aria-label="End Date"
+                            value={currentDateFilter.end?.split('T')[0] || ''}
+                            onChange={(e) => setCurrentDateFilter(prev => ({ ...prev, end: e.target.value ? new Date(e.target.value).toISOString() : undefined }))}
+                        />
+                    </div>
 
                     {(currentDateFilter.start || currentDateFilter.end) && (
                         <Button
