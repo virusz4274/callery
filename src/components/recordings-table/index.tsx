@@ -23,7 +23,8 @@ export function RecordingsTable({
     totalCount,
     itemsPerPage,
     onRecordingsChange,
-    onRetryTranscription
+    onRetryTranscription,
+    variant = 'default'
 }: RecordingsTableProps) {
     const { toast } = useToast();
     const router = useRouter();
@@ -47,6 +48,14 @@ export function RecordingsTable({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [recordingsToDelete, setRecordingsToDelete] = useState<string[]>([]);
     const [isDeleting, startDeleteTransition] = useTransition();
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+    const toggleSelectionMode = useCallback(() => {
+        setIsSelectionMode(prev => !prev);
+        if (isSelectionMode) {
+            selection.clearSelection();
+        }
+    }, [isSelectionMode, selection]);
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -90,10 +99,10 @@ export function RecordingsTable({
 
     return (
         <>
-            <div className="space-y-4">
-                <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl transition-all duration-300">
+            <div className="space-y-3 md:space-y-4">
+                <Card className={`transition-all duration-300 ${variant === 'flat' ? 'bg-transparent border-none shadow-none' : 'bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl rounded-xl md:rounded-2xl'}`}>
                     {/* Table Controls / Header */}
-                    <Card.Header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-default-100/50">
+                    <Card.Header className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 md:gap-4 md:p-6 ${variant === 'flat' ? 'px-0 py-2 border-none' : 'border-b border-default-100/50'}`}>
                         <div>
                             <h2 className="text-lg font-semibold text-foreground">Recent Recordings</h2>
                             <p className="text-sm text-default-500">
@@ -118,9 +127,19 @@ export function RecordingsTable({
                                 Delete Selection ({selection.selectedCount})
                             </Button>
                         )}
+
+                        {/* Mobile Selection Mode Toggle/Cancel */}
+                        <div className="md:hidden">
+                            {isSelectionMode ? (
+                                <Button size="sm" variant="ghost" onPress={toggleSelectionMode}>
+                                    Cancel
+                                </Button>
+                            ) : null}
+                        </div>
+
                     </Card.Header>
 
-                    <Card.Content className="p-0">
+                    <Card.Content className={`p-0 ${variant === 'flat' ? 'mt-2' : ''}`}>
                         <RecordingsTableDesktop
                             recordings={recordings}
                             selection={selection}
@@ -135,11 +154,13 @@ export function RecordingsTable({
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
+                            isSelectionMode={isSelectionMode}
+                            toggleSelectionMode={toggleSelectionMode}
                         />
                     </Card.Content>
 
                     {totalPages > 1 && (
-                        <Card.Footer className="flex items-center justify-between px-6 py-4 border-t border-default-100/50">
+                        <Card.Footer className={`flex items-center justify-between px-4 py-3 md:px-6 md:py-4 ${variant === 'flat' ? 'px-0 border-none' : 'border-t border-default-100/50'}`}>
                             <span className="text-xs text-default-400 uppercase tracking-widest font-semibold">
                                 Page {page} of {totalPages}
                             </span>

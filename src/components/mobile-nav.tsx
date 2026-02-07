@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
-import { LogIn, Search, X, ArrowLeft } from 'lucide-react';
-import { Modal, Input } from "@heroui/react";
+import { LogIn, ArrowLeft } from 'lucide-react';
 
 export function MobileNav() {
   const pathname = usePathname()
@@ -16,35 +15,23 @@ export function MobileNav() {
   const searchParams = useSearchParams();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [, startTransition] = useTransition();
+  const [isCapacitor, setIsCapacitor] = useState(false);
 
-  // Update local search state when URL changes
+  // Detect if running in Capacitor (Android app)
   useEffect(() => {
-    setSearchQuery(searchParams.get('q') || '');
-  }, [searchParams]);
-
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-
-    const params = new URLSearchParams(window.location.search);
-    if (value) {
-      params.set('q', value);
-    } else {
-      params.delete('q');
+    async function checkCapacitor() {
+      try {
+        const { isCapacitorApp } = await import('@/lib/capacitor');
+        setIsCapacitor(isCapacitorApp());
+      } catch {
+        setIsCapacitor(false);
+      }
     }
+    checkCapacitor();
+  }, []);
 
-    // If we are not on the dashboard or contacts page, navigate to dashboard
-    let targetPath = pathname;
-    if (!['/', '/contacts'].includes(pathname)) {
-      targetPath = '/';
-    }
 
-    startTransition(() => {
-      router.replace(`${targetPath}?${params.toString()}`);
-    });
-  };
 
   let navItems = [];
 
@@ -59,6 +46,12 @@ export function MobileNav() {
     // We typically want limited items on the bottom bar for mobile
     // Let's use the main navigation items, but maybe limit to 4-5
     navItems = [...navigationConfig.main];
+
+    // Add Android-specific navigation when running in Capacitor
+    if (isCapacitor) {
+      navItems.push(...navigationConfig.android);
+    }
+
     if (userProfile?.role === 'admin') {
       // Append Admin link
       navItems.push(navigationConfig.adminLink);
@@ -107,43 +100,6 @@ export function MobileNav() {
             )
           })}
 
-          {/* Add Search Button for Logged In Users */}
-          {user && !pathname.startsWith('/admin') && (
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="flex flex-col items-center gap-1.5 rounded-xl p-2 min-w-[64px] transition-all duration-200 text-default-500 hover:text-foreground hover:bg-default-100/50"
-            >
-              <Search className="h-5 w-5" />
-              <span className="text-[10px] font-medium text-center leading-none">Search</span>
-            </button>
-          )}
-
-          {user && !pathname.startsWith('/admin') && isSearchOpen && (
-            <Modal isOpen={isSearchOpen} onOpenChange={setIsSearchOpen}>
-              <Modal.Backdrop className="bg-background/20 backdrop-blur-sm">
-                <Modal.Container placement="top">
-                  <Modal.Dialog className="m-0 max-w-full rounded-none rounded-b-2xl shadow-lg bg-background/95 backdrop-blur-xl border-b border-default-100">
-                    <Modal.Body className="p-4">
-                      <div className="flex items-center gap-2 w-full">
-                        <Search className="w-5 h-5 text-default-400" />
-                        <input
-                          autoFocus
-                          type="search"
-                          placeholder="Search recordings..."
-                          className="flex-1 bg-transparent border-none outline-none text-base h-10 placeholder:text-default-400"
-                          value={searchQuery}
-                          onChange={(e) => handleSearch(e.target.value)}
-                        />
-                        <button onClick={() => setIsSearchOpen(false)} className="p-2 -mr-2 text-default-500">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </Modal.Body>
-                  </Modal.Dialog>
-                </Modal.Container>
-              </Modal.Backdrop>
-            </Modal>
-          )}
         </nav>
       </div>
     </>

@@ -6,6 +6,7 @@
 
 ## Developer Resources
 *   **[Setup Guide](setup-guide.md)**: Local development setup and installation.
+*   **[Android App](android-app.md)**: Capacitor setup for Android folder sync.
 *   **[Project Structure](project-structure.md)**: Codebase organization and key files.
 *   **[Architecture](architecture.md)**: System design, tech stack, and data flow.
 *   **[Data Model](data-model.md)**: Database schema (MongoDB) and types.
@@ -16,7 +17,7 @@
 *   **[Billing System](billing.md)**: Logic for plans, limits, and Stripe integration.
 *   **[Stripe Setup](stripe-setup.md)**: Configuration guide for Stripe Dashboard.
 *   **[Google Cloud Setup](google-cloud-setup.md)**: Configuring Firebase and Google People API.
-*   **[R2 Lifecycle](R2_LIFECYCLE.md)**: Configuring auto-deletion for exports.
+*   **[R2 Lifecycle](R2_LIFECYCLE.md)**: Configuring auto-deletion for exports and recording cleanup cron.
 
 ## Testing
 *   **[Billing Test Plan](billing_test_plan.md)**: Manual test cases for billing.

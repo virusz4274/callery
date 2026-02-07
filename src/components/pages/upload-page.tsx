@@ -152,7 +152,7 @@ export function UploadPage() {
     };
 
     return (
-        <div className="space-y-8 relative max-w-7xl mx-auto px-4 md:px-6">
+        <div className="space-y-8 relative max-w-7xl mx-auto">
             {/* Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
                 <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-3xl opacity-40 animate-pulse" />
@@ -171,7 +171,7 @@ export function UploadPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Left Column: Dropzone (Sticky on Desktop) */}
                 <div className="lg:col-span-5 lg:sticky lg:top-8 z-10">
-                    <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl overflow-visible">
+                    <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl overflow-visible rounded-xl md:rounded-2xl">
                         <Card.Content className="p-4 sm:p-8">
                             <div
                                 className={`group relative flex flex-col items-center justify-center p-8 sm:p-12 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ${isDragging
@@ -260,13 +260,13 @@ export function UploadPage() {
                                     <ul className="space-y-3">
                                         {uploadItems.map((item) => (
                                             <li key={item.id} className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${item.status === 'error' ? 'border-danger/50 bg-danger/5' :
-                                                    item.status === 'success' ? 'border-success/50 bg-success/5' :
-                                                        'border-default-200 bg-background/40 hover:bg-default-100/50'
+                                                item.status === 'success' ? 'border-success/50 bg-success/5' :
+                                                    'border-default-200 bg-background/40 hover:bg-default-100/50'
                                                 }`}>
                                                 <div className="flex items-center gap-4 overflow-hidden w-full">
                                                     <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.status === 'error' ? 'bg-danger/10 text-danger' :
-                                                            item.status === 'success' ? 'bg-success/10 text-success' :
-                                                                'bg-primary/10 text-primary'
+                                                        item.status === 'success' ? 'bg-success/10 text-success' :
+                                                            'bg-primary/10 text-primary'
                                                         }`}>
                                                         {item.status === 'uploading' ? (
                                                             <Spinner size="sm" color="current" />

@@ -209,10 +209,20 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
                                     <Label className="text-sm font-medium">Status & Visibility</Label>
                                     <div className="flex flex-col gap-2 pt-2">
                                         <Checkbox isSelected={isActive} onChange={() => setIsActive(!isActive)}>
-                                            Active (Visible)
+                                            <Checkbox.Control>
+                                                <Checkbox.Indicator />
+                                            </Checkbox.Control>
+                                            <Checkbox.Content>
+                                                Active (Visible)
+                                            </Checkbox.Content>
                                         </Checkbox>
                                         <Checkbox isSelected={isDefault} onChange={() => setIsDefault(!isDefault)}>
-                                            Default Plan for New Users
+                                            <Checkbox.Control>
+                                                <Checkbox.Indicator />
+                                            </Checkbox.Control>
+                                            <Checkbox.Content>
+                                                Default Plan for New Users
+                                            </Checkbox.Content>
                                         </Checkbox>
                                     </div>
                                 </div>

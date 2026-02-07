@@ -3,6 +3,8 @@ import { stripe } from '@/lib/stripe';
 import { linkCustomerToUser, syncSubscription } from '@/lib/stripe/sync';
 import Stripe from 'stripe';
 import { logger } from '@/lib/logger';
+import { createNotification } from '@/lib/notifications';
+import { findUserByStripeCustomerId } from '@/lib/db/users';
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
@@ -46,6 +48,19 @@ export async function POST(req: NextRequest) {
             case 'customer.subscription.deleted': {
                 const subscription = event.data.object as Stripe.Subscription;
                 await syncSubscription(subscription.id);
+
+                // Notify User
+                const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id;
+                const user = await findUserByStripeCustomerId(customerId);
+                if (user) {
+                    await createNotification(
+                        user._id,
+                        'warning',
+                        'Subscription Cancelled',
+                        'Your subscription has been cancelled. You have been downgraded to the free plan.',
+                        '/settings?tab=billing'
+                    );
+                }
                 break;
             }
 
@@ -56,6 +71,21 @@ export async function POST(req: NextRequest) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 if ((invoice as any).subscription) {
                     await syncSubscription((invoice as any).subscription as string);
+                }
+
+                // Notify User
+                const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+                if (customerId) {
+                    const user = await findUserByStripeCustomerId(customerId);
+                    if (user) {
+                        await createNotification(
+                            user._id,
+                            'error',
+                            'Payment Failed',
+                            'We were unable to process your payment. Please update your payment method to avoid service interruption.',
+                            '/settings?tab=billing'
+                        );
+                    }
                 }
                 break;
             }

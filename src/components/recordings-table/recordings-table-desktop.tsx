@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { Recording } from '@/lib/types';
 import { Checkbox, Avatar, Button, Dropdown } from '@heroui/react';
-import { Play, MoreHorizontal, Download, Trash2, FileText, RefreshCcw } from 'lucide-react';
+import { Play, MoreHorizontal, Trash2, FileText, RefreshCcw } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
 import { TableSelectionState } from './types';
@@ -32,24 +32,28 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
     const { isAllSelected, toggleSelectAll, isSelected, toggleSelect } = selection;
 
     return (
-        <div className="hidden md:block relative w-full overflow-hidden">
+        <div className="hidden md:block relative w-full overflow-hidden pb-10">
             <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase tracking-wider text-default-500 font-semibold bg-default-50/50 border-b border-default-200/50">
                     <tr>
-                        <th className="h-14 w-14 px-4 align-middle">
+                        <th className="h-14 w-14 px-4 align-top py-4">
                             <div className="flex items-center justify-center">
                                 <Checkbox
-                                    isSelected={isAllSelected}
-                                    onChange={toggleSelectAll}
+                                    isSelected={selection.isAllSelected}
+                                    onChange={selection.toggleSelectAll}
                                     aria-label="Select all"
                                     className="group-data-[selected=true]:border-primary"
-                                />
+                                >
+                                    <Checkbox.Control>
+                                        <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                </Checkbox>
                             </div>
                         </th>
-                        <th className="h-14 px-4 align-middle">Contact</th>
-                        <th className="h-14 px-4 align-middle">Recording Details</th>
-                        <th className="h-14 px-4 align-middle">Date</th>
-                        <th className="h-14 px-4 align-middle text-right">Actions</th>
+                        <th className="h-14 px-4 align-top py-4">Contact</th>
+                        <th className="h-14 px-4 align-top py-4">Recording Details</th>
+                        <th className="h-14 px-4 align-top py-4">Date</th>
+                        <th className="h-14 px-4 align-top py-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-default-100/50">
@@ -62,16 +66,24 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                     key={rec.id}
                                     className={`group transition-all duration-200 ${selected ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-default-100/50'}`}
                                 >
-                                    <td className="p-4 align-middle">
-                                        <div className="flex items-center justify-center">
-                                            <Checkbox
-                                                isSelected={selected}
-                                                onChange={() => toggleSelect(rec.id)}
-                                                aria-label="Select row"
-                                            />
+                                    <td className="p-4 align-top">
+                                        <div className="flex items-center justify-center relative h-5 w-5">
+                                            {/* Checkbox visible on hover or when selected */}
+                                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${selected ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'}`}>
+                                                <Checkbox
+                                                    isSelected={selected}
+                                                    onChange={() => toggleSelect(rec.id)}
+                                                    aria-label="Select row"
+                                                >
+                                                    <Checkbox.Control>
+                                                        <Checkbox.Indicator />
+                                                    </Checkbox.Control>
+                                                </Checkbox>
+                                            </div>
+                                            {/* Placeholder or alternative indicator if needed when not hovered/selected */}
                                         </div>
                                     </td>
-                                    <td className="p-4 align-middle">
+                                    <td className="p-4 align-top">
                                         <div className="flex items-center gap-4">
                                             <Avatar
                                                 className={`h-10 w-10 transition-transform group-hover:scale-105 ring-2 ${selected ? 'ring-primary' : 'ring-transparent group-hover:ring-default-200'}`}
@@ -88,7 +100,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 align-middle">
+                                    <td className="p-4 align-top">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="px-2 py-0.5 rounded-full bg-default-100 text-[10px] font-bold text-default-600 uppercase tracking-wide">
@@ -125,7 +137,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                             )}
                                         </div>
                                     </td>
-                                    <td className="p-4 align-middle">
+                                    <td className="p-4 align-top">
                                         <div className="text-sm text-default-600">
                                             <ClientFormattedDate date={rec.recordedAt} formatString="MMM d, yyyy" />
                                         </div>
@@ -133,7 +145,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                             <ClientFormattedDate date={rec.recordedAt} formatString="h:mm a" />
                                         </div>
                                     </td>
-                                    <td className="p-4 align-middle text-right">
+                                    <td className="p-4 align-top text-right">
                                         <div className="relative flex justify-end items-center gap-2">
                                             <Button
                                                 isIconOnly
@@ -145,11 +157,16 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                 <Play className="h-4 w-4 fill-current" />
                                             </Button>
                                             <Dropdown>
-                                                <Button variant="ghost" isIconOnly size="sm" className="text-default-400 data-[hover=true]:text-foreground">
+                                                <Button
+                                                    isIconOnly
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    aria-label="Actions"
+                                                    className="h-8 w-8 text-default-400 hover:text-foreground"
+                                                >
                                                     <MoreHorizontal className="h-4 w-4" />
-                                                    <span className="sr-only">Actions</span>
                                                 </Button>
-                                                <Dropdown.Popover>
+                                                <Dropdown.Popover isNonModal={true}>
                                                     <Dropdown.Menu aria-label="Recording actions">
                                                         <Dropdown.Item
                                                             key="play"
@@ -174,9 +191,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                                 <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
                                                             </Dropdown.Item>
                                                         )}
-                                                        <Dropdown.Item key="download" textValue="Download" onPress={() => console.log('Download clicked')}>
-                                                            <div className="flex items-center gap-2"><Download className="h-4 w-4 text-success" /> Download</div>
-                                                        </Dropdown.Item>
+
                                                         <Dropdown.Item
                                                             key="delete"
                                                             className="text-danger"

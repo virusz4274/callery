@@ -8,6 +8,7 @@ import archiver from 'archiver';
 import path from 'path';
 import { Readable } from 'stream';
 import { findUserByFirebaseUid } from '@/lib/db/users';
+import { createNotification } from '@/lib/notifications';
 
 const PART_SIZE_LIMIT = 500 * 1024 * 1024; // 500MB
 
@@ -194,6 +195,9 @@ export async function processExport(jobId: string, firebaseUid: string) {
 }
 
 async function finalizeJob(jobId: string, firebaseUid: string, parts: { key: string; size: number }[], email?: string) {
+    const user = await findUserByFirebaseUid(firebaseUid);
+    if (!user) return; // Should not happen given flow
+
     // Generate Signed URLs
     // Expiration: 7 days (60*60*24*7)
     const signedParts = await Promise.all(parts.map(async p => ({
@@ -227,6 +231,16 @@ async function finalizeJob(jobId: string, firebaseUid: string, parts: { key: str
                 <p>Each archive contains a viewer that allows you to browse that specific part. Extract all parts to the same folder to merge them.</p>
             `
         });
+
+        // In-App Notification
+        const downloadPageUrl = '/settings?tab=export';
+        await createNotification(
+            new ObjectId(user._id),
+            'success',
+            'Export Ready',
+            `Your data export (${signedParts.length} parts) is ready for download.`,
+            downloadPageUrl
+        );
     }
 }
 

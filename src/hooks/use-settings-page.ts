@@ -33,7 +33,7 @@ export function useSettingsPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
-    const defaultTab = searchParams.get('tab') || 'profile';
+    const defaultTab = searchParams.get('tab') || 'overview';
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
@@ -257,9 +257,12 @@ export function useSettingsPage() {
         router.replace(`/settings?${params.toString()}`);
     };
 
+
+
     const handleBack = () => setView('list');
 
     const tabs = useMemo(() => [
+        { id: 'overview', label: 'Overview', icon: '📊' },
         { id: 'profile', label: 'Profile', icon: '👤' },
         { id: 'general', label: 'General', icon: '⚙️' },
         { id: 'data', label: 'Data', icon: '💾' },

@@ -14,8 +14,8 @@ export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDi
         <Modal isOpen onOpenChange={onOpenChange}>
             <Button className="hidden" aria-hidden="true" />
             <Modal.Backdrop className="bg-background/20 backdrop-blur-md">
-                <Modal.Container>
-                    <Modal.Dialog className="bg-card/70 backdrop-blur-xl border border-default-200 shadow-2xl">
+                <Modal.Container className="flex items-end sm:items-center justify-center h-full">
+                    <Modal.Dialog className="m-0 sm:m-4 rounded-t-2xl sm:rounded-xl bg-card/95 backdrop-blur-xl border-t sm:border border-default-200/50 shadow-2xl w-full max-w-md">
                         <Modal.CloseTrigger />
                         <Modal.Header>
                             <Modal.Heading>Connect Google Account</Modal.Heading>

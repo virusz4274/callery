@@ -13,6 +13,7 @@ This guide will help you set up the VoSift application locally.
 *   **Soniox Account**: For standard transcription.
 *   **ElevenLabs Account**: For premium transcription (optional).
 *   **Google Gemini API Key**: For summarization.
+*   **Android Studio** (optional): For building the Android app. See [Android App Guide](android-app.md).
 
 ## Environment Variables
 
@@ -81,6 +82,10 @@ SMTP_PORT=587
 SMTP_USER=user
 SMTP_PASS=password
 SMTP_FROM="Call Organizer <no-reply@example.com>"
+
+# Cron Jobs (for automatic deletion policy)
+# Required for scheduled cleanup tasks
+CRON_SECRET=your-secure-random-token
 ```
 
 ## Installation

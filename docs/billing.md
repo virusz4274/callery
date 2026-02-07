@@ -123,7 +123,11 @@ Centralized logic determines if a user action is allowed:
 
 ## Frontend Experience
 
-*   **Billing Alerts**: Global banners for "Payment Failed" (Red) and "Trial Expired" (Yellow).
+## Frontend Experience
+
+*   **Billing Alerts**: 
+    *   Global banners for "Payment Failed" (Red) and "Trial Expired" (Yellow).
+    *   **In-App Notifications**: Alerts for critical events like payment failures or subscription cancellations.
 *   **Settings Page**:
     *   **Manage Subscription**: Redirects to **Stripe Customer Portal** for upgrades, downgrades, and cancellations.
     *   **Pay Per Usage Toggle**: User control for overage billing.

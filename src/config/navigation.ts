@@ -9,12 +9,12 @@ import {
     CreditCard,
     Settings,
     Megaphone,
-    Briefcase
+    FolderSync
 } from 'lucide-react';
 
 export const navigationConfig = {
     main: [
-        { href: '/', name: 'Recordings', icon: LayoutDashboard },
+        { href: '/recordings', name: 'Recordings', icon: LayoutDashboard },
         { href: '/contacts', name: 'Contacts', icon: Users },
         { href: '/files', name: 'Files', icon: Folder },
         { href: '/upload', name: 'Upload', icon: Upload },
@@ -31,4 +31,8 @@ export const navigationConfig = {
         { href: '/#pricing', name: 'Pricing', icon: CreditCard },
     ],
     adminLink: { href: '/admin', name: 'Admin', icon: Shield },
+    // Android-specific navigation (shown only in Capacitor apps)
+    android: [
+        { href: '/android-sync', name: 'Sync', icon: FolderSync },
+    ],
 };

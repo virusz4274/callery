@@ -5,6 +5,7 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import type { Contact } from '@/lib/types';
 import { Card, Avatar, Button, Dropdown, Separator, Spinner, Chip } from '@heroui/react';
 import { Phone, Mic, MoreVertical, ChevronRight } from 'lucide-react';
+
 import { useRouter, useSearchParams } from 'next/navigation';
 
 type ContactsPageProps = {
@@ -70,6 +71,9 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
 
 
 
+
+
+
   const sortedAndFilteredContacts = useMemo(() => {
     if (!allContacts) return [];
     const searchLower = searchQuery.toLowerCase();
@@ -96,8 +100,9 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
 
 
 
-  const handleContactClick = (contactName: string) => {
-    router.push(`/?filterType=contact&filterValue=${encodeURIComponent(contactName)}`);
+  const handleContactClick = (contactId?: string) => {
+    if (!contactId) return;
+    router.push(`/recordings?contact=${contactId}`);
   }
 
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -146,7 +151,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
         </p>
       </div>
 
-      <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl transition-all duration-300">
+      <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl transition-all duration-300 rounded-xl md:rounded-2xl">
         <Card.Header className="flex flex-col items-start gap-1 pb-4 pt-6 px-6 border-b border-default-100/50">
           <div className="flex justify-between w-full items-center">
             <div className="text-sm font-medium text-default-500 uppercase tracking-wider">
@@ -158,7 +163,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
           </div>
         </Card.Header>
         <Card.Content className="p-0 relative overflow-hidden min-h-[400px]">
-          <div className="flex flex-col pr-8">
+          <div className="flex flex-col">
             {Object.keys(groupedContacts).length > 0 ? (
               Object.entries(groupedContacts).map(([letter, contacts]) => (
                 <div key={letter} id={`letter-group-${letter}`} className="pt-0">
@@ -168,10 +173,10 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
                       <React.Fragment key={contact.id || contact.phoneNumbers?.[0] || index}>
                         <div
                           className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
-                          onClick={() => handleContactClick(contact.name)}
+                          onClick={() => handleContactClick(contact.id)}
                         >
-                          <div className="flex items-center gap-4">
-                            <Avatar className="w-12 h-12 ring-2 ring-transparent group-hover:ring-primary/20 transition-all shadow-sm">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <Avatar className="w-10 h-10 md:w-12 md:h-12 ring-2 ring-transparent group-hover:ring-primary/20 transition-all shadow-sm">
                               <Avatar.Fallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground">{contact.name.charAt(0)}</Avatar.Fallback>
                             </Avatar>
                             <div>
@@ -188,7 +193,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
                               <ContactPhoneDisplay phoneNumbers={contact.phoneNumbers} />
                             </div>
                           </div>
-                          <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-6 flex-shrink-0">
                             <div className="hidden sm:inline-flex">
                               <Chip size="sm" variant="soft" color="accent">
                                 <Mic className="w-3 h-3 mr-1" />
@@ -203,7 +208,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
                                 </Dropdown.Trigger>
                                 <Dropdown.Popover>
                                   <Dropdown.Menu aria-label="Contact actions" onAction={(key) => {
-                                    if (key === 'view') handleContactClick(contact.name);
+                                    if (key === 'view') handleContactClick(contact.id);
                                   }}>
                                     <Dropdown.Item id="view">View Recordings</Dropdown.Item>
                                   </Dropdown.Menu>
@@ -246,6 +251,8 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
 
         </Card.Content>
       </Card>
+
+
     </div>
   );
 }

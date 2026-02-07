@@ -6,6 +6,7 @@ export const GetRecordingsOptionsSchema = z.object({
     skip: z.number().min(0).optional(),
     includeArchived: z.boolean().optional(),
     contactName: z.string().optional(),
+    contactId: z.string().optional(),
     sortBy: z.enum(['date', 'duration']).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
     startDate: z.string().optional(), // ISO date string

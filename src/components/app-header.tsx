@@ -32,11 +32,11 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
     return 'Search recordings...';
   }
 
-  const isSearchablePage = ['/', '/contacts'].includes(pathname);
+  const isSearchablePage = ['/', '/contacts', '/recordings'].includes(pathname);
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">
       <div className="w-full max-w-full mx-auto flex h-16 items-center px-4 md:px-6">
 
         {/* Mobile Menu - Only show if burger menu is enabled */}

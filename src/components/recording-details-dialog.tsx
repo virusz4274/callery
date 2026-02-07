@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { Recording } from '@/lib/types';
 import { Modal, Button } from '@heroui/react';
+import { X } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingContent } from './recording-view/recording-content';
 import { SharePopover } from './sharing/share-popover';
@@ -64,7 +65,9 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
       window.location.reload();
     } catch (error) {
       console.error('Transcription error:', error);
-      alert('Failed to start transcription');
+      // Note: This component doesn't have access to toast context, 
+      // but we'll handle this with a proper error state in the future
+      console.warn('Transcription failed - would show toast here');
     } finally {
       setIsTranscribing(false);
     }
@@ -74,29 +77,37 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
 
   return (
     <Modal isOpen={true} onOpenChange={onOpenChange}>
-      <Button className="hidden" aria-hidden="true" />
-      <Modal.Backdrop className="bg-background/20 backdrop-blur-xl z-[99]">
-        <Modal.Container className="z-[100]">
-          <Modal.Dialog className="h-[100dvh] sm:h-auto sm:max-h-[85vh] w-full max-w-5xl m-0 sm:m-4 bg-background sm:bg-card/70 backdrop-blur-xl sm:border border-default-200/50 shadow-none sm:shadow-2xl flex flex-col">
-            <Modal.CloseTrigger />
-            <Modal.Header className="flex flex-col gap-1 border-b border-default-100/50 p-4 sm:p-6 flex-shrink-0">
-              <div className="flex items-center justify-between gap-4">
-                <Modal.Heading className="text-lg sm:text-xl font-bold truncate pr-8">
+
+      <Modal.Backdrop className="bg-black/40 backdrop-blur-sm z-[99]">
+        <Modal.Container className="z-[100] flex items-end sm:items-center justify-center h-full p-0 sm:p-4">
+          <Modal.Dialog className="relative w-full h-[95dvh] sm:h-auto sm:max-h-[85vh] max-w-none sm:max-w-4xl bg-background sm:bg-card backdrop-blur-xl border-t border-default-200/50 sm:border rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Custom Close Button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="absolute top-3 right-3 z-50 p-2 rounded-full bg-default-100 hover:bg-default-200 transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-default-600" />
+            </button>
+
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-default-100 px-4 py-3 sm:px-6 sm:py-4 flex-shrink-0 bg-background">
+              <div className="flex items-center gap-4 pr-10">
+                <h2 className="text-lg sm:text-xl font-bold truncate">
                   {recording.contactName || recording.phoneNumber}
-                </Modal.Heading>
-                <div className="mr-8">
-                  <SharePopover recordingId={recording.id} />
-                </div>
+                </h2>
+                <SharePopover recordingId={recording.id} />
               </div>
-              <p className="text-xs sm:text-sm text-default-500 font-normal flex flex-wrap gap-2 items-center">
-                <ClientFormattedDate date={recording.recordedAt} formatString="PPPP p" />
-                <span className="hidden sm:inline">&bull;</span>
+              <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-default-500">
+                <ClientFormattedDate date={recording.recordedAt} formatString="PPP p" />
                 <span className="bg-default-100 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                  Duration: {formatDuration(recording.duration)}
+                  {formatDuration(recording.duration)}
                 </span>
-              </p>
-            </Modal.Header>
-            <Modal.Body className="p-4 sm:p-6 gap-6 overflow-y-auto flex-1">
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <RecordingContent
                 recording={recording}
                 playbackUrl={playbackUrl}
@@ -104,7 +115,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
                 onTranscribe={handleTranscribe}
                 isProcessing={isProcessing}
               />
-            </Modal.Body>
+            </div>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
