@@ -10,7 +10,7 @@ Navigate to `/admin` to access the dashboard. This route is protected and requir
 The dashboard provides a high-level view of system health:
 *   **System Stats**: Total users, recordings, and storage usage.
 *   **Orphaned Recordings**: Counts of files in R2 storage that do not have corresponding MongoDB entries.
-*   **Service Status**: Real-time health checks for MongoDB, Cloudflare R2, Google Gemini, and Soniox API.
+*   **Service Status**: Real-time health checks for MongoDB, Cloudflare R2, Google Gemini, Soniox, and ElevenLabs.
 
 ## File Browser
 Located at `/files`.
@@ -46,6 +46,14 @@ Manage user subscription tiers and limits.
     *   Create/Update Plans.
     *   Sync Plans to Stripe (if enabled).
 
+### Transcription Billing
+Manage cost multipliers for different transcription providers.
+*   **Purpose**: Adjust billing rates based on provider costs (e.g., ElevenLabs is more expensive).
+*   **Multipliers**:
+    *   **Soniox**: Default 1.0x (Standard rate).
+    *   **ElevenLabs**: Default 6.0x (Premium rate).
+*   **Effect**: A 10-minute call transcribed with ElevenLabs (6x) will deduct **60 minutes** from the user's quota or be billed as 60 minutes of usage.
+
 ### Usage Adjustment (Forgiveness)
 Admins can manually adjust a user's `storageUsed` or `transcriptionUsed` values from the User Detail view.
 *   **Purpose**: Resolve accidental overages or grant credits without Stripe complications.
@@ -70,7 +78,6 @@ Tracks critical actions performed by administrators for security and accountabil
 The `scripts/` directory contains several tools for system administration and debugging. Run these using `npx tsx scripts/<script-name>.ts`.
 
 *   **`check-db.ts`**: Verifies MongoDB connection and lists collections/indexes.
-*   **`verify_plans_and_usage.ts`**: Audits user plans against Stripe subscriptions and recalculates usage stats.
 *   **`fix-speaker-ids.ts`**: Repairs speaker ID data in transcripts if corrupted.
 *   **`debug-contacts.ts`**: Helper to debug Google Contact sync issues for a specific user.
 *   **`debug-transcripts.ts`**: Inspects raw transcript data for a recording.

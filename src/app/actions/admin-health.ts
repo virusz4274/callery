@@ -49,11 +49,11 @@ export async function checkSystemHealth(): Promise<ServiceStatus[]> {
         // Ideally: await s3Client.send(new HeadBucketCommand({ Bucket: ... }));
         // For now, let's treat config availability as success to be fast.
         if (!process.env.R2_BUCKET_NAME) throw new Error('R2 Bucket not configured');
-        
+
         // Let's do a dummy await to simulate "check" time if we aren't doing a real call
         // In a real prod app, use HeadBucket.
-        await new Promise(r => setTimeout(r, 10)); 
-        
+        await new Promise(r => setTimeout(r, 10));
+
         results.push({
             name: 'Cloudflare R2',
             status: 'operational',
@@ -104,6 +104,22 @@ export async function checkSystemHealth(): Promise<ServiceStatus[]> {
     } else {
         results.push({
             name: 'Soniox API',
+            status: 'down',
+            latency: 0,
+            message: 'API Key missing'
+        });
+    }
+
+    // 5. ElevenLabs API
+    if (process.env.ELEVENLABS_API_KEY) {
+        results.push({
+            name: 'ElevenLabs',
+            status: 'operational',
+            latency: 0
+        });
+    } else {
+        results.push({
+            name: 'ElevenLabs',
             status: 'down',
             latency: 0,
             message: 'API Key missing'

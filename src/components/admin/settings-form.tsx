@@ -18,6 +18,12 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
     const [allowSignups, setAllowSignups] = useState(settings.allowSignups);
     const [maintenanceMode, setMaintenanceMode] = useState(settings.maintenanceMode);
     const [defaultPlanId, setDefaultPlanId] = useState(settings.defaultPlanId || '');
+    const [sonioxMultiplier, setSonioxMultiplier] = useState(
+        settings.transcriptionMultipliers?.soniox ?? 1.0
+    );
+    const [elevenlabsMultiplier, setElevenlabsMultiplier] = useState(
+        settings.transcriptionMultipliers?.elevenlabs ?? 6.0
+    );
 
     const handleSave = () => {
         startTransition(async () => {
@@ -26,7 +32,11 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                     allowSignups,
                     maintenanceMode,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    defaultPlanId: (defaultPlanId || undefined) as any
+                    defaultPlanId: (defaultPlanId || undefined) as any,
+                    transcriptionMultipliers: {
+                        soniox: sonioxMultiplier,
+                        elevenlabs: elevenlabsMultiplier,
+                    },
                 });
                 alert('Settings updated successfully');
                 router.refresh();
@@ -112,6 +122,41 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                         <p className="text-xs text-default-500">
                             New users will automatically be assigned to this plan upon registration.
                         </p>
+                    </div>
+                </div>
+
+                <hr className="border-default-200" />
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">Transcription Billing</h3>
+                    <p className="text-sm text-default-500 mb-4">
+                        Set the cost multipliers for each transcription provider. A 10-minute file transcribed with a 6x multiplier will consume 60 minutes of quota.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 max-w-md">
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-sm font-medium">Soniox Multiplier</Label>
+                            <input
+                                type="number"
+                                min={0.1}
+                                step={0.1}
+                                value={sonioxMultiplier}
+                                onChange={(e) => setSonioxMultiplier(parseFloat(e.target.value) || 1.0)}
+                                placeholder="1.0"
+                                className="px-3 py-2 rounded-md border border-default-200 bg-default-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-sm font-medium">ElevenLabs Multiplier</Label>
+                            <input
+                                type="number"
+                                min={0.1}
+                                step={0.1}
+                                value={elevenlabsMultiplier}
+                                onChange={(e) => setElevenlabsMultiplier(parseFloat(e.target.value) || 6.0)}
+                                placeholder="6.0"
+                                className="px-3 py-2 rounded-md border border-default-200 bg-default-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                        </div>
                     </div>
                 </div>
 

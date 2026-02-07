@@ -14,7 +14,11 @@ This document provides a high-level overview of the `vosift` codebase organizati
 │   ├── app/            # Next.js App Router pages and API routes
 │   │   ├── admin/      # Admin dashboard and collection management
 │   │   ├── actions/    # Server Actions (Backend Logic)
-│   │   ├── api/        # Backend API endpoints (Legacy/Hybrid)
+│   │   │   ├── recordings.ts    # Recording CRUD & Playback
+│   │   │   ├── stats.ts         # Dashboard Statistics
+│   │   │   ├── transcription.ts # Transcription Triggers
+│   │   │   └── ...
+│   │   ├── api/        # External API endpoints (Webhooks, Auth)
 │   │   ├── auth/       # Authentication pages
 │   │   ├── dashboard/  # Main application dashboard
 │   │   ├── files/      # File browser interface
@@ -27,14 +31,11 @@ This document provides a high-level overview of the `vosift` codebase organizati
 │   ├── lib/            # Shared libraries and utilities
 │   │   ├── db/         # Database connection and types
 │   │   ├── firebase/   # Firebase Auth & Admin initialization
+│   │   ├── schemas.ts  # Zod Validation Schemas
 │   ├── services/       # Business logic and external service integrations
 │   │   ├── ai/         # AI services (Gemini)
 │   │   ├── google/     # Google API integrations (People/Contacts)
 │   │   └── transcription/ # Transcription services (Soniox)
-│   ├── lib/            # Shared libraries and utilities
-│   │   ├── db/         # Database connection and types
-│   │   ├── firebase/   # Firebase Auth & Admin initialization
-│   │   └── r2.ts       # Cloudflare R2 utilities
 │   ├── themes/         # Theme configurations
 │   └── types/          # Global TypeScript definitions
 ├── public/             # Static assets
@@ -53,12 +54,17 @@ This document provides a high-level overview of the `vosift` codebase organizati
 
 ### **Core Logic (`src/app/actions`, `src/services` & `src/lib`)**
 *   `src/app/actions`: Server Actions for business logic (Primary Backend).
-    *   `upload-recordings.ts`: Handles server-side file upload to R2 and triggers AI processing.
-    *   `search-actions.ts`: Semantic search using Vector Search (Gemini embeddings).
+    *   `recordings.ts`: Core recording management (Get, Update, Delete, Playback).
+    *   `stats.ts`: Dashboard analytics.
+    *   `transcription.ts`: Manual transcription triggering.
+    *   `upload-recordings.ts`: Handles server-side file upload to R2.
+    *   `search-actions.ts`: Semantic search using Vector Search.
     *   `admin.ts` & `admin-*.ts`: Administrative functions.
 *   `src/services/`: Encapsulated business logic and integrations.
     *   `ai/gemini-service.ts`: Google Gemini integration (Summarization, Embeddings).
-    *   `transcription/soniox-service.ts`: Soniox transcription service.
+    *   `transcription/soniox-service.ts`: Soniox transcription service (Standard).
+    *   `transcription/elevenlabs-service.ts`: ElevenLabs transcription service (Premium/Async).
+    *   `transcription/factory.ts`: Factory pattern for provider selection.
     *   `google/`: Google Contacts sync logic.
 *   `src/lib/db/`: Database logic.
     *   `init.ts`: Database initialization and seeding.
@@ -85,9 +91,9 @@ Utility scripts for maintenance and debugging. Run via `npx tsx <path-to-script>
 
 ### **API Routes (`src/app/api`)**
 *   `/api/auth`: Handles session management.
-*   `/api/recordings`: Fetch/Search recordings (Legacy/REST access).
 *   `/api/contacts`: Contact management & sync.
 *   `/api/filesystem`: File browser structure data.
+*   `/api/webhooks/elevenlabs`: ElevenLabs Async Transcription webhook.
 
 ### **UI Components (`src/components`)**
 Organized by feature (e.g., `pages/admin`) or by type (`ui` for atomic components). Uses **HeroUI** for the design system.

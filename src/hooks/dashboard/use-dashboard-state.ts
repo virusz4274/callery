@@ -4,6 +4,7 @@ import { searchRecordingsAction } from '@/app/actions/search-actions';
 import type { Recording } from '@/lib/types';
 import { useToast } from '@/components/toast-provider';
 import { initializeFirebase } from '@/lib/firebase/client';
+import { transcribeRecordingAction } from '@/app/actions/transcription';
 
 export type SortConfig = {
     by: 'date' | 'duration';
@@ -80,20 +81,10 @@ export function useDashboardState(allRecordings: Recording[], itemsPerPage: numb
         toast({ title: 'Starting transcription...', status: 'default' });
 
         try {
-            const { auth } = initializeFirebase();
-            const token = await auth.currentUser?.getIdToken();
+            const response = await transcribeRecordingAction(recording.id.toString());
 
-            if (!token) throw new Error('You must be logged in to transcribe recordings.');
-
-            const response = await fetch('/api/transcribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ recordingId: recording.id }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to start transcription');
+            if (response.error) {
+                throw new Error(response.error);
             }
 
             toast({

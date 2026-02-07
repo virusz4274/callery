@@ -36,6 +36,20 @@ The system supports the following plan tiers:
     *   **No Free Allowance**: All storage and transcription is billed via Metered Billing (`stripe_storage_price_id`, `stripe_transcription_price_id`).
     *   **Overage**: Automatically enabled upon plan switch. Can be toggled off by user to pause spending.
 
+    *   **Overage**: Automatically enabled upon plan switch. Can be toggled off by user to pause spending.
+
+## Transcription Multipliers
+
+Different transcription providers have different costs, which are reflected in billing via **multipliers**.
+
+| Provider | Multiplier | Cost Impact |
+| :--- | :--- | :--- |
+| **Soniox** (Standard) | **1.0x** | 10 min audio = 10 min billed |
+| **ElevenLabs** (Premium) | **6.0x** | 10 min audio = 60 min billed |
+
+*   **Quota Deduction**: If a user has 60 minutes included and uses ElevenLabs for a 10-minute file, 60 minutes are deducted.
+*   **Metered Billing**: If paying per usage, the cost is calculated on the *billed duration* (Audio Duration × Multiplier).
+
 ## "Pay Per Usage" (Overage)
 
 This setting controls whether a user can exceed their plan limits.

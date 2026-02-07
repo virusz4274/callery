@@ -28,9 +28,9 @@ import { createNotification } from '@/lib/notifications';
 getFirebaseAdminApp();
 
 const aiService = new GeminiService();
-const transcriptionService = new SonioxService();
-
-
+import { TranscriptionFactory, TranscriptionProviderId, PROVIDER_CONFIGS } from '@/services/transcription/factory';
+import { ElevenLabsService } from '@/services/transcription/elevenlabs-service';
+import { getProviderMultiplier } from '@/app/actions/transcription-providers';
 
 import pLimit from 'p-limit';
 
@@ -231,31 +231,100 @@ export async function uploadRecordings(
                 const freshUser = await findUserByFirebaseUid(firebaseUid);
                 if (!freshUser) return;
 
+                // Determine Provider and Model
+                let providerId: TranscriptionProviderId = freshUser.transcriptionSettings?.defaultProvider || 'soniox';
+                const modelId = freshUser.transcriptionSettings?.defaultModel; // undefined lets service pick default
+
+                // VALIDATION: Ensure provider exists (handle checking for invalid IDs like 'react-aria-1')
+                if (!['soniox', 'elevenlabs'].includes(providerId)) {
+                  logger.warn(`[uploadRecordings] Invalid provider ID found: "${providerId}". Falling back to "soniox".`);
+                  providerId = 'soniox';
+                }
+
                 // Check Transcription Access
-                const transcriptionAccess = await checkTranscriptionAccess(freshUser, duration);
+                // We apply the cost multiplier to both the quota check and billing
+                // If I have 100 mins, and I use ElevenLabs (6x), I burn 60 mins for a 10 min file.
+                const multiplier = await getProviderMultiplier(providerId);
+                const costDuration = duration * multiplier;
+
+                const transcriptionAccess = await checkTranscriptionAccess(freshUser, costDuration);
                 if (!transcriptionAccess.allowed) {
-                  logger.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${transcriptionAccess.reason}`);
-                  // We don't fail the recording (it's uploaded), just the transcription status?
-                  // Or keep it 'pending' so they can try manually later?
-                  // 'failed' implies it broke. 'pending' implies waiting. 
-                  // If we set 'failed', we can show "Quota exceeded" if we store error message.
-                  // Recording schema doesn't have error message field easily viewable.
-                  // Let's set to 'failed' for now to stop it from looking like it's stuck.
+                  logger.warn(`[uploadRecordings] Auto-transcription skipped: ${transcriptionAccess.reason}`);
                   await updateRecording(createdRecording._id.toString(), firebaseUid, {
                     transcriptionStatus: 'failed',
-                    // TODO: Add errorReason field to Recording schema if needed
                   });
                   return;
                 }
 
-                logger.info(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
+                logger.info(`[uploadRecordings] Background: Transcribing ${createdRecording._id} with ${providerId}...`);
 
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'processing',
+                  transcriptionProvider: providerId,
+                  transcriptionModel: modelId,
+                  transcriptionCostMultiplier: multiplier,
                 });
 
-                const fileUrl = await getSignedR2Url(r2Key, 1800);
-                const result = await transcriptionService.transcribe(fileUrl, duration);
+                const fileUrl = await getSignedR2Url(r2Key, 1800); // 30 mins expiry
+
+                // Use Factory
+                const transcriptionService = TranscriptionFactory.getService(providerId);
+
+                // ASYNC PATH: For long ElevenLabs files, use webhook flow
+                if (providerId === 'elevenlabs' && duration > 300 && transcriptionService instanceof ElevenLabsService) {
+                  logger.info(`[uploadRecordings] Duration ${duration}s > 300s. Switching to Async/Webhook for ElevenLabs.`);
+
+                  const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
+                    durationSeconds: duration,
+                    model: modelId,
+                    webhookMetadata: {
+                      recordingId: createdRecording._id.toString(),
+                      firebaseUid,
+                    }
+                  });
+
+                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                    transcriptionStatus: 'processing', // Stays processing until webhook
+                    transcriptionProvider: providerId,
+                    transcriptionModel: modelId,
+                    transcriptionCostMultiplier: multiplier,
+                    externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
+                  });
+
+                  logger.info(`[uploadRecordings] Async request submitted (${asyncResult.requestId}). Exiting upload flow.`);
+                  return; // Exit! Webhook will handle the rest.
+                }
+
+                // ASYNC PATH: For long Soniox files, use webhook flow
+                if (providerId === 'soniox' && duration > 300 && transcriptionService instanceof SonioxService) {
+                  logger.info(`[uploadRecordings] Duration ${duration}s > 300s. Switching to Async/Webhook for Soniox.`);
+
+                  const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
+                    durationSeconds: duration,
+                    model: modelId,
+                    webhookMetadata: {
+                      recordingId: createdRecording._id.toString(),
+                      firebaseUid,
+                    }
+                  });
+
+                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                    transcriptionStatus: 'processing', // Stays processing until webhook
+                    transcriptionProvider: providerId,
+                    transcriptionModel: modelId,
+                    transcriptionCostMultiplier: multiplier,
+                    externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
+                  });
+
+                  logger.info(`[uploadRecordings] Soniox async request submitted (${asyncResult.requestId}). Exiting upload flow.`);
+                  return; // Exit! Webhook will handle the rest.
+                }
+
+                // SYNC PATH: Standard flow
+                const result = await transcriptionService.transcribe(fileUrl, {
+                  durationSeconds: duration,
+                  model: modelId
+                });
 
                 // CRITICAL FIX: Save raw transcript IMMEDIATELY
                 // This ensures the user sees the text even if AI summary/transliteration takes time or fails
@@ -265,6 +334,7 @@ export async function uploadRecordings(
                   languageCode: result.languageCode,
                   // Keep status as 'processing' so UI knows we are still working on summary/AI
                   transcriptionStatus: 'processing',
+                  transcriptionModel: result.model, // Update with actual model used
                 });
 
                 // Parallelize LLM operations ONLY if text exists
@@ -299,13 +369,20 @@ export async function uploadRecordings(
                   summaryEmbedding,
                 });
 
-                // Calculate and record billed usage
-                const billedDuration = calculateBilledDuration(duration);
-                await incrementTranscriptionUsed(firebaseUid, billedDuration);
-                await reportUsage(firebaseUid, 'transcription', billedDuration); // Seconds for Stripe Meter
-                logger.info(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
+                // Billing
+                const billedDuration = calculateBilledDuration(duration); // Round up to 15s
+                // We increment usage by *cost* duration?
+                // Types say "transcriptionUsed: number".
+                // If we want to show "Minutes Used" to user, we might want to store "Standard Minutes Used".
+                // Yes, store weighted duration in `transcriptionUsed`.
+                const billedCostDuration = billedDuration * multiplier;
 
-                // Delete from Soniox
+                await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
+                await reportUsage(firebaseUid, 'transcription', billedDuration, { multiplier });
+
+                logger.info(`[uploadRecordings] Billed: ${billedDuration}s * ${multiplier}x = ${billedCostDuration}s`);
+
+                // Delete from provider if needed
                 await transcriptionService.deleteTranscript(result.transcriptionId);
                 logger.info(`[uploadRecordings] Background: Transcription & AI Complete for ${createdRecording._id.toString()}`);
 
@@ -321,7 +398,7 @@ export async function uploadRecordings(
                 await updateRecording(createdRecording._id.toString(), firebaseUid, {
                   transcriptionStatus: 'failed',
                 });
-                
+
                 await createNotification(
                   user._id,
                   'error',

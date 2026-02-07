@@ -93,7 +93,11 @@ The settings area is organized into the following tabs:
 
 ### 💾 Data
 *   **Google Sync**: Connect your Google Contacts account.
-*   **Transcription Settings**: Enable/Disable auto-transcription for new uploads.
+*   **Transcription Settings**:
+    *   **Auto-Transcribe**: Enable/Disable auto-transcription for new uploads.
+    *   **Provider**: Choose between **Soniox** (Standard, 1x Cost) and **ElevenLabs** (Premium, 6x Cost).
+        *   *Note: ElevenLabs files longer than 5 minutes are processed asynchronously and may feel slower to appear.*
+    *   **Model**: Select specific models if available (e.g., `scribe_v2`).
 *   **Deletion Policy**: Set an automatic deletion policy (e.g., "Delete after 3 months") to manage storage.
 *   **Export Data**:
     1.  Request a full backup of your recordings and transcripts.

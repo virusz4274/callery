@@ -12,9 +12,12 @@ export function usePreferenceSettings(user: any, userProfile: UserProfile | null
     const generalDirtyRef = useRef(false);
 
     // Data State
-    const [dataState, setDataState] = useState({
+    const [dataState, setDataState] = useState<{
+        deletionPolicy: string;
+        transcriptionSettings: { autoTranscribe: boolean; defaultProvider?: 'soniox' | 'elevenlabs' };
+    }>({
         deletionPolicy: 'never',
-        transcriptionSettings: { autoTranscribe: true }
+        transcriptionSettings: { autoTranscribe: true, defaultProvider: 'soniox' }
     });
     const [isSavingData, setSavingData] = useState(false);
     const dataDirtyRef = useRef(false);
@@ -25,7 +28,12 @@ export function usePreferenceSettings(user: any, userProfile: UserProfile | null
             if (!dataDirtyRef.current) {
                 setDataState({
                     deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never',
-                    transcriptionSettings: userProfile.transcriptionSettings || { autoTranscribe: true }
+                    transcriptionSettings: {
+                        autoTranscribe: userProfile.transcriptionSettings?.autoTranscribe ?? true,
+                        defaultProvider: (['soniox', 'elevenlabs'].includes((userProfile as any).transcriptionSettings?.defaultProvider)
+                            ? (userProfile as any).transcriptionSettings?.defaultProvider
+                            : 'soniox')
+                    }
                 });
             }
         }

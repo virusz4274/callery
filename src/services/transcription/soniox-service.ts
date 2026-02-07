@@ -1,4 +1,4 @@
-import { ITranscriptionService, TranscriptionResult, SonioxPollResponse } from './types';
+import { ITranscriptionService, TranscriptionResult, TranscribeOptions, TranscribeAsyncOptions, TranscribeAsyncResult, SonioxPollResponse } from './types';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logSystemEvent } from '@/lib/db/system-log';
 import { logger } from '@/lib/logger';
@@ -7,6 +7,7 @@ export class SonioxService implements ITranscriptionService {
     private apiKey: string;
     private baseUrl: string;
     private model: string;
+    public readonly provider = 'soniox';
 
     constructor() {
         if (!process.env.SONIOX_API_KEY) {
@@ -17,10 +18,14 @@ export class SonioxService implements ITranscriptionService {
         this.model = process.env.SONIOX_MODEL_ID || 'stt-async-v3';
     }
 
-    async transcribe(fileUrl: string, durationSeconds?: number): Promise<TranscriptionResult> {
+    async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
         if (!this.apiKey) {
             throw new Error('SONIOX_API_KEY is not defined');
         }
+
+        const durationSeconds = options?.durationSeconds;
+        // Soniox supports model override if needed, but we default to class prop
+        const modelToUse = this.model;
 
         try {
             logger.debug(`[Soniox] Requesting transcription for: ${fileUrl}`);
@@ -32,7 +37,7 @@ export class SonioxService implements ITranscriptionService {
                 },
                 body: JSON.stringify({
                     audio_url: fileUrl,
-                    model: this.model,
+                    model: modelToUse,
                     enable_speaker_diarization: true,
                 }),
             });
@@ -169,10 +174,85 @@ export class SonioxService implements ITranscriptionService {
                 languageCode: detectedLanguage,
                 segments,
                 transcriptionId,
+                provider: 'soniox',
+                model: modelToUse
             };
 
         } catch (error) {
             logger.error('[Soniox] Transcription Error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Start an async transcription that will deliver results via webhook.
+     * Returns immediately with the transcription ID.
+     * Note: Soniox webhooks only notify of completion, they do NOT include transcript data.
+     *       The webhook handler must fetch the transcript using the ID.
+     */
+    async transcribeAsync(fileUrl: string, options?: TranscribeAsyncOptions): Promise<TranscribeAsyncResult> {
+        if (!this.apiKey) {
+            throw new Error('SONIOX_API_KEY is not defined');
+        }
+
+        const modelToUse = options?.model || this.model;
+
+        // Build webhook URL with metadata as query params
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
+        const webhookSecret = process.env.SONIOX_WEBHOOK_SECRET;
+
+        let webhookUrl = `${appUrl}/api/webhooks/soniox`;
+        if (options?.webhookMetadata) {
+            const params = new URLSearchParams();
+            params.set('recordingId', options.webhookMetadata.recordingId);
+            params.set('firebaseUid', options.webhookMetadata.firebaseUid);
+            webhookUrl += `?${params.toString()}`;
+        }
+
+        try {
+            logger.info(`[Soniox] Starting ASYNC transcription for: ${fileUrl} (Model: ${modelToUse})`);
+
+            const requestBody: Record<string, unknown> = {
+                audio_url: fileUrl,
+                model: modelToUse,
+                enable_speaker_diarization: true,
+                webhook_url: webhookUrl,
+            };
+
+            // Add auth header if secret is configured
+            if (webhookSecret) {
+                requestBody.webhook_auth_header_name = 'X-Soniox-Secret';
+                requestBody.webhook_auth_header_value = webhookSecret;
+            }
+
+            const response = await fetch(`${this.baseUrl}/v1/transcriptions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error(`[Soniox] Async API Error (${response.status}): ${errorText}`);
+                throw new Error(`Soniox API failed: ${response.status} ${errorText}`);
+            }
+
+            const data = await response.json();
+            const transcriptionId = data.id;
+
+            logger.info(`[Soniox] Async request submitted. Transcription ID: ${transcriptionId}`);
+
+            return {
+                requestId: transcriptionId,
+                transcriptionId: transcriptionId,
+                message: 'Transcription queued for processing',
+            };
+
+        } catch (error) {
+            logger.error('[Soniox] Async Transcription Error:', error);
             throw error;
         }
     }

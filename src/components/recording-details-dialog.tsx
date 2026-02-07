@@ -1,16 +1,13 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
-import { authFetch } from '@/lib/api-client';
 import type { Recording } from '@/lib/types';
-import {
-  Modal,
-  Button
-} from '@heroui/react';
+import { Modal, Button } from '@heroui/react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingContent } from './recording-view/recording-content';
 import { SharePopover } from './sharing/share-popover';
+import { getPlaybackUrlAction } from '@/app/actions/recordings';
+import { transcribeRecordingAction } from '@/app/actions/transcription';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
@@ -19,6 +16,8 @@ type RecordingDetailsDialogProps = {
 
 export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDetailsDialogProps) {
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
+  const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -26,10 +25,6 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
     return `${mins}m ${secs}s`;
   };
 
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
-  const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
-
-  // Fetch playback URL on mount if not provided
   useEffect(() => {
     if (recording.playbackUrl) {
       setPlaybackUrl(recording.playbackUrl);
@@ -37,33 +32,36 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
       return;
     }
 
+    let isMounted = true;
     setIsLoadingUrl(true);
-    authFetch(`/api/recordings/${recording.id}/play`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.playbackUrl) setPlaybackUrl(data.playbackUrl);
+
+    getPlaybackUrlAction(recording.id)
+      .then(result => {
+        if (!isMounted) return;
+        if (result.playbackUrl) {
+          setPlaybackUrl(result.playbackUrl);
+        } else {
+          console.error('Failed to get playback URL:', result.error);
+        }
       })
       .catch(console.error)
-      .finally(() => setIsLoadingUrl(false));
+      .finally(() => {
+        if (isMounted) setIsLoadingUrl(false);
+      });
+
+    return () => { isMounted = false; };
   }, [recording.id, recording.playbackUrl]);
 
   const handleTranscribe = async () => {
     setIsTranscribing(true);
     try {
-      const response = await authFetch('/api/transcribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ recordingId: recording.id }),
-      });
+      const result = await transcribeRecordingAction(recording.id);
 
-      if (!response.ok) {
-        throw new Error('Transcription failed');
+      if ('error' in result) {
+        throw new Error(result.error);
       }
 
       window.location.reload();
-
     } catch (error) {
       console.error('Transcription error:', error);
       alert('Failed to start transcription');
@@ -84,10 +82,10 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
             <Modal.Header className="flex flex-col gap-1 border-b border-default-100/50 p-4 sm:p-6 flex-shrink-0">
               <div className="flex items-center justify-between gap-4">
                 <Modal.Heading className="text-lg sm:text-xl font-bold truncate pr-8">
-                    {recording.contactName || recording.phoneNumber}
+                  {recording.contactName || recording.phoneNumber}
                 </Modal.Heading>
                 <div className="mr-8">
-                    <SharePopover recordingId={recording.id} />
+                  <SharePopover recordingId={recording.id} />
                 </div>
               </div>
               <p className="text-xs sm:text-sm text-default-500 font-normal flex flex-wrap gap-2 items-center">
@@ -99,7 +97,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
               </p>
             </Modal.Header>
             <Modal.Body className="p-4 sm:p-6 gap-6 overflow-y-auto flex-1">
-              <RecordingContent 
+              <RecordingContent
                 recording={recording}
                 playbackUrl={playbackUrl}
                 isLoadingUrl={isLoadingUrl}
@@ -109,8 +107,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
             </Modal.Body>
           </Modal.Dialog>
         </Modal.Container>
-      </Modal.Backdrop >
-    </Modal >
+      </Modal.Backdrop>
+    </Modal>
   );
 }
-
