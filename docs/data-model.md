@@ -55,6 +55,8 @@ storageSettings: {
 }
 transcriptionSettings: {
     autoTranscribe: boolean;
+    defaultProvider?: 'soniox' | 'elevenlabs';
+    defaultModel?: string;
 }
 ```
 
@@ -100,6 +102,10 @@ Stores metadata for audio recordings.
 | `duration` | `number` | Duration in seconds. |
 | `standardizedDisplayName` | `string` | (Optional) Cached display name for UI. |
 | `transcriptionStatus` | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Current status of transcription. |
+| `transcriptionProvider` | `'soniox' \| 'elevenlabs'` | Provider used. |
+| `transcriptionModel` | `string` | Model used (e.g., 'scribe_v2'). |
+| `transcriptionCostMultiplier` | `number` | Multiplier applied at time of upload. |
+| `externalTranscriptionId` | `string` | ID from external provider (for webhooks). |
 | `languageCode` | `string` | Language code (e.g., 'en-US'). |
 | `summary` | `string` | AI-generated summary of the call. |
 | `summaryEmbedding` | `number[]` | Vector embedding of the summary. |
@@ -165,6 +171,7 @@ Singleton document for global system configuration.
 | `allowSignups` | `boolean` | Toggle to allow/block new signups. |
 | `maintenanceMode` | `boolean` | Toggle maintenance mode. |
 | `defaultPlanId` | `ObjectId` | Reference to the default plan for new users. |
+| `transcriptionMultipliers` | `object` | `{ soniox: number, elevenlabs: number }` |
 | `updatedAt` | `Date` | Last update timestamp. |
 
 ---

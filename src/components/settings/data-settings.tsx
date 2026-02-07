@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, Button, Select, Switch, Spinner, Label, ListBox } from '@heroui/react';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { GoogleConnectDialog } from './google-connect-dialog';
@@ -9,16 +9,17 @@ import { SettingsPage } from './settings-page';
 import type { User } from '@/lib/types';
 import type { ExportJobResponse } from '@/lib/db/types';
 import { Download, FileArchive, Loader2, Archive } from 'lucide-react';
+import { getAvailableProviders, type AvailableProvider } from '@/app/actions/transcription-providers';
 
 interface DataSettingsProps {
     userProfile: User | null;
     settings: {
         deletionPolicy: string;
-        transcriptionSettings: { autoTranscribe: boolean };
+        transcriptionSettings: { autoTranscribe: boolean; defaultProvider?: 'soniox' | 'elevenlabs' };
     };
     onSettingsChange: (newSettings: {
         deletionPolicy: string;
-        transcriptionSettings: { autoTranscribe: boolean };
+        transcriptionSettings: { autoTranscribe: boolean; defaultProvider?: 'soniox' | 'elevenlabs' };
     }) => void;
     onSave: () => Promise<void>;
     isSaving: boolean;
@@ -48,6 +49,11 @@ export function DataSettings({
     onStartExport,
 }: DataSettingsProps) {
 
+    // Fetch available transcription providers
+    const [providers, setProviders] = useState<AvailableProvider[]>([]);
+    useEffect(() => {
+        getAvailableProviders().then(setProviders).catch(console.error);
+    }, []);
 
     const storageUsed = userProfile?.storageUsed || 0;
     const storageAllocation = userProfile?.storageAllocation || 1; // Prevent div by zero
@@ -120,6 +126,54 @@ export function DataSettings({
                                     </Switch.Control>
                                 </Switch>
                             </div>
+
+                            {settings.transcriptionSettings.autoTranscribe && (
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 rounded-lg border p-4 bg-default-50/50">
+                                    <div className="space-y-1">
+                                        <h4 className="text-base font-medium">Transcription Model</h4>
+                                        <p className="text-sm text-default-500 max-w-md">
+                                            Choose the AI model used for transcription. Higher quality models may cost more.
+                                        </p>
+                                    </div>
+                                    <div className="w-full sm:w-64">
+                                        <Select
+                                            aria-label="Transcription Provider"
+                                            placeholder="Select a provider"
+                                            selectedKey={settings.transcriptionSettings.defaultProvider || 'soniox'}
+                                            onSelectionChange={(key) => {
+                                                if (key) {
+                                                    onSettingsChange({
+                                                        ...settings,
+                                                        transcriptionSettings: {
+                                                            ...settings.transcriptionSettings,
+                                                            defaultProvider: key as 'soniox' | 'elevenlabs'
+                                                        }
+                                                    });
+                                                }
+                                            }}
+                                        >
+                                            <Select.Trigger>
+                                                <Select.Value />
+                                                <Select.Indicator />
+                                            </Select.Trigger>
+                                            <Select.Popover>
+                                                <ListBox>
+                                                    {providers.map((provider) => (
+                                                        <ListBox.Item key={provider.id} id={provider.id} textValue={provider.name}>
+                                                            <div className="flex flex-col">
+                                                                <span>{provider.name}</span>
+                                                                <span className="text-xs text-default-400">
+                                                                    {provider.description} &middot; {provider.multiplier}x Cost
+                                                                </span>
+                                                            </div>
+                                                        </ListBox.Item>
+                                                    ))}
+                                                </ListBox>
+                                            </Select.Popover>
+                                        </Select>
+                                    </div>
+                                </div>
+                            )}
 
 
                         </Card.Content>

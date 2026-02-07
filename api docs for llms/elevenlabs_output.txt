@@ -1,0 +1,41 @@
+{
+  "language_code": "en",
+  "language_probability": 0.98,
+  "text": "Hello world!",
+  "words": [
+    {
+      "text": "Hello",
+      "start": 0,
+      "end": 0.5,
+      "type": "word",
+      "speaker_id": "speaker_1",
+      "logprob": -0.124,
+      "characters": [
+        {
+          "text": "H",
+          "start": 0,
+          "end": 0.1
+        }
+      ]
+    }
+  ],
+  "channel_index": 1,
+  "additional_formats": [
+    {
+      "requested_format": "requested_format",
+      "file_extension": "file_extension",
+      "content_type": "content_type",
+      "is_base64_encoded": true,
+      "content": "content"
+    }
+  ],
+  "transcription_id": "transcription_id",
+  "entities": [
+    {
+      "text": "text",
+      "entity_type": "entity_type",
+      "start_char": 1,
+      "end_char": 1
+    }
+  ]
+}

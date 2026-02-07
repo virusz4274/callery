@@ -117,6 +117,28 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                     <span className="text-[10px] text-default-400">
                                         <ClientFormattedDate date={rec.recordedAt} formatString="h:mm a" />
                                     </span>
+                                    {/* Provider Badge with Cost */}
+                                    {(rec.transcriptionProvider || rec.transcriptionModel) && (
+                                        <>
+                                            <span className="text-[10px] text-default-300">•</span>
+                                            {rec.transcriptionProvider === 'elevenlabs' ? (
+                                                <span className="flex items-center gap-0.5">
+                                                    <span className="text-[9px] font-bold text-purple-600 uppercase tracking-wider">
+                                                        ElevenLabs
+                                                    </span>
+                                                    {rec.transcriptionCostMultiplier && rec.transcriptionCostMultiplier > 1 && (
+                                                        <span className="text-[9px] font-bold text-amber-600">
+                                                            ({rec.transcriptionCostMultiplier}x)
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            ) : rec.transcriptionProvider === 'soniox' ? (
+                                                <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">
+                                                    Soniox
+                                                </span>
+                                            ) : null}
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

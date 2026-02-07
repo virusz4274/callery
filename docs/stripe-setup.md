@@ -87,6 +87,9 @@ Set these through the Admin panel:
 2. We send a baseline storage event at period start (webhook).
 3. We only send a new storage event when a **new peak** is reached.
 4. Transcription usage events are sent as **seconds** (rounded to 15s blocks in code).
+    *   **Note**: This is satisfying **Billed Duration**.
+    *   Formula: `Audio Duration (s) × Provider Multiplier`
+    *   Example: 60s ElevenLabs audio (6x) = 360s reported to Stripe.
 
 ### Billing Thresholds (Automated)
 The application is configured to automatically charge users when their unbilled usage (overage) exceeds **$10.00**.

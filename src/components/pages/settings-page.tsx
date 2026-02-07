@@ -170,7 +170,7 @@ export function SettingsPage() {
                                 <DataSettings
                                     userProfile={userProfile}
                                     settings={dataState}
-                                    onSettingsChange={(newSettings: { deletionPolicy: string; transcriptionSettings: { autoTranscribe: boolean } }) => {
+                                    onSettingsChange={(newSettings) => {
                                         dataDirtyRef.current = true;
                                         setDataState(newSettings);
                                     }}

@@ -39,7 +39,7 @@ function AuthenticatedDashboard() {
   // Fetch recordings with pagination
   const { data: recordingsData, isLoading: isLoadingRecordings, totalCount, refetch: refetchRecordings } = useRecordings({
     limit: LIMIT,
-    skip: (page - 1) * LIMIT,
+    page,
     includeArchived: false,
     contactName,
   });

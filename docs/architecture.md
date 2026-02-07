@@ -7,13 +7,14 @@ CallOrganizer is a modern web application for managing, transcribing, and organi
 ### **Tech Stack**
 
 *   **Frontend**: Next.js 16 (App Router), React 19, HeroUI, Tailwind CSS v4.
-*   **Backend**: Next.js Server Actions (primary) & API Routes using a Service Layer pattern.
+*   **Backend**: Next.js Server Actions (Primary Data Access & Mutations).
 *   **Database**: MongoDB (via `mongodb` driver) with Vector Search.
 *   **Storage**: Cloudflare R2 (S3-compatible object storage) for audio files.
 *   **Authentication**: Firebase Auth (Google Sign-In, Anonymous).
 *   **AI Services**:
     *   **Google Gemini**: Summarization, Vector Embeddings, and Analysis.
-    *   **Soniox**: Transcription and diarization.
+    *   **Soniox**: Standard Transcription.
+    *   **ElevenLabs**: Premium Transcription (Async).
 *   **External Integrations**:
     *   **Google People API**: Contact synchronization.
     *   **Stripe**: Metered billing and subscriptions.
@@ -24,7 +25,7 @@ CallOrganizer is a modern web application for managing, transcribing, and organi
 *   **PWA**:
     *   **Framework**: Offline-first support via `@ducanh2912/next-pwa`.
     *   **Strategy**: Workbox-powered caching.
-        *   **NetworkFirst**: Used for `/api/` routes to ensure fresh data while allowing offline fallback.
+        *   **NetworkFirst**: Used for data fetching to ensure fresh data.
         *   **CacheFirst**: Used for Google Fonts and static assets.
         *   **StaleWhileRevalidate**: Used for local images, icons, and `/_next/image` requests.
 *   **Monitoring**:
@@ -39,7 +40,7 @@ graph TD
     subgraph "Next.js App"
         UI[UI Components]
         Actions[Server Actions]
-        API[API Routes]
+        Webhooks[Webhook Handlers]
     end
     
     subgraph "Data Layer"
@@ -57,15 +58,18 @@ graph TD
 
     Client -->|Interacts| UI
     UI -->|Server Actions| Actions
-    UI -->|Fetch| API
+    UI -->|Upload| R2
     Actions -->|Read/Write| MongoDB
-    Actions -->|Upload/Stream| R2
+    Actions -->|Manage| R2
     Client -->|Auth| Firebase
-    Actions -->|Verify Token| Firebase
+    Actions -->|Verify Session| Firebase
     Actions -->|Generate Embeddings| Gemini
     Actions -->|Transcribe| Soniox
     Actions -->|Sync Contacts| GPeople
     Actions -->|Report Usage| Stripe
+    Soniox -->|Webhook| Webhooks
+    Stripe -->|Webhook| Webhooks
+    Webhooks -->|Update| MongoDB
 ```
 
 ### **Data Storage Strategy**
@@ -84,15 +88,25 @@ Files are organized using a hierarchical key structure to optimize for performan
 ### **Service Integration Patterns**
 
 #### **1. Transcription (Soniox)**
-*   **Pattern**: Async Polling.
-*   **Workflow**:
-    1.  **Start**: Server sends audio URL to Soniox (`POST /v1/transcriptions`).
-    2.  **Smart Delay**: System waits for ~30% of the audio duration (up to 30s) before the first check, minimizing API chatter.
-    3.  **Poll**: Checks status (`GET /v1/transcriptions/{id}`) every 2 seconds.
-    4.  **Fetch**: Upon `COMPLETED` status, fetches the full transcript payload.
-    5.  **Process**: Reassembles word-level tokens into speaker segments locally.
+*   **Pattern**: Hybrid (Async Polling & Async Webhook).
+*   **Short Files (< 5 mins)**:
+    1.  **Start**: Server sends audio URL to Soniox.
+    2.  **Poll**: Checks status every 2 seconds.
+    3.  **Fetch**: Upon completion, fetches transcript and processes locally.
+*   **Long Files (> 5 mins)**:
+    1.  **Start**: Server sends audio URL with `webhook_url` and `webhook_auth_header`.
+    2.  **Callback**: Soniox POSTs completion status to `/api/webhooks/soniox`.
+    3.  **Fetch**: Webhook handler fetches the full transcript from Soniox API (securely using `SONIOX_WEBHOOK_SECRET` for validation).
 
-#### **2. Contact Sync (Google People API)**
+#### **2. Transcription (ElevenLabs)**
+*   **Pattern**: Async Webhook.
+*   **Workflow**:
+    1.  **Start**: Server sends audio URL to ElevenLabs (`POST /v1/speech-to-text`) with configured webhook URL.
+    2.  **Wait**: System updates status to `processing` and correlates via `externalTranscriptionId`.
+    3.  **Callback**: ElevenLabs POSTs the result to `/api/webhooks/elevenlabs` upon completion.
+    4.  **Process**: Webhook handler saves transcript, triggers AI summary, and reports usage (with 6x multiplier).
+
+#### **3. Contact Sync (Google People API)**
 *   **Pattern**: Background Batch Processing.
 *   **Trigger**: User connects account or manual "Sync Now" action.
 *   **Execution**:
@@ -121,7 +135,7 @@ Files are organized using a hierarchical key structure to optimize for performan
     *   **Vector Search**: Semantic search using MongoDB Atlas Vector Search and Gemini embeddings.
 
 3.  **Transcription & Intelligence**:
-    *   Diarized transcription using Soniox.
+    *   Multi-provider transcription (Soniox & ElevenLabs).
     *   Semantic search and summarization powered by LLMs (Gemini).
     *   Transliteration and Translation support.
 

@@ -12,13 +12,18 @@ import { User, Plan } from '@/lib/db/types';
 export async function reportUsage(
     firebaseUid: string,
     type: 'storage' | 'transcription',
-    quantity: number
+    quantity: number,
+    options?: { multiplier?: number }
 ) {
     if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
     if (!Number.isFinite(quantity)) return;
 
+    // Apply multiplier if present (default 1.0)
+    const multiplier = options?.multiplier || 1.0;
+    const effectiveQuantity = quantity * multiplier;
+
     // Stripe requires integer values for meter events.
-    const value = Math.trunc(quantity);
+    const value = Math.trunc(effectiveQuantity);
     if (value === 0) return;
 
     try {
@@ -45,7 +50,7 @@ export async function reportUsage(
             timestamp: Math.floor(Date.now() / 1000),
         });
 
-        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${value}) for user ${firebaseUid}`);
+        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${value}, Base: ${quantity}, Mult: ${multiplier}) for user ${firebaseUid}`);
 
     } catch (error) {
         console.error(`[Usage] Failed to report usage for ${firebaseUid}:`, error);

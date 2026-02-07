@@ -1,73 +1,78 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+'use server';
+
+import { after } from 'next/server';
 import { getRecordingById, updateRecording } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { SonioxService } from '@/services/transcription/soniox-service';
 import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
-import { getUserFromRequest } from '@/lib/auth-utils';
+import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
 import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createNotification } from '@/lib/notifications';
 
-// export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
-export const maxDuration = 300; // 5 minutes
-
 const aiService = new GeminiService();
 const transcriptionService = new SonioxService();
 
-export async function POST(req: NextRequest) {
+import { RecordingIdSchema } from '@/lib/schemas';
+
+// ... imports
+
+export async function transcribeRecordingAction(recordingId: string) {
     try {
+        const parseResult = RecordingIdSchema.safeParse(recordingId);
+        if (!parseResult.success) {
+            return { error: 'Invalid recording ID' };
+        }
+        const validatedRecordingId = parseResult.data;
+
         // 1. Authenticate
-        const uid = await getUserFromRequest(req);
+        const uid = await getFirebaseUidFromSession();
         if (!uid) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return { error: 'Unauthorized' };
         }
 
         const user = await findUserByFirebaseUid(uid);
         if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return { error: 'User not found' };
         }
 
         const access = checkUserAccess(user);
         if (!access.allowed) {
-            return NextResponse.json({ error: access.reason }, { status: 403 });
+            return { error: access.reason };
         }
 
         // 2a. Check Usage Cycle
         const currentUser = await checkAndResetUsageCycle(user);
 
-        const body = await req.json();
-        const { recordingId } = body;
-
-        if (!recordingId) {
-            return NextResponse.json({ error: 'Missing recordingId' }, { status: 400 });
-        }
+        // validated via schema
+        // if (!recordingId) { ... }
 
         // 2. Get Recording
-        const recording = await getRecordingById(recordingId, uid);
+        const recording = await getRecordingById(validatedRecordingId, uid);
         if (!recording) {
-            return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
+            return { error: 'Recording not found' };
         }
 
         // Set status to processing immediately for UI feedback
         await updateRecording(recordingId, uid, { transcriptionStatus: 'processing' });
-        logger.info(`[API/Transcribe] Starting background job for ${recordingId}`);
+        logger.info(`[Action/Transcribe] Starting background job for ${recordingId}`);
 
         // 3. Check Transcription Access
         const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
         if (!transcriptionAccess.allowed) {
-            return NextResponse.json({ error: transcriptionAccess.reason || 'Transcription limit exceeded' }, { status: 403 });
+            return { error: transcriptionAccess.reason || 'Transcription limit exceeded' };
         }
 
         // 5. Trigger Background Transcription
         after(async () => {
             try {
                 const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
-                logger.info(`[API/Transcribe] Processing ${recordingId}...`);
-                const result = await transcriptionService.transcribe(fileUrl, recording.duration);
-                logger.info(`[API/Transcribe] Transcription received for ${recordingId}`);
+                logger.info(`[Action/Transcribe] Processing ${recordingId}...`);
+                const result = await transcriptionService.transcribe(fileUrl, { durationSeconds: recording.duration });
+                logger.info(`[Action/Transcribe] Transcription received for ${recordingId}`);
 
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest) {
                 let summaryEmbedding: number[] = [];
 
                 if (result.text && result.text.trim()) {
-                    logger.info(`[API/Transcribe] Running AI summary and transliteration for ${recordingId}`);
+                    logger.info(`[Action/Transcribe] Running AI summary and transliteration for ${recordingId}`);
                     [summary, transliteratedSegments] = await Promise.all([
                         aiService.generateSummary(result.text, result.languageCode),
                         aiService.generateTransliteration(result.segments, result.languageCode)
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
                 }
 
                 // Save Result
-                logger.info(`[API/Transcribe] Saving results for ${recordingId}`);
+                logger.info(`[Action/Transcribe] Saving results for ${recordingId}`);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'completed',
                     fullTranscript: transliteratedSegments, // This now includes transliteratedText
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
                 await reportUsage(uid, 'transcription', billedDuration);
-                logger.info(`[API/Transcribe] Job completed for ${recordingId}`);
+                logger.info(`[Action/Transcribe] Job completed for ${recordingId}`);
 
                 // Delete from Soniox
                 try {
@@ -117,11 +122,11 @@ export async function POST(req: NextRequest) {
                 );
 
             } catch (error) {
-                logger.error('[API/Transcribe] Background job failed:', error);
+                logger.error('[Action/Transcribe] Background job failed:', error);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'failed',
                 });
-                
+
                 await createNotification(
                     user._id,
                     'error',
@@ -131,14 +136,12 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // Return "Processing" status immediately
-        return NextResponse.json({
-            success: true,
-        });
+        // Return success immediately
+        return { success: true };
 
     } catch (error) {
         logger.error('Transcription start error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return { error: errorMessage };
     }
 }

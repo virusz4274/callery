@@ -11,6 +11,7 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse {
         allowSignups: settings.allowSignups,
         maintenanceMode: settings.maintenanceMode,
         defaultPlanId: settings.defaultPlanId?.toString(),
+        transcriptionMultipliers: settings.transcriptionMultipliers,
         updatedAt: settings.updatedAt.toISOString(),
     };
 }

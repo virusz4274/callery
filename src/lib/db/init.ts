@@ -208,6 +208,28 @@ export async function initializeDatabase(): Promise<void> {
         );
     }
 
+    // Seed System Settings
+    try {
+        await db.collection('system_settings').updateOne(
+            {},
+            {
+                $setOnInsert: {
+                    allowSignups: true,
+                    maintenanceMode: false,
+                    transcriptionMultipliers: {
+                        soniox: 1.0,
+                        elevenlabs: 6.0
+                    },
+                    updatedAt: now
+                }
+            },
+            { upsert: true }
+        );
+        console.log('✅ System Settings seeded');
+    } catch (e) {
+        console.error('⚠️ System Settings seeding failed:', e);
+    }
+
     console.log('✅ Plans seeded/updated');
 
     console.log('🎉 Database initialization complete!');

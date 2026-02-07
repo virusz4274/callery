@@ -426,3 +426,13 @@ export async function checkAndResetUsageCycle(user: User): Promise<User> {
 
     return user;
 }
+
+/**
+ * Get system settings (singleton document).
+ */
+export async function getSystemSettings(): Promise<SystemSettings | null> {
+    const db = await getMongoDb();
+    const settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
+    return settings;
+}
+

@@ -102,6 +102,27 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                     className="text-default-500"
                                                 />
                                             </div>
+                                            {/* Provider Badge with Cost */}
+                                            {(rec.transcriptionProvider || rec.transcriptionModel) && (
+                                                <div className="flex gap-1 mt-1">
+                                                    {rec.transcriptionProvider === 'elevenlabs' ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[9px] font-bold border border-purple-200 uppercase tracking-wider">
+                                                                ElevenLabs
+                                                            </div>
+                                                            {rec.transcriptionCostMultiplier && rec.transcriptionCostMultiplier > 1 && (
+                                                                <div className="px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-bold border border-amber-200">
+                                                                    {rec.transcriptionCostMultiplier}x
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : rec.transcriptionProvider === 'soniox' ? (
+                                                        <div className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-[9px] font-bold border border-blue-200 uppercase tracking-wider">
+                                                            Soniox
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="p-4 align-middle">

@@ -66,6 +66,20 @@ This document outlines manual tests to verify all billing features work correctl
 
 ---
 
+## Test 4b: Multiplier Transcription (ElevenLabs)
+
+**Goal**: Verify ElevenLabs usage is billed at 6x.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 4b.1 | Switch default provider to ElevenLabs in code or Admin | Provider set |
+| 4b.2 | Upload a 1-minute audio file | Upload succeeds |
+| 4b.3 | Wait for processing | Status: "completed" |
+| 4b.4 | Check Stripe Meters | Event value: **360** (60s * 6) |
+| 4b.5 | Check User Usage | Transcription Used += 360s |
+
+---
+
 ## Test 5: Billing Threshold ($10 Auto-Invoice)
 
 **Goal**: Verify automatic invoicing when usage exceeds $10.

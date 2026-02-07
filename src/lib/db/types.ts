@@ -26,6 +26,8 @@ export interface User {
     };
     transcriptionSettings: {
         autoTranscribe: boolean;
+        defaultProvider?: 'soniox' | 'elevenlabs';
+        defaultModel?: string;
     };
     storageSettings: {
         deletionPolicy: 'never' | '3m' | '6m' | '1y';
@@ -90,6 +92,13 @@ export interface Recording {
     transcriptionStatus: 'pending' | 'processing' | 'completed' | 'failed';
     fullTranscript?: TranscriptionSegment[]; // Structured transcript with diarization
     languageCode?: string; // e.g. 'mal', 'eng'
+
+    // Transcription Metadata
+    transcriptionProvider?: 'soniox' | 'elevenlabs';
+    transcriptionModel?: string;
+    transcriptionCostMultiplier?: number;
+    externalTranscriptionId?: string; // For webhook correlation with external providers
+
 
     // Future-proof fields for translations/transliterations
     transliteratedTranscript?: string; // e.g., Manglish
@@ -162,6 +171,10 @@ export interface SystemSettings {
     allowSignups: boolean;
     maintenanceMode: boolean;
     defaultPlanId?: ObjectId; // Optional reference to the default plan
+    transcriptionMultipliers?: {
+        soniox: number;
+        elevenlabs: number;
+    };
     updatedAt: Date;
 }
 
@@ -274,6 +287,9 @@ export interface RecordingResponse {
     transcriptionStatus: 'pending' | 'processing' | 'completed' | 'failed';
     fullTranscript?: TranscriptionSegment[];
     languageCode?: string;
+    transcriptionProvider?: 'soniox' | 'elevenlabs';
+    transcriptionModel?: string;
+    transcriptionCostMultiplier?: number;
     summary?: string;
     tags: string[];
     isStarred: boolean;
@@ -330,6 +346,8 @@ export interface UserResponse {
     transcriptionAllocation: number;
     transcriptionSettings: {
         autoTranscribe: boolean;
+        defaultProvider?: 'soniox' | 'elevenlabs';
+        defaultModel?: string;
     };
     billingSettings: {
         allowOverage: boolean;
@@ -366,6 +384,10 @@ export interface SystemSettingsResponse {
     allowSignups: boolean;
     maintenanceMode: boolean;
     defaultPlanId?: string;
+    transcriptionMultipliers?: {
+        soniox: number;
+        elevenlabs: number;
+    };
     updatedAt: string;
 }
 
