@@ -1,4 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import 'dotenv/config';
+
+const isProduction = process.env.NODE_ENV === 'production';
+const productionUrl = 'https://vosift.virusz4274.tech';
+const devUrl = 'http://10.0.0.169:9000';
 
 const config: CapacitorConfig = {
   appId: 'com.coarde.vosift',
@@ -7,10 +12,9 @@ const config: CapacitorConfig = {
 
   // Load the app from remote server (keeps Server Actions working)
   server: {
-    // For development, use your local IP (find with `ipconfig getifaddr en0`)
-    // For production, use your deployed URL: 'https://your-domain.com'
-    url: 'http://10.0.0.169:9000',
-    cleartext: true, // Allow HTTP for development
+    // Dynamically switch URL based on environment
+    url: isProduction ? productionUrl : devUrl,
+    cleartext: !isProduction, // Allow HTTP only in development
   },
 
   android: {
