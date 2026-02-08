@@ -60,6 +60,23 @@ export interface User {
 
     // Login tracking
     lastLoginAt?: Date;
+
+    // Push Notification Subscriptions
+    pushSubscriptions?: PushSubscriptionEntry[];
+}
+
+/**
+ * Push Subscription entry for storing in User document.
+ */
+export interface PushSubscriptionEntry {
+    type: 'web'; // Future: 'fcm' for Android
+    endpoint: string;
+    keys: {
+        p256dh: string;
+        auth: string;
+    };
+    userAgent?: string;
+    createdAt: Date;
 }
 
 /**

@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   server: {
     // For development, use your local IP (find with `ipconfig getifaddr en0`)
     // For production, use your deployed URL: 'https://your-domain.com'
-    url: 'http://10.0.0.186:9000',
+    url: 'http://10.0.0.169:9000',
     cleartext: true, // Allow HTTP for development
   },
 
