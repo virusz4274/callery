@@ -1,11 +1,17 @@
 {
     "name": "VoSift",
     "short_name": "VoSift",
-    "description": "VoSift - Search deeper than words.",
+    "description": "VoSift - Search deeper than words. Managing, transcribing, and organizing phone call recordings.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#000000",
+    "orientation": "portrait-primary",
+    "categories": [
+        "productivity",
+        "utilities",
+        "business"
+    ],
     "icons": [
         {
             "src": "/icons/android-chrome-192x192.png",
@@ -18,6 +24,32 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "New Recording",
+            "short_name": "Record",
+            "description": "Start a new recording or upload",
+            "url": "/upload",
+            "icons": [
+                {
+                    "src": "/icons/android-chrome-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Search",
+            "short_name": "Search",
+            "description": "Search your recordings",
+            "url": "/recordings",
+            "icons": [
+                {
+                    "src": "/icons/android-chrome-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ],
     "screenshots": [

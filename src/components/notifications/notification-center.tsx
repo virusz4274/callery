@@ -7,6 +7,7 @@ import { NotificationResponse } from '@/lib/db/types';
 import { fetchNotifications, readNotification, readAllNotifications, sendTestNotification, clearAllNotifications } from '@/app/actions/notifications';
 import { NotificationItem } from './notification-item';
 import { useToast } from '@/components/toast-provider';
+import { EnablePushButton } from './push-notification-toggle';
 
 export function NotificationCenter() {
     const [isOpen, setIsOpen] = useState(false);
@@ -122,12 +123,12 @@ export function NotificationCenter() {
                     <div className="flex items-center justify-between p-3 border-b border-default-200 bg-background/50 backdrop-blur-md sticky top-0 z-10">
                         <Popover.Heading className="text-sm font-semibold">Notifications</Popover.Heading>
                         <div className="flex gap-1">
-                            {/* Dev-only Test Button */}
                             {process.env.NODE_ENV === 'development' && (
                                 <Button size="sm" variant="ghost" isIconOnly onPress={handleTest} isPending={isLoading}>
                                     <Plus className="size-4" />
                                 </Button>
                             )}
+                            <EnablePushButton />
                             {notifications.length > 0 && (
                                 <Button
                                     size="sm"

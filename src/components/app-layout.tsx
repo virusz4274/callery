@@ -14,6 +14,7 @@ import { signOut, sendEmailVerification } from 'firebase/auth';
 import { Spinner } from '@heroui/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
 import { BillingAlert } from '@/components/billing-alert';
+import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 
 import { SystemSettingsResponse } from '@/lib/db/types';
 
@@ -137,6 +138,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
         {children}
       </main>
       <ClientOnly>
+        <InstallPwaPrompt />
         {isMobile && !showHamburger && <MobileNav />}
       </ClientOnly>
     </div>
