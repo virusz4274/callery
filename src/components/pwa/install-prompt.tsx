@@ -26,13 +26,32 @@ export function InstallPwaPrompt() {
             return;
         }
 
+        const checkDismissal = () => {
+            const dismissedAt = localStorage.getItem('install-prompt-dismissed-at');
+            if (dismissedAt) {
+                const diff = Date.now() - parseInt(dismissedAt, 10);
+                // 7 days cooldown
+                if (diff < 7 * 24 * 60 * 60 * 1000) {
+                    return true; // Still verified as dismissed
+                }
+            }
+            return false;
+        }
+
+        if (checkDismissal()) {
+            return;
+        }
+
         const handleBeforeInstallPrompt = (e: any) => {
             // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
             // Stash the event so it can be triggered later.
             setDeferredPrompt(e);
-            // Update UI to notify the user they can add to home screen
-            setIsVisible(true);
+
+            if (!checkDismissal()) {
+                // Update UI to notify the user they can add to home screen
+                setIsVisible(true);
+            }
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -40,10 +59,7 @@ export function InstallPwaPrompt() {
         // For iOS, check if we should show a custom instruction (optional logic)
         // Usually we check simply if it's not standalone and IS iOS
         if (isIosDevice && !isStandalone) {
-            // Logic to show iOS instructions could go here
-            // For now we keep it simple or show it once per session
-            const hasSeenPrompt = sessionStorage.getItem('ios-install-prompt-seen');
-            if (!hasSeenPrompt) {
+            if (!checkDismissal()) {
                 setIsVisible(true);
             }
         }
@@ -82,9 +98,8 @@ export function InstallPwaPrompt() {
 
     const handleDismiss = () => {
         setIsVisible(false);
-        if (isIOS) {
-            sessionStorage.setItem('ios-install-prompt-seen', 'true');
-        }
+        // Save dismissal time
+        localStorage.setItem('install-prompt-dismissed-at', Date.now().toString());
     };
 
     if (!isVisible) return null;
@@ -93,26 +108,27 @@ export function InstallPwaPrompt() {
         <AnimatePresence>
             {isVisible && (
                 <motion.div
-                    initial={{ y: 100, opacity: 0 }}
+                    initial={{ y: 200, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 p-4 bg-background/80 backdrop-blur-lg border border-default-200 rounded-lg shadow-lg flex flex-col gap-3"
+                    exit={{ y: 200, opacity: 0 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 500 }}
+                    className="fixed bottom-24 left-4 right-4 md:left-auto md:right-4 md:bottom-4 md:w-96 z-[60] p-4 bg-background/90 backdrop-blur-xl border border-default-200 rounded-xl shadow-2xl flex flex-col gap-3"
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex gap-3">
-                            <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 shadow-sm border border-primary/20">
                                 <img src="/icons/android-chrome-192x192.png" alt="VoSift" className="size-8 object-contain" />
                             </div>
                             <div>
                                 <h3 className="font-semibold text-sm">Install VoSift</h3>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground leading-tight mt-0.5">
                                     {isIOS
                                         ? "Add to Home Screen for the best experience."
                                         : "Install our app for easier access and better performance."}
                                 </p>
                             </div>
                         </div>
-                        <button onClick={handleDismiss} className="text-default-400 hover:text-default-600">
+                        <button onClick={handleDismiss} className="text-default-400 hover:text-default-600 p-1 hover:bg-default-100 rounded-full transition-colors">
                             <X className="size-4" />
                         </button>
                     </div>
@@ -121,7 +137,7 @@ export function InstallPwaPrompt() {
                         size="sm"
                         variant="primary"
                         onPress={handleInstallClick}
-                        className="w-full"
+                        className="w-full font-medium shadow-md"
                     >
                         {!isIOS && <Download className="size-3 mr-2" />}
                         {isIOS ? "How to Install" : "Install App"}
