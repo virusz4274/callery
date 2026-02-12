@@ -118,10 +118,14 @@ export async function POST(request: Request) {
 
         // AI Processing
         try {
-            const summary = await aiService.generateSummary(fullText, languageCode);
+            const [summary, transliteratedSegments] = await Promise.all([
+                aiService.generateSummary(fullText, languageCode),
+                aiService.generateTransliteration(segments, languageCode)
+            ]);
 
             await updateRecording(recordingId, firebaseUid, {
                 summary,
+                fullTranscript: transliteratedSegments, // Update with transliteration
                 transcriptionStatus: 'completed',
             });
             logger.info(`[Soniox Webhook] AI processing complete for ${recordingId}`);
