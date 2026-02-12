@@ -95,10 +95,15 @@ export async function POST(request: Request) {
         // Process with AI (summarization)
         try {
             const fullText = segments.map(s => `${s.speakerId}: ${s.text}`).join('\n');
-            const summary = await aiService.generateSummary(fullText, languageCode);
+
+            const [summary, transliteratedSegments] = await Promise.all([
+                aiService.generateSummary(fullText, languageCode),
+                aiService.generateTransliteration(segments, languageCode)
+            ]);
 
             await updateRecording(recordingId, firebaseUid, {
                 summary,
+                fullTranscript: transliteratedSegments, // Update with transliteration
                 transcriptionStatus: 'completed',
             });
             logger.info(`[ElevenLabs Webhook] AI processing complete for ${recordingId}`);

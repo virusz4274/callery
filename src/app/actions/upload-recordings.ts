@@ -5,34 +5,21 @@ import { after } from 'next/server';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 import {
   uploadToR2WithMetadata,
-  generateRecordingKey,
-  extractFileExtension,
-  validateAudioMimeType,
-  getSignedR2Url
+  generateRecordingKey
 } from '@/lib/r2';
-import { createRecording, updateRecording } from '@/lib/db/recordings';
-import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle, setStoragePeakUsed, bumpStoragePeakUsed } from '@/lib/db/users';
+import { createRecording } from '@/lib/db/recordings';
+import { incrementStorageUsed, findUserByFirebaseUid, checkAndResetUsageCycle, setStoragePeakUsed, bumpStoragePeakUsed } from '@/lib/db/users';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
-import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
-import { GeminiService } from '@/services/ai/gemini-service';
-import { SonioxService } from '@/services/transcription/soniox-service';
-import { parseContactFromFilename } from '@/lib/utils/filename-parser';
-import { calculateBilledDuration } from '@/lib/utils/billing';
-
-import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@/lib/access-control';
+import { checkUserAccess, checkStorageAccess } from '@/lib/access-control';
 import { reportUsage } from '@/lib/stripe/usage';
 import { logger } from '@/lib/logger';
-import { createNotification } from '@/lib/notifications';
+import pLimit from 'p-limit';
+
+import { validateAndHydrateFile } from './upload/validation';
+import { triggerAutoTranscription } from './upload/transcription';
 
 // Initialize Firebase Admin
 getFirebaseAdminApp();
-
-const aiService = new GeminiService();
-import { TranscriptionFactory, TranscriptionProviderId, PROVIDER_CONFIGS } from '@/services/transcription/factory';
-import { ElevenLabsService } from '@/services/transcription/elevenlabs-service';
-import { getProviderMultiplier } from '@/app/actions/transcription-providers';
-
-import pLimit from 'p-limit';
 
 /**
  * Upload recordings to R2 and save metadata to MongoDB.
@@ -60,9 +47,7 @@ export async function uploadRecordings(
   // 2. Check & Reset Usage Cycle
   const currentUser = await checkAndResetUsageCycle(user);
 
-  // 3. Pre-calculate total size to check storage roughly?
-  // We check per file below, but technically we should check all files at once.
-  // Let's iterate and sum size.
+  // 3. Pre-calculate total size to check storage roughly
   let totalUploadSize = 0;
   const files = formData.getAll('files') as File[];
   for (const file of files) {
@@ -90,71 +75,39 @@ export async function uploadRecordings(
     files.map((file) =>
       limit(async () => {
         try {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const recordedAt = new Date(); // You could parse this from filename if available
+          // 1. Validation & Hydration
+          const validated = await validateAndHydrateFile(file, firebaseUid);
 
-          // Calculate duration
-          let duration = 0;
-          try {
-            const { parseBuffer } = await import('music-metadata');
-            const metadata = await parseBuffer(buffer, file.type || 'audio/mpeg');
-            duration = metadata.format.duration || 0;
-          } catch (e) {
-            logger.warn(`[uploadRecordings] Failed to extract duration for ${file.name}:`, e);
+          if ('error' in validated) {
+            logger.warn(`[uploadRecordings] Validation failed for ${file.name}: ${validated.error}`);
+            return { success: false, error: `${file.name} (${validated.error})` };
           }
 
-          // Parse contact info from filename if possible
-          // Expected format: "Call recording ContactName_YYMMDD_HHMMSS.mp3"
-          const contactInfo = parseContactFromFilename(file.name);
+          const {
+            buffer,
+            duration,
+            contactId,
+            contactName,
+            phoneNumber,
+            googleContactId,
+            extension,
+            mimeType,
+            recordedAt
+          } = validated;
 
-          // Extract and validate file extension
-          const extension = extractFileExtension(file.name);
-          const mimeType = file.type || 'audio/mpeg';
-
-          // Validate MIME type
-          if (!validateAudioMimeType(mimeType)) {
-            logger.warn(`[uploadRecordings] Skipping file ${file.name}: Invalid MIME type ${mimeType}`);
-            return { success: false, error: `${file.name} (invalid format)` };
-          }
-
-          // Try to find matching contact
-          let contactId: string | null = null;
-          let contactName = contactInfo.name || null;
-          let phoneNumber = contactInfo.phoneNumber || 'Unknown';
-          let googleContactId: string | undefined;
-
-          if (contactInfo.phoneNumber) {
-            const contact = await findContactByPhone(firebaseUid, contactInfo.phoneNumber);
-            if (contact) {
-              contactId = contact._id.toString();
-              contactName = contact.name;
-              phoneNumber = contactInfo.phoneNumber;
-              googleContactId = contact.googleContactId;
-            }
-          } else if (contactInfo.name) {
-            const contact = await findContactByName(firebaseUid, contactInfo.name);
-            if (contact) {
-              contactId = contact._id.toString();
-              contactName = contact.name;
-              phoneNumber = contact.phoneNumbers?.[0] || 'Unknown';
-              googleContactId = contact.googleContactId;
-            }
-          }
-
-          // Generate standardized display name for metadata (with time for sorting)
-          const recordingDate = contactInfo.date || recordedAt;
-          const displayDate = recordingDate.toISOString().split('T')[0]; // YYYY-MM-DD
-          const displayTime = recordingDate.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+          // Generate standardized display name for metadata
+          const displayDate = recordedAt.toISOString().split('T')[0]; // YYYY-MM-DD
+          const displayTime = recordedAt.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
           const displayName = contactName
             ? `${contactName.replace(/\s+/g, '_')}_${displayDate}_${displayTime}`
             : `${phoneNumber}_${displayDate}_${displayTime}`;
 
-          // Generate R2 key with new structure
+          // Generate R2 key
           const r2Key = generateRecordingKey(
             firebaseUid,
             contactId,
             phoneNumber,
-            contactInfo.date || recordedAt,
+            recordedAt,
             extension
           );
 
@@ -163,7 +116,7 @@ export async function uploadRecordings(
             'contact-name': contactName || phoneNumber,
             'original-filename': file.name,
             'standardized-name': displayName,
-            'recorded-at': recordingDate.toISOString(), // ISO 8601 timestamp for sorting
+            'recorded-at': recordedAt.toISOString(),
             'duration': duration.toString(),
           };
 
@@ -187,7 +140,7 @@ export async function uploadRecordings(
             fileSize: buffer.length,
             mimeType,
             duration: Math.round(duration), // Store as rounded seconds
-            recordedAt: contactInfo.date || recordedAt,
+            recordedAt: recordedAt,
             transcriptionStatus: 'pending' as const,
             transcriptSnippet: '',
             transcript: '',
@@ -220,194 +173,17 @@ export async function uploadRecordings(
             }
           }
 
-          // Auto-transcription
-          const user = await findUserByFirebaseUid(firebaseUid);
-          if (user?.transcriptionSettings?.autoTranscribe) {
-            // Use after() to run transcription in the background after the response is sent
-            // This prevents the upload request from timing out
-            after(async () => {
-              try {
-                // Re-fetch user to get latest usage
-                const freshUser = await findUserByFirebaseUid(firebaseUid);
-                if (!freshUser) return;
-
-                // Determine Provider and Model
-                let providerId: TranscriptionProviderId = freshUser.transcriptionSettings?.defaultProvider || 'soniox';
-                const modelId = freshUser.transcriptionSettings?.defaultModel; // undefined lets service pick default
-
-                // VALIDATION: Ensure provider exists (handle checking for invalid IDs like 'react-aria-1')
-                if (!['soniox', 'elevenlabs'].includes(providerId)) {
-                  logger.warn(`[uploadRecordings] Invalid provider ID found: "${providerId}". Falling back to "soniox".`);
-                  providerId = 'soniox';
-                }
-
-                // Check Transcription Access
-                // We apply the cost multiplier to both the quota check and billing
-                // If I have 100 mins, and I use ElevenLabs (6x), I burn 60 mins for a 10 min file.
-                const multiplier = await getProviderMultiplier(providerId);
-                const costDuration = duration * multiplier;
-
-                const transcriptionAccess = await checkTranscriptionAccess(freshUser, costDuration);
-                if (!transcriptionAccess.allowed) {
-                  logger.warn(`[uploadRecordings] Auto-transcription skipped: ${transcriptionAccess.reason}`);
-                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                    transcriptionStatus: 'failed',
-                  });
-                  return;
-                }
-
-                logger.info(`[uploadRecordings] Background: Transcribing ${createdRecording._id} with ${providerId}...`);
-
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                  transcriptionStatus: 'processing',
-                  transcriptionProvider: providerId,
-                  transcriptionModel: modelId,
-                  transcriptionCostMultiplier: multiplier,
-                });
-
-                const fileUrl = await getSignedR2Url(r2Key, 1800); // 30 mins expiry
-
-                // Use Factory
-                const transcriptionService = TranscriptionFactory.getService(providerId);
-
-                // ASYNC PATH: For long ElevenLabs files, use webhook flow
-                if (providerId === 'elevenlabs' && duration > 300 && transcriptionService instanceof ElevenLabsService) {
-                  logger.info(`[uploadRecordings] Duration ${duration}s > 300s. Switching to Async/Webhook for ElevenLabs.`);
-
-                  const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
-                    durationSeconds: duration,
-                    model: modelId,
-                    webhookMetadata: {
-                      recordingId: createdRecording._id.toString(),
-                      firebaseUid,
-                    }
-                  });
-
-                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                    transcriptionStatus: 'processing', // Stays processing until webhook
-                    transcriptionProvider: providerId,
-                    transcriptionModel: modelId,
-                    transcriptionCostMultiplier: multiplier,
-                    externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
-                  });
-
-                  logger.info(`[uploadRecordings] Async request submitted (${asyncResult.requestId}). Exiting upload flow.`);
-                  return; // Exit! Webhook will handle the rest.
-                }
-
-                // ASYNC PATH: For long Soniox files, use webhook flow
-                if (providerId === 'soniox' && duration > 300 && transcriptionService instanceof SonioxService) {
-                  logger.info(`[uploadRecordings] Duration ${duration}s > 300s. Switching to Async/Webhook for Soniox.`);
-
-                  const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
-                    durationSeconds: duration,
-                    model: modelId,
-                    webhookMetadata: {
-                      recordingId: createdRecording._id.toString(),
-                      firebaseUid,
-                    }
-                  });
-
-                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                    transcriptionStatus: 'processing', // Stays processing until webhook
-                    transcriptionProvider: providerId,
-                    transcriptionModel: modelId,
-                    transcriptionCostMultiplier: multiplier,
-                    externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
-                  });
-
-                  logger.info(`[uploadRecordings] Soniox async request submitted (${asyncResult.requestId}). Exiting upload flow.`);
-                  return; // Exit! Webhook will handle the rest.
-                }
-
-                // SYNC PATH: Standard flow
-                const result = await transcriptionService.transcribe(fileUrl, {
-                  durationSeconds: duration,
-                  model: modelId
-                });
-
-                // CRITICAL FIX: Save raw transcript IMMEDIATELY
-                // This ensures the user sees the text even if AI summary/transliteration takes time or fails
-                logger.info(`[uploadRecordings] Soniox finished. Saving raw transcript for ${createdRecording._id}...`);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                  fullTranscript: result.segments, // Save raw segments first
-                  languageCode: result.languageCode,
-                  // Keep status as 'processing' so UI knows we are still working on summary/AI
-                  transcriptionStatus: 'processing',
-                  transcriptionModel: result.model, // Update with actual model used
-                });
-
-                // Parallelize LLM operations ONLY if text exists
-                let summary = '';
-                let transliteratedSegments = result.segments;
-                let summaryEmbedding: number[] = [];
-
-                if (result.text && result.text.trim()) {
-                  logger.info(`[uploadRecordings] AI Processing Start for ${createdRecording._id}...`);
-
-                  // Run generation in parallel
-                  const [summaryResult, translitResult] = await Promise.all([
-                    aiService.generateSummary(result.text, result.languageCode),
-                    aiService.generateTransliteration(result.segments, result.languageCode)
-                  ]);
-
-                  summary = summaryResult;
-                  transliteratedSegments = translitResult;
-
-                  // Generate embedding from summary
-                  if (summary) {
-                    summaryEmbedding = await aiService.generateEmbedding(summary);
-                  }
-                }
-
-                logger.info(`[uploadRecordings] Finalizing recording ${createdRecording._id}...`);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                  transcriptionStatus: 'completed',
-                  fullTranscript: transliteratedSegments, // Update with transliterated version
-                  languageCode: result.languageCode,
-                  summary,
-                  summaryEmbedding,
-                });
-
-                // Billing
-                const billedDuration = calculateBilledDuration(duration); // Round up to 15s
-                // We increment usage by *cost* duration?
-                // Types say "transcriptionUsed: number".
-                // If we want to show "Minutes Used" to user, we might want to store "Standard Minutes Used".
-                // Yes, store weighted duration in `transcriptionUsed`.
-                const billedCostDuration = billedDuration * multiplier;
-
-                await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
-                await reportUsage(firebaseUid, 'transcription', billedDuration, { multiplier });
-
-                logger.info(`[uploadRecordings] Billed: ${billedDuration}s * ${multiplier}x = ${billedCostDuration}s`);
-
-                // Delete from provider if needed
-                await transcriptionService.deleteTranscript(result.transcriptionId);
-                logger.info(`[uploadRecordings] Background: Transcription & AI Complete for ${createdRecording._id.toString()}`);
-
-                await createNotification(
-                  freshUser._id,
-                  'success',
-                  'Transcription Ready',
-                  `Your recording "${createdRecording.standardizedDisplayName || createdRecording.fileName}" has been processed successfully.`,
-                  `/?id=${createdRecording._id.toString()}`
-                );
-              } catch (transcriptionError) {
-                logger.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
-                  transcriptionStatus: 'failed',
-                });
-
-                await createNotification(
-                  user._id,
-                  'error',
-                  'Transcription Failed',
-                  `Processing failed for "${createdRecording.fileName}".`,
-                );
-              }
-            });
-          }
+          // Trigger Auto-Transcription (Fire and Forget via after())
+          after(async () => {
+            await triggerAutoTranscription(
+              firebaseUid,
+              createdRecording._id.toString(),
+              r2Key,
+              duration,
+              file.name,
+              displayName
+            );
+          });
 
           return { success: true };
         } catch (error) {
