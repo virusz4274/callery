@@ -7,6 +7,17 @@ import React from "react";
 
 export function HeroSection() {
     const router = useRouter();
+    const recentItems: Array<{
+        name: string;
+        time: string;
+        status: string;
+        color: 'default' | 'accent' | 'success' | 'warning' | 'danger';
+    }> = [
+        { name: "Client Sync - Project X", time: "2 mins ago", status: "Processing", color: "warning" },
+        { name: "Weekly Team Standup", time: "2 hours ago", status: "Completed", color: "success" },
+        { name: "Discovery Call - Acme", time: "5 hours ago", status: "Completed", color: "success" },
+        { name: "Q3 Roadmap Review", time: "1 day ago", status: "Analyzed", color: "accent" },
+    ];
 
     return (
         <section className="relative w-full py-24 md:py-32 lg:py-48 overflow-hidden">
@@ -127,12 +138,7 @@ export function HeroSection() {
                                                 <h3 className="text-sm font-semibold text-foreground">Recent Recordings</h3>
                                                 <span className="text-xs text-primary cursor-pointer">View All</span>
                                             </div>
-                                            {[
-                                                { name: "Client Sync - Project X", time: "2 mins ago", status: "Processing", color: "warning" },
-                                                { name: "Weekly Team Standup", time: "2 hours ago", status: "Completed", color: "success" },
-                                                { name: "Discovery Call - Acme", time: "5 hours ago", status: "Completed", color: "success" },
-                                                { name: "Q3 Roadmap Review", time: "1 day ago", status: "Analyzed", color: "accent" },
-                                            ].map((item, i) => (
+                                            {recentItems.map((item, i) => (
                                                 <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-default-50 transition-colors group cursor-pointer">
                                                     <div className="flex items-center gap-3">
                                                         <div className="h-8 w-8 rounded-full bg-default-100 flex items-center justify-center text-default-500 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
@@ -143,8 +149,7 @@ export function HeroSection() {
                                                             <p className="text-[10px] text-default-400">{item.time}</p>
                                                         </div>
                                                     </div>
-                                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                                    <Chip size="sm" variant="soft" color={item.color as any} className="h-6 text-[10px]">
+                                                    <Chip size="sm" variant="soft" color={item.color} className="h-6 text-[10px]">
                                                         {item.status}
                                                     </Chip>
                                                 </div>

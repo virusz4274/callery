@@ -3,11 +3,14 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { Recording, TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
+import { Recording } from '@/lib/db/types';
 import { updateRecording } from '@/lib/db/recordings';
 import { reportUsage } from '@/lib/stripe/usage';
-import { findUserByFirebaseUid } from '@/lib/db/users';
+import { findUserByFirebaseUid, incrementTranscriptionUsed } from '@/lib/db/users';
 import { GeminiService } from '@/services/ai/gemini-service';
+import { calculateBilledDuration } from '@/lib/utils/billing';
+import { createNotification } from '@/lib/notifications';
+import { processElevenLabsWordsIntoSegments, type ElevenLabsWebhookPayload } from './helpers';
 
 /**
  * ElevenLabs Webhook - Receives async transcription results
@@ -15,26 +18,6 @@ import { GeminiService } from '@/services/ai/gemini-service';
  * This endpoint is called by ElevenLabs when an async transcription completes.
  * The webhook_metadata contains the recordingId and firebaseUid for correlation.
  */
-
-interface ElevenLabsWebhookPayload {
-    request_id: string;
-    transcription_id: string;
-    status: 'success' | 'failed';
-    text?: string;
-    words?: Array<{
-        text: string;
-        start: number;
-        end: number;
-        speaker_id?: string;
-        type?: string;
-    }>;
-    language_code?: string;
-    webhook_metadata?: {
-        recordingId: string;
-        firebaseUid: string;
-    };
-    error?: string;
-}
 
 const aiService = new GeminiService();
 
@@ -76,11 +59,21 @@ export async function POST(request: Request) {
             await updateRecording(recordingId, firebaseUid, {
                 transcriptionStatus: 'failed',
             });
+
+            const user = await findUserByFirebaseUid(firebaseUid);
+            if (user) {
+                await createNotification(
+                    user._id,
+                    'error',
+                    'Transcription Failed',
+                    `Processing failed for \"${recording.standardizedDisplayName || recording.fileName}\".`,
+                );
+            }
             return NextResponse.json({ success: true, status: 'failed_recorded' });
         }
 
         // Process successful transcription
-        const segments = processWordsIntoSegments(payload.words || []);
+        const segments = processElevenLabsWordsIntoSegments(payload.words || []);
         const languageCode = payload.language_code || 'en';
 
         // Update recording with transcript
@@ -119,11 +112,24 @@ export async function POST(request: Request) {
         // Note: reportUsage applies the multiplier internally (quantity * multiplier)
         // We pass the base duration (rounded up) and the multiplier.
         const multiplier = recording.transcriptionCostMultiplier || 1;
-        const baseDuration = Math.ceil(recording.duration);
+        const baseDuration = calculateBilledDuration(recording.duration);
+        const billedCostDuration = baseDuration * multiplier;
+        await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
         await reportUsage(firebaseUid, 'transcription', baseDuration, { multiplier });
 
         const totalBilled = Math.ceil(baseDuration * multiplier);
         logger.info(`[ElevenLabs Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
+
+        const user = await findUserByFirebaseUid(firebaseUid);
+        if (user) {
+            await createNotification(
+                user._id,
+                'success',
+                'Transcription Ready',
+                `Your recording \"${recording.standardizedDisplayName || recording.fileName}\" has been processed.`,
+                `/?id=${recordingId}`
+            );
+        }
 
         return NextResponse.json({ success: true, status: 'completed' });
 
@@ -134,54 +140,4 @@ export async function POST(request: Request) {
             { status: 500 }
         );
     }
-}
-
-// Helper to format speaker ID
-function formatSpeakerId(speakerId: string | undefined): string {
-    if (!speakerId) return 'Unknown';
-    return speakerId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-// Process words into segments grouped by speaker
-function processWordsIntoSegments(words: ElevenLabsWebhookPayload['words']): TranscriptionSegment[] {
-    const segments: TranscriptionSegment[] = [];
-    if (!words || words.length === 0) return segments;
-
-    let currentSegment: TranscriptionSegment | null = null;
-    let currentSpeakerId: string | null = null;
-
-    for (const word of words) {
-        const wordSpeakerId = word.speaker_id || 'unknown';
-
-        if (!currentSegment || wordSpeakerId !== currentSpeakerId) {
-            if (currentSegment) {
-                segments.push(currentSegment);
-            }
-            currentSpeakerId = wordSpeakerId;
-            currentSegment = {
-                speakerId: formatSpeakerId(wordSpeakerId),
-                text: '',
-                start: word.start || 0,
-                end: word.end || 0,
-                words: [],
-            };
-        }
-
-        const mappedWord: TranscriptionWord = {
-            text: word.text,
-            start: word.start,
-            end: word.end,
-            speakerId: wordSpeakerId,
-        };
-
-        currentSegment.words.push(mappedWord);
-        currentSegment.text += (currentSegment.text ? ' ' : '') + word.text;
-        currentSegment.end = word.end || currentSegment.end;
-    }
-
-    if (currentSegment) {
-        segments.push(currentSegment);
-    }
-
-    return segments;
 }

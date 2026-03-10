@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { Recording, TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
+import { Recording } from '@/lib/db/types';
 import { updateRecording } from '@/lib/db/recordings';
 import { reportUsage } from '@/lib/stripe/usage';
 import { incrementTranscriptionUsed, findUserByFirebaseUid } from '@/lib/db/users';
@@ -11,6 +11,7 @@ import { GeminiService } from '@/services/ai/gemini-service';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { createNotification } from '@/lib/notifications';
 import { ObjectId } from 'mongodb';
+import { processSonioxWordsIntoSegments, type SonioxWebhookPayload } from './helpers';
 
 /**
  * Soniox Webhook - Receives async transcription notifications
@@ -18,11 +19,6 @@ import { ObjectId } from 'mongodb';
  * NOTE: Unlike ElevenLabs, Soniox webhooks only notify of completion.
  * They do NOT include transcript data. We must fetch it using the ID.
  */
-
-interface SonioxWebhookPayload {
-    id: string;
-    status: 'completed' | 'error';
-}
 
 const aiService = new GeminiService();
 
@@ -103,7 +99,7 @@ export async function POST(request: Request) {
 
         // Process transcript
         const words = transcriptData.tokens || transcriptData.words || [];
-        const segments = processWordsIntoSegments(words);
+        const segments = processSonioxWordsIntoSegments(words);
         const languageCode = transcriptData.detected_language || 'unknown';
         const fullText = transcriptData.text || segments.map(s => s.text).join(' ');
 
@@ -165,55 +161,4 @@ export async function POST(request: Request) {
         logger.error('[Soniox Webhook] Error processing webhook:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-}
-
-// Helper to format speaker ID
-function formatSpeakerId(speakerId: number | string | undefined): string {
-    if (speakerId === undefined || speakerId === null) return 'Unknown';
-    return `Speaker ${speakerId}`;
-}
-
-// Process words into segments grouped by speaker
-function processWordsIntoSegments(words: any[]): TranscriptionSegment[] {
-    const segments: TranscriptionSegment[] = [];
-    if (!words || words.length === 0) return segments;
-
-    let currentSegment: TranscriptionSegment | null = null;
-    let currentSpeakerId: string | null = null;
-
-    for (const word of words) {
-        const wordSpeakerId = String(word.speaker);
-
-        if (!currentSegment || wordSpeakerId !== currentSpeakerId) {
-            if (currentSegment) {
-                segments.push(currentSegment);
-            }
-            currentSpeakerId = wordSpeakerId;
-            currentSegment = {
-                speakerId: formatSpeakerId(word.speaker),
-                text: '',
-                start: (word.start_ms || 0) / 1000,
-                end: (word.end_ms || 0) / 1000,
-                words: [],
-            };
-        }
-
-        const mappedWord: TranscriptionWord = {
-            text: word.text,
-            start: (word.start_ms || 0) / 1000,
-            end: (word.end_ms || 0) / 1000,
-            speakerId: String(word.speaker),
-            confidence: word.confidence,
-        };
-
-        currentSegment.words.push(mappedWord);
-        currentSegment.text += (currentSegment.text ? ' ' : '') + word.text;
-        currentSegment.end = (word.end_ms || 0) / 1000;
-    }
-
-    if (currentSegment) {
-        segments.push(currentSegment);
-    }
-
-    return segments;
 }

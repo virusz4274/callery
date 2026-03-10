@@ -86,6 +86,12 @@ SMTP_FROM="Call Organizer <no-reply@example.com>"
 # Cron Jobs (for automatic deletion policy)
 # Required for scheduled cleanup tasks
 CRON_SECRET=your-secure-random-token
+
+# Export Worker Queue (durable background processing)
+# Optional: minutes after which a stuck 'processing' export can be reclaimed by cron
+EXPORT_JOB_STALE_MINUTES=90
+# Optional: true only for local/dev fallback when no scheduler is available
+EXPORT_INLINE_PROCESSING=false
 ```
 
 ## Installation
@@ -174,6 +180,50 @@ npm run dev
 ```
 
 The application will be available at `http://localhost:9000`.
+
+## Scheduled Jobs Setup (Required for Durable Exports)
+
+The app uses protected cron endpoints for background jobs:
+
+* `GET /api/cron/process-exports` - Processes queued export jobs.
+* `GET /api/cron/cleanup-recordings` - Enforces user deletion policies.
+
+Both endpoints require:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+### Vercel
+
+`vercel.json` already includes both schedules:
+
+* `*/5 * * * *` for export processing.
+* `0 3 * * *` for cleanup.
+
+### Docker / Self-Hosted
+
+Configure your scheduler (host cron, EventBridge, Cloud Scheduler, etc.) to call both endpoints.
+
+Example crontab:
+
+```bash
+# Process exports every 5 minutes
+*/5 * * * * curl -fsS -X GET https://your-app-url/api/cron/process-exports -H "Authorization: Bearer YOUR_CRON_SECRET" >/dev/null
+
+# Cleanup old recordings daily at 3 AM UTC
+0 3 * * * curl -fsS -X GET https://your-app-url/api/cron/cleanup-recordings -H "Authorization: Bearer YOUR_CRON_SECRET" >/dev/null
+```
+
+### Local Development Notes
+
+For local development without a scheduler, you can temporarily set:
+
+```env
+EXPORT_INLINE_PROCESSING=true
+```
+
+This allows export jobs to run inline after enqueueing. Keep it `false` in production.
 
 ## Scripts
 

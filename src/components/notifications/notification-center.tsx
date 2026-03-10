@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Popover, Button } from '@heroui/react';
 import { Bell, CheckCheck, Plus, Trash2 } from 'lucide-react';
 import { NotificationResponse } from '@/lib/db/types';
 import { fetchNotifications, readNotification, readAllNotifications, sendTestNotification, clearAllNotifications } from '@/app/actions/notifications';
 import { NotificationItem } from './notification-item';
 import { useToast } from '@/components/toast-provider';
-import { EnablePushButton } from './push-notification-toggle';
+import { EnablePushButton } from './enable-push-button';
 
 export function NotificationCenter() {
     const [isOpen, setIsOpen] = useState(false);
@@ -17,15 +17,7 @@ export function NotificationCenter() {
     const lastUnreadCount = useRef(0);
     const { toast } = useToast();
 
-    // Initial load
-    useEffect(() => {
-        loadNotifications(true);
-        // Poll every 60 seconds
-        const interval = setInterval(() => loadNotifications(false), 60000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const loadNotifications = async (isInitial: boolean = false) => {
+    const loadNotifications = useCallback(async (isInitial: boolean = false) => {
         try {
             const data = await fetchNotifications();
             setNotifications(data);
@@ -59,7 +51,22 @@ export function NotificationCenter() {
         } catch (error) {
             console.error('Failed to load notifications', error);
         }
-    };
+    }, [toast]);
+
+    // Initial load
+    useEffect(() => {
+        const initialLoadTimer = setTimeout(() => {
+            loadNotifications(true);
+        }, 0);
+        // Poll every 60 seconds
+        const interval = setInterval(() => {
+            loadNotifications(false);
+        }, 60000);
+        return () => {
+            clearTimeout(initialLoadTimer);
+            clearInterval(interval);
+        };
+    }, [loadNotifications]);
 
     const handleRead = async (id: string) => {
         // Optimistic update

@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
+import { getMongoDb, Collections } from '@/lib/mongodb';
+import { Plan } from '@/lib/db/types';
+
+type CheckoutRequestBody = {
+    priceId?: string;
+    planName?: string;
+    returnUrl?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+};
 
 export async function POST(req: NextRequest) {
     try {
@@ -15,10 +25,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { priceId, returnUrl } = await req.json();
+        const { priceId, planName, returnUrl, successUrl, cancelUrl } = await req.json() as CheckoutRequestBody;
 
-        if (!priceId) {
-            return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
+        let resolvedPriceId = priceId;
+
+        if (!resolvedPriceId && planName) {
+            const db = await getMongoDb();
+            const normalizedPlanName = planName.trim();
+            const matchedPlan = await db.collection<Plan>(Collections.PLANS).findOne({
+                isActive: true,
+                name: normalizedPlanName,
+                stripePriceId: { $ne: '' },
+            });
+            resolvedPriceId = matchedPlan?.stripePriceId;
+        }
+
+        if (!resolvedPriceId) {
+            return NextResponse.json({ error: 'priceId (or valid planName) is required' }, { status: 400 });
         }
 
         // 2. Get User
@@ -37,21 +60,33 @@ export async function POST(req: NextRequest) {
         // We need to know if the price is recurring. 
         // We can fetch the price or just assume subscription unless told otherwise.
         // For efficiency, let's fetch the price details to be sure, or catch error.
-        const price = await stripe.prices.retrieve(priceId);
+        const price = await stripe.prices.retrieve(resolvedPriceId);
         const mode = price.type === 'recurring' ? 'subscription' : 'payment';
 
         // 4. Create Checkout Session
-        const sessionParams: any = {
+        const resolvedSuccessUrl = successUrl || returnUrl || `${req.nextUrl.origin}/settings?success=true`;
+        const resolvedCancelUrl = cancelUrl || returnUrl || `${req.nextUrl.origin}/settings?canceled=true`;
+
+        const sessionParams: {
+            customer: string;
+            line_items: Array<{ price: string; quantity: number }>;
+            mode: 'subscription' | 'payment';
+            success_url: string;
+            cancel_url: string;
+            allow_promotion_codes: boolean;
+            billing_address_collection: 'required';
+            metadata: Record<string, string>;
+        } = {
             customer: user.stripeCustomerId,
             line_items: [
                 {
-                    price: priceId,
+                    price: resolvedPriceId,
                     quantity: 1,
                 },
             ],
             mode: mode,
-            success_url: returnUrl || `${req.nextUrl.origin}/settings?success=true`,
-            cancel_url: returnUrl || `${req.nextUrl.origin}/settings?canceled=true`,
+            success_url: resolvedSuccessUrl,
+            cancel_url: resolvedCancelUrl,
             allow_promotion_codes: true,
             billing_address_collection: 'required',
             metadata: {
@@ -59,15 +94,6 @@ export async function POST(req: NextRequest) {
                 userId: user._id.toString(),
             },
         };
-
-        // Add Billing Threshold for Subscriptions (Charge immediately if overage > $10)
-        if (mode === 'subscription') {
-            sessionParams.subscription_data = {
-                billing_thresholds: {
-                    amount_gte: 1000, // 1000 cents = $10.00 USD
-                },
-            };
-        }
 
         const session = await stripe.checkout.sessions.create(sessionParams);
 

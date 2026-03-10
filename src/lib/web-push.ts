@@ -1,11 +1,27 @@
 import webpush, { PushSubscription as WebPushSubscription } from 'web-push';
 
-// Configure VAPID keys
-webpush.setVapidDetails(
-    'mailto:' + (process.env.VAPID_CONTACT_EMAIL || 'admin@vosift.com'),
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-);
+let vapidConfigured = false;
+
+function ensureVapidConfigured(): boolean {
+    if (vapidConfigured) {
+        return true;
+    }
+
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+    if (!publicKey || !privateKey) {
+        return false;
+    }
+
+    webpush.setVapidDetails(
+        'mailto:' + (process.env.VAPID_CONTACT_EMAIL || 'admin@vosift.com'),
+        publicKey,
+        privateKey
+    );
+    vapidConfigured = true;
+    return true;
+}
 
 /**
  * Send a Web Push notification to a single subscription.
@@ -14,6 +30,14 @@ export async function sendWebPushNotification(
     subscription: WebPushSubscription,
     payload: { title: string; body: string; icon?: string; url?: string }
 ): Promise<{ success: boolean; endpoint: string; error?: string }> {
+    if (!ensureVapidConfigured()) {
+        return {
+            success: false,
+            endpoint: subscription.endpoint,
+            error: 'VAPID keys are not configured',
+        };
+    }
+
     try {
         await webpush.sendNotification(
             subscription,

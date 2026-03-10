@@ -1,57 +1,41 @@
-import { useState, useRef, useEffect, useTransition, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useToast } from '@/components/toast-provider';
-import { useUser, useAuth } from '@/lib/firebase/provider';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { useLocalStorage } from '@/hooks/use-local-storage';
-import { getGoogleAuthUrl } from '@/app/actions/google-auth';
-import { startExport, getExportStatus } from '@/app/actions/export';
-import type { ExportJobResponse } from '@/lib/db/types';
-import { useInterval } from '@/hooks/use-interval';
-import { syncGoogleContacts } from '@/app/actions/contacts';
-
-// Extracted Hooks
-import { useProfileSettings } from '@/hooks/settings/use-profile-settings';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import type { z } from 'zod';
+import { useToast } from '@/components/toast-provider';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useGoogleSync } from '@/hooks/settings/use-google-sync';
 import { useNotificationSettings } from '@/hooks/settings/use-notification-settings';
 import { usePreferenceSettings } from '@/hooks/settings/use-preference-settings';
+import { useProfileSettings } from '@/hooks/settings/use-profile-settings';
+import { useExportJob } from '@/hooks/settings/use-export-job';
+import { buildSettingsPath, buildSettingsTabs, passwordFormSchema, type SettingsTab } from '@/hooks/settings/use-settings-page-utils';
+import { useAuth, useUser } from '@/lib/firebase/provider';
 
-const passwordFormSchema = z.object({
-    currentPassword: z.string().min(1, 'Current password is required for security.'),
-    newPassword: z.string().min(6, 'Password must be at least 6 characters long.'),
-    confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-    message: "New passwords don't match",
-    path: ['confirmPassword'],
-});
+export type { SettingsTab } from '@/hooks/settings/use-settings-page-utils';
 
 export function useSettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const auth = useAuth();
+
     const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
     const defaultTab = searchParams.get('tab') || 'overview';
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
-    const auth = useAuth();
 
-    // Extracted Hooks Usage
-    const {
-        profileForm,
-        isSavingProfile,
-        handleUpdateProfile
-    } = useProfileSettings(user, userProfile);
+    const { profileForm, isSavingProfile, handleUpdateProfile } = useProfileSettings(user, userProfile);
 
     const {
         notificationsState,
         setNotificationsState,
         isSavingNotifications,
         handleSaveNotifications,
-        notificationsDirtyRef
+        notificationsDirtyRef,
     } = useNotificationSettings(userProfile);
 
     const {
@@ -64,150 +48,34 @@ export function useSettingsPage() {
         setDataState,
         isSavingData,
         handleSaveData,
-        dataDirtyRef
+        dataDirtyRef,
     } = usePreferenceSettings(user, userProfile);
 
-    // Password State
     const [isSavingPassword, setSavingPassword] = useState(false);
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
-        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' }
+        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
     });
 
-    // View State
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [view, setView] = useState<'list' | 'detail'>('list');
 
-    // Google Sync State
-    const [isSyncing, startSyncTransition] = useTransition();
-    const [showConnectDialog, setShowConnectDialog] = useState(false);
-    const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
-    const processedCodeRef = useRef<string | null>(null);
+    const {
+        isSyncing,
+        showConnectDialog,
+        setShowConnectDialog,
+        handleConnectGoogle,
+        onDialogConfirm,
+    } = useGoogleSync({ searchParams, router, toast });
 
-    // Export State
-    const [exportJob, setExportJob] = useState<ExportJobResponse | null>(null);
-    const [isExportStarting, setIsExportStarting] = useState(false);
+    const { exportJob, isExportStarting, handleStartExport } = useExportJob(toast);
 
-    // Poll export status
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-
-        const checkStatus = async () => {
-            const status = await getExportStatus();
-            setExportJob(status);
-            if (status?.status === 'completed' || status?.status === 'failed') {
-                clearInterval(interval);
-            }
-        };
-
-        // Initial check
-        checkStatus();
-
-        if (exportJob?.status === 'pending' || exportJob?.status === 'processing' || isExportStarting) {
-            interval = setInterval(checkStatus, 3000);
+        if (!isUserLoading && !user) {
+            router.replace('/login');
         }
+    }, [isUserLoading, router, user]);
 
-        return () => clearInterval(interval);
-    }, [isExportStarting, exportJob?.status]);
-
-    const handleStartExport = async () => {
-        setIsExportStarting(true);
-        try {
-            const result = await startExport();
-            if (result.success) {
-                toast({ title: 'Export Started', description: 'We are preparing your files. You will receive an email when ready.', status: 'success' });
-                // Trigger immediate polling
-                setExportJob({ id: 'temp', status: 'pending', progress: 0, createdAt: new Date().toISOString() });
-            } else {
-                toast({ title: 'Export Failed', description: result.message || 'Could not start export.', status: 'danger' });
-            }
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to start export.', status: 'danger' });
-        } finally {
-            setIsExportStarting(false);
-        }
-    };
-
-    // Auth protection
-    useEffect(() => {
-        if (!isUserLoading && !user) router.replace('/login');
-    }, [user, isUserLoading, router]);
-
-    // Google Sync Logic
-    useEffect(() => {
-        const code = searchParams.get('g_code');
-        const state = searchParams.get('g_state');
-        const error = searchParams.get('error');
-
-        // 1. Handle Error
-        if (error) {
-            toast({ title: 'Google Sync Failed', description: error.replace(/\+/g, ' ') || 'Could not sync with your Google account.', status: 'danger' });
-            // Clean URL
-            const newParams = new URLSearchParams(searchParams.toString());
-            newParams.delete('error');
-            router.replace(`/settings?${newParams.toString()}`, { scroll: false });
-            return;
-        }
-
-        // 2. Handle Sync
-        if (code && state && !isSyncing) {
-            // 3. De-duplicate using Ref and SessionStorage (for Strict Mode/Dev resilience)
-            if (typeof window !== 'undefined') {
-                const storageKey = `google_sync_${code}`;
-                if (sessionStorage.getItem(storageKey)) {
-
-                    // Ensure URL is clean if we skipped
-                    const newParams = new URLSearchParams(searchParams.toString());
-                    newParams.delete('g_code');
-                    newParams.delete('g_state');
-                    // Only replace if params exist to avoid loop
-                    if (searchParams.has('g_code')) {
-                        router.replace(`/settings?${newParams.toString()}`, { scroll: false });
-                    }
-                    return;
-                }
-                sessionStorage.setItem(storageKey, 'processing');
-            }
-
-            if (processedCodeRef.current === code) return;
-            processedCodeRef.current = code; // Mark as processing immediately
-
-            startSyncTransition(async () => {
-
-                try {
-                    // Start a timeout race to detect hangs
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Request timed out after 30s')), 30000)
-                    );
-
-
-                    const result = await Promise.race([
-                        syncGoogleContacts(code),
-                        timeoutPromise
-                    ]) as Awaited<ReturnType<typeof syncGoogleContacts>>;
-
-
-                    if (result.success) {
-                        toast({ title: 'Sync Started', description: result.message || 'Contacts are syncing in the background.', status: 'success' });
-                    } else {
-                        toast({ title: 'Sync Failed', description: result.error, status: 'danger' });
-                    }
-                } catch (err) {
-                    console.error('Google sync error:', err);
-                    toast({ title: 'Sync Error', description: err instanceof Error ? err.message : 'Unexpected error', status: 'danger' });
-                } finally {
-                    // Clean URL AFTER action completes to prevent cancellation
-
-                    const newParams = new URLSearchParams(searchParams.toString());
-                    newParams.delete('g_code');
-                    newParams.delete('g_state');
-                    router.replace(`/settings?${newParams.toString()}`, { scroll: false });
-                }
-            });
-        }
-    }, [searchParams, isSyncing, router, toast]);
-
-    // View Logic
     useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab) {
@@ -217,7 +85,10 @@ export function useSettingsPage() {
     }, [searchParams]);
 
     const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
-        if (!user || !user.email) return;
+        if (!user || !user.email) {
+            return;
+        }
+
         setSavingPassword(true);
         try {
             const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
@@ -227,51 +98,57 @@ export function useSettingsPage() {
             setTimeout(() => auth.signOut(), 3000);
         } catch (error: unknown) {
             const firebaseError = error as { code?: string; message?: string };
-            const msg = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
-            toast({ title: 'Password Change Failed', description: msg, status: 'danger' });
+            const message = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
+            toast({ title: 'Password Change Failed', description: message, status: 'danger' });
         } finally {
             setSavingPassword(false);
             passwordForm.reset();
         }
     };
 
-    const handleConnectGoogle = () => {
-        if (hasConsented) {
-            getGoogleAuthUrl().then(({ url }) => window.location.href = url);
-        } else {
-            setShowConnectDialog(true);
-        }
-    };
-
-    const onDialogConfirm = () => {
-        setHasConsented(true);
-        setShowConnectDialog(false);
-        getGoogleAuthUrl().then(({ url }) => window.location.href = url);
-    };
-
     const handleTabSelect = (tabId: string) => {
         setActiveTab(tabId);
         setView('detail');
+
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tabId);
-        router.replace(`/settings?${params.toString()}`);
+        router.replace(buildSettingsPath(params));
     };
 
+    const tabs = useMemo<SettingsTab[]>(
+        () => buildSettingsTabs(showBilling),
+        [showBilling]
+    );
 
+    const updateGeneralState = useCallback(
+        (newSettings: { timezone: string }) => {
+            generalDirtyRef.current = true;
+            setGeneralState(newSettings);
+        },
+        [generalDirtyRef, setGeneralState]
+    );
 
-    const handleBack = () => setView('list');
+    const updateDataState = useCallback(
+        (newSettings: typeof dataState) => {
+            dataDirtyRef.current = true;
+            setDataState(newSettings);
+        },
+        [dataDirtyRef, setDataState]
+    );
 
-    const tabs = useMemo(() => [
-        { id: 'overview', label: 'Overview', icon: '📊' },
-        { id: 'profile', label: 'Profile', icon: '👤' },
-        { id: 'general', label: 'General', icon: '⚙️' },
-        { id: 'data', label: 'Data', icon: '💾' },
-        { id: 'notifications', label: 'Notifications', icon: '🔔' },
-        ...(showBilling ? [{ id: 'billing', label: 'Billing', icon: '💳' }] : []),
-    ], [showBilling]);
+    const updateNotificationsState = useCallback(
+        (newSettings: {
+            activityDigest: 'off' | 'weekly' | 'monthly';
+            ingestSuccess: boolean;
+            ingestFail: boolean;
+        }) => {
+            notificationsDirtyRef.current = true;
+            setNotificationsState(newSettings);
+        },
+        [notificationsDirtyRef, setNotificationsState]
+    );
 
     return {
-        // State
         user,
         userProfile,
         isLoading: isUserLoading || isProfileLoading,
@@ -279,10 +156,13 @@ export function useSettingsPage() {
         passwordForm,
         generalState,
         setGeneralState,
+        updateGeneralState,
         notificationsState,
         setNotificationsState,
+        updateNotificationsState,
         dataState,
         setDataState,
+        updateDataState,
         activeTab,
         view,
         tabs,
@@ -290,20 +170,14 @@ export function useSettingsPage() {
         isSyncing,
         showConnectDialog,
         setShowConnectDialog,
-
-        // Saving States
         isSavingProfile,
         isSavingPassword,
         isSavingGeneral,
         isSavingNotifications,
         isSavingData,
-
-        // Refs
         generalDirtyRef,
         notificationsDirtyRef,
         dataDirtyRef,
-
-        // Handlers
         handleUpdateProfile,
         handleChangePassword,
         handleSaveGeneral,
@@ -312,9 +186,9 @@ export function useSettingsPage() {
         handleConnectGoogle,
         onDialogConfirm,
         handleTabSelect,
-        handleBack,
+        handleBack: () => setView('list'),
         exportJob,
         isExportStarting,
-        handleStartExport
+        handleStartExport,
     };
 }

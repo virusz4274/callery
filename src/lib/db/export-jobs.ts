@@ -57,6 +57,47 @@ export async function updateExportJob(
     );
 }
 
+/**
+ * Atomically claim the next export job for processing.
+ * Claims oldest pending job first, or stale processing jobs (worker recovery).
+ */
+export async function claimNextExportJob(
+    staleAfterMinutes: number = 180
+): Promise<ExportJob | null> {
+    const db = await getMongoDb();
+    const now = new Date();
+    const staleBefore = new Date(now.getTime() - staleAfterMinutes * 60 * 1000);
+
+    const result = await db.collection<ExportJob>(COLLECTIONS.EXPORT_JOBS).findOneAndUpdate(
+        {
+            $or: [
+                { status: 'pending' },
+                {
+                    status: 'processing',
+                    updatedAt: { $lt: staleBefore }
+                }
+            ]
+        },
+        {
+            $set: {
+                status: 'processing',
+                startedAt: now,
+                updatedAt: now,
+            },
+            $unset: {
+                error: '',
+                completedAt: '',
+            },
+        },
+        {
+            sort: { createdAt: 1 },
+            returnDocument: 'after',
+        }
+    );
+
+    return result;
+}
+
 export function toExportJobResponse(job: ExportJob) {
     return {
         id: job._id.toString(),

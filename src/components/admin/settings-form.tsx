@@ -31,8 +31,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                 await updateSystemSettings({
                     allowSignups,
                     maintenanceMode,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    defaultPlanId: (defaultPlanId || undefined) as any,
+                    defaultPlanId: defaultPlanId || undefined,
                     transcriptionMultipliers: {
                         soniox: sonioxMultiplier,
                         elevenlabs: elevenlabsMultiplier,

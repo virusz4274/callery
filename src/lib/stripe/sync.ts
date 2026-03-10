@@ -77,7 +77,6 @@ export async function syncSubscription(subscriptionId: string) {
         // Validate: If we added items, we MUST refresh the subscription object 
         // ensuring the next block (Enforce Thresholds) sees the new Item IDs.
         if (subscriptionUpdated) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const refreshedSub = await stripe.subscriptions.retrieve(subscriptionId, {
                 expand: ['items.data.price.product']
             });
@@ -96,13 +95,13 @@ export async function syncSubscription(subscriptionId: string) {
     // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
     // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: any = {
+    const currentPeriodEnd = (subscription as unknown as { current_period_end: number }).current_period_end;
+
+    const updateData: Record<string, unknown> = {
         stripeSubscriptionId: subscription.id,
         stripeSubscriptionStatus: status, // Cast to specific enum if needed
         stripePriceId: price.id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        stripeCurrentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+        stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
         // 'billingSettings.allowOverage': false, // Removed: Handled efficiently in plan check
         updatedAt: new Date(),
     };

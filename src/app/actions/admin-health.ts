@@ -1,9 +1,8 @@
 'use server';
 
 import { getMongoDb } from '@/lib/mongodb';
-import { getSignedR2Url } from '@/lib/r2';
 import { GeminiService } from '@/services/ai/gemini-service';
-import { getCurrentAdmin } from '@/lib/admin-auth';
+import { requireCurrentAdmin } from '@/lib/admin-auth';
 
 type ServiceStatus = {
     name: string;
@@ -13,8 +12,7 @@ type ServiceStatus = {
 };
 
 export async function checkSystemHealth(): Promise<ServiceStatus[]> {
-    const admin = await getCurrentAdmin();
-    if (!admin) throw new Error('Unauthorized');
+    await requireCurrentAdmin();
 
     const results: ServiceStatus[] = [];
 
@@ -94,7 +92,6 @@ export async function checkSystemHealth(): Promise<ServiceStatus[]> {
     // 4. Soniox API
     // We don't have a direct "ping" method exposed easily without uploading a file.
     // We'll check if the API key is configured.
-    const sonioxStart = performance.now();
     if (process.env.SONIOX_API_KEY) {
         results.push({
             name: 'Soniox API',

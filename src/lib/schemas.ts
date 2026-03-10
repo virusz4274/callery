@@ -5,6 +5,7 @@ export const GetRecordingsOptionsSchema = z.object({
     page: z.number().min(1).optional().default(1),
     skip: z.number().min(0).optional(),
     includeArchived: z.boolean().optional(),
+    search: z.string().optional(),
     contactName: z.string().optional(),
     contactId: z.string().optional(),
     sortBy: z.enum(['date', 'duration']).optional(),

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureUserProfile } from '@/lib/db/users';
+import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
+import { getAdminAuth } from '@/lib/firebase/admin';
 
 /**
  * POST /api/user/ensure-profile
@@ -9,19 +11,33 @@ import { ensureUserProfile } from '@/lib/db/users';
  */
 export async function POST(request: NextRequest) {
     try {
+        let firebaseUid = await getUserFromRequest(request);
+        if (!firebaseUid) {
+            firebaseUid = await getFirebaseUidFromSession();
+        }
+
+        if (!firebaseUid) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
+        const { displayName, firstName, lastName, photoURL } = body as {
+            displayName?: string;
+            firstName?: string;
+            lastName?: string;
+            photoURL?: string;
+        };
 
-        const { firebaseUid, email, displayName, firstName, lastName, photoURL } = body;
+        const auth = getAdminAuth();
+        const firebaseUser = await auth.getUser(firebaseUid);
+        const email = firebaseUser.email;
 
-        if (!firebaseUid || !email) {
-            return NextResponse.json(
-                { error: 'firebaseUid and email are required' },
-                { status: 400 }
-            );
+        if (!email) {
+            return NextResponse.json({ error: 'Authenticated user email is required' }, { status: 400 });
         }
 
         // Build display name from parts
-        let name = displayName;
+        let name = displayName || firebaseUser.displayName || '';
         if (firstName || lastName) {
             name = `${firstName || ''} ${lastName || ''} `.trim();
         }
@@ -33,7 +49,7 @@ export async function POST(request: NextRequest) {
             firebaseUid,
             email,
             name,
-            photoURL
+            photoURL || firebaseUser.photoURL || undefined
         );
 
         return NextResponse.json({

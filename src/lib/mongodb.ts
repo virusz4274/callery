@@ -83,6 +83,7 @@ export const Collections = {
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',
     NOTIFICATIONS: 'notifications',
+    SUPPORT_MESSAGES: 'support_messages',
 } as const;
 
 export default clientPromise;

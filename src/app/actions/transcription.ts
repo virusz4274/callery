@@ -56,23 +56,23 @@ export async function transcribeRecordingAction(recordingId: string) {
             return { error: 'Recording not found' };
         }
 
-        // Set status to processing immediately for UI feedback
-        await updateRecording(recordingId, uid, { transcriptionStatus: 'processing' });
-        logger.info(`[Action/Transcribe] Starting background job for ${recordingId}`);
-
         // 3. Check Transcription Access
         const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
         if (!transcriptionAccess.allowed) {
             return { error: transcriptionAccess.reason || 'Transcription limit exceeded' };
         }
 
+        // Set status to processing immediately for UI feedback
+        await updateRecording(validatedRecordingId, uid, { transcriptionStatus: 'processing' });
+        logger.info(`[Action/Transcribe] Starting background job for ${validatedRecordingId}`);
+
         // 5. Trigger Background Transcription
         after(async () => {
             try {
                 const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
-                logger.info(`[Action/Transcribe] Processing ${recordingId}...`);
+                logger.info(`[Action/Transcribe] Processing ${validatedRecordingId}...`);
                 const result = await transcriptionService.transcribe(fileUrl, { durationSeconds: recording.duration });
-                logger.info(`[Action/Transcribe] Transcription received for ${recordingId}`);
+                logger.info(`[Action/Transcribe] Transcription received for ${validatedRecordingId}`);
 
                 // Parallelize LLM operations ONLY if text exists
                 let summary = '';
@@ -80,7 +80,7 @@ export async function transcribeRecordingAction(recordingId: string) {
                 let summaryEmbedding: number[] = [];
 
                 if (result.text && result.text.trim()) {
-                    logger.info(`[Action/Transcribe] Running AI summary and transliteration for ${recordingId}`);
+                    logger.info(`[Action/Transcribe] Running AI summary and transliteration for ${validatedRecordingId}`);
                     [summary, transliteratedSegments] = await Promise.all([
                         aiService.generateSummary(result.text, result.languageCode),
                         aiService.generateTransliteration(result.segments, result.languageCode)
@@ -91,8 +91,8 @@ export async function transcribeRecordingAction(recordingId: string) {
                 }
 
                 // Save Result
-                logger.info(`[Action/Transcribe] Saving results for ${recordingId}`);
-                await updateRecording(recordingId, uid, {
+                logger.info(`[Action/Transcribe] Saving results for ${validatedRecordingId}`);
+                await updateRecording(validatedRecordingId, uid, {
                     transcriptionStatus: 'completed',
                     fullTranscript: transliteratedSegments, // This now includes transliteratedText
                     languageCode: result.languageCode,
@@ -104,7 +104,7 @@ export async function transcribeRecordingAction(recordingId: string) {
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
                 await reportUsage(uid, 'transcription', billedDuration);
-                logger.info(`[Action/Transcribe] Job completed for ${recordingId}`);
+                logger.info(`[Action/Transcribe] Job completed for ${validatedRecordingId}`);
 
                 // Delete from Soniox
                 try {
@@ -118,12 +118,12 @@ export async function transcribeRecordingAction(recordingId: string) {
                     'success',
                     'Transcription Ready',
                     `Your recording "${recording.standardizedDisplayName || recording.fileName}" is ready.`,
-                    `/?id=${recordingId}`
+                    `/?id=${validatedRecordingId}`
                 );
 
             } catch (error) {
                 logger.error('[Action/Transcribe] Background job failed:', error);
-                await updateRecording(recordingId, uid, {
+                await updateRecording(validatedRecordingId, uid, {
                     transcriptionStatus: 'failed',
                 });
 

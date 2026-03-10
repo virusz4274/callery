@@ -1,12 +1,14 @@
 'use server';
 
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { Announcement, CreateAnnouncementInput, UpdateAnnouncementInput, AnnouncementResponse } from '@/lib/db/types';
+import { logAdminAction } from '@/app/actions/audit-log';
+import { Announcement, AnnouncementResponse, CreateAnnouncementInput, UpdateAnnouncementInput } from '@/lib/db/types';
+import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
+import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { revalidatePath } from 'next/cache';
 
 /**
- * Map DB document to response object
+ * Map DB document to response object.
  */
 function mapAnnouncement(announcement: Announcement): AnnouncementResponse {
     return {
@@ -21,12 +23,20 @@ function mapAnnouncement(announcement: Announcement): AnnouncementResponse {
     };
 }
 
+function revalidateAnnouncementPages() {
+    revalidatePath('/admin/announcements');
+    revalidatePath('/dashboard');
+}
+
 /**
- * Get all announcements (for admin view)
+ * Get all announcements (for admin view).
  */
 export async function getAnnouncements() {
+    await requireCurrentAdmin();
+
     const db = await getMongoDb();
-    const announcements = await db.collection<Announcement>(Collections.ANNOUNCEMENTS)
+    const announcements = await db
+        .collection<Announcement>(Collections.ANNOUNCEMENTS)
         .find({})
         .sort({ createdAt: -1 })
         .toArray();
@@ -35,22 +45,21 @@ export async function getAnnouncements() {
 }
 
 /**
- * Get active announcements (for user banner)
+ * Get active announcements (for user banner).
  */
 export async function getActiveAnnouncements() {
     const db = await getMongoDb();
     const now = new Date();
 
-    const announcements = await db.collection<Announcement>(Collections.ANNOUNCEMENTS)
-        .find({
-            isActive: true,
-            startDate: { $lte: now },
-            $or: [
-                { endDate: { $exists: false } },
-                { endDate: null as unknown as Date },
-                { endDate: { $gt: now } }
-            ]
-        })
+    const activeFilter: Record<string, unknown> = {
+        isActive: true,
+        startDate: { $lte: now },
+        $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gt: now } }],
+    };
+
+    const announcements = await db
+        .collection<Announcement>(Collections.ANNOUNCEMENTS)
+        .find(activeFilter)
         .sort({ startDate: -1 })
         .toArray();
 
@@ -58,17 +67,10 @@ export async function getActiveAnnouncements() {
 }
 
 /**
- * Create a new announcement
- */
-import { getCurrentAdmin } from '@/lib/admin-auth';
-import { logAdminAction } from '@/app/actions/audit-log';
-
-/**
- * Create a new announcement
+ * Create a new announcement.
  */
 export async function createAnnouncement(data: CreateAnnouncementInput) {
-    const admin = await getCurrentAdmin();
-    if (!admin) throw new Error('Unauthorized');
+    const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
     const now = new Date();
@@ -90,29 +92,25 @@ export async function createAnnouncement(data: CreateAnnouncementInput) {
         'ANNOUNCEMENT'
     );
 
-    revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard'); // Update user dashboard
+    revalidateAnnouncementPages();
 }
 
 /**
- * Update an announcement
+ * Update an announcement.
  */
 export async function updateAnnouncement(id: string, data: UpdateAnnouncementInput) {
-    const admin = await getCurrentAdmin();
-    if (!admin) throw new Error('Unauthorized');
+    const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
-
-    // Prepare update data (handle dates specifically if string/Date mismatch occurs via JSON)
-    // Assuming inputs are correct Dates from server action call
+    const announcementObjectId = parseObjectId(id, 'announcementId');
 
     await db.collection(Collections.ANNOUNCEMENTS).updateOne(
-        { _id: new ObjectId(id) },
+        { _id: announcementObjectId },
         {
             $set: {
                 ...data,
-                updatedAt: new Date()
-            }
+                updatedAt: new Date(),
+            },
         }
     );
 
@@ -124,21 +122,23 @@ export async function updateAnnouncement(id: string, data: UpdateAnnouncementInp
         'ANNOUNCEMENT'
     );
 
-    revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard');
+    revalidateAnnouncementPages();
 }
 
 /**
- * Delete an announcement
+ * Delete an announcement.
  */
 export async function deleteAnnouncement(id: string) {
-    const admin = await getCurrentAdmin();
-    if (!admin) throw new Error('Unauthorized');
+    const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
-    const announcement = await db.collection<Announcement>(Collections.ANNOUNCEMENTS).findOne({ _id: new ObjectId(id) });
+    const announcementObjectId = parseObjectId(id, 'announcementId');
 
-    await db.collection(Collections.ANNOUNCEMENTS).deleteOne({ _id: new ObjectId(id) });
+    const announcement = await db
+        .collection<Announcement>(Collections.ANNOUNCEMENTS)
+        .findOne({ _id: announcementObjectId });
+
+    await db.collection(Collections.ANNOUNCEMENTS).deleteOne({ _id: announcementObjectId });
 
     await logAdminAction(
         admin._id.toString(),
@@ -148,6 +148,5 @@ export async function deleteAnnouncement(id: string) {
         'ANNOUNCEMENT'
     );
 
-    revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard');
+    revalidateAnnouncementPages();
 }

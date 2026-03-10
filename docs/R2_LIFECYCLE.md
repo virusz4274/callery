@@ -99,3 +99,76 @@ Expected response:
   "r2Errors": 0
 }
 ```
+
+---
+
+# Export Processing Worker
+
+Exports are processed by a durable queue worker endpoint, not by in-request timers.
+
+## Endpoint
+
+```
+GET /api/cron/process-exports
+Authorization: Bearer YOUR_CRON_SECRET
+```
+
+This endpoint:
+1. Claims one queued export job (`pending`) or a stale `processing` job.
+2. Runs the export processor.
+3. Updates job progress/checkpoints and final download links.
+
+## Optional Worker Tuning
+
+```bash
+# Reclaim 'processing' jobs if no update for N minutes (default: 90)
+EXPORT_JOB_STALE_MINUTES=90
+```
+
+## Triggering the Export Worker
+
+### Vercel (Automatic)
+
+`vercel.json` includes:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-exports",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+```
+
+### Docker / Self-Hosted
+
+```bash
+# Every 5 minutes
+*/5 * * * * curl -X GET https://your-app-url/api/cron/process-exports -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+### Manual Testing
+
+```bash
+curl -X GET http://localhost:9000/api/cron/process-exports \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+Expected responses:
+```json
+{ "success": true, "message": "No queued export jobs" }
+```
+
+or
+
+```json
+{
+  "success": true,
+  "message": "Processed export job",
+  "jobId": "65f2...",
+  "firebaseUid": "abc123",
+  "status": "completed"
+}
+```

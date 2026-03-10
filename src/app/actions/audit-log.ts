@@ -1,5 +1,6 @@
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { AdminLog } from '@/lib/db/types';
+import { AdminLog, AdminLogResponse } from '@/lib/db/types';
+import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
+import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
 export type LogActionType =
@@ -27,8 +28,7 @@ export async function logAdminAction(
     try {
         const db = await getMongoDb();
 
-        // Fetch admin email for easier reading logs later
-        const adminUser = await db.collection(Collections.USERS).findOne({ _id: new ObjectId(adminId) });
+        const adminUser = await db.collection(Collections.USERS).findOne({ _id: parseObjectId(adminId, 'adminId') });
         const adminEmail = adminUser?.email || 'unknown';
 
         const logEntry: AdminLog = {
@@ -39,12 +39,11 @@ export async function logAdminAction(
             details,
             targetId,
             targetType,
-            createdAt: new Date()
+            createdAt: new Date(),
         };
 
         await db.collection(Collections.ADMIN_LOGS).insertOne(logEntry);
     } catch (error) {
-        // Logging should not break the main action, but we should know about it
         console.error('Failed to log admin action:', error);
     }
 }
@@ -52,8 +51,6 @@ export async function logAdminAction(
 /**
  * Fetch paginated audit logs.
  */
-import { AdminLogResponse } from '@/lib/db/types';
-
 export async function getAuditLogs(
     page: number = 1,
     limit: number = 20,
@@ -62,28 +59,40 @@ export async function getAuditLogs(
     startDate?: Date,
     endDate?: Date
 ) {
+    await requireCurrentAdmin();
+
     const db = await getMongoDb();
     const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = {};
-    if (actionFilter) query.action = actionFilter;
-    if (adminIdFilter) query.adminId = adminIdFilter;
-    
+    if (actionFilter) {
+        query.action = actionFilter;
+    }
+    if (adminIdFilter) {
+        query.adminId = adminIdFilter;
+    }
+
     if (startDate || endDate) {
-        query.createdAt = {};
-        if (startDate) (query.createdAt as any).$gte = startDate;
-        if (endDate) (query.createdAt as any).$lte = endDate;
+        const createdAtFilter: Record<string, Date> = {};
+        if (startDate) {
+            createdAtFilter.$gte = startDate;
+        }
+        if (endDate) {
+            createdAtFilter.$lte = endDate;
+        }
+        query.createdAt = createdAtFilter;
     }
 
     const totalLogs = await db.collection(Collections.ADMIN_LOGS).countDocuments(query);
-    const logs = await db.collection<AdminLog>(Collections.ADMIN_LOGS)
+    const logs = await db
+        .collection<AdminLog>(Collections.ADMIN_LOGS)
         .find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .toArray();
 
-    const serializedLogs: AdminLogResponse[] = logs.map(log => ({
+    const serializedLogs: AdminLogResponse[] = logs.map((log) => ({
         id: log._id.toString(),
         adminId: log.adminId,
         adminEmail: log.adminEmail,
@@ -99,6 +108,6 @@ export async function getAuditLogs(
         total: totalLogs,
         page,
         limit,
-        totalPages: Math.ceil(totalLogs / limit)
+        totalPages: Math.ceil(totalLogs / limit),
     };
 }

@@ -1,5 +1,6 @@
 'use server';
 
+import { after } from 'next/server';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { createExportJob, getLatestExportJob, toExportJobResponse } from '@/lib/db/export-jobs';
 import { processExport } from '@/lib/export-processor';
@@ -24,14 +25,22 @@ export async function startExport() {
         totalRecordings: 0,
         processedRecordings: 0,
         parts: [],
+        checkpoint: {
+            nextPartNumber: 1,
+        },
     });
 
-    // Trigger background processing (Detached)
-    // In a real serverless env (Vercel), this might be killed.
-    // Ideally use Inngest/Next/After. For "local/VPS" this works.
-    setTimeout(() => {
-        processExport(job._id.toString(), firebaseUid).catch(console.error);
-    }, 0);
+    // Local/dev fallback so exports still run without a scheduler.
+    // Production should use the cron worker route.
+    const shouldRunInline =
+        process.env.NODE_ENV === 'development' ||
+        process.env.EXPORT_INLINE_PROCESSING === 'true';
+
+    if (shouldRunInline) {
+        after(async () => {
+            await processExport(job._id.toString(), firebaseUid);
+        });
+    }
 
     return { success: true, jobId: job._id.toString() };
 }

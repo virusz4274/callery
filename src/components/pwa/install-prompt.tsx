@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@heroui/react';
 import { Download, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Image from 'next/image';
 
 /**
  * Custom PWA Install Prompt component.
@@ -12,12 +13,15 @@ import { AnimatePresence, motion } from 'framer-motion';
 export function InstallPwaPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isVisible, setIsVisible] = useState(false);
-    const [isIOS, setIsIOS] = useState(false);
+    const isIOS = useMemo(() => {
+        if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+            return false;
+        }
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    }, []);
 
     useEffect(() => {
-        // Check if device is iOS
-        const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-        setIsIOS(isIosDevice);
+        const isIosDevice = isIOS;
 
         // Check if running in standalone mode (already installed)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
@@ -60,14 +64,14 @@ export function InstallPwaPrompt() {
         // Usually we check simply if it's not standalone and IS iOS
         if (isIosDevice && !isStandalone) {
             if (!checkDismissal()) {
-                setIsVisible(true);
+                setTimeout(() => setIsVisible(true), 0);
             }
         }
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         };
-    }, []);
+    }, [isIOS]);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) {
@@ -117,7 +121,13 @@ export function InstallPwaPrompt() {
                     <div className="flex items-start justify-between">
                         <div className="flex gap-3">
                             <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 shadow-sm border border-primary/20">
-                                <img src="/icons/android-chrome-192x192.png" alt="VoSift" className="size-8 object-contain" />
+                                <Image
+                                    src="/icons/android-chrome-192x192.png"
+                                    alt="VoSift"
+                                    width={32}
+                                    height={32}
+                                    className="size-8 object-contain"
+                                />
                             </div>
                             <div>
                                 <h3 className="font-semibold text-sm">Install VoSift</h3>

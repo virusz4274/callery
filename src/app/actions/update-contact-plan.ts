@@ -1,32 +1,30 @@
-
 'use server';
 
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { logAdminAction } from '@/app/actions/audit-log';
 import { Plan } from '@/lib/db/types';
+import { getCurrentAdmin, parseObjectId } from '@/lib/admin-auth';
+import { Collections, getMongoDb } from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
 
-import { getCurrentAdmin } from '@/lib/admin-auth';
-import { logAdminAction } from '@/app/actions/audit-log';
-
-export async function updateContactPlan(userId: string, planName: string): Promise<{ success: boolean; message?: string }> {
+export async function updateContactPlan(
+    userId: string,
+    planName: string
+): Promise<{ success: boolean; message?: string }> {
     const admin = await getCurrentAdmin();
     if (!admin) {
         return { success: false, message: 'Unauthorized' };
     }
 
     const db = await getMongoDb();
+    const userObjectId = parseObjectId(userId, 'userId');
 
-    // 1. Get the plan details to find limits
     const plan = await db.collection<Plan>(Collections.PLANS).findOne({ name: planName });
 
     if (!plan && planName !== 'Custom') {
-        // If plan not found and not "Custom", fetch "Free" or failsafe
         console.error(`Plan ${planName} not found`);
         return { success: false, message: 'Plan not found' };
     }
 
-    // Default limits if plan lookup failed (shouldn't happen with valid UI)
     let storageAllocation = 5 * 1024 * 1024 * 1024;
     let transcriptionAllocation = 60 * 60;
 
@@ -35,30 +33,29 @@ export async function updateContactPlan(userId: string, planName: string): Promi
         transcriptionAllocation = plan.limits.transcription;
     }
 
-    // Get old user data for logging
-    const oldUser = await db.collection(Collections.USERS).findOne({ _id: new ObjectId(userId) });
+    const oldUser = await db.collection(Collections.USERS).findOne({ _id: userObjectId });
 
     try {
         await db.collection(Collections.USERS).updateOne(
-            { _id: new ObjectId(userId) },
+            { _id: userObjectId },
             {
                 $set: {
                     plan: planName,
                     storageAllocation,
                     transcriptionAllocation,
-                    updatedAt: new Date()
-                }
+                    updatedAt: new Date(),
+                },
             }
         );
 
         await logAdminAction(
             admin._id.toString(),
-            'USER_LIMITS_UPDATE', // Reusing LIMITS_UPDATE or creating USER_PLAN_CHANGE? LIMITS_UPDATE works as it touches limits.
+            'USER_LIMITS_UPDATE',
             {
                 action: 'PLAN_ASSIGNMENT',
                 oldPlan: oldUser?.plan,
                 newPlan: planName,
-                newLimits: { storageAllocation, transcriptionAllocation }
+                newLimits: { storageAllocation, transcriptionAllocation },
             },
             userId,
             'USER'
