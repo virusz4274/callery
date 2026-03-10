@@ -152,7 +152,24 @@ export async function checkAndResetUsageCycle(user: User): Promise<User> {
     }
 
     const now = new Date();
+    const subscriptionStatus = user.stripeSubscriptionStatus;
     const currentPeriodEnd = user.stripeCurrentPeriodEnd ? new Date(user.stripeCurrentPeriodEnd) : null;
+
+    // Never perform local cycle resets for delinquent/canceled subscriptions.
+    // Stripe webhooks should be the source of truth for those states.
+    if (
+        subscriptionStatus &&
+        subscriptionStatus !== 'active' &&
+        subscriptionStatus !== 'trialing'
+    ) {
+        return user;
+    }
+
+    // For Stripe-managed active/trialing subscriptions, wait for a known billing period.
+    // If missing, avoid fabricating a period because that can accidentally re-enable access.
+    if (subscriptionStatus && !currentPeriodEnd) {
+        return user;
+    }
 
     if (!currentPeriodEnd || now > currentPeriodEnd) {
         logger.info(`[checkAndResetUsageCycle] Resetting usage for user ${user._id}`);

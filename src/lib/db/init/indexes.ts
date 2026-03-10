@@ -5,7 +5,10 @@ type CollectionsMap = {
     RECORDINGS: string;
     CONTACTS: string;
     PLANS: string;
+    EXPORT_JOBS: string;
     ADMIN_LOGS: string;
+    STRIPE_WEBHOOK_EVENTS: string;
+    TRANSCRIPTION_WEBHOOK_EVENTS: string;
 };
 
 type IndexTask = {
@@ -61,6 +64,36 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
                 { key: { action: 1 }, name: 'action' },
             ],
             errorMessage: '⚠️ Admin Logs index creation failed:',
+        },
+        {
+            label: 'Export Jobs',
+            collection: collections.EXPORT_JOBS,
+            indexes: [
+                { key: { firebaseUid: 1, createdAt: -1 }, name: 'firebaseUid_createdAt' },
+                { key: { status: 1, updatedAt: -1 }, name: 'status_updatedAt' },
+            ],
+            errorMessage: '⚠️ Export jobs index creation failed:',
+        },
+        {
+            label: 'Stripe Webhook Events',
+            collection: collections.STRIPE_WEBHOOK_EVENTS,
+            indexes: [
+                { key: { status: 1, updatedAt: -1 }, name: 'status_updatedAt' },
+                // Keep dedupe history for 90 days; _id is the Stripe event ID.
+                { key: { receivedAt: 1 }, name: 'receivedAt_ttl_90d', expireAfterSeconds: 90 * 24 * 60 * 60 },
+            ],
+            errorMessage: '⚠️ Stripe webhook events index creation failed:',
+        },
+        {
+            label: 'Transcription Webhook Events',
+            collection: collections.TRANSCRIPTION_WEBHOOK_EVENTS,
+            indexes: [
+                { key: { status: 1, updatedAt: -1 }, name: 'status_updatedAt' },
+                { key: { recordingId: 1, provider: 1, updatedAt: -1 }, name: 'recordingId_provider_updatedAt' },
+                // Keep dedupe history for 90 days.
+                { key: { receivedAt: 1 }, name: 'receivedAt_ttl_90d', expireAfterSeconds: 90 * 24 * 60 * 60 },
+            ],
+            errorMessage: '⚠️ Transcription webhook events index creation failed:',
         },
     ];
 

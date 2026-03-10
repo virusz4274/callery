@@ -137,6 +137,34 @@ function buildFileSystemTree(recordings: Recording[]): FileSystemNode {
     };
 }
 
+async function getAllRecordingsForFileTree(firebaseUid: string): Promise<Recording[]> {
+    const batchSize = 500;
+    const allRecordings: Recording[] = [];
+    let skip = 0;
+
+    while (true) {
+        const batch = await getRecordingsByUser(firebaseUid, {
+            limit: batchSize,
+            skip,
+            includeArchived: false,
+        });
+
+        if (batch.length === 0) {
+            break;
+        }
+
+        allRecordings.push(...batch);
+
+        if (batch.length < batchSize) {
+            break;
+        }
+
+        skip += batch.length;
+    }
+
+    return allRecordings;
+}
+
 /**
  * GET /api/filesystem
  * 
@@ -153,11 +181,8 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Fetch all recordings for the user (no pagination for file tree)
-        const recordings = await getRecordingsByUser(firebaseUid, {
-            limit: 1000, // Reasonable limit for file browser
-            includeArchived: false,
-        });
+        // Fetch all non-archived recordings in batches to avoid silent truncation.
+        const recordings = await getAllRecordingsForFileTree(firebaseUid);
 
         const fileSystemTree = buildFileSystemTree(recordings);
 

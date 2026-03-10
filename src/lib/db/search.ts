@@ -21,6 +21,8 @@ export async function searchRecordingsByVector(
 
     try {
         const db = await getMongoDb();
+        const safePage = Math.max(1, page);
+        const safePageSize = Math.max(1, pageSize);
         const queryEmbedding = await aiService.generateEmbedding(query);
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
@@ -28,11 +30,23 @@ export async function searchRecordingsByVector(
             return { results: [], totalCount: 0 };
         }
 
-        // Vector Search requires "limit" to determine how many nearest neighbors to find.
-        // To paginate properly (e.g., get page 2), we conceptually need the top (page * pageSize) results
-        // and then slice the last (pageSize).
-        const searchLimit = page * pageSize;
-        // We set numCandidates higher to ensure accuracy.
+        // Vector search does nearest-neighbor ranking across searchable docs.
+        // We compute an explicit searchable pool count so totalCount is stable and page-independent.
+        const totalCount = await db.collection<Recording>(Collections.RECORDINGS).countDocuments({
+            firebaseUid,
+            isArchived: false,
+            summaryEmbedding: { $exists: true, $ne: [] },
+        });
+
+        if (totalCount === 0) {
+            return { results: [], totalCount: 0 };
+        }
+
+        const searchLimit = Math.min(totalCount, safePage * safePageSize);
+        if (searchLimit <= 0) {
+            return { results: [], totalCount };
+        }
+
         const numCandidates = Math.max(100, searchLimit * 10);
 
         const aggregation = [
@@ -44,9 +58,8 @@ export async function searchRecordingsByVector(
                     numCandidates: numCandidates,
                     limit: searchLimit, // Fetch enough to cover up to current page
                     filter: {
-                        firebaseUid: {
-                            $eq: firebaseUid
-                        }
+                        firebaseUid: { $eq: firebaseUid },
+                        isArchived: { $eq: false },
                     }
                 }
             },
@@ -73,8 +86,8 @@ export async function searchRecordingsByVector(
                     searchScore: { $meta: 'vectorSearchScore' }
                 }
             },
-            { $skip: (page - 1) * pageSize },
-            { $limit: pageSize }
+            { $skip: (safePage - 1) * safePageSize },
+            { $limit: safePageSize }
         ];
 
         const results = await db
@@ -82,23 +95,7 @@ export async function searchRecordingsByVector(
             .aggregate(aggregation)
             .toArray();
 
-        // Note: Getting an accurate "total count" for vector search is tricky because 
-        // it's a similarity search, not a hard filter. Usually, we clamp it or run a separate count 
-        // if we have a hard threshold. For now, we will return a heuristic or just not support 
-        // "Total Pages" accurately beyond "Load More". 
-        // However, the UI expects a count. Let's assume a reasonable cap for relevant results 
-        // or try to count candidates if possible.
-        // A simple approach is to return a fixed high number if results > 0 to allow "Next" 
-        // until we run out. Or just return results.
-        // Let's rely on the client to handle "no more results" if list < pageSize.
-        // For the UI's "Found X relevant recordings", we might lose that total unless we do 2 queries 
-        // or just return the page.
-        // IMPROVEMENT: For now, we return `results.length` as total if we can't easily get it, 
-        // which might break pagination UI logic that relies on `totalCount`.
-        // Let's return a "virtual" total count that allows pagination to continue?
-        // Actually, let's just return the results. The UI handles "next" if result count == pageSize.
-
-        return { results: results as SearchResult[], totalCount: results.length };
+        return { results: results as SearchResult[], totalCount };
     } catch (error) {
         console.error('Vector search error:', error);
         throw new Error('Failed to perform vector search');

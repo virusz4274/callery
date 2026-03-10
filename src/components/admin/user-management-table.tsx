@@ -67,6 +67,7 @@ export function UserManagementTable({
                                     onResetLimits={state.handleResetLimits}
                                     onToggleStatus={state.handleToggleStatus}
                                     onDeleteUser={state.handleDeleteUser}
+                                    onRestoreUser={state.handleRestoreUser}
                                 />
                             ))
                         ) : (

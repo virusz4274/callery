@@ -37,6 +37,7 @@ Stores user profile information and settings.
 | `stripeCurrentPeriodEnd` | `Date` | End of current Stripe billing period. |
 | `trialEndsAt` | `Date` | Timestamp when free trial expires. |
 | `lastLoginAt` | `Date` | Last login timestamp. |
+| `softDelete` | `object` | Soft deletion lifecycle metadata (`isDeleted`, `deletedAt`, `restoreUntil`, `previousDisabled`, `deletedByAdminId`). |
 | `createdAt` | `Date` | Account creation timestamp. |
 | `updatedAt` | `Date` | Last update timestamp. |
 
@@ -242,6 +243,41 @@ Tracks background data export tasks.
 | `createdAt` | `Date` | Creation timestamp. |
 | `updatedAt` | `Date` | Last update timestamp. |
 
+---
+
+### **`stripe_webhook_events`**
+Tracks Stripe webhook processing state for idempotency and retries.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `string` | Stripe `event.id` (unique). |
+| `type` | `string` | Stripe event type. |
+| `status` | `'processing' \| 'processed' \| 'failed'` | Current handler state. |
+| `attempts` | `number` | Processing attempt counter. |
+| `receivedAt` | `Date` | First receipt timestamp (TTL indexed). |
+| `updatedAt` | `Date` | Last processing timestamp. |
+| `processedAt` | `Date` | (Optional) Success timestamp. |
+| `lastError` | `string` | (Optional) Last failure reason. |
+
+---
+
+### **`transcription_webhook_events`**
+Tracks Soniox/ElevenLabs transcription webhook processing for idempotency and safe retries.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `string` | Internal dedupe key (`provider:recordingId:externalTranscriptionId:status`). |
+| `provider` | `'soniox' \| 'elevenlabs'` | Source provider. |
+| `recordingId` | `string` | Internal recording ID (string form). |
+| `externalTranscriptionId` | `string` | Provider transcription/request correlation ID. |
+| `deliveryStatus` | `string` | Provider delivery status for this callback. |
+| `status` | `'processing' \| 'processed' \| 'failed'` | Current handler state. |
+| `attempts` | `number` | Processing attempt counter. |
+| `receivedAt` | `Date` | First receipt timestamp (TTL indexed). |
+| `updatedAt` | `Date` | Last processing timestamp. |
+| `processedAt` | `Date` | (Optional) Success timestamp. |
+| `lastError` | `string` | (Optional) Last failure reason. |
+
 ## Relationships
 
 *   **User -> Plans**: Reference by `plan` name or dynamic lookup.
@@ -256,3 +292,6 @@ Tracks background data export tasks.
 *   `recordings`: `firebaseUid`, `contactId`, `recordedAt`, `r2Key`.
 *   `contacts`: `firebaseUid`, `phoneNumbers` (unique per user), `name` (text).
 *   `admin_logs`: `createdAt` (desc), `adminId`, `action`.
+*   `export_jobs`: `firebaseUid + createdAt`, `status + updatedAt`.
+*   `stripe_webhook_events`: `status + updatedAt`, TTL on `receivedAt` (90 days).
+*   `transcription_webhook_events`: `status + updatedAt`, `recordingId + provider + updatedAt`, TTL on `receivedAt` (90 days).

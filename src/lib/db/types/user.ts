@@ -77,6 +77,15 @@ export interface User {
 
     // Push Notification Subscriptions
     pushSubscriptions?: PushSubscriptionEntry[];
+
+    // Soft deletion lifecycle
+    softDelete?: {
+        isDeleted: boolean;
+        deletedAt: Date;
+        restoreUntil: Date;
+        previousDisabled: boolean;
+        deletedByAdminId?: string;
+    };
 }
 
 export type CreateUserInput = Omit<User, '_id' | 'createdAt' | 'updatedAt'>;
@@ -123,4 +132,11 @@ export interface UserResponse {
     trialEndsAt?: string;
     totalRecordings: number;
     lastLoginAt?: string;
+    softDelete?: {
+        isDeleted: boolean;
+        deletedAt: string;
+        restoreUntil: string;
+        previousDisabled: boolean;
+        deletedByAdminId?: string;
+    };
 }

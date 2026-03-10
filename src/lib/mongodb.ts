@@ -79,11 +79,14 @@ export const Collections = {
     RECORDINGS: 'recordings',
     CONTACTS: 'contacts',
     PLANS: 'plans',
+    EXPORT_JOBS: 'export_jobs',
     SYSTEM_SETTINGS: 'system_settings',
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',
     NOTIFICATIONS: 'notifications',
     SUPPORT_MESSAGES: 'support_messages',
+    STRIPE_WEBHOOK_EVENTS: 'stripe_webhook_events',
+    TRANSCRIPTION_WEBHOOK_EVENTS: 'transcription_webhook_events',
 } as const;
 
 export default clientPromise;

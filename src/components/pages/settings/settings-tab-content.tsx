@@ -77,7 +77,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                 )}
 
                 {state.showBilling && state.activeTab === 'billing' && state.user && state.userProfile && (
-                    <BillingSettings invoices={[]} isLoading={false} userProfile={state.userProfile} />
+                    <BillingSettings userProfile={state.userProfile} />
                 )}
             </ClientOnly>
         </div>

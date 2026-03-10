@@ -3,6 +3,10 @@ import type { User } from '@/lib/db/types';
 
 export type InvoiceStatus = 'Paid' | 'Pending' | 'Failed';
 
+function escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function toInvoiceStatus(status: string | null): InvoiceStatus {
     if (status === 'paid') {
         return 'Paid';
@@ -16,16 +20,19 @@ export function toInvoiceStatus(status: string | null): InvoiceStatus {
 }
 
 export function buildUserSearchQuery(search?: string): Record<string, unknown> {
-    if (!search) {
+    const normalizedSearch = search?.trim();
+    if (!normalizedSearch) {
         return {};
     }
 
+    const safePattern = escapeRegex(normalizedSearch.slice(0, 120));
+
     return {
         $or: [
-            { email: { $regex: search, $options: 'i' } },
-            { name: { $regex: search, $options: 'i' } },
-            { firstName: { $regex: search, $options: 'i' } },
-            { lastName: { $regex: search, $options: 'i' } },
+            { email: { $regex: safePattern, $options: 'i' } },
+            { name: { $regex: safePattern, $options: 'i' } },
+            { firstName: { $regex: safePattern, $options: 'i' } },
+            { lastName: { $regex: safePattern, $options: 'i' } },
         ],
     };
 }
@@ -39,6 +46,13 @@ export function serializeUser(user: User) {
         updatedAt: user.updatedAt.toISOString(),
         lastLoginAt: user.lastLoginAt?.toISOString(),
         trialEndsAt: user.trialEndsAt?.toISOString(),
+        softDelete: user.softDelete
+            ? {
+                ...user.softDelete,
+                deletedAt: user.softDelete.deletedAt.toISOString(),
+                restoreUntil: user.softDelete.restoreUntil.toISOString(),
+            }
+            : undefined,
         stripeSubscriptionStatus: user.stripeSubscriptionStatus,
     };
 }

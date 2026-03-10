@@ -1,6 +1,13 @@
 'use server';
 
-import { deleteUserMutation, toggleUserStatusMutation, updateUserLimitsMutation, updateUserRoleMutation, updateUserUsageMutation } from './users/mutations';
+import {
+    deleteUserMutation,
+    restoreUserMutation,
+    toggleUserStatusMutation,
+    updateUserLimitsMutation,
+    updateUserRoleMutation,
+    updateUserUsageMutation,
+} from './users/mutations';
 import { getUserByIdQuery, getUserInvoicesQuery, getUsersQuery } from './users/queries';
 
 /**
@@ -54,9 +61,15 @@ export async function updateUserUsage(userId: string, usage: { storageUsed: numb
 }
 
 /**
- * Hard delete a user and all their associated data (Recordings, Contacts, R2 Files).
- * This is irreversible.
+ * Soft delete a user and schedule permanent deletion after restore window.
  */
 export async function deleteUser(userId: string) {
     return deleteUserMutation(userId);
+}
+
+/**
+ * Restore a soft-deleted user within restore window.
+ */
+export async function restoreUser(userId: string) {
+    return restoreUserMutation(userId);
 }

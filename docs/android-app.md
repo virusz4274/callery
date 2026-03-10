@@ -1,115 +1,60 @@
 # Android App (Capacitor)
 
-VoSift includes an Android app built with Capacitor that enables folder sync - automatically uploading recordings from device folders to the cloud.
+Call Memo includes a Capacitor Android wrapper with folder-sync support at `/android-sync`.
 
 ## Prerequisites
 
-- **Android Studio** (recommended) or Android SDK command-line tools
-- **Node.js** v18+
+- Android Studio (or Android SDK CLI)
+- Node.js 20+
 
 ## Setup
 
-### 1. Install Dependencies (Already done if following setup-guide)
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-The following Capacitor packages are included:
-- `@capacitor/core` - Core runtime
-- `@capacitor/cli` - Build tools
-- `@capacitor/android` - Android platform
-- `@capacitor/filesystem` - File system access
+2. Configure `capacitor.config.ts` `server.url` for your environment:
+- Local dev: `http://<your-local-ip>:9000`
+- Production: your deployed HTTPS URL
 
-### 2. Configure Server URL
-
-Edit `capacitor.config.ts` and set your server URL:
-
-```typescript
-server: {
-  // Development: Use your local IP
-  url: 'http://YOUR_LOCAL_IP:9000',
-  
-  // Production: Use your deployed URL
-  // url: 'https://your-domain.com',
-  
-  cleartext: true, // Required for HTTP (dev only)
-}
-```
-
-**Find your local IP (macOS):**
-```bash
-ipconfig getifaddr en0
-```
-
-### 3. Build and Sync
+3. Build web app and sync Android project:
 
 ```bash
-# Build the Next.js app
 npm run build
-
-# Sync to Android project
-npx cap sync android
+npm run cap:sync
 ```
 
-### 4. Open in Android Studio
+4. Open Android Studio:
 
 ```bash
 npx cap open android
 ```
 
-Then click **Run** to install on emulator or connected device.
-
-## Development Workflow
-
-After making web changes:
+## Development Loop
 
 ```bash
-# Quick sync (no rebuild needed for JS-only changes)
-npx cap sync android
+# JS/UI updates
+npm run cap:sync
 
-# Full rebuild (when dependencies change)
-npm run build && npx cap sync android
+# Dependency/config updates
+npm run build && npm run cap:sync
 ```
 
-## Building APK
+## Build APK
 
-In Android Studio:
-1. **Build > Build Bundle(s) / APK(s) > Build APK(s)**
-2. APK location: `android/app/build/outputs/apk/debug/app-debug.apk`
+Android Studio: Build -> Build APK(s)
 
-Or via command line:
+or CLI:
+
 ```bash
 cd android
 ./gradlew assembleDebug
 ```
 
-## Features
-
-### Folder Sync (`/android-sync`)
-
-The Android app provides a dedicated folder sync page:
-- Browse device folders
-- Select audio files to sync
-- Automatic duplicate detection
-- Batch upload with progress tracking
-
-This page only appears in the native app - web browsers see a "download the app" message.
-
 ## Troubleshooting
 
-### "Unable to launch Android Studio"
-Set the path if Android Studio is in a non-standard location:
-```bash
-export CAPACITOR_ANDROID_STUDIO_PATH="/path/to/Android Studio.app"
-```
-
-### Network connection fails
-- Ensure device and dev machine are on the same network
-- Check that `cleartext: true` is set for HTTP
-- Verify firewall isn't blocking port 9000
-
-### Permission denied for files
-The app requests storage permissions on first use. If denied:
-1. Go to Android Settings > Apps > VoSift
-2. Tap Permissions > Files and media > Allow
+- Device cannot reach local server: ensure same network and correct local IP.
+- HTTP blocked on device: keep `cleartext: true` only for local HTTP dev.
+- File access denied: grant storage permissions in Android app settings.

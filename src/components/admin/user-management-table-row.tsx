@@ -15,6 +15,7 @@ type UserManagementTableRowProps = {
     onResetLimits: (userId: string) => void;
     onToggleStatus: (userId: string, currentStatus?: boolean) => void;
     onDeleteUser: (userId: string) => void;
+    onRestoreUser: (userId: string) => void;
 };
 
 export function UserManagementTableRow({
@@ -28,10 +29,13 @@ export function UserManagementTableRow({
     onResetLimits,
     onToggleStatus,
     onDeleteUser,
+    onRestoreUser,
 }: UserManagementTableRowProps) {
+    const isSoftDeleted = user.softDelete?.isDeleted;
+
     return (
         <div
-            className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 p-4 hover:bg-default-50 transition-colors ${user.disabled ? 'opacity-60 bg-default-100' : ''}`}
+            className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 p-4 hover:bg-default-50 transition-colors ${user.disabled || isSoftDeleted ? 'opacity-60 bg-default-100' : ''}`}
         >
             <div className="flex items-center gap-4 min-w-0">
                 <Avatar className="h-10 w-10 flex-shrink-0">
@@ -46,13 +50,23 @@ export function UserManagementTableRow({
                                 Admin
                             </Chip>
                         )}
-                        {user.disabled && (
+                        {isSoftDeleted ? (
+                            <Chip color="warning" size="sm" className="ml-2 flex-shrink-0">
+                                Pending Deletion
+                            </Chip>
+                        ) : null}
+                        {user.disabled && !isSoftDeleted && (
                             <Chip color="danger" size="sm" className="ml-2 flex-shrink-0">
                                 Banned
                             </Chip>
                         )}
                     </div>
                     <p className="text-small text-default-500 truncate">{user.email}</p>
+                    {isSoftDeleted ? (
+                        <p className="text-xs text-warning-600 truncate">
+                            Restore by {new Date(user.softDelete!.restoreUntil).toLocaleDateString()}
+                        </p>
+                    ) : null}
                 </div>
             </div>
 
@@ -113,17 +127,25 @@ export function UserManagementTableRow({
                             Reset Defaults
                         </Dropdown.Item>
 
-                        <Dropdown.Item
-                            key="status"
-                            className={user.disabled ? 'text-success' : 'text-danger'}
-                            onPress={() => onToggleStatus(user.id, user.disabled)}
-                        >
-                            {user.disabled ? 'Enable User' : 'Disable User'}
-                        </Dropdown.Item>
+                        {!isSoftDeleted ? (
+                            <Dropdown.Item
+                                key="status"
+                                className={user.disabled ? 'text-success' : 'text-danger'}
+                                onPress={() => onToggleStatus(user.id, user.disabled)}
+                            >
+                                {user.disabled ? 'Enable User' : 'Disable User'}
+                            </Dropdown.Item>
+                        ) : null}
 
-                        <Dropdown.Item key="delete" className="text-danger" onPress={() => onDeleteUser(user.id)}>
-                            {isDeleting ? 'Deleting...' : 'Delete User'}
-                        </Dropdown.Item>
+                        {isSoftDeleted ? (
+                            <Dropdown.Item key="restore" className="text-success" onPress={() => onRestoreUser(user.id)}>
+                                {isDeleting ? 'Restoring...' : 'Restore User'}
+                            </Dropdown.Item>
+                        ) : (
+                            <Dropdown.Item key="delete" className="text-danger" onPress={() => onDeleteUser(user.id)}>
+                                {isDeleting ? 'Deleting...' : 'Delete User'}
+                            </Dropdown.Item>
+                        )}
                     </Dropdown.Menu>
                 </Dropdown.Popover>
             </Dropdown>
