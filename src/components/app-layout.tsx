@@ -1,7 +1,7 @@
 
 "use client";
 import { useToast } from '@/components/toast-provider';
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useCallback, useEffect, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
 import { MobileNav } from './mobile-nav';
@@ -62,30 +62,23 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
     }
   }, [systemSettings, pathname, isUserLoading, isProfileLoading, userProfile, router]);
 
-  // State for search query
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const searchQuery = searchParams.get('q') || '';
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
 
-  // Effect to update URL when searchQuery changes
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (searchQuery) {
-      params.set('q', searchQuery);
+  const handleSearchChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set('q', value);
     } else {
       params.delete('q');
     }
-
-    const newPath = `${pathname}?${params.toString()}`;
+    const queryString = params.toString();
+    const newPath = queryString ? `${pathname}?${queryString}` : pathname;
 
     startTransition(() => {
       router.replace(newPath, { scroll: false });
     });
-  }, [searchQuery, pathname, router]);
-
-  // Effect to clear search when navigating to a new page
-  useEffect(() => {
-    setSearchQuery('');
-  }, [pathname]);
+  }, [pathname, router, searchParams]);
 
   const handleLogout = async () => {
     try {
@@ -123,7 +116,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
         user={user}
         userProfile={userProfile}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         onLogout={handleLogout}
       />
 

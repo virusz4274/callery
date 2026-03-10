@@ -31,15 +31,6 @@ export async function POST(request: NextRequest) {
             await ensureUserProfile(uid, email, name, picture);
         } catch (dbError) {
             console.error('Failed to ensure user profile:', dbError);
-            // We continue even if DB sync fails, but log it. 
-            // Ideally we might want to fail the login or handle it gracefully?
-            // For now, let's allow login but the user might face issues later (like the upload one).
-            // Actually, if we fail here, the client sees an error and retries or shows a message.
-            // Given the user's issue ("User not found"), we probably WANT to fail hard or ensure it works.
-            // But let's just log for now to avoid blocking login if DB is momentarily down, 
-            // though critical features depend on it.
-            // On second thought, let's return 500 if we can't create the user, 
-            // because the app is broken without a user record.
             return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 });
         }
 
@@ -63,12 +54,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'success' }, { status: 200 });
     } catch (error: unknown) {
         console.error('Error creating session:', error);
-        // RETURN ACTUAL ERROR FOR DEBUGGING
-        const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        return NextResponse.json(
-            { error: errorMessage, stack: errorStack },
-            { status: 500 }
-        );
+        if (typeof error === 'object' && error !== null && 'code' in error) {
+            const code = (error as { code?: unknown }).code;
+            if (typeof code === 'string' && code.startsWith('auth/')) {
+                return NextResponse.json({ error: 'Invalid or expired authentication token' }, { status: 401 });
+            }
+        }
+
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

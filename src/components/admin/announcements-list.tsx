@@ -24,9 +24,11 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
         }
     };
 
-    const getTypeColor = (type: string) => {
+    const getTypeColor = (
+        type: string
+    ): 'default' | 'accent' | 'success' | 'warning' | 'danger' => {
         switch (type) {
-            case 'info': return 'primary';
+            case 'info': return 'accent';
             case 'warning': return 'warning';
             case 'alert': return 'danger';
             case 'success': return 'success';
@@ -61,8 +63,7 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
                                     <h3 className="font-semibold text-lg">{ann.title}</h3>
                                     <Chip
                                         size="sm"
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        color={getTypeColor(ann.type) as any}
+                                        color={getTypeColor(ann.type)}
                                         variant="soft"
                                     >
                                         {ann.type.toUpperCase()}

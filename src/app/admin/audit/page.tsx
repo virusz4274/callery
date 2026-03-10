@@ -1,13 +1,20 @@
 import { getAuditLogs } from '@/app/actions/audit-log';
+import { getCurrentAdmin } from '@/app/actions/admin';
 import { AuditLogsTable } from '@/components/admin/audit-logs-table';
 import { connection } from 'next/server';
 import { AdminLogResponse } from '@/lib/db/types';
+import { redirect } from 'next/navigation';
 
 export default async function AuditPage({
     searchParams
 }: {
     searchParams: Promise<{ page?: string; action?: string; startDate?: string; endDate?: string }>;
 }) {
+    const admin = await getCurrentAdmin();
+    if (!admin) {
+        redirect('/');
+    }
+
     await connection();
     const { page: pageParam, action: actionParam, startDate, endDate } = await searchParams;
     const page = Number(pageParam) || 1;

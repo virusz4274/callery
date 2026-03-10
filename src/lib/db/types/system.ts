@@ -75,6 +75,11 @@ export interface ExportJob {
         expiresAt: Date;
         key: string; // R2 Key
     }[];
+    checkpoint?: {
+        cursorRecordedAt?: Date;
+        cursorId?: string;
+        nextPartNumber: number;
+    };
     error?: string;
     createdAt: Date;
     updatedAt: Date;

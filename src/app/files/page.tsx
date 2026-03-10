@@ -9,6 +9,8 @@ import { LandingPage } from '@/components/pages/landing-page';
 import { authFetch } from '@/lib/api-client';
 import type { User } from 'firebase/auth';
 
+const AUTH_PENDING_ERROR = 'Authentication pending';
+
 function FilesBrowserContent({ user }: { user: User }) {
   const [fileSystem, setFileSystem] = useState<FileSystemNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +30,7 @@ function FilesBrowserContent({ user }: { user: User }) {
       if (!contentType || !contentType.includes('application/json')) {
         if (response.status === 401) {
           // User not authenticated yet, set error to trigger retry
-          setError('Authentication pending');
+          setError(AUTH_PENDING_ERROR);
           return;
         }
         throw new Error(`Unexpected response type: ${contentType}`);
@@ -37,7 +39,7 @@ function FilesBrowserContent({ user }: { user: User }) {
       if (!response.ok) {
         if (response.status === 401) {
           // Auth may not be ready yet
-          setError('Authentication pending');
+          setError(AUTH_PENDING_ERROR);
           return;
         }
         const errorData = await response.json();
@@ -63,7 +65,7 @@ function FilesBrowserContent({ user }: { user: User }) {
 
   // Bounded retry for auth pending errors - max 3 attempts with exponential backoff
   useEffect(() => {
-    if (error === 'Authentication pending' && retryCount.current < MAX_RETRIES) {
+    if (error === AUTH_PENDING_ERROR && retryCount.current < MAX_RETRIES) {
       const delay = 500 * Math.pow(2, retryCount.current); // Exponential backoff
       const timer = setTimeout(() => {
         retryCount.current += 1;
@@ -71,7 +73,7 @@ function FilesBrowserContent({ user }: { user: User }) {
         fetchFileSystem();
       }, delay);
       return () => clearTimeout(timer);
-    } else if (error === 'Authentication pending' && retryCount.current >= MAX_RETRIES) {
+    } else if (error === AUTH_PENDING_ERROR && retryCount.current >= MAX_RETRIES) {
       console.error(`Max retries (${MAX_RETRIES}) reached for filesystem. Giving up.`);
       setError('Unable to authenticate. Please refresh the page or try logging in again.');
     }
@@ -109,7 +111,7 @@ function FilesBrowserContent({ user }: { user: User }) {
     );
   }
 
-  if (error && error !== 'Authentication pending...') {
+  if (error && error !== AUTH_PENDING_ERROR) {
     return (
       <div className="relative space-y-8">
         <div className="flex flex-col gap-2">

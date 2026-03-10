@@ -1,5 +1,7 @@
 'use server';
 
+import crypto from 'crypto';
+import { cookies } from 'next/headers';
 import { getOAuth2Client } from '@/services/google/oauth';
 
 // These should match your Google Cloud project settings
@@ -15,6 +17,15 @@ function getBaseUrl() {
 export async function getGoogleAuthUrl() {
   // Use the environment variable if set, otherwise construct it dynamically
   const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
+  const state = crypto.randomUUID();
+
+  (await cookies()).set('google_oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 10,
+  });
 
   const oAuth2Client = getOAuth2Client(redirectUri);
 
@@ -22,8 +33,7 @@ export async function getGoogleAuthUrl() {
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent', // Force consent screen to ensure scopes are granted and we get a refresh token
-    // A random string for security
-    state: Math.random().toString(36).substring(2, 15),
+    state,
   });
 
   return { url: authUrl };

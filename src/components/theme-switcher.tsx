@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Switch } from '@heroui/react';
 import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ThemeSwitcher() {
-  const [mounted, setMounted] = useState(false);
   const { setTheme, resolvedTheme } = useTheme();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!resolvedTheme) {
     return (
       <div className="w-[56px] h-[32px] rounded-full bg-default-200 animate-pulse" />
     );

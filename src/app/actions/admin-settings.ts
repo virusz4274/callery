@@ -1,9 +1,12 @@
 'use server';
 
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { SystemSettings, UpdateSystemSettingsInput, SystemSettingsResponse } from '@/lib/db/types';
+import { logAdminAction } from '@/app/actions/audit-log';
+import { SystemSettings, SystemSettingsResponse, UpdateSystemSettingsInput } from '@/lib/db/types';
+import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
+import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { revalidatePath } from 'next/cache';
+import { connection } from 'next/server';
 
 function mapSettings(settings: SystemSettings): SystemSettingsResponse {
     return {
@@ -16,7 +19,8 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse {
     };
 }
 
-import { connection } from 'next/server';
+type UpdateSystemSettingsPayload =
+    Omit<UpdateSystemSettingsInput, 'defaultPlanId'> & { defaultPlanId?: string | ObjectId };
 
 /**
  * Get the singleton system settings.
@@ -24,17 +28,18 @@ import { connection } from 'next/server';
  */
 export async function getSystemSettings() {
     await connection();
+
     const db = await getMongoDb();
     let settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
 
     if (!settings) {
-        // Initialize default settings
         const defaultSettings: SystemSettings = {
             _id: new ObjectId(),
             allowSignups: true,
             maintenanceMode: false,
             updatedAt: new Date(),
         };
+
         await db.collection(Collections.SYSTEM_SETTINGS).insertOne(defaultSettings);
         settings = defaultSettings;
     }
@@ -42,39 +47,22 @@ export async function getSystemSettings() {
     return mapSettings(settings);
 }
 
-import { getCurrentAdmin } from '@/lib/admin-auth';
-import { logAdminAction } from '@/app/actions/audit-log';
-
-export async function updateSystemSettings(data: UpdateSystemSettingsInput) {
-    const admin = await getCurrentAdmin();
-    if (!admin) throw new Error('Unauthorized');
+export async function updateSystemSettings(data: UpdateSystemSettingsPayload) {
+    const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
-
-    // Prepare update data, converting string ID to ObjectId if present
-    const updateData: Partial<SystemSettings> = {
+    const updateData: Record<string, unknown> = {
         ...data,
         updatedAt: new Date(),
     };
 
     if (data.defaultPlanId && typeof data.defaultPlanId === 'string') {
-        updateData.defaultPlanId = new ObjectId(data.defaultPlanId);
+        updateData.defaultPlanId = parseObjectId(data.defaultPlanId, 'defaultPlanId');
     }
 
-    // We use updateOne with upsert to be safe, though getSystemSettings ensures it exists
-    await db.collection(Collections.SYSTEM_SETTINGS).updateOne(
-        {},
-        { $set: updateData },
-        { upsert: true }
-    );
+    await db.collection(Collections.SYSTEM_SETTINGS).updateOne({}, { $set: updateData }, { upsert: true });
 
-    await logAdminAction(
-        admin._id.toString(),
-        'SETTINGS_UPDATE',
-        { updates: data },
-        'system',
-        'SYSTEM'
-    );
+    await logAdminAction(admin._id.toString(), 'SETTINGS_UPDATE', { updates: data }, 'system', 'SYSTEM');
 
     revalidatePath('/admin/settings');
 }

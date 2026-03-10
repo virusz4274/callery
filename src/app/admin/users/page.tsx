@@ -1,14 +1,20 @@
 import { Suspense } from 'react';
-import { getUsers } from '@/app/actions/admin';
+import { getUsers, getCurrentAdmin } from '@/app/actions/admin';
 import { getPlans } from '@/app/actions/admin-plans';
 import { UserManagementTable } from '@/components/admin/user-management-table';
 import { Spinner } from '@/components/ui-primitives';
+import { redirect } from 'next/navigation';
 
 export default async function UsersPage({
     searchParams,
 }: {
     searchParams: Promise<{ page?: string; search?: string }>;
 }) {
+    const admin = await getCurrentAdmin();
+    if (!admin) {
+        redirect('/');
+    }
+
     const { page: pageParam, search: searchParam } = await searchParams;
     const page = Number(pageParam) || 1;
     const search = searchParam || '';

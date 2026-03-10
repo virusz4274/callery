@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 /**
  * This is the callback route that Google redirects to after the user has
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get('google_oauth_state')?.value;
+  cookieStore.delete('google_oauth_state');
 
   // Check for an error query parameter
   const error = searchParams.get('error');
@@ -21,14 +25,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!state || !expectedState || state !== expectedState) {
+    return NextResponse.redirect(
+      new URL('/settings?error=Invalid+OAuth+state&tab=data', request.url)
+    );
+  }
+
   if (code) {
     try {
-      // Redirect back to settings page with code and state for server action processing
+      // Redirect back to settings page with code for server action processing
       const redirectUrl = new URL('/settings', request.url);
       redirectUrl.searchParams.set('g_code', code);
-      if (state) {
-        redirectUrl.searchParams.set('g_state', state);
-      }
       redirectUrl.searchParams.set('tab', 'data');
       return NextResponse.redirect(redirectUrl);
     } catch (error) {
@@ -38,4 +45,8 @@ export async function GET(request: NextRequest) {
       );
     }
   }
+
+  return NextResponse.redirect(
+    new URL('/settings?error=Missing+authorization+code&tab=data', request.url)
+  );
 }

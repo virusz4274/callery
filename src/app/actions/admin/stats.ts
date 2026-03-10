@@ -2,11 +2,14 @@
 
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
+import { requireCurrentAdmin } from './auth';
 
 /**
  * Get system-wide statistics for the admin dashboard.
  */
 export async function getSystemStats() {
+    await requireCurrentAdmin();
+
     const db = await getMongoDb();
 
     const totalUsers = await db.collection(Collections.USERS).countDocuments();
