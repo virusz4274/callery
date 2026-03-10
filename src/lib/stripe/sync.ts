@@ -5,6 +5,51 @@ import { updateUser } from '@/lib/db/users';
 import { stripe } from '@/lib/stripe';
 import { reportUsage } from '@/lib/stripe/usage';
 
+type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
+
+function getCustomerIdFromSubscription(subscription: Stripe.Subscription): string | null {
+    if (typeof subscription.customer === 'string') {
+        return subscription.customer;
+    }
+
+    return subscription.customer?.id ?? null;
+}
+
+function getCustomerIdFromCheckoutSession(session: Stripe.Checkout.Session): string | null {
+    if (typeof session.customer === 'string') {
+        return session.customer;
+    }
+
+    return session.customer?.id ?? null;
+}
+
+function mapSubscriptionStatus(subscription: Stripe.Subscription): SubscriptionStatus {
+    if (subscription.status === 'active' && subscription.cancel_at_period_end) {
+        return 'canceled';
+    }
+
+    return subscription.status as SubscriptionStatus;
+}
+
+function getBasePlanPriceId(subscription: Stripe.Subscription): string | null {
+    const baseItem =
+        subscription.items.data.find(
+            (item) => item.price.recurring?.usage_type !== 'metered'
+        ) ?? subscription.items.data[0];
+
+    return baseItem?.price?.id ?? null;
+}
+
+async function resolveCheckoutPriceId(session: Stripe.Checkout.Session): Promise<string | null> {
+    const metadataPrice = session.metadata?.selectedPriceId;
+    if (metadataPrice) {
+        return metadataPrice;
+    }
+
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+    return lineItems.data[0]?.price?.id ?? null;
+}
+
 /**
  * Syncs a Stripe Subscription to the MongoDB User document.
  * This is idempotent and can be called from webhooks or the frontend.
@@ -12,12 +57,16 @@ import { reportUsage } from '@/lib/stripe/usage';
 export async function syncSubscription(subscriptionId: string) {
     if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    let subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
     });
 
     const db = await getMongoDb();
-    const customerId = subscription.customer as string;
+    const customerId = getCustomerIdFromSubscription(subscription);
+    if (!customerId) {
+        console.warn(`[Sync] Subscription ${subscriptionId} has no customer ID`);
+        return;
+    }
 
     // Find user by Stripe Customer ID
     const user = await db.collection<User>(Collections.USERS).findOne({ stripeCustomerId: customerId });
@@ -27,24 +76,22 @@ export async function syncSubscription(subscriptionId: string) {
         return;
     }
 
-    const price = subscription.items.data[0].price;
-    const stripePriceId = price.id;
+    const basePriceId = getBasePlanPriceId(subscription);
 
-    // Find Plan details to update limits
-    // Note: The Price object itself has limited metadata, ideally we look up our internal Plan definition
-    const plan = await db.collection<Plan>(Collections.PLANS).findOne({ stripePriceId: stripePriceId });
+    // Find Plan details to update limits based on base subscription item.
+    const plan = basePriceId
+        ? await db.collection<Plan>(Collections.PLANS).findOne({ stripePriceId: basePriceId })
+        : null;
 
     // Map Stripe status to our internal status
-    let status = subscription.status;
-    if (subscription.status === 'active' && subscription.cancel_at_period_end) {
-        status = 'canceled';
-    }
+    const status = mapSubscriptionStatus(subscription);
 
     // SELF-HEALING: Ensure Plan-required metered items exist
     // If the user upgraded/switched plans in the Portal, they might have lost the separate metered items
     // (depending on how the switch was handled). We explicitly re-add them if missing.
     if (plan && status === 'active') {
         let subscriptionUpdated = false;
+        const currentPriceIds = new Set(subscription.items.data.map((item) => item.price.id));
 
         const requiredPrices = [
             { type: 'storage', id: plan.stripeStoragePriceId },
@@ -53,9 +100,7 @@ export async function syncSubscription(subscriptionId: string) {
 
         for (const req of requiredPrices) {
             if (req.id) {
-                // Always refresh before checking to get latest state (other webhooks may have already added items)
-                const currentItems = (await stripe.subscriptions.retrieve(subscriptionId)).items.data;
-                const hasItem = currentItems.some(i => i.price.id === req.id);
+                const hasItem = currentPriceIds.has(req.id);
                 if (!hasItem) {
                     console.log(`[Sync] Missing required metered item (${req.type}) for plan ${plan.name}. Adding...`);
                     try {
@@ -63,6 +108,7 @@ export async function syncSubscription(subscriptionId: string) {
                             subscription: subscription.id,
                             price: req.id,
                         });
+                        currentPriceIds.add(req.id);
                         subscriptionUpdated = true;
                     } catch (err: any) {
                         // Ignore 'already exists' errors (race condition with other webhooks)
@@ -77,16 +123,9 @@ export async function syncSubscription(subscriptionId: string) {
         // Validate: If we added items, we MUST refresh the subscription object 
         // ensuring the next block (Enforce Thresholds) sees the new Item IDs.
         if (subscriptionUpdated) {
-            const refreshedSub = await stripe.subscriptions.retrieve(subscriptionId, {
+            subscription = await stripe.subscriptions.retrieve(subscriptionId, {
                 expand: ['items.data.price.product']
             });
-            // Update the local reference for the next block (reassigning properties to keep 'const subscription' valid reference if it was let, but it is const)
-            // ERROR: 'subscription' is const. I need to handle this.
-            // Workaround: I will just use 'refreshedSub' for the items iteration below if updated.
-            // Actually, I can just mutate the array if I want, or better:
-            // Since 'subscription' is const, I cannot reassign it.
-            // I will update the 'items' property of the object if TS allows, or just use refreshedSub.items.
-            subscription.items = refreshedSub.items;
         }
     }
 
@@ -95,22 +134,28 @@ export async function syncSubscription(subscriptionId: string) {
     // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
     // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
-    const currentPeriodEnd = (subscription as unknown as { current_period_end: number }).current_period_end;
+    const currentPeriodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
 
     const updateData: Record<string, unknown> = {
         stripeSubscriptionId: subscription.id,
         stripeSubscriptionStatus: status, // Cast to specific enum if needed
-        stripePriceId: price.id,
-        stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
         // 'billingSettings.allowOverage': false, // Removed: Handled efficiently in plan check
         updatedAt: new Date(),
     };
+    if (basePriceId) {
+        updateData.stripePriceId = basePriceId;
+    }
+    if (typeof currentPeriodEnd === 'number') {
+        updateData.stripeCurrentPeriodEnd = new Date(currentPeriodEnd * 1000);
+    }
 
-    const newPeriodEnd = updateData.stripeCurrentPeriodEnd as Date;
+    const newPeriodEnd = updateData.stripeCurrentPeriodEnd as Date | undefined;
     const oldPeriodEnd = user.stripeCurrentPeriodEnd ? new Date(user.stripeCurrentPeriodEnd) : null;
-    const periodChanged = !oldPeriodEnd || newPeriodEnd.getTime() !== oldPeriodEnd.getTime();
+    const periodChanged = Boolean(
+        newPeriodEnd && (!oldPeriodEnd || newPeriodEnd.getTime() !== oldPeriodEnd.getTime())
+    );
 
-    if (periodChanged) {
+    if (periodChanged && newPeriodEnd) {
         updateData.storagePeakUsed = user.storageUsed || 0;
         updateData.storagePeakPeriodEnd = newPeriodEnd;
     }
@@ -157,4 +202,78 @@ export async function linkCustomerToUser(stripeCustomerId: string, firebaseUid: 
     });
 
     console.log(`[Sync] Linked Customer ${stripeCustomerId} to User ${firebaseUid}`);
+}
+
+/**
+ * Applies a one-time (non-subscription) Checkout purchase to the user's plan.
+ * Used for lifetime access or other payment-mode checkouts.
+ */
+export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session) {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+
+    const db = await getMongoDb();
+    const customerId = getCustomerIdFromCheckoutSession(session);
+    const firebaseUid = session.client_reference_id || session.metadata?.firebaseUid || null;
+
+    let user: User | null = null;
+
+    if (firebaseUid) {
+        user = await db.collection<User>(Collections.USERS).findOne({ firebaseUid });
+    }
+
+    if (!user && customerId) {
+        user = await db.collection<User>(Collections.USERS).findOne({ stripeCustomerId: customerId });
+    }
+
+    if (!user) {
+        console.warn(`[Sync] Could not resolve user for one-time checkout session ${session.id}`);
+        return;
+    }
+
+    const selectedPriceId = await resolveCheckoutPriceId(session);
+    if (!selectedPriceId) {
+        console.warn(`[Sync] Missing selected price for one-time checkout session ${session.id}`);
+        return;
+    }
+
+    const plan = await db.collection<Plan>(Collections.PLANS).findOne({ stripePriceId: selectedPriceId });
+    if (!plan) {
+        console.warn(`[Sync] No plan found for one-time checkout price ${selectedPriceId}`);
+        return;
+    }
+
+    const setData: Record<string, unknown> = {
+        plan: plan.name,
+        storageAllocation: plan.limits.storage,
+        transcriptionAllocation: plan.limits.transcription,
+        stripePriceId: selectedPriceId,
+        stripeSubscriptionStatus: 'active',
+        updatedAt: new Date(),
+    };
+
+    if (customerId) {
+        setData.stripeCustomerId = customerId;
+    }
+
+    if (plan.name === 'Lifetime') {
+        setData['billingSettings.allowOverage'] = true;
+    }
+
+    await db.collection<User>(Collections.USERS).updateOne(
+        { _id: user._id },
+        {
+            $set: setData,
+            $unset: {
+                stripeSubscriptionId: '',
+                stripeCurrentPeriodEnd: '',
+            },
+        }
+    );
+
+    // Seed current storage as baseline meter value for usage-only plans.
+    if (plan.name === 'Lifetime') {
+        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0);
+    }
+
+    console.log(`[Sync] Applied one-time checkout session ${session.id} to user ${user.firebaseUid} (${plan.name})`);
 }

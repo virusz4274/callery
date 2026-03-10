@@ -12,6 +12,10 @@ export async function startAsyncTranscription(
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
     const webhookSecret = process.env.SONIOX_WEBHOOK_SECRET;
 
+    if (!webhookSecret) {
+        throw new Error('SONIOX_WEBHOOK_SECRET is not defined');
+    }
+
     let webhookUrl = `${appUrl}/api/webhooks/soniox`;
     if (options?.webhookMetadata) {
         const params = new URLSearchParams();
@@ -27,10 +31,8 @@ export async function startAsyncTranscription(
         webhook_url: webhookUrl,
     };
 
-    if (webhookSecret) {
-        requestBody.webhook_auth_header_name = 'X-Soniox-Secret';
-        requestBody.webhook_auth_header_value = webhookSecret;
-    }
+    requestBody.webhook_auth_header_name = 'X-Soniox-Secret';
+    requestBody.webhook_auth_header_value = webhookSecret;
 
     const response = await fetch(`${config.baseUrl}/v1/transcriptions`, {
         method: 'POST',

@@ -3,12 +3,11 @@ import type { UserResponse } from '@/lib/db/types';
 export type Invoice = {
     id: string;
     date: string;
-    amount: string;
-    status: string;
+    amount: number;
+    status: 'Paid' | 'Pending' | 'Failed';
+    url?: string | null;
 };
 
 export type BillingSettingsProps = {
-    invoices: Invoice[];
-    isLoading: boolean;
     userProfile: UserResponse | null;
 };

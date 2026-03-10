@@ -1,5 +1,6 @@
 'use server';
 
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getMongoDb, Collections } from '@/lib/mongodb';
@@ -11,6 +12,11 @@ import { GeminiService } from '@/services/ai/gemini-service';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { createNotification } from '@/lib/notifications';
 import { ObjectId } from 'mongodb';
+import {
+    claimTranscriptionWebhookEvent,
+    markTranscriptionWebhookFailed,
+    markTranscriptionWebhookProcessed,
+} from '@/lib/webhooks/transcription-events';
 import { processSonioxWordsIntoSegments, type SonioxWebhookPayload } from './helpers';
 
 /**
@@ -22,29 +28,69 @@ import { processSonioxWordsIntoSegments, type SonioxWebhookPayload } from './hel
 
 const aiService = new GeminiService();
 
+export const runtime = 'nodejs';
+
+function timingSafeHeaderEquals(received: string | null, expected: string): boolean {
+    if (!received) {
+        return false;
+    }
+
+    const expectedBuffer = Buffer.from(expected);
+    const receivedBuffer = Buffer.from(received);
+
+    if (expectedBuffer.length !== receivedBuffer.length) {
+        return false;
+    }
+
+    return timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
 export async function POST(request: Request) {
+    let claimedEventId: string | null = null;
+
     try {
         // Extract metadata from query params
         const url = new URL(request.url);
         const recordingId = url.searchParams.get('recordingId');
         const firebaseUid = url.searchParams.get('firebaseUid');
 
-        // Verify webhook secret if configured
+        // Verify webhook secret
         const expectedSecret = process.env.SONIOX_WEBHOOK_SECRET;
-        if (expectedSecret) {
-            const receivedSecret = request.headers.get('X-Soniox-Secret');
-            if (receivedSecret !== expectedSecret) {
-                logger.warn('[Soniox Webhook] Invalid secret received');
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
+        if (!expectedSecret) {
+            logger.error('[Soniox Webhook] SONIOX_WEBHOOK_SECRET is not configured');
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
-        const payload: SonioxWebhookPayload = await request.json();
+        const receivedSecret = request.headers.get('X-Soniox-Secret');
+        if (!timingSafeHeaderEquals(receivedSecret, expectedSecret)) {
+            logger.warn('[Soniox Webhook] Invalid secret received');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const rawBody = await request.text();
+        let payload: SonioxWebhookPayload;
+        try {
+            payload = JSON.parse(rawBody) as SonioxWebhookPayload;
+        } catch {
+            logger.error('[Soniox Webhook] Invalid JSON payload');
+            return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+        }
+
         logger.info(`[Soniox Webhook] Received for transcription_id: ${payload.id}, status: ${payload.status}`);
 
         if (!recordingId || !firebaseUid) {
             logger.error('[Soniox Webhook] Missing metadata (recordingId or firebaseUid)');
             return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
+        }
+
+        if (!ObjectId.isValid(recordingId)) {
+            logger.error(`[Soniox Webhook] Invalid recordingId: ${recordingId}`);
+            return NextResponse.json({ error: 'Invalid recording ID' }, { status: 400 });
+        }
+
+        if (!payload?.id || !payload?.status) {
+            logger.error('[Soniox Webhook] Missing required payload fields (id/status)');
+            return NextResponse.json({ error: 'Missing payload fields' }, { status: 400 });
         }
 
         // Verify the recording exists
@@ -59,12 +105,46 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
+        if (!recording.externalTranscriptionId) {
+            logger.warn(
+                `[Soniox Webhook] Missing externalTranscriptionId on recording ${recordingId}. Rejecting callback for safety.`
+            );
+            return NextResponse.json({ error: 'Correlation not initialized' }, { status: 409 });
+        }
+
+        if (recording.externalTranscriptionId !== payload.id) {
+            logger.warn(
+                `[Soniox Webhook] Correlation mismatch for ${recordingId}. Expected ${recording.externalTranscriptionId}, got ${payload.id}`
+            );
+            return NextResponse.json({ error: 'Correlation mismatch' }, { status: 409 });
+        }
+
+        const eventId = `soniox:${recordingId}:${recording.externalTranscriptionId}:${payload.status}`;
+        const claimStatus = await claimTranscriptionWebhookEvent({
+            eventId,
+            provider: 'soniox',
+            recordingId,
+            externalTranscriptionId: recording.externalTranscriptionId,
+            deliveryStatus: payload.status,
+        });
+
+        if (claimStatus === 'already_processed') {
+            return NextResponse.json({ success: true, status: 'already_processed' });
+        }
+
+        if (claimStatus === 'in_progress') {
+            return NextResponse.json({ success: true, status: 'processing' });
+        }
+
+        claimedEventId = eventId;
+
         // Handle error status
         if (payload.status === 'error') {
             logger.error(`[Soniox Webhook] Transcription failed for ${payload.id}`);
             await updateRecording(recordingId, firebaseUid, {
                 transcriptionStatus: 'failed',
             });
+            await markTranscriptionWebhookProcessed(eventId);
             return NextResponse.json({ success: true, status: 'error_recorded' });
         }
 
@@ -74,7 +154,7 @@ export async function POST(request: Request) {
 
         if (!sonioxApiKey) {
             logger.error('[Soniox Webhook] SONIOX_API_KEY not configured');
-            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+            throw new Error('SONIOX_API_KEY not configured');
         }
 
         logger.info(`[Soniox Webhook] Fetching transcript for ${payload.id}...`);
@@ -92,7 +172,7 @@ export async function POST(request: Request) {
             await updateRecording(recordingId, firebaseUid, {
                 transcriptionStatus: 'failed',
             });
-            return NextResponse.json({ error: 'Failed to fetch transcript' }, { status: 500 });
+            throw new Error(`Failed to fetch transcript (${transcriptResponse.status})`);
         }
 
         const transcriptData = await transcriptResponse.json();
@@ -155,9 +235,19 @@ export async function POST(request: Request) {
             );
         }
 
+        await markTranscriptionWebhookProcessed(eventId);
         return NextResponse.json({ success: true, status: 'completed' });
 
     } catch (error) {
+        if (claimedEventId) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown webhook error';
+            try {
+                await markTranscriptionWebhookFailed(claimedEventId, errorMessage);
+            } catch (markError) {
+                logger.error('[Soniox Webhook] Failed to mark webhook event as failed:', markError);
+            }
+        }
+
         logger.error('[Soniox Webhook] Error processing webhook:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

@@ -2,9 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid } from '@/lib/db/users';
+import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Plan } from '@/lib/db/types';
+import Stripe from 'stripe';
 
 type CheckoutRequestBody = {
     priceId?: string;
@@ -14,7 +15,33 @@ type CheckoutRequestBody = {
     cancelUrl?: string;
 };
 
+function resolveSafeReturnUrl(
+    candidateUrl: string | undefined,
+    origin: string,
+    fallbackPath: string
+): string {
+    const fallback = new URL(fallbackPath, origin).toString();
+    if (!candidateUrl) {
+        return fallback;
+    }
+
+    try {
+        const parsed = new URL(candidateUrl, origin);
+        if (parsed.origin !== origin) {
+            return fallback;
+        }
+
+        return parsed.toString();
+    } catch {
+        return fallback;
+    }
+}
+
 export async function POST(req: NextRequest) {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+        return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
+    }
+
     try {
         // 1. Authenticate
         let uid = await getFirebaseUidFromSession();
@@ -25,23 +52,32 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { priceId, planName, returnUrl, successUrl, cancelUrl } = await req.json() as CheckoutRequestBody;
+        const body = await req.json().catch(() => ({})) as CheckoutRequestBody;
+        const { priceId, planName, returnUrl, successUrl, cancelUrl } = body;
+        const db = await getMongoDb();
 
-        let resolvedPriceId = priceId;
+        let selectedPlan: Plan | null = null;
 
-        if (!resolvedPriceId && planName) {
-            const db = await getMongoDb();
-            const normalizedPlanName = planName.trim();
-            const matchedPlan = await db.collection<Plan>(Collections.PLANS).findOne({
+        if (priceId) {
+            selectedPlan = await db.collection<Plan>(Collections.PLANS).findOne({
                 isActive: true,
-                name: normalizedPlanName,
-                stripePriceId: { $ne: '' },
+                stripePriceId: priceId,
             });
-            resolvedPriceId = matchedPlan?.stripePriceId;
         }
 
-        if (!resolvedPriceId) {
-            return NextResponse.json({ error: 'priceId (or valid planName) is required' }, { status: 400 });
+        if (!selectedPlan && planName?.trim()) {
+            selectedPlan = await db.collection<Plan>(Collections.PLANS).findOne({
+                isActive: true,
+                name: planName.trim(),
+                stripePriceId: { $ne: '' },
+            });
+        }
+
+        if (!selectedPlan?.stripePriceId) {
+            return NextResponse.json(
+                { error: 'Invalid plan. Please choose a valid paid plan and try again.' },
+                { status: 400 }
+            );
         }
 
         // 2. Get User
@@ -50,37 +86,67 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Ensure stripeCustomerId exists (it should now, but safety check)
-        if (!user.stripeCustomerId) {
-            // This checks strictly. If missing, we could create it here too, but users.ts handles it on login.
-            return NextResponse.json({ error: 'No billing account found. Please log out and back in.' }, { status: 400 });
+        // Prevent duplicate recurring subscriptions.
+        if (
+            user.stripeSubscriptionId &&
+            (user.stripeSubscriptionStatus === 'active' ||
+                user.stripeSubscriptionStatus === 'trialing' ||
+                user.stripeSubscriptionStatus === 'past_due' ||
+                user.stripeSubscriptionStatus === 'unpaid' ||
+                user.stripeSubscriptionStatus === 'incomplete')
+        ) {
+            return NextResponse.json(
+                { error: 'You already have an active subscription. Please use the billing portal to change or cancel it first.' },
+                { status: 409 }
+            );
         }
 
-        // 3. Determine Mode (Subscription vs Payment)
-        // We need to know if the price is recurring. 
-        // We can fetch the price or just assume subscription unless told otherwise.
-        // For efficiency, let's fetch the price details to be sure, or catch error.
-        const price = await stripe.prices.retrieve(resolvedPriceId);
+        // Ensure stripeCustomerId exists. Create on-demand if missing.
+        let stripeCustomerId = user.stripeCustomerId;
+        if (!stripeCustomerId) {
+            const customer = await stripe.customers.create({
+                email: user.email,
+                name: `${user.firstName} ${user.lastName}`.trim() || user.name,
+                metadata: {
+                    firebaseUid: user.firebaseUid,
+                    userId: user._id.toString(),
+                },
+            });
+            stripeCustomerId = customer.id;
+            await updateUser(uid, { stripeCustomerId });
+        }
+
+        // 3. Determine Mode (Subscription vs Payment) from Stripe Price.
+        const price = await stripe.prices.retrieve(selectedPlan.stripePriceId);
+        if (!price.active) {
+            return NextResponse.json({ error: 'Selected plan is currently unavailable.' }, { status: 400 });
+        }
+
         const mode = price.type === 'recurring' ? 'subscription' : 'payment';
+        if (selectedPlan.interval === 'lifetime' && mode !== 'payment') {
+            return NextResponse.json(
+                { error: 'Plan configuration error: lifetime plan must use a one-time Stripe price.' },
+                { status: 400 }
+            );
+        }
 
         // 4. Create Checkout Session
-        const resolvedSuccessUrl = successUrl || returnUrl || `${req.nextUrl.origin}/settings?success=true`;
-        const resolvedCancelUrl = cancelUrl || returnUrl || `${req.nextUrl.origin}/settings?canceled=true`;
+        const resolvedSuccessUrl = resolveSafeReturnUrl(
+            successUrl || returnUrl,
+            req.nextUrl.origin,
+            '/settings?success=true'
+        );
+        const resolvedCancelUrl = resolveSafeReturnUrl(
+            cancelUrl || returnUrl,
+            req.nextUrl.origin,
+            '/settings?canceled=true'
+        );
 
-        const sessionParams: {
-            customer: string;
-            line_items: Array<{ price: string; quantity: number }>;
-            mode: 'subscription' | 'payment';
-            success_url: string;
-            cancel_url: string;
-            allow_promotion_codes: boolean;
-            billing_address_collection: 'required';
-            metadata: Record<string, string>;
-        } = {
-            customer: user.stripeCustomerId,
+        const sessionParams: Stripe.Checkout.SessionCreateParams = {
+            customer: stripeCustomerId,
             line_items: [
                 {
-                    price: resolvedPriceId,
+                    price: selectedPlan.stripePriceId,
                     quantity: 1,
                 },
             ],
@@ -89,11 +155,25 @@ export async function POST(req: NextRequest) {
             cancel_url: resolvedCancelUrl,
             allow_promotion_codes: true,
             billing_address_collection: 'required',
+            client_reference_id: uid,
             metadata: {
                 firebaseUid: uid,
                 userId: user._id.toString(),
+                selectedPriceId: selectedPlan.stripePriceId,
+                selectedPlanName: selectedPlan.name,
             },
         };
+
+        if (mode === 'subscription') {
+            sessionParams.subscription_data = {
+                metadata: {
+                    firebaseUid: uid,
+                    userId: user._id.toString(),
+                    selectedPriceId: selectedPlan.stripePriceId,
+                    selectedPlanName: selectedPlan.name,
+                },
+            };
+        }
 
         const session = await stripe.checkout.sessions.create(sessionParams);
 

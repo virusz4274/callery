@@ -1,36 +1,40 @@
-# CallOrganizer
+# Call Memo (VoSift)
 
-A modern web application for managing, transcribing, and organizing phone call recordings.
+Call Memo is a Next.js application for uploading, transcribing, searching, and organizing call recordings.
 
 ## Documentation
 
-**[📚 View Full Documentation](docs/README.md)**
-
-*   **[User Guide](docs/user-guide.md)**: Features and usage instructions.
-*   **[Setup Guide](docs/setup-guide.md)**: Local development setup.
-*   **[Android App](docs/android-app.md)**: Capacitor setup for mobile.
-*   **[API Reference](docs/api-reference.md)**: API endpoints.
-*   **[Billing System](docs/billing.md)**: Plans and Stripe integration.
-*   **[Changelog](CHANGELOG.md)**: Version history.
+- [Documentation Index](docs/README.md)
+- [Setup Guide](docs/setup-guide.md)
+- [User Guide](docs/user-guide.md)
+- [Admin Guide](docs/admin-guide.md)
+- [Architecture](docs/architecture.md)
+- [API Reference](docs/api-reference.md)
+- [Billing](docs/billing.md)
+- [Changelog](CHANGELOG.md)
 
 ## Quick Start
 
-1.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
+1. Install dependencies:
 
-2.  **Set up environment variables**:
-    Copy `.env.example` (or see [Setup Guide](docs/setup-guide.md)) to `.env`.
+```bash
+npm install
+```
 
-3.  **Initialize the Database**:
-    ```bash
-    npx tsx src/lib/db/init.ts
-    ```
+2. Create `.env` using the required variables from [Setup Guide](docs/setup-guide.md).
 
-4.  **Run the development server**:
-    ```bash
-    npm run dev
-    ```
+3. Initialize database indexes and seed defaults:
 
-Open [http://localhost:9000](http://localhost:9000) with your browser to see the result.
+```bash
+npx tsx src/lib/db/init.ts
+```
+
+Re-run this command after pulling backend/index updates so new collections/indexes are applied.
+
+4. Run development server:
+
+```bash
+npm run dev
+```
+
+App URL: [http://localhost:9000](http://localhost:9000)

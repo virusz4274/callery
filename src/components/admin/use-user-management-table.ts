@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { deleteUser, toggleUserStatus, updateUserLimits, updateUserRole } from '@/app/actions/admin';
+import { deleteUser, restoreUser, toggleUserStatus, updateUserLimits, updateUserRole } from '@/app/actions/admin';
 import type { UserResponse } from '@/lib/db/types';
 
 const DEFAULT_STORAGE_ALLOCATION = 5 * 1024 * 1024 * 1024;
@@ -93,7 +93,7 @@ export function useUserManagementTable(initialSearch: string) {
     const handleDeleteUser = async (userId: string) => {
         if (
             !confirm(
-                'Are you sure you want to permanently delete this user? This action cannot be undone and will remove all their data.'
+                'Are you sure you want to schedule this user for deletion? The account will be disabled immediately and can be restored during the restore window.'
             )
         ) {
             return;
@@ -102,8 +102,22 @@ export function useUserManagementTable(initialSearch: string) {
         setIsDeleting(userId);
         try {
             await deleteUser(userId);
+            router.refresh();
         } catch (error) {
             alert('Failed to delete user');
+            console.error(error);
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
+    const handleRestoreUser = async (userId: string) => {
+        setIsDeleting(userId);
+        try {
+            await restoreUser(userId);
+            router.refresh();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Failed to restore user');
             console.error(error);
         } finally {
             setIsDeleting(null);
@@ -123,6 +137,7 @@ export function useUserManagementTable(initialSearch: string) {
         setUserToEditUsage,
         closeDialogs,
         handleDeleteUser,
+        handleRestoreUser,
         handlePageChange,
         handleResetLimits,
         handleToggleRole,

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Tabs } from '@heroui/react';
 import { ArrowLeft } from 'lucide-react';
-import { deleteUser } from '@/app/actions/admin';
+import { deleteUser, restoreUser } from '@/app/actions/admin';
 import type { Invoice, Recording, User } from '@/lib/types';
 import { UserDetailsHeader } from './user-details/user-details-header';
 import { UserInfoPanel } from './user-details/user-info-panel';
@@ -23,9 +23,14 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
     const router = useRouter();
     const [selectedTab, setSelectedTab] = useState<string>(defaultTab || 'info');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
 
     const handleDeleteUser = async () => {
-        if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
+        if (
+            !confirm(
+                'Are you sure you want to schedule this user for deletion? The account will be disabled and can be restored during the restore window.'
+            )
+        ) {
             return;
         }
 
@@ -40,6 +45,19 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
         }
     };
 
+    const handleRestoreUser = async () => {
+        setIsRestoring(true);
+        try {
+            await restoreUser(user.id);
+            router.refresh();
+        } catch (error) {
+            console.error('Failed to restore user:', error);
+            alert(error instanceof Error ? error.message : 'Failed to restore user');
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <Link href="/admin" className="flex items-center gap-2 text-sm text-default-500 hover:text-foreground w-fit">
@@ -47,7 +65,13 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                 Back to User Management
             </Link>
 
-            <UserDetailsHeader user={user} isDeleting={isDeleting} onDeleteUser={handleDeleteUser} />
+            <UserDetailsHeader
+                user={user}
+                isDeleting={isDeleting}
+                isRestoring={isRestoring}
+                onDeleteUser={handleDeleteUser}
+                onRestoreUser={handleRestoreUser}
+            />
 
             <Tabs
                 aria-label="User Details"

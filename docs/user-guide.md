@@ -1,122 +1,47 @@
 # User Guide
 
-Welcome to **CallOrganizer**! This guide explains how to use the application to manage your call recordings and contacts.
+This guide explains day-to-day usage of Call Memo.
 
-## 1. Getting Started
+## Getting Started
 
-### Authentication
-*   **Sign In**: Use your **Google Account** or **Email/Password**.
-*   **Profile**: On first login, your profile is created. Go to settings to update your name.
+- Sign in with your configured authentication method.
+- On first login, your profile is created automatically.
+- Main areas: `Recordings`, `Upload`, `Contacts`, `Settings`.
 
-## 2. Managing Recordings
+## Recording Workflow
 
-### Uploading Calls
-1.  Navigate to the **Upload** page.
-2.  Drag and drop audio files (MP3, M4A, WAV) or click to browse.
-3.  **Maximum Size**: 2GB per file.
-4.  Once uploaded, files are automatically processed for:
-    *   **Transcription** (Speech-to-Text).
-    *   **Diarization** (Distinguishing speakers).
-    *   **Summarization** (AI-generated summary).
+1. Upload audio files from the Upload page.
+2. Files are stored in cloud storage and indexed.
+3. Transcription runs with your selected provider.
+4. Summaries/search embeddings are generated when AI is configured.
 
-### File Browser
-*   **Navigation**: Browse your uploaded files and folders in a hierarchical view.
-*   **View Details**: 
-    1.  Click the **Three Dots** (menu) icon on a file.
-    2.  Select **View Details** to open a popup with the audio player, transcript, and AI summary.
-*   **Delete**:
-    1.  Click the **Three Dots** (menu) icon on a file.
-    2.  Select **Delete** to permanently remove the recording and its transcripts.
+## Working with Recordings
 
-### Playing & Viewing
-*   Click any recording in the dashboard to open the **Detail View**.
-*   **Player**: Use the audio player to listen.
-*   **Transcript**: Read the synchronized transcript. Click any sentence to jump to that point in the audio.
-*   **Transliteration**: Toggle between **Original** and **Transliteration** modes (if available) to view the transcript in a different script.
-*   **Search**: Use the search bar inside the transcript to find specific keywords.
+- Open a recording to view audio, transcript, and summary.
+- Star, tag, archive, or delete recordings.
+- Use filters (date/contact/duration/tags) to narrow results.
+- Use semantic search to find concept-level matches.
 
-### Semantic Search
-The dashboard features **Semantic Search** powered by AI (Vector Embeddings).
-*   **Concept Matching**: You don't need to match exact keywords.
-*   *Example*: Searching for "pricing discussion" will find calls where money or quotes were discussed, even if the word "pricing" wasn't used.
-*   **Search Bar**: Use the global search bar at the top of the Recordings Dashboard.
+## Contacts
 
-### Filtering
-*   **Filters**: Filter by Date Range, Contact, or Duration.
-*   **Tags**: Filter by manually applied tags.
+- Connect Google Contacts from Settings Data section.
+- Sync imports contacts and links known phone numbers.
+- You can manually assign contacts to recordings.
 
-### Sharing Recordings
-You can securely share individual recordings with anyone, even if they don't have a VoSift account.
-1.  Open the recording detail view.
-2.  Click the **Share** button in the top header.
-3.  Select an **expiration time** (1 Hour, 24 Hours, or 7 Days).
-4.  Click **Generate Link**.
-5.  Copy the link and send it.
-    *   **Secure Access**: The recipient gets a read-only view. No login required.
-    *   **Features**: They can play audio, read user-friendly transcripts, and view the summary.
+## Sharing
 
-## 3. Contacts
+- Create signed share links for individual recordings.
+- Choose expiration window before generating link.
+- Shared pages are read-only and do not require recipient login.
 
-### Google Sync
-1.  Go to **Settings > Data**.
-2.  Click **Connect** in the "Sync Google Contacts" section.
-3.  Grant permission.
-4.  The app will import your contacts and display them in the **Contacts** tab.
+## Billing and Usage
 
-### Linking Recordings
-The system attempts to automatically link recordings to contacts based on phone numbers in the filename.
-*   **Manual Link**: You can manually assign a contact to a recording from the recording's detail page.
+- View plan, quota usage, and subscription status in Settings.
+- Enable/disable Pay Per Usage (overage) when available.
+- Manage plan changes in the Stripe customer portal.
 
-## 4. Billing & Usage
+## Data and Retention
 
-### Plans
-*   **Free Trial**: You have 30 days to test all features.
-*   **Standard/Pro**: Monthly subscriptions with fixed storage/transcription limits.
-*   **Lifetime**: Pay-as-you-go model.
-
-### Overage (Pay Per Usage)
-If enabled in **Settings > Billing**:
-*   You can continue uploading even after hitting your plan's limit.
-*   **Storage Cost**: You are billed monthly for the extra space used (e.g., storing 10GB on a 5GB plan incurs a 5GB charge *every month*).
-*   **Transcription Cost**: You are billed a one-time fee for extra minutes transcribed.
-
-## 5. Settings
-
-The settings area is organized into the following tabs:
-
-### 👤 Profile
-*   **Update Info**: Change your display name.
-*   **Change Password**: Update your login credentials.
-
-### ⚙️ General
-*   **Timezone**: Set your preferred timezone for date displays.
-
-### 💾 Data
-*   **Google Sync**: Connect your Google Contacts account.
-*   **Transcription Settings**:
-    *   **Auto-Transcribe**: Enable/Disable auto-transcription for new uploads.
-    *   **Provider**: Choose between **Soniox** (Standard, 1x Cost) and **ElevenLabs** (Premium, 6x Cost).
-        *   *Note: ElevenLabs files longer than 5 minutes are processed asynchronously and may feel slower to appear.*
-    *   **Model**: Select specific models if available (e.g., `scribe_v2`).
-*   **Deletion Policy**: Set an automatic deletion policy to manage storage:
-    *   **Options**: Never, 3 Months, 6 Months, 1 Year.
-    *   **Automatic Enforcement**: A scheduled job runs daily and deletes recordings older than your chosen threshold.
-    *   *Example*: If you set "3 Months", recordings older than 90 days are automatically removed.
-*   **Export Data**:
-    1.  Request a full backup of your recordings and transcripts.
-    2.  Includes a **Premium Offline Viewer** (HTML) that works without internet.
-    3.  You will receive an email and an **in-app notification** when your export is ready (valid for 7 days).
-    4.  Extract all zip parts into a single folder and open `viewer.html` to browse your data offline.
-
-### 🔔 Notifications
-*   **Activity Digest**: Configure summary emails (Weekly/Monthly).
-*   **Alerts**:
-    *   **Uploads**: Successful or failed uploads.
-    *   **Exports**: Notification when data export is ready for download.
-    *   **Billing**: Alerts for payment failures or subscription cancellations.
-
-### 💳 Billing
-*   **Plan Overview**: View your current plan and trial status.
-*   **Usage Stats**: Track your Storage and Transcription usage against your plan limits.
-*   **Pay Per Usage**: Toggle overage billing on/off.
-*   **Manage Subscription**: Link to the Stripe Customer Portal to upgrade, downgrade, or cancel.
+- Configure automatic deletion policy (`never`, `3m`, `6m`, `1y`).
+- Request data exports from settings; completed exports arrive via in-app notification/email.
+- Export links are time-limited and intended for download soon after generation.

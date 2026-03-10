@@ -87,6 +87,9 @@ export class ElevenLabsService implements ITranscriptionService {
         if (!this.apiKey) {
             throw new Error('ELEVENLABS_API_KEY is not defined');
         }
+        if (!process.env.ELEVENLABS_WEBHOOK_SECRET) {
+            throw new Error('ELEVENLABS_WEBHOOK_SECRET is not defined');
+        }
 
         const modelToUse = options?.model || this.model;
 

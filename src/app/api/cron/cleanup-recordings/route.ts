@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getExpiredRecordings, deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
+import { purgeExpiredSoftDeletedUsers } from '@/lib/db/users/soft-delete';
 import { logger } from '@/lib/logger';
 
 /**
@@ -45,16 +46,6 @@ export async function GET(request: NextRequest) {
     try {
         // Get all expired recordings grouped by user
         const expiredByUser = await getExpiredRecordings(100);
-
-        if (expiredByUser.length === 0) {
-            logger.info('[cleanup-recordings] No expired recordings found');
-            return NextResponse.json({
-                success: true,
-                message: 'No expired recordings found',
-                deleted: 0,
-                users: 0,
-            });
-        }
 
         let totalDeleted = 0;
         let totalR2Errors = 0;
@@ -106,7 +97,27 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        logger.info(`[cleanup-recordings] Completed. Deleted ${totalDeleted} recordings from ${userResults.length} users. R2 errors: ${totalR2Errors}`);
+        const purgeResult = await purgeExpiredSoftDeletedUsers(50);
+        if (purgeResult.purged > 0) {
+            logger.info(
+                `[cleanup-recordings] Purged ${purgeResult.purged} soft-deleted user(s). R2 errors during purge: ${purgeResult.r2Errors}`
+            );
+        }
+
+        if (expiredByUser.length === 0 && purgeResult.purged === 0) {
+            logger.info('[cleanup-recordings] No expired recordings or users pending permanent deletion');
+            return NextResponse.json({
+                success: true,
+                message: 'No expired recordings or users pending permanent deletion',
+                deleted: 0,
+                users: 0,
+                softDeletedUsersPurged: 0,
+            });
+        }
+
+        logger.info(
+            `[cleanup-recordings] Completed. Deleted ${totalDeleted} recordings from ${userResults.length} users. R2 errors: ${totalR2Errors}. Soft-deleted users purged: ${purgeResult.purged}`
+        );
 
         return NextResponse.json({
             success: true,
@@ -115,6 +126,9 @@ export async function GET(request: NextRequest) {
             users: userResults.length,
             r2Errors: totalR2Errors,
             details: userResults,
+            softDeletedUsersPurged: purgeResult.purged,
+            softDeletePurgeR2Errors: purgeResult.r2Errors,
+            softDeletedUserIds: purgeResult.userIds,
         });
 
     } catch (error) {

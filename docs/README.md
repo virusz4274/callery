@@ -1,23 +1,22 @@
 # Documentation Index
 
-## User Guides
-*   **[User Guide](user-guide.md)**: How to use the application (Features, Search, Billing).
-*   **[Admin Guide](admin-guide.md)**: Tools for administrators (Dashboard, User Management).
+This folder contains the maintained project documentation for Call Memo.
 
-## Developer Resources
-*   **[Setup Guide](setup-guide.md)**: Local development setup and installation.
-*   **[Android App](android-app.md)**: Capacitor setup for Android folder sync.
-*   **[Project Structure](project-structure.md)**: Codebase organization and key files.
-*   **[Architecture](architecture.md)**: System design, tech stack, and data flow.
-*   **[Data Model](data-model.md)**: Database schema (MongoDB) and types.
-*   **[API Reference](api-reference.md)**: Endpoint documentation.
-*   **[Migration Guide](MIGRATION_GUIDE.md)**: Moving from Cloudflare Workers to Node.js.
+## Start Here
 
-## Billing & Integrations
-*   **[Billing System](billing.md)**: Logic for plans, limits, and Stripe integration.
-*   **[Stripe Setup](stripe-setup.md)**: Configuration guide for Stripe Dashboard.
-*   **[Google Cloud Setup](google-cloud-setup.md)**: Configuring Firebase and Google People API.
-*   **[R2 Lifecycle](R2_LIFECYCLE.md)**: Configuring auto-deletion for exports and recording cleanup cron.
+- [Setup Guide](setup-guide.md): Full handoff setup guide (Google Cloud, Firebase, R2, Stripe, webhooks, cron).
+- [User Guide](user-guide.md): Product usage for end users.
+- [Admin Guide](admin-guide.md): Admin dashboard and operations.
 
-## Testing
-*   **[Billing Test Plan](billing_test_plan.md)**: Manual test cases for billing.
+## Developer Reference
+
+- [Architecture](architecture.md): System design and repository layout.
+- [Data Model](data-model.md): MongoDB collections and relationships.
+- [API Reference](api-reference.md): Server Actions and API routes.
+- [Billing](billing.md): Stripe setup, plan logic, and billing validation checks.
+- [Android App](android-app.md): Capacitor Android sync workflow.
+
+## Notes
+
+- Historical migration notes and one-off reports were removed.
+- Setup steps were consolidated into `setup-guide.md` and `billing.md` for simpler handoff.

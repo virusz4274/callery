@@ -1,14 +1,19 @@
+import { useEffect, useState } from 'react';
 import { useToast } from '@/components/toast-provider';
+import { authFetch } from '@/lib/api-client';
 import { SettingsPage } from './settings-page';
 import { BillingHistoryCard } from './billing/billing-history-card';
 import { CurrentPlanCard } from './billing/current-plan-card';
-import type { BillingSettingsProps } from './billing/types';
+import type { BillingSettingsProps, Invoice } from './billing/types';
 import { useBillingActions } from './billing/use-billing-actions';
 
-export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps) {
+export function BillingSettings({ userProfile }: BillingSettingsProps) {
     const { toast } = useToast();
     const planName = userProfile?.plan || 'Free Plan';
     const allowOverage = userProfile?.billingSettings?.allowOverage ?? false;
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [isInvoicesLoading, setIsInvoicesLoading] = useState(true);
+    const [invoicesError, setInvoicesError] = useState<string | null>(null);
 
     const storageUsed = userProfile?.storageUsed || 0;
     const storageAlloc = userProfile?.storageAllocation || 1;
@@ -33,6 +38,42 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
         handleToggleOverage,
         handleUpgradeModal,
     } = useBillingActions(toast);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function fetchInvoices() {
+            setIsInvoicesLoading(true);
+            setInvoicesError(null);
+
+            try {
+                const response = await authFetch('/api/stripe/invoices?limit=12');
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || 'Failed to fetch invoices');
+                }
+
+                const data = await response.json();
+                if (isMounted) {
+                    setInvoices(data.invoices || []);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setInvoicesError(error instanceof Error ? error.message : 'Failed to load invoices');
+                }
+            } finally {
+                if (isMounted) {
+                    setIsInvoicesLoading(false);
+                }
+            }
+        }
+
+        fetchInvoices();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     return (
         <SettingsPage title="Billing & Plans" description="Manage your subscription, limits, and usage preferences.">
@@ -60,7 +101,11 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                     onToggleOverage={handleToggleOverage}
                 />
 
-                <BillingHistoryCard isLoading={isLoading} />
+                <BillingHistoryCard
+                    invoices={invoices}
+                    isLoading={isInvoicesLoading}
+                    error={invoicesError}
+                />
             </div>
         </SettingsPage>
     );
