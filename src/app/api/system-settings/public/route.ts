@@ -16,12 +16,12 @@ export async function GET() {
             }
         );
     } catch (error) {
-        console.error('Failed to load public system settings:', error);
+        // Keep public routes resilient even when infra dependencies are unavailable.
+        console.warn('Failed to load public system settings, using fallback:', error);
 
         return NextResponse.json(
             { maintenanceMode: false },
             {
-                status: 500,
                 headers: {
                     'Cache-Control': 'no-store',
                 },

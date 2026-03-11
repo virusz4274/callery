@@ -26,7 +26,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/');
+      router.replace('/recordings');
     }
   }, [user, router]);
 
@@ -36,7 +36,7 @@ export function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // Session and profile syncing is now handled by FirebaseProvider
-      router.push('/');
+      router.replace('/recordings');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({ title: 'Sign In Failed', description: errorMessage, status: 'danger' });
@@ -58,7 +58,7 @@ export function LoginPage() {
       }
       await signInWithPopup(auth, provider);
       // Session and profile syncing is now handled by FirebaseProvider
-      router.push('/');
+      router.replace('/recordings');
     } catch (error: unknown) {
       const firebaseError = error as { code?: string; message?: string };
       if (firebaseError.code !== 'auth/popup-closed-by-user') {

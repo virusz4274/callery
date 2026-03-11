@@ -1,10 +1,13 @@
-import { MongoClient, Db } from 'mongodb';
+import { Resolver } from 'node:dns/promises';
+import { Db, MongoClient } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
     throw new Error('Please define the MONGODB_URI environment variable');
 }
 
 const uri = process.env.MONGODB_URI;
+const isDevelopment = process.env.NODE_ENV === 'development';
+const DEFAULT_FALLBACK_DNS_SERVERS = ['8.8.8.8', '1.1.1.1'];
 
 // Standard options for Next.js/Serverless environments (Vercel/Docker)
 const options: any = {
@@ -15,43 +18,178 @@ const options: any = {
     socketTimeoutMS: 45000,
 };
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+interface MongoCache {
+    clientPromise?: Promise<MongoClient>;
+    fallbackUri?: string;
+}
 
-if (process.env.NODE_ENV === 'development') {
-    // In development mode, use a global variable so that the value
-    // is preserved across module reloads caused by HMR (Hot Module Replacement).
-    const globalWithMongo = globalThis as typeof globalThis & {
-        _mongoClientPromise?: Promise<MongoClient>;
-    };
+const globalWithMongo = globalThis as typeof globalThis & {
+    _mongoCache?: MongoCache;
+};
 
-    if (!globalWithMongo._mongoClientPromise) {
-        client = new MongoClient(uri, options);
-        console.log('Creating new MongoDB client (dev)...');
-        globalWithMongo._mongoClientPromise = client.connect()
-            .then(c => {
-                console.log('MongoDB Connected (dev)');
-                return c;
-            })
-            .catch(err => {
-                console.error('MongoDB Connection Error (dev):', err);
-                throw err;
-            });
+const cache: MongoCache = isDevelopment
+    ? (globalWithMongo._mongoCache ??= {})
+    : {};
+
+function getFallbackDnsServers(): string[] {
+    const configured = process.env.MONGODB_DNS_SERVERS
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+
+    if (configured && configured.length > 0) {
+        return configured;
     }
-    clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-    // In production mode, it's best to not use a global variable.
-    client = new MongoClient(uri, options);
-    // console.log('Creating new MongoDB client (prod/worker)...');
-    clientPromise = client.connect()
-        .then(c => {
-            // console.log('MongoDB Connected (prod/worker)');
-            return c;
+
+    return DEFAULT_FALLBACK_DNS_SERVERS;
+}
+
+function decodeMaybeEncoded(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+function buildAuthSegment(url: URL): string {
+    if (!url.username) {
+        return '';
+    }
+
+    const encodedUser = encodeURIComponent(decodeMaybeEncoded(url.username));
+    if (!url.password) {
+        return `${encodedUser}@`;
+    }
+
+    const encodedPassword = encodeURIComponent(decodeMaybeEncoded(url.password));
+    return `${encodedUser}:${encodedPassword}@`;
+}
+
+function isSrvDnsFailure(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : '';
+    const haystack = `${message} ${code}`.toLowerCase();
+
+    return haystack.includes('querysrv')
+        || haystack.includes('srv')
+        || haystack.includes('dns')
+        || haystack.includes('etimeout')
+        || haystack.includes('enotfound')
+        || haystack.includes('eservfail');
+}
+
+async function buildFallbackSrvUri(connectionUri: string): Promise<string> {
+    const parsed = new URL(connectionUri);
+    const resolver = new Resolver();
+    const dnsServers = getFallbackDnsServers();
+    resolver.setServers(dnsServers);
+
+    const srvLookupHost = `_mongodb._tcp.${parsed.hostname}`;
+    const srvRecords = await resolver.resolveSrv(srvLookupHost);
+
+    if (srvRecords.length === 0) {
+        throw new Error(`No SRV records found for ${srvLookupHost}`);
+    }
+
+    const hosts = srvRecords
+        .sort((left, right) => {
+            if (left.priority !== right.priority) {
+                return left.priority - right.priority;
+            }
+            if (left.weight !== right.weight) {
+                return right.weight - left.weight;
+            }
+            return left.name.localeCompare(right.name);
         })
-        .catch(err => {
-            console.error('MongoDB Connection Error (prod/worker):', err);
-            throw err;
+        .map((record) => `${record.name}:${record.port}`)
+        .join(',');
+
+    const mergedParams = new URLSearchParams(parsed.searchParams.toString());
+    try {
+        const txtRecords = await resolver.resolveTxt(parsed.hostname);
+        if (txtRecords.length > 0) {
+            const txtPayload = txtRecords[0].join('');
+            const txtOptions = new URLSearchParams(txtPayload);
+            for (const [key, value] of txtOptions.entries()) {
+                if (!mergedParams.has(key)) {
+                    mergedParams.set(key, value);
+                }
+            }
+        }
+    } catch (error) {
+        const dnsError = error as NodeJS.ErrnoException;
+        if (dnsError.code !== 'ENODATA' && dnsError.code !== 'ENOTFOUND') {
+            throw error;
+        }
+    }
+
+    if (!mergedParams.has('tls') && !mergedParams.has('ssl')) {
+        mergedParams.set('tls', 'true');
+    }
+
+    const authSegment = buildAuthSegment(parsed);
+    const pathSegment = parsed.pathname === '/' ? '' : parsed.pathname;
+    const querySegment = mergedParams.toString();
+
+    return `mongodb://${authSegment}${hosts}${pathSegment}${querySegment ? `?${querySegment}` : ''}`;
+}
+
+async function connectClient(connectionUri: string, label: 'primary' | 'fallback'): Promise<MongoClient> {
+    const mongoClient = new MongoClient(connectionUri, options);
+    await mongoClient.connect();
+
+    if (isDevelopment) {
+        const mode = label === 'primary' ? 'primary' : 'SRV fallback';
+        console.log(`MongoDB Connected (${mode}, dev)`);
+    }
+
+    return mongoClient;
+}
+
+async function createClient(): Promise<MongoClient> {
+    try {
+        if (isDevelopment) {
+            console.log('Creating new MongoDB client (dev)...');
+        }
+        return await connectClient(uri, 'primary');
+    } catch (primaryError) {
+        if (!uri.startsWith('mongodb+srv://') || !isSrvDnsFailure(primaryError)) {
+            throw primaryError;
+        }
+
+        if (isDevelopment) {
+            console.warn('[MongoDB] Primary SRV resolution failed. Attempting DNS fallback resolvers...');
+        }
+
+        try {
+            if (!cache.fallbackUri) {
+                cache.fallbackUri = await buildFallbackSrvUri(uri);
+            }
+
+            return await connectClient(cache.fallbackUri, 'fallback');
+        } catch (fallbackError) {
+            console.error('[MongoDB] Fallback connection failed:', fallbackError);
+            throw primaryError;
+        }
+    }
+}
+
+function getClientPromise(): Promise<MongoClient> {
+    if (!cache.clientPromise) {
+        cache.clientPromise = createClient().catch((error) => {
+            cache.clientPromise = undefined;
+            if (isSrvDnsFailure(error)) {
+                cache.fallbackUri = undefined;
+            }
+            console.error(`MongoDB Connection Error (${isDevelopment ? 'dev' : 'prod/worker'}):`, error);
+            throw error;
         });
+    }
+
+    return cache.clientPromise;
 }
 
 /**
@@ -59,7 +197,7 @@ if (process.env.NODE_ENV === 'development') {
  * This is connection-pooled and reused across requests.
  */
 export async function getMongoClient(): Promise<MongoClient> {
-    return clientPromise;
+    return getClientPromise();
 }
 
 /**
@@ -67,7 +205,7 @@ export async function getMongoClient(): Promise<MongoClient> {
  * The database name is extracted from the MONGODB_URI connection string.
  */
 export async function getMongoDb(): Promise<Db> {
-    const client = await clientPromise;
+    const client = await getClientPromise();
     return client.db();
 }
 
@@ -89,4 +227,4 @@ export const Collections = {
     TRANSCRIPTION_WEBHOOK_EVENTS: 'transcription_webhook_events',
 } as const;
 
-export default clientPromise;
+export default getClientPromise;

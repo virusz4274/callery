@@ -30,7 +30,7 @@ export function SignupPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/');
+      router.replace('/recordings');
     }
   }, [user, router]);
 
@@ -51,7 +51,7 @@ export function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await ensureUserProfile(userCredential.user, { firstName, lastName });
-      router.push('/');
+      router.replace('/recordings');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({ title: 'Sign Up Failed', description: errorMessage, status: 'danger' });
@@ -73,7 +73,7 @@ export function SignupPage() {
       }
       const result = await signInWithPopup(auth, provider);
       await ensureUserProfile(result.user);
-      router.push('/');
+      router.replace('/recordings');
     } catch (error: unknown) {
       const firebaseError = error as { code?: string; message?: string };
       if (firebaseError.code !== 'auth/popup-closed-by-user') {
