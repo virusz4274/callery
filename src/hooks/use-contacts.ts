@@ -16,6 +16,13 @@ interface UseContactsResult {
     isLoadingMore: boolean;
 }
 
+interface ContactsPageResponse {
+    contacts: ContactResponse[];
+    totalCount: number;
+    limit: number;
+    skip: number;
+}
+
 const LIMIT = 20;
 
 /**
@@ -23,34 +30,21 @@ const LIMIT = 20;
  * Uses the API route with Firebase ID token authentication.
  */
 export function useContacts(): UseContactsResult {
-    const getKey = (pageIndex: number, previousPageData: ContactResponse[] | null) => {
+    const getKey = (pageIndex: number, previousPageData: ContactsPageResponse | null) => {
         // Validation: if previous page is empty, we reached the end
-        if (previousPageData && !previousPageData.length) return null;
+        if (previousPageData && previousPageData.contacts.length === 0) return null;
 
         // SWR key for this page
         const skip = pageIndex * LIMIT;
         return `/api/contacts?limit=${LIMIT}&skip=${skip}`;
     };
 
-    const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactResponse[]>(
+    const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactsPageResponse>(
         getKey,
         async (url: string) => {
             const response = await authFetch(url);
             if (!response.ok) throw new Error('Failed to fetch contacts');
-            const result = await response.json();
-            // We return just the contacts array for this page
-            // Note: totalCount is in the result but useSWRInfinite expects an array of items for data.
-            // To handle totalCount properly we might need a separate fetch or to attach it to the array.
-            // For now, let's attach totalCount to the array object or just ignore it if safe.
-            // But wait, the previous code used totalCount.
-            // Let's modify the return type slightly to separate them if possible or just store contacts.
-            // Actually, best practice here to keep it simple: just return contacts.
-            // We can get totalCount from the first page's response if we could, but SWR fetcher return structure matters.
-
-            // Hack/Pattern: Attach metadata to the array
-            const contacts = result.contacts as ContactResponse[];
-            (contacts as any).totalCount = result.totalCount;
-            return contacts;
+            return (await response.json()) as ContactsPageResponse;
         },
         {
             revalidateOnFocus: false,
@@ -59,10 +53,10 @@ export function useContacts(): UseContactsResult {
     );
 
     // Flatten pages into a single array
-    const contactsData = pages ? pages.flat() : null;
+    const contactsData = pages ? pages.flatMap((page) => page.contacts) : null;
 
     // Extract totalCount from the first page if available
-    const totalCount = pages && pages[0] ? (pages[0] as any).totalCount : 0;
+    const totalCount = pages?.[0]?.totalCount || 0;
 
     const hasMore = contactsData ? contactsData.length < totalCount : true;
     const isLoadingMore = !!(isLoading || (size > 0 && pages && typeof pages[size - 1] === 'undefined'));

@@ -1,7 +1,4 @@
-"use client"
-
 import { PricingSection } from "../pricing-section";
-import React from "react";
 import { HeroSection } from "../landing/hero-section";
 import { FeaturesSection } from "../landing/features-section";
 import { TestimonialsSection } from "../landing/testimonials-section";
@@ -48,4 +45,3 @@ export function LandingPage() {
         </div>
     );
 }
-

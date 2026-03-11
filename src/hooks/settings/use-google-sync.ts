@@ -35,9 +35,19 @@ export function useGoogleSync({ searchParams, router, toast }: UseGoogleSyncPara
         [router]
     );
 
-    const redirectToGoogleAuth = async () => {
-        const { url } = await getGoogleAuthUrl();
-        window.location.href = url;
+    const redirectToGoogleAuth = async (): Promise<boolean> => {
+        try {
+            const { url } = await getGoogleAuthUrl();
+            window.location.href = url;
+            return true;
+        } catch (error) {
+            toast({
+                title: 'Google Sync Failed',
+                description: error instanceof Error ? error.message : 'Could not start Google authentication.',
+                status: 'danger',
+            });
+            return false;
+        }
     };
 
     const handleConnectGoogle = () => {
@@ -50,9 +60,13 @@ export function useGoogleSync({ searchParams, router, toast }: UseGoogleSyncPara
     };
 
     const onDialogConfirm = () => {
-        setHasConsented(true);
         setShowConnectDialog(false);
-        void redirectToGoogleAuth();
+        void (async () => {
+            const started = await redirectToGoogleAuth();
+            if (started) {
+                setHasConsented(true);
+            }
+        })();
     };
 
     useEffect(() => {

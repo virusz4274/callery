@@ -1,10 +1,23 @@
-"use client";
+'use client';
 
 import { Card } from "@heroui/react";
 import { Upload, Search, Zap } from "lucide-react";
-import React from "react";
+import type { ReactElement } from "react";
 
-const features = [
+type FeatureColor = keyof typeof featureClasses;
+
+const featureClasses = {
+    primary: "bg-primary/10 text-primary",
+    secondary: "bg-secondary/10 text-secondary",
+    warning: "bg-warning/10 text-warning",
+} as const;
+
+const features: Array<{
+    icon: ReactElement;
+    title: string;
+    description: string;
+    color: FeatureColor;
+}> = [
     {
         icon: <Upload className="h-6 w-6" />,
         title: "Effortless Ingestion",
@@ -42,7 +55,7 @@ export function FeaturesSection() {
                     {features.map((feature) => (
                         <Card key={feature.title} className="p-1 h-full bg-gradient-to-br from-content1 to-content2/50 border-none shadow-medium hover:shadow-xl transition-shadow duration-300">
                             <div className="h-full bg-background/80 backdrop-blur-md rounded-lg p-6 flex flex-col items-start gap-4 hover:bg-background/40 transition-colors">
-                                <div className={`p-3 rounded-xl bg-${feature.color}/10 text-${feature.color}`}>
+                                <div className={`p-3 rounded-xl ${featureClasses[feature.color]}`}>
                                     {feature.icon}
                                 </div>
                                 <div>

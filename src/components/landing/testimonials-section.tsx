@@ -1,8 +1,7 @@
-"use client";
+'use client';
 
 import { Button, Card, Avatar } from "@heroui/react";
 import { MessageSquareQuote } from "lucide-react";
-import React from "react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 const testimonials = [

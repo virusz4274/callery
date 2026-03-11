@@ -4,14 +4,24 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
     try {
-        const { idToken } = await request.json();
+        let idToken: unknown;
+        try {
+            ({ idToken } = await request.json());
+        } catch {
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+        }
 
         if (!idToken) {
             return NextResponse.json({ error: 'ID token required' }, { status: 400 });
         }
 
+        if (typeof idToken !== 'string') {
+            return NextResponse.json({ error: 'ID token must be a string' }, { status: 400 });
+        }
+
         // Verify the ID token and create a session cookie
         const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+        const maxAgeSeconds = Math.floor(expiresIn / 1000);
 
         const { getAdminAuth } = await import('@/lib/firebase/admin');
         const auth = getAdminAuth();
@@ -41,7 +51,7 @@ export async function POST(request: NextRequest) {
         const options = {
             name: 'session',
             value: sessionCookie,
-            maxAge: expiresIn,
+            maxAge: maxAgeSeconds,
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             path: '/',
