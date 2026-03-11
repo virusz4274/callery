@@ -1,5 +1,3 @@
-'use server';
-
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';

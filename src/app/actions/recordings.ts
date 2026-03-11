@@ -12,6 +12,11 @@ import { GetRecordingsOptionsSchema, RecordingIdSchema, UpdateRecordingSchema, G
 // Re-export specific input type if needed by client, or just use the schema inferred type
 export type GetRecordingsOptions = GetRecordingsOptionsInput;
 
+function revalidateRecordingPages() {
+    revalidatePath('/recordings');
+    revalidatePath('/files');
+}
+
 export async function getRecordingsAction(options: GetRecordingsOptions = {}) {
     // 1. Validate Input
     const parseResult = GetRecordingsOptionsSchema.safeParse(options);
@@ -78,7 +83,7 @@ export async function deleteRecordingAction(id: string) {
 
         await decrementStorageUsed(firebaseUid, deletedRecording.fileSize);
 
-        revalidatePath('/dashboard');
+        revalidateRecordingPages();
         return { success: true };
     } catch (error) {
         console.error('Error deleting recording:', error);
@@ -114,7 +119,7 @@ export async function updateRecordingAction(id: string, data: { isStarred?: bool
             return { success: false, error: 'Recording not found' };
         }
 
-        revalidatePath('/dashboard');
+        revalidateRecordingPages();
         return { success: true, recording: toRecordingResponse(recording) };
     } catch (error) {
         console.error('Error updating recording:', error);
@@ -144,5 +149,30 @@ export async function getPlaybackUrlAction(id: string) {
     } catch (error) {
         console.error('Error generating playback URL:', error);
         return { error: 'Failed to generate playback URL' };
+    }
+}
+
+export async function getRecordingDetailsAction(id: string) {
+    const firebaseUid = await getFirebaseUidFromSession();
+    if (!firebaseUid) {
+        return { error: 'Unauthorized' };
+    }
+
+    const parseResult = RecordingIdSchema.safeParse(id);
+    if (!parseResult.success) {
+        return { error: 'Invalid recording ID' };
+    }
+
+    try {
+        const recording = await getRecordingById(parseResult.data, firebaseUid);
+        if (!recording) {
+            return { error: 'Recording not found' };
+        }
+
+        const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+        return { recording: toRecordingResponse(recording, playbackUrl) };
+    } catch (error) {
+        console.error('Error fetching recording details:', error);
+        return { error: 'Failed to fetch recording details' };
     }
 }

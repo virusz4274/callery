@@ -1,5 +1,3 @@
-'use server';
-
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
