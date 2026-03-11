@@ -50,6 +50,11 @@ export function useRecordingsTableController({
         setActiveRecording(null);
     }, []);
 
+    const handleRecordingUpdated = useCallback(async (recording: Recording) => {
+        setActiveRecording(recording);
+        await onRecordingsChange?.();
+    }, [onRecordingsChange]);
+
     const handleDeleteRequest = useCallback((items: Recording[]) => {
         if (items.length === 0) {
             return;
@@ -107,6 +112,7 @@ export function useRecordingsTableController({
         setShowDeleteConfirm,
         closeDialog,
         executeDelete,
+        handleRecordingUpdated,
         handleDeleteRequest,
         handleDeleteSelection,
         openDialog,

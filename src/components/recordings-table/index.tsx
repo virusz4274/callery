@@ -32,6 +32,7 @@ export function RecordingsTable({
         setShowDeleteConfirm,
         closeDialog,
         executeDelete,
+        handleRecordingUpdated,
         handleDeleteRequest,
         handleDeleteSelection,
         openDialog,
@@ -91,7 +92,11 @@ export function RecordingsTable({
             </div>
 
             {activeRecording && (
-                <RecordingDetailsDialog recording={activeRecording} onOpenChange={(isOpen) => !isOpen && closeDialog()} />
+                <RecordingDetailsDialog
+                    recording={activeRecording}
+                    onOpenChange={(isOpen) => !isOpen && closeDialog()}
+                    onRecordingUpdated={handleRecordingUpdated}
+                />
             )}
 
             {showDeleteConfirm && (

@@ -132,7 +132,7 @@ export function LoginPage() {
                 <Input type="password" placeholder="••••••••" className="bg-default-50/50" />
               </TextField>
               <div className="flex justify-end">
-                <Link href="#" className="font-medium text-primary hover:text-primary/80 transition-colors text-sm">
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80 transition-colors text-sm">
                   Forgot password?
                 </Link>
               </div>

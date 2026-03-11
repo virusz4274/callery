@@ -7,6 +7,8 @@ type CollectionsMap = {
     PLANS: string;
     EXPORT_JOBS: string;
     ADMIN_LOGS: string;
+    NOTIFICATIONS: string;
+    SUPPORT_MESSAGES: string;
     STRIPE_WEBHOOK_EVENTS: string;
     TRANSCRIPTION_WEBHOOK_EVENTS: string;
 };
@@ -64,6 +66,24 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
                 { key: { action: 1 }, name: 'action' },
             ],
             errorMessage: '⚠️ Admin Logs index creation failed:',
+        },
+        {
+            label: 'Notifications',
+            collection: collections.NOTIFICATIONS,
+            indexes: [
+                { key: { userId: 1, isRead: 1, createdAt: -1 }, name: 'userId_isRead_createdAt' },
+                { key: { userId: 1, createdAt: -1 }, name: 'userId_createdAt' },
+            ],
+            errorMessage: '⚠️ Notifications index creation failed:',
+        },
+        {
+            label: 'Support Messages',
+            collection: collections.SUPPORT_MESSAGES,
+            indexes: [
+                { key: { firebaseUid: 1, createdAt: -1 }, name: 'firebaseUid_createdAt' },
+                { key: { email: 1, createdAt: -1 }, name: 'email_createdAt' },
+            ],
+            errorMessage: '⚠️ Support messages index creation failed:',
         },
         {
             label: 'Export Jobs',

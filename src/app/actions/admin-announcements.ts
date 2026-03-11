@@ -25,7 +25,7 @@ function mapAnnouncement(announcement: Announcement): AnnouncementResponse {
 
 function revalidateAnnouncementPages() {
     revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard');
+    revalidatePath('/recordings');
 }
 
 /**

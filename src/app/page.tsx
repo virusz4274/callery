@@ -1,38 +1,15 @@
-'use client';
-
-import React, { Suspense } from 'react';
-import { useUser } from '@/lib/firebase/provider';
-import { Skeleton } from '@/components/ui-primitives';
-import { LandingPage } from '@/components/pages/landing-page';
 import { redirect } from 'next/navigation';
+import { LandingPage } from '@/components/pages/landing-page';
+import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 
-function HomePageContent() {
-  const { user, isUserLoading } = useUser();
+export const dynamic = 'force-dynamic';
 
-  // Show loading state while checking auth
-  if (isUserLoading) {
-    return (
-      <div className="space-y-8 p-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
-    );
-  }
+export default async function Home() {
+    const firebaseUid = await getFirebaseUidFromSession();
 
-  // Show landing page for unauthenticated users
-  if (!user) {
+    if (firebaseUid) {
+        redirect('/recordings');
+    }
+
     return <LandingPage />;
-  }
-
-  // Redirect to recordings for authenticated users
-  redirect('/recordings');
-}
-
-export default function Home() {
-  return <HomePageContent />;
 }

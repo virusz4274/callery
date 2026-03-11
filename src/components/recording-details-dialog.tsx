@@ -1,24 +1,46 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Recording } from '@/lib/types';
 import { Modal, Button } from '@heroui/react';
 import { X } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingContent } from './recording-view/recording-content';
 import { SharePopover } from './sharing/share-popover';
-import { getPlaybackUrlAction } from '@/app/actions/recordings';
+import { getPlaybackUrlAction, getRecordingDetailsAction } from '@/app/actions/recordings';
 import { transcribeRecordingAction } from '@/app/actions/transcription';
+import { useToast } from './toast-provider';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
   onOpenChange: (open: boolean) => void;
+  onRecordingUpdated?: (recording: Recording) => Promise<void> | void;
 };
 
-export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDetailsDialogProps) {
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
+  const { toast } = useToast();
+  const [currentRecording, setCurrentRecording] = useState<Recording>(recording);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setCurrentRecording(recording);
+    setPlaybackUrl(recording.playbackUrl || null);
+    setIsLoadingUrl(!recording.playbackUrl);
+  }, [recording]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -27,18 +49,17 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
   };
 
   useEffect(() => {
-    if (recording.playbackUrl) {
-      setPlaybackUrl(recording.playbackUrl);
+    if (currentRecording.playbackUrl) {
+      setPlaybackUrl(currentRecording.playbackUrl);
       setIsLoadingUrl(false);
       return;
     }
 
-    let isMounted = true;
     setIsLoadingUrl(true);
 
-    getPlaybackUrlAction(recording.id)
+    getPlaybackUrlAction(currentRecording.id)
       .then(result => {
-        if (!isMounted) return;
+        if (!mountedRef.current) return;
         if (result.playbackUrl) {
           setPlaybackUrl(result.playbackUrl);
         } else {
@@ -47,33 +68,80 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
       })
       .catch(console.error)
       .finally(() => {
-        if (isMounted) setIsLoadingUrl(false);
+        if (mountedRef.current) setIsLoadingUrl(false);
       });
+  }, [currentRecording.id, currentRecording.playbackUrl]);
 
-    return () => { isMounted = false; };
-  }, [recording.id, recording.playbackUrl]);
+  const pushRecordingUpdate = async (updatedRecording: Recording) => {
+    if (!mountedRef.current) {
+      return;
+    }
+
+    setCurrentRecording(updatedRecording);
+    if (updatedRecording.playbackUrl) {
+      setPlaybackUrl(updatedRecording.playbackUrl);
+    }
+    await onRecordingUpdated?.(updatedRecording);
+  };
+
+  const refreshRecording = async (): Promise<Recording | null> => {
+    const details = await getRecordingDetailsAction(currentRecording.id);
+    if ('error' in details) {
+      return null;
+    }
+
+    const updatedRecording = details.recording as Recording;
+    await pushRecordingUpdate(updatedRecording);
+    return updatedRecording;
+  };
 
   const handleTranscribe = async () => {
     setIsTranscribing(true);
     try {
-      const result = await transcribeRecordingAction(recording.id);
+      const optimisticRecording: Recording = {
+        ...currentRecording,
+        transcriptionStatus: 'processing',
+      };
+      await pushRecordingUpdate(optimisticRecording);
+
+      const result = await transcribeRecordingAction(currentRecording.id);
 
       if ('error' in result) {
         throw new Error(result.error);
       }
 
-      window.location.reload();
+      toast({
+        title: 'Transcription Started',
+        description: 'We are processing this recording. Results will appear automatically.',
+        status: 'success',
+      });
+
+      for (let attempt = 0; attempt < 30; attempt++) {
+        await sleep(3000);
+        const latest = await refreshRecording();
+        if (!latest) {
+          continue;
+        }
+
+        if (latest.transcriptionStatus === 'completed' || latest.transcriptionStatus === 'failed') {
+          break;
+        }
+      }
     } catch (error) {
       console.error('Transcription error:', error);
-      // Note: This component doesn't have access to toast context, 
-      // but we'll handle this with a proper error state in the future
-      console.warn('Transcription failed - would show toast here');
+      toast({
+        title: 'Transcription Failed',
+        description: error instanceof Error ? error.message : 'Failed to start transcription',
+        status: 'danger',
+      });
     } finally {
-      setIsTranscribing(false);
+      if (mountedRef.current) {
+        setIsTranscribing(false);
+      }
     }
   };
 
-  const isProcessing = recording.transcriptionStatus === 'processing' || isTranscribing;
+  const isProcessing = currentRecording.transcriptionStatus === 'processing' || isTranscribing;
 
   return (
     <Modal isOpen={true} onOpenChange={onOpenChange}>
@@ -94,14 +162,14 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
             <div className="flex flex-col gap-1 border-b border-default-100 px-4 py-3 sm:px-6 sm:py-4 flex-shrink-0 bg-background">
               <div className="flex items-center gap-4 pr-10">
                 <h2 className="text-lg sm:text-xl font-bold truncate">
-                  {recording.contactName || recording.phoneNumber}
+                  {currentRecording.contactName || currentRecording.phoneNumber}
                 </h2>
-                <SharePopover recordingId={recording.id} />
+                <SharePopover recordingId={currentRecording.id} />
               </div>
               <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-default-500">
-                <ClientFormattedDate date={recording.recordedAt} formatString="PPP p" />
+                <ClientFormattedDate date={currentRecording.recordedAt} formatString="PPP p" />
                 <span className="bg-default-100 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                  {formatDuration(recording.duration)}
+                  {formatDuration(currentRecording.duration)}
                 </span>
               </div>
             </div>
@@ -109,7 +177,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <RecordingContent
-                recording={recording}
+                recording={currentRecording}
                 playbackUrl={playbackUrl}
                 isLoadingUrl={isLoadingUrl}
                 onTranscribe={handleTranscribe}
