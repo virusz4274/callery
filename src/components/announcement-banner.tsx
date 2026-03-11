@@ -16,7 +16,7 @@ export function AnnouncementBanner() {
                 const data = await getActiveAnnouncements();
                 setAnnouncements(data);
             } catch (error) {
-                console.error('Failed to fetch announcements', error);
+                void error;
             }
         };
         fetchAnnouncements();

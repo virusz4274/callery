@@ -48,22 +48,27 @@ export async function getAnnouncements() {
  * Get active announcements (for user banner).
  */
 export async function getActiveAnnouncements() {
-    const db = await getMongoDb();
-    const now = new Date();
+    try {
+        const db = await getMongoDb();
+        const now = new Date();
 
-    const activeFilter: Record<string, unknown> = {
-        isActive: true,
-        startDate: { $lte: now },
-        $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gt: now } }],
-    };
+        const activeFilter: Record<string, unknown> = {
+            isActive: true,
+            startDate: { $lte: now },
+            $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gt: now } }],
+        };
 
-    const announcements = await db
-        .collection<Announcement>(Collections.ANNOUNCEMENTS)
-        .find(activeFilter)
-        .sort({ startDate: -1 })
-        .toArray();
+        const announcements = await db
+            .collection<Announcement>(Collections.ANNOUNCEMENTS)
+            .find(activeFilter)
+            .sort({ startDate: -1 })
+            .toArray();
 
-    return announcements.map(mapAnnouncement);
+        return announcements.map(mapAnnouncement);
+    } catch (error) {
+        console.warn('Failed to fetch active announcements, using fallback:', error);
+        return [];
+    }
 }
 
 /**

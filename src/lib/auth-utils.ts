@@ -41,13 +41,14 @@ export async function getUserFromRequest(request: NextRequest): Promise<string |
  * Useful for Server Actions.
  */
 export async function getFirebaseUidFromSession(): Promise<string | null> {
-    try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('session');
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session');
 
-        if (!sessionCookie || !sessionCookie.value) {
-            return null;
-        }
+    if (!sessionCookie || !sessionCookie.value) {
+        return null;
+    }
+
+    try {
         // Use getAuth() from firebase-admin/auth directly as in the reference implementation
         // or ensure getAdminAuth() returns the same app instance.
         // using getAuth() to be safe as per upload-recordings.ts

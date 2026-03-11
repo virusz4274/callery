@@ -6,6 +6,7 @@ import type { User } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
 
 const MAX_RETRIES = 3;
+const RECOVERY_RETRY_MS = 30_000;
 
 interface UseUserProfileResult {
     userProfile: User | null;
@@ -82,7 +83,11 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
 
     // Bounded retry logic - only retry if under max attempts
     useEffect(() => {
-        if (profileError && retryCount.current < MAX_RETRIES) {
+        if (!profileError) {
+            return;
+        }
+
+        if (retryCount.current < MAX_RETRIES) {
             const delay = 500 * Math.pow(2, retryCount.current); // Exponential backoff
             const timer = setTimeout(() => {
                 retryCount.current += 1;
@@ -90,9 +95,18 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
                 fetchProfile();
             }, delay);
             return () => clearTimeout(timer);
-        } else if (profileError && retryCount.current >= MAX_RETRIES) {
-            console.error(`Max retries (${MAX_RETRIES}) reached for fetching user profile. Giving up.`);
         }
+
+        console.error(
+            `Max retries (${MAX_RETRIES}) reached for fetching user profile. Switching to background retry every ${Math.floor(RECOVERY_RETRY_MS / 1000)}s.`
+        );
+
+        const recoveryTimer = setTimeout(() => {
+            console.log('Retrying profile fetch after cooldown...');
+            fetchProfile();
+        }, RECOVERY_RETRY_MS);
+
+        return () => clearTimeout(recoveryTimer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profileError]);
 

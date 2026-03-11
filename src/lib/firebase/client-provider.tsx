@@ -10,6 +10,7 @@ interface FirebaseClientProviderProps {
 
 const MAX_SYNC_ATTEMPTS = 3;
 const SYNC_DEBOUNCE_MS = 1000;
+const CIRCUIT_RETRY_AFTER_MS = 30_000;
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
     const firebaseServices = useMemo(() => {
@@ -22,6 +23,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     const syncAttempts = useRef(0);
     const lastSyncTime = useRef(0);
     const syncFailed = useRef(false);
+    const circuitOpenedAt = useRef<number | null>(null);
 
     // Effect to subscribe to Firebase auth state changes and sync session
     useEffect(() => {
@@ -38,8 +40,23 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
 
             // Circuit breaker - stop trying after max attempts
             if (syncFailed.current && syncAttempts.current >= MAX_SYNC_ATTEMPTS) {
-                console.warn(`Session sync disabled after ${MAX_SYNC_ATTEMPTS} failed attempts. Please refresh the page.`);
-                return;
+                if (circuitOpenedAt.current === null) {
+                    circuitOpenedAt.current = now;
+                }
+
+                const cooldownElapsed = now - circuitOpenedAt.current >= CIRCUIT_RETRY_AFTER_MS;
+                if (!cooldownElapsed) {
+                    const retryInMs = CIRCUIT_RETRY_AFTER_MS - (now - circuitOpenedAt.current);
+                    console.warn(
+                        `Session sync temporarily paused after ${MAX_SYNC_ATTEMPTS} failed attempts. Retrying in ${Math.ceil(retryInMs / 1000)}s.`
+                    );
+                    return;
+                }
+
+                // Cooldown elapsed - close the circuit and allow a retry.
+                syncAttempts.current = 0;
+                syncFailed.current = false;
+                circuitOpenedAt.current = null;
             }
 
             lastSyncTime.current = now;
@@ -61,13 +78,17 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
                     // Success - reset circuit breaker
                     syncAttempts.current = 0;
                     syncFailed.current = false;
+                    circuitOpenedAt.current = null;
                 } catch (error) {
                     console.error('Failed to sync session:', error);
                     syncAttempts.current += 1;
                     syncFailed.current = true;
 
                     if (syncAttempts.current >= MAX_SYNC_ATTEMPTS) {
-                        console.error(`Max sync attempts (${MAX_SYNC_ATTEMPTS}) reached. Session sync disabled.`);
+                        circuitOpenedAt.current = Date.now();
+                        console.error(
+                            `Max sync attempts (${MAX_SYNC_ATTEMPTS}) reached. Session sync paused for ${Math.floor(CIRCUIT_RETRY_AFTER_MS / 1000)}s.`
+                        );
                     }
                 }
             } else {
@@ -77,6 +98,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
                     // Reset circuit breaker on logout
                     syncAttempts.current = 0;
                     syncFailed.current = false;
+                    circuitOpenedAt.current = null;
                 } catch (error) {
                     console.error('Failed to clear session:', error);
                 }
@@ -99,4 +121,3 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         </FirebaseProvider>
     );
 }
-

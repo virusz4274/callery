@@ -38,6 +38,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   useEffect(() => {
+    if (isUserLoading) {
+      return;
+    }
+
+    if (user && pathname === '/') {
+      router.replace('/recordings');
+    }
+  }, [isUserLoading, pathname, router, user]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function loadPublicSettings() {
@@ -47,7 +57,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load public system settings: ${response.status}`);
+          if (isMounted) {
+            setMaintenanceMode(false);
+          }
+          return;
         }
 
         const data = (await response.json()) as { maintenanceMode?: boolean };
@@ -55,7 +68,10 @@ export function AppLayout({ children }: AppLayoutProps) {
           setMaintenanceMode(Boolean(data.maintenanceMode));
         }
       } catch (error) {
-        console.error('Failed to load public system settings:', error);
+        void error;
+        if (isMounted) {
+          setMaintenanceMode(false);
+        }
       }
     }
 
@@ -137,6 +153,14 @@ export function AppLayout({ children }: AppLayoutProps) {
         <Spinner size="lg" color="current" className="text-primary" />
       </div>
     )
+  }
+
+  if (user && pathname === '/') {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner size="lg" color="current" className="text-primary" />
+      </div>
+    );
   }
 
   return (

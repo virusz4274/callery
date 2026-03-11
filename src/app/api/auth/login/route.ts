@@ -35,13 +35,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        // Ensure the user exists in MongoDB
+        // Keep sign-up policy enforcement, but do not hard-fail session sync for transient DB outages.
+        let profileEnsureFailed = false;
         try {
             const { ensureUserProfile } = await import('@/lib/db/users');
             await ensureUserProfile(uid, email, name, picture);
         } catch (dbError) {
-            console.error('Failed to ensure user profile:', dbError);
-            return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 });
+            const message = dbError instanceof Error ? dbError.message : String(dbError);
+            if (message.includes('New signups are currently disabled')) {
+                return NextResponse.json({ error: message }, { status: 403 });
+            }
+
+            profileEnsureFailed = true;
+            console.error('Failed to ensure user profile during login (session will still be created):', dbError);
         }
 
         // Create the session cookie. This will also verify the ID token.
@@ -61,7 +67,13 @@ export async function POST(request: NextRequest) {
         // Set the cookie
         (await cookies()).set(options);
 
-        return NextResponse.json({ status: 'success' }, { status: 200 });
+        return NextResponse.json(
+            {
+                status: 'success',
+                profileEnsureFailed,
+            },
+            { status: 200 }
+        );
     } catch (error: unknown) {
         console.error('Error creating session:', error);
         if (typeof error === 'object' && error !== null && 'code' in error) {
