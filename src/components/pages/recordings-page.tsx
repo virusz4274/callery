@@ -21,20 +21,25 @@ export function RecordingsPage() {
 
     // -- URL State Management --
     const createQueryString = useCallback(
-        (name: string, value: string) => {
+        (updates: Record<string, string | undefined>) => {
             const params = new URLSearchParams(searchParams.toString());
-            if (value) {
-                params.set(name, value);
-            } else {
-                params.delete(name);
+
+            for (const [name, value] of Object.entries(updates)) {
+                if (value) {
+                    params.set(name, value);
+                } else {
+                    params.delete(name);
+                }
             }
+
             return params.toString();
         },
         [searchParams]
     );
 
-    const updateUrl = useCallback((name: string, value: string) => {
-        router.push(pathname + '?' + createQueryString(name, value));
+    const updateUrl = useCallback((updates: Record<string, string | undefined>) => {
+        const query = createQueryString(updates);
+        router.push(query ? `${pathname}?${query}` : pathname);
     }, [router, pathname, createQueryString]);
 
     // -- Extract State from URL --
@@ -101,7 +106,7 @@ export function RecordingsPage() {
     const displayTotalCount = isShowingSemanticResults ? semanticTotalCount : totalCount;
 
     // -- Handlers --
-    const handlePageChange = (newPage: number) => updateUrl('page', newPage.toString());
+    const handlePageChange = (newPage: number) => updateUrl({ page: newPage.toString() });
 
     // -- Render --
     if (!user) {
@@ -130,31 +135,18 @@ export function RecordingsPage() {
                 {/* Toolbar */}
                 <RecordingsToolbar
                     search={search}
-                    onSearchChange={(val) => updateUrl('q', val)}
+                    onSearchChange={(val) => updateUrl({ q: val || undefined, page: '1' })}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
-                    onSortChange={(by, order) => {
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.set('sortBy', by);
-                        params.set('order', order);
-                        router.push(pathname + '?' + params.toString());
-                    }}
+                    onSortChange={(by, order) => updateUrl({ sortBy: by, order, page: '1' })}
                     startDate={startDate}
                     endDate={endDate}
-                    onDateChange={(start, end) => {
-                        const params = new URLSearchParams(searchParams.toString());
-                        if (start) params.set('start', start); else params.delete('start');
-                        if (end) params.set('end', end); else params.delete('end');
-                        // Reset page on filter change
-                        params.set('page', '1');
-                        router.push(pathname + '?' + params.toString());
-                    }}
+                    onDateChange={(start, end) =>
+                        updateUrl({ start: start || undefined, end: end || undefined, page: '1' })
+                    }
                     contacts={contacts || []}
                     contactId={contactId}
-                    onContactChange={(id) => {
-                        updateUrl('contact', id || '');
-                        updateUrl('page', '1');
-                    }}
+                    onContactChange={(id) => updateUrl({ contact: id || undefined, page: '1' })}
                     // Semantic Search
                     semanticQuery={semanticQuery}
                     onSemanticQueryChange={setSemanticQuery}

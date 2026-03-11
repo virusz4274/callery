@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
-
 export default function NotFound() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4 text-center">
@@ -11,7 +9,7 @@ export default function NotFound() {
             </p>
             <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary/90"
             >
                 Go Home
             </Link>

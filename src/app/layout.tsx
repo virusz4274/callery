@@ -36,22 +36,15 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
   themeColor: '#ffffff',
 };
 
-import { getSystemSettings } from '@/app/actions/admin-settings';
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch system settings on the server
-  const settings = await getSystemSettings();
-
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={inter.className}>
@@ -67,7 +60,7 @@ export default async function RootLayout({
           <FirebaseClientProvider>
             <Suspense>
               <ToastProvider>
-                <AppLayout systemSettings={settings}>{children}</AppLayout>
+                <AppLayout>{children}</AppLayout>
               </ToastProvider>
             </Suspense>
           </FirebaseClientProvider>

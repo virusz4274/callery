@@ -115,14 +115,32 @@ export function useFileBrowser({ rootNode, onRefresh }: UseFileBrowserOptions) {
         try {
             const result = await deleteRecordings([recordingToDelete]);
             if (result.success) {
+                if (selectedRecording?.id === recordingToDelete) {
+                    setSelectedRecording(null);
+                }
                 setIsDeleteModalOpen(false);
                 setRecordingToDelete(null);
                 onRefresh?.();
+                router.refresh();
+                toast({
+                    title: 'Deleted',
+                    description: result.message,
+                    status: 'success',
+                });
             } else {
-                console.error('Failed to delete:', result.message);
+                toast({
+                    title: 'Delete Failed',
+                    description: result.message,
+                    status: 'danger',
+                });
             }
         } catch (error) {
             console.error('Error deleting recording:', error);
+            toast({
+                title: 'Delete Failed',
+                description: 'Failed to delete recording. Please try again.',
+                status: 'danger',
+            });
         } finally {
             setIsDeleting(false);
         }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Card, Button, Input, TextArea, TextField, Label } from "@heroui/react";
 import { MessageCircle, FileText } from 'lucide-react';
 import { authFetch } from '@/lib/api-client';
@@ -97,11 +98,11 @@ export default function SupportPage() {
                         <p className="text-default-500 mb-6">
                             Check our detailed documentation and frequently asked questions to find quick answers.
                         </p>
-                        <a href="/changelog" className="block">
+                        <Link href="/changelog" className="block">
                             <Button className="w-full bg-secondary text-white">
                                 View Docs
                             </Button>
-                        </a>
+                        </Link>
                     </Card>
                 </div>
 

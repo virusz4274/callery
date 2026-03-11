@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Card, Chip } from "@heroui/react";
 
 export default function ChangelogPage() {

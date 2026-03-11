@@ -3,6 +3,15 @@ import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
 
+async function getErrorMessage(response: Response, fallback: string): Promise<string> {
+    try {
+        const data = (await response.json()) as { error?: string };
+        return data.error || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 export function usePreferenceSettings(user: any, userProfile: UserProfile | null) {
     const { toast } = useToast();
 
@@ -43,29 +52,48 @@ export function usePreferenceSettings(user: any, userProfile: UserProfile | null
         if (!user || !generalState.timezone) return;
         setSavingGeneral(true);
         try {
-            await authFetch('/api/user/profile', {
+            const response = await authFetch('/api/user/profile', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ timezone: generalState.timezone }),
             });
+            if (!response.ok) {
+                throw new Error(await getErrorMessage(response, 'Failed to save preferences'));
+            }
             toast({ title: 'Preferences Saved', status: 'success' });
             generalDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingGeneral(false); }
+        } catch (error) {
+            toast({
+                title: 'Save Failed',
+                description: error instanceof Error ? error.message : 'Failed to save preferences',
+                status: 'danger',
+            });
+        } finally { setSavingGeneral(false); }
     };
 
     const handleSaveData = async () => {
         setSavingData(true);
         try {
-            await authFetch('/api/user/profile', {
+            const response = await authFetch('/api/user/profile', {
                 method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     storageSettings: { deletionPolicy: dataState.deletionPolicy },
                     transcriptionSettings: dataState.transcriptionSettings
                 })
             });
+            if (!response.ok) {
+                throw new Error(await getErrorMessage(response, 'Failed to save data policy'));
+            }
             toast({ title: 'Policy Saved', status: 'success' });
             dataDirtyRef.current = false;
-        } catch { toast({ title: 'Save Failed', status: 'danger' }); } finally { setSavingData(false); }
+        } catch (error) {
+            toast({
+                title: 'Save Failed',
+                description: error instanceof Error ? error.message : 'Failed to save data policy',
+                status: 'danger',
+            });
+        } finally { setSavingData(false); }
     };
 
     return {

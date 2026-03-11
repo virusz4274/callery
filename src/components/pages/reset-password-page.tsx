@@ -27,21 +27,33 @@ export function ResetPasswordPage() {
     }, [initialCode]);
 
     useEffect(() => {
+        let isActive = true;
+
         const verifyCode = async () => {
-            if (!resetCode.trim()) {
+            const trimmedCode = resetCode.trim();
+
+            if (!trimmedCode) {
                 setCodeVerified(null);
                 return;
             }
 
             try {
-                await verifyPasswordResetCode(auth, resetCode.trim());
-                setCodeVerified(true);
+                await verifyPasswordResetCode(auth, trimmedCode);
+                if (isActive) {
+                    setCodeVerified(true);
+                }
             } catch {
-                setCodeVerified(false);
+                if (isActive) {
+                    setCodeVerified(false);
+                }
             }
         };
 
         void verifyCode();
+
+        return () => {
+            isActive = false;
+        };
     }, [auth, resetCode]);
 
     const handleSubmit = async (event: React.FormEvent) => {

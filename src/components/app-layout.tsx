@@ -1,7 +1,7 @@
 
 "use client";
 import { useToast } from '@/components/toast-provider';
-import React, { useCallback, useEffect, useTransition } from 'react';
+import React, { useCallback, useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
 import { MobileNav } from './mobile-nav';
@@ -16,14 +16,13 @@ import { AnnouncementBanner } from '@/components/announcement-banner';
 import { BillingAlert } from '@/components/billing-alert';
 import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 
-import { SystemSettingsResponse } from '@/lib/db/types';
-
 type AppLayoutProps = {
   children: React.ReactNode;
-  systemSettings?: SystemSettingsResponse;
 };
 
-export function AppLayout({ children, systemSettings }: AppLayoutProps) {
+const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance']);
+
+export function AppLayout({ children }: AppLayoutProps) {
   const { toast } = useToast();
 
   const router = useRouter();
@@ -36,11 +35,41 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
   const auth = useAuth();
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPublicSettings() {
+      try {
+        const response = await fetch('/api/system-settings/public', {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load public system settings: ${response.status}`);
+        }
+
+        const data = (await response.json()) as { maintenanceMode?: boolean };
+        if (isMounted) {
+          setMaintenanceMode(Boolean(data.maintenanceMode));
+        }
+      } catch (error) {
+        console.error('Failed to load public system settings:', error);
+      }
+    }
+
+    void loadPublicSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Maintenance Mode Check
   useEffect(() => {
-    if (systemSettings?.maintenanceMode) {
-      if (pathname === '/maintenance' || pathname?.startsWith('/login') || pathname?.startsWith('/api')) {
+    if (maintenanceMode) {
+      if (MAINTENANCE_ALLOWED_PATHS.has(pathname)) {
         return;
       }
 
@@ -60,7 +89,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
         router.replace('/');
       }
     }
-  }, [systemSettings, pathname, isUserLoading, isProfileLoading, userProfile, router]);
+  }, [maintenanceMode, pathname, isUserLoading, isProfileLoading, userProfile, router]);
 
   const searchQuery = searchParams.get('q') || '';
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';

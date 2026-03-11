@@ -1,13 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+async function clearSessionCookie() {
+    (await cookies()).delete({
+        name: 'session',
+        path: '/',
+    });
+}
+
 export async function POST() {
-    (await cookies()).delete('session');
+    await clearSessionCookie();
     return NextResponse.json({ status: 'success' }, { status: 200 });
 }
 
-export async function GET() {
-    (await cookies()).delete('session');
+export async function GET(request: NextRequest) {
+    await clearSessionCookie();
     // Redirect to login or home page after logout via GET
-    return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
+    return NextResponse.redirect(new URL('/', request.url));
 }

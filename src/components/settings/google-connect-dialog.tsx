@@ -34,7 +34,7 @@ export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDi
                                 </div>
                                 <p className="text-xs text-default-400">
                                     By clicking continue, you agree to our{' '}
-                                    <Link href="/privacy" className="underline text-small">Privacy Policy</Link>
+                                    <Link href="/privacy-policy" className="underline text-small">Privacy Policy</Link>
                                     {' '}regarding contact data usage.
                                 </p>
                             </div>

@@ -98,6 +98,7 @@ export function LoginPage() {
           <form onSubmit={handleSignIn} className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
               <Button
+                type="button"
                 variant="ghost"
                 className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
                 onPress={handleGoogleSignIn}
@@ -107,6 +108,7 @@ export function LoginPage() {
                 Continue with Google
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
                 isDisabled

@@ -3,6 +3,15 @@ import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
 
+async function getErrorMessage(response: Response, fallback: string): Promise<string> {
+    try {
+        const data = (await response.json()) as { error?: string };
+        return data.error || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 export function useNotificationSettings(userProfile: UserProfile | null) {
     const { toast } = useToast();
     const [notificationsState, setNotificationsState] = useState({
@@ -22,14 +31,22 @@ export function useNotificationSettings(userProfile: UserProfile | null) {
     const handleSaveNotifications = async () => {
         setSavingNotifications(true);
         try {
-            await authFetch('/api/user/profile', {
+            const response = await authFetch('/api/user/profile', {
                 method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notificationSettings: notificationsState })
             });
+            if (!response.ok) {
+                throw new Error(await getErrorMessage(response, 'Failed to save notification settings'));
+            }
             toast({ title: 'Notifications Saved', status: 'success' });
             notificationsDirtyRef.current = false;
-        } catch {
-            toast({ title: 'Save Failed', status: 'danger' });
+        } catch (error) {
+            toast({
+                title: 'Save Failed',
+                description: error instanceof Error ? error.message : 'Failed to save notification settings',
+                status: 'danger',
+            });
         } finally {
             setSavingNotifications(false);
         }
