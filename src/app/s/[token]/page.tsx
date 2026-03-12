@@ -7,17 +7,25 @@ import { RecordingContent } from '@/components/recording-view/recording-content'
 import { Logo } from '@/components/icons';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import Link from 'next/link';
-import { RecordingResponse, Recording } from '@/lib/db/types';
-import { toRecordingResponse } from '@/lib/db/converters';
+import { Recording } from '@/lib/db/types';
 
 interface SharedPageProps {
     params: Promise<{
         token: string;
     }>;
+    searchParams: Promise<{
+        clipStart?: string;
+        clipEnd?: string;
+    }>;
 }
 
-export default async function SharedRecordingPage({ params }: SharedPageProps) {
+export default async function SharedRecordingPage({ params, searchParams }: SharedPageProps) {
     const { token } = await params;
+    const query = await searchParams;
+    const clipStartSeconds = query.clipStart ? Number(query.clipStart) : undefined;
+    const clipEndSeconds = query.clipEnd ? Number(query.clipEnd) : undefined;
+    const sanitizedClipStart = Number.isFinite(clipStartSeconds) ? clipStartSeconds : undefined;
+    const sanitizedClipEnd = Number.isFinite(clipEndSeconds) ? clipEndSeconds : undefined;
 
     // 1. Verify Token
     const payload = await verifyShareToken(token);
@@ -100,6 +108,8 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                         <RecordingContent 
                             recording={recordingResponse} 
                             playbackUrl={playbackUrl}
+                            clipStartSeconds={sanitizedClipStart}
+                            clipEndSeconds={sanitizedClipEnd}
                             // Hide transcribe button for public view
                             onTranscribe={undefined} 
                         />

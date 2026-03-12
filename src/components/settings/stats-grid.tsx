@@ -1,5 +1,4 @@
-
-"use client"
+'use client';
 
 import React, { useMemo } from 'react';
 import { Phone, Clock, Users, BarChart } from 'lucide-react';
@@ -21,50 +20,52 @@ export function StatsGrid({ stats }: StatsGridProps) {
         return stats || { totalRecordings: 0, newThisMonth: 0, unknownCallers: 0, avgDuration: 0 };
     }, [stats]);
 
+    const avgDuration = `${Math.floor(summaryStats.avgDuration / 60)}m ${String(summaryStats.avgDuration % 60).padStart(2, '0')}s`;
+
     return (
-        <div className="grid gap-2 md:gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <StatsCard
-                title="Total Recordings"
+                title="Total recordings"
                 value={summaryStats.totalRecordings}
+                subtitle="Calls currently indexed in your workspace"
+                statusLabel={
+                    summaryStats.newThisMonth > 0
+                        ? `${summaryStats.newThisMonth} added this month`
+                        : 'No new uploads this month'
+                }
                 icon={Phone}
-                iconClassName="text-accent"
-                iconBgClassName="bg-accent/20"
-                progressValue={70}
-                progressColorClass="from-accent to-accent/60"
-                progressShadowClass="shadow-[0_0_10px_rgba(var(--accent),0.5)]"
+                tone="accent"
             />
 
             <StatsCard
-                title="New This Month"
+                title="New this month"
                 value={`+${summaryStats.newThisMonth}`}
+                subtitle="Fresh recordings added during the current month"
+                statusLabel={summaryStats.newThisMonth > 0 ? 'Library is active' : 'Waiting for new intake'}
                 icon={Clock}
-                iconClassName="text-secondary"
-                iconBgClassName="bg-secondary/20"
-                progressValue={45}
-                progressColorClass="from-secondary to-secondary/60"
-                progressShadowClass="shadow-[0_0_10px_rgba(var(--secondary),0.5)]"
+                tone="success"
             />
 
             <StatsCard
-                title="Unknown Callers"
+                title="Unknown callers"
                 value={summaryStats.unknownCallers}
+                subtitle="Contacts that still need cleanup or identification"
+                statusLabel={
+                    summaryStats.unknownCallers > 0
+                        ? 'Review recommended'
+                        : 'Directory is fully identified'
+                }
                 icon={Users}
-                iconClassName="text-warning"
-                iconBgClassName="bg-warning/20"
-                progressValue={30}
-                progressColorClass="from-warning to-warning/60"
-                progressShadowClass="shadow-[0_0_10px_rgba(var(--warning),0.5)]"
+                tone="warning"
             />
 
             <StatsCard
-                title="Avg. Duration"
-                value={`${Math.floor(summaryStats.avgDuration / 60)}m ${summaryStats.avgDuration % 60}s`}
+                title="Average duration"
+                value={avgDuration}
+                subtitle="Typical length across recorded conversations"
+                statusLabel="Useful for spotting outliers"
                 icon={BarChart}
-                iconClassName="text-success"
-                iconBgClassName="bg-success/20"
-                progressValue={85}
-                progressColorClass="from-success to-success/60"
-                progressShadowClass="shadow-[0_0_10px_rgba(var(--success),0.5)]"
+                tone="default"
             />
         </div>
     );

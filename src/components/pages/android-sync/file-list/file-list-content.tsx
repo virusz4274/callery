@@ -18,15 +18,18 @@ export function FileListContent({
     onToggleFileSelection,
 }: FileListContentProps) {
     return (
-        <div className="flex-1 min-h-0 overflow-y-auto p-2">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3">
             {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                     <Spinner />
                 </div>
             ) : filteredFiles.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                    <Search className="h-10 w-10 mb-2 opacity-20" />
-                    <p>No files found</p>
+                <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-default-100 text-default-300">
+                        <Search className="h-7 w-7" />
+                    </div>
+                    <p className="font-semibold text-foreground">No files found</p>
+                    <p className="mt-1 text-sm text-default-500">Try a different search term or switch tabs.</p>
                 </div>
             ) : (
                 <div className="space-y-2">

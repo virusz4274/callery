@@ -55,7 +55,7 @@ export function FileList({
     syncProgress,
 }: FileListProps) {
     return (
-        <div className="flex-1 min-h-0 flex flex-col bg-content1 rounded-large shadow-small border border-default-200 overflow-hidden relative">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
             <FileListTabs
                 activeTab={activeTab}
                 pendingCount={pendingCount}

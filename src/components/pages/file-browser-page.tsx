@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Spinner } from '@heroui/react';
+import Link from 'next/link';
+import { Button, Chip, Spinner, Surface } from '@heroui/react';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import { DeleteConfirmationModal } from '@/components/recordings-table/delete-confirmation-modal';
 import type { FileSystemNode } from '@/lib/types';
 import { FileBrowserTable } from './file-browser/file-browser-table';
 import { useFileBrowser } from './file-browser/use-file-browser';
+import { ArrowRight, FileAudio2, FolderTree, HardDrive } from 'lucide-react';
 
 type FileBrowserPageProps = {
     rootNode: FileSystemNode;
@@ -39,19 +41,86 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
         );
     }
 
-    return (
-        <div className="relative space-y-8">
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-3xl opacity-40 animate-pulse" />
-                <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-secondary/10 blur-3xl opacity-40" />
-            </div>
+    const folderCount = items.filter((item) => item.type === 'folder').length;
+    const fileCount = items.filter((item) => item.type === 'file').length;
+    const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
 
-            <div className="flex flex-col gap-2">
-                <h2 className="text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                    File Browser
-                </h2>
-                <p className="text-default-500 text-lg">Explore and manage your recordings</p>
-            </div>
+    return (
+        <div className="relative mx-auto max-w-7xl space-y-8">
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
+
+            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
+                    <div className="space-y-4">
+                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                            File library
+                        </Chip>
+                        <div className="space-y-3">
+                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                                File browser
+                            </h1>
+                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
+                                Inspect folders, open recording details, and clean up stored files without leaving the workspace.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Chip variant="soft" color="default">
+                                Current location: {currentLocation}
+                            </Chip>
+                            <Chip variant="soft" color="success">
+                                {items.length} item{items.length === 1 ? '' : 's'} in view
+                            </Chip>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <Link href="/recordings">
+                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
+                                View recordings
+                            </Button>
+                        </Link>
+                        <Link href="/upload">
+                            <Button className="w-full rounded-full px-6 font-semibold">
+                                Upload more calls
+                                <ArrowRight className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-3 md:px-8">
+                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                <FolderTree className="h-3.5 w-3.5" />
+                                Folders
+                            </div>
+                            <div className="text-2xl font-bold text-foreground">{folderCount}</div>
+                            <div className="text-sm text-default-500">Subfolders available in this location</div>
+                        </div>
+                    </Surface>
+                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                <FileAudio2 className="h-3.5 w-3.5" />
+                                Files
+                            </div>
+                            <div className="text-2xl font-bold text-foreground">{fileCount}</div>
+                            <div className="text-sm text-default-500">Recordings or assets visible right now</div>
+                        </div>
+                    </Surface>
+                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                <HardDrive className="h-3.5 w-3.5" />
+                                Browse mode
+                            </div>
+                            <div className="text-2xl font-bold text-foreground">Manual</div>
+                            <div className="text-sm text-default-500">Open folders, inspect details, and delete files deliberately</div>
+                        </div>
+                    </Surface>
+                </div>
+            </section>
 
             <FileBrowserTable
                 items={items}
@@ -82,7 +151,7 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
 
             {isLoadingDetails && (
                 <div className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[200] flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 p-6 bg-card rounded-xl shadow-xl border border-default-200">
+                    <div className="flex flex-col items-center gap-4 rounded-[1.5rem] border border-default-200 bg-background p-6 shadow-xl">
                         <Spinner size="lg" />
                         <p className="text-default-500 font-medium">Loading recording...</p>
                     </div>

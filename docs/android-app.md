@@ -1,6 +1,7 @@
 # Android App (Capacitor)
 
 Call Memo includes a Capacitor Android wrapper with folder-sync support at `/android-sync`.
+Android sync uses the same direct-to-R2 upload flow as web (presigned PUT URLs).
 
 ## Prerequisites
 
@@ -58,3 +59,4 @@ cd android
 - Device cannot reach local server: ensure same network and correct local IP.
 - HTTP blocked on device: keep `cleartext: true` only for local HTTP dev.
 - File access denied: grant storage permissions in Android app settings.
+- Upload fails with CORS error: verify Cloudflare R2 bucket CORS includes your app origins and allows `PUT`, `GET`, `HEAD` with `Content-Type`.

@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+import { BellRing, CreditCard, Database, LayoutDashboard, Settings2, UserRound } from 'lucide-react';
 import { z } from 'zod';
 
 export const passwordFormSchema = z
@@ -14,7 +16,8 @@ export const passwordFormSchema = z
 export type SettingsTab = {
     id: string;
     label: string;
-    icon: string;
+    description: string;
+    icon: LucideIcon;
 };
 
 export function buildSettingsPath(params: URLSearchParams): string {
@@ -24,11 +27,45 @@ export function buildSettingsPath(params: URLSearchParams): string {
 
 export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
     return [
-        { id: 'overview', label: 'Overview', icon: '📊' },
-        { id: 'profile', label: 'Profile', icon: '👤' },
-        { id: 'general', label: 'General', icon: '⚙️' },
-        { id: 'data', label: 'Data', icon: '💾' },
-        { id: 'notifications', label: 'Notifications', icon: '🔔' },
-        ...(showBilling ? [{ id: 'billing', label: 'Billing', icon: '💳' }] : []),
+        {
+            id: 'overview',
+            label: 'Overview',
+            description: 'Check account health, recording activity, and quick next steps.',
+            icon: LayoutDashboard,
+        },
+        {
+            id: 'profile',
+            label: 'Profile',
+            description: 'Manage identity details, login credentials, and personal account info.',
+            icon: UserRound,
+        },
+        {
+            id: 'general',
+            label: 'General',
+            description: 'Set workspace defaults like timezone and other everyday preferences.',
+            icon: Settings2,
+        },
+        {
+            id: 'data',
+            label: 'Data',
+            description: 'Control exports, syncs, storage, and transcription-related settings.',
+            icon: Database,
+        },
+        {
+            id: 'notifications',
+            label: 'Notifications',
+            description: 'Choose which system updates and digests the workspace should send.',
+            icon: BellRing,
+        },
+        ...(showBilling
+            ? [
+                  {
+                      id: 'billing',
+                      label: 'Billing',
+                      description: 'Review your plan, invoices, usage, and upgrade options.',
+                      icon: CreditCard,
+                  },
+              ]
+            : []),
     ];
 }

@@ -2,7 +2,6 @@
 
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
 import { getAdminAuth } from '@/lib/firebase/admin';
 
 /**
@@ -49,10 +48,8 @@ export async function getFirebaseUidFromSession(): Promise<string | null> {
     }
 
     try {
-        // Use getAuth() from firebase-admin/auth directly as in the reference implementation
-        // or ensure getAdminAuth() returns the same app instance.
-        // using getAuth() to be safe as per upload-recordings.ts
-        const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
+        const auth = getAdminAuth();
+        const decodedToken = await auth.verifySessionCookie(sessionCookie.value, true);
         return decodedToken.uid;
     } catch (error) {
         console.error('Error verifying session:', error);

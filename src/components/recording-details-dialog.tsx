@@ -97,6 +97,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
 
   const handleTranscribe = async () => {
     setIsTranscribing(true);
+    const previousRecording = currentRecording;
     try {
       const optimisticRecording: Recording = {
         ...currentRecording,
@@ -129,6 +130,7 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
       }
     } catch (error) {
       console.error('Transcription error:', error);
+      await pushRecordingUpdate(previousRecording);
       toast({
         title: 'Transcription Failed',
         description: error instanceof Error ? error.message : 'Failed to start transcription',

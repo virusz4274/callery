@@ -42,7 +42,7 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
                 <Button
                     variant="primary"
                     onPress={() => setIsCreateOpen(true)}
-                    className="bg-primary text-white"
+                    className="rounded-full bg-primary px-5 text-white"
                 >
                     Create Announcement
                 </Button>
@@ -50,13 +50,13 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
 
             <div className="grid gap-4">
                 {announcements.length === 0 && (
-                    <div className="text-center py-10 text-default-500 bg-default-50 rounded-lg">
+                    <div className="rounded-[1.5rem] bg-default-50 py-10 text-center text-default-500">
                         No announcements found.
                     </div>
                 )}
 
                 {announcements.map((ann) => (
-                    <Card key={ann.id} className="p-4">
+                    <Card key={ann.id} className="rounded-[1.75rem] border border-default-200/80 p-4 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
                         <div className="flex justify-between items-start gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">

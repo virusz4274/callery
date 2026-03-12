@@ -1,4 +1,4 @@
-import { Card, Button, Spinner } from '@heroui/react';
+import { Button, Card, Chip, Spinner, Surface } from '@heroui/react';
 import { FolderOpen, X, RefreshCw, Upload } from 'lucide-react';
 import { formatFileSize } from './utils';
 import type { Folder } from '@/lib/capacitor';
@@ -31,72 +31,104 @@ export function FolderSelectionCard({
     onSync
 }: FolderSelectionCardProps) {
     return (
-        <Card className="p-4 mb-4 shrink-0">
+        <Card className="mb-4 shrink-0 rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
             {!selectedFolder ? (
-                <div className="text-center py-6">
-                    <FolderOpen className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-4">
-                        Choose a folder containing your call recordings
-                    </p>
-                    <Button onPress={onPickFolder} size="lg" variant="primary">
-                        <FolderOpen className="h-5 w-5 mr-2" />
-                        Choose Folder
+                <Card.Content className="space-y-5 p-6 text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-default-100 text-default-400">
+                        <FolderOpen className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <div className="text-2xl font-bold tracking-[-0.03em] text-foreground">Choose a folder to begin</div>
+                        <p className="mt-2 text-sm leading-6 text-default-500">
+                            Point the app at the location where your call recordings live. We’ll inspect the contents before syncing anything.
+                        </p>
+                    </div>
+                    <Button onPress={onPickFolder} size="lg" variant="primary" className="rounded-full px-6 font-semibold">
+                        <FolderOpen className="mr-2 h-5 w-5" />
+                        Choose folder
                     </Button>
-                </div>
+                </Card.Content>
             ) : (
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-                    <div className="flex-1">
-                        <h3 className="text-sm font-medium text-muted-foreground mb-1">Selected Folder</h3>
-                        <div className="flex items-center gap-2">
-                            <FolderOpen className="h-5 w-5 text-primary" />
-                            <span className="font-semibold text-lg">{selectedFolder.name}</span>
+                <Card.Content className="space-y-5 p-6">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Chip variant="soft" color="accent">
+                                    Selected folder
+                                </Chip>
+                                <Chip variant="soft" color="default">
+                                    {selectedFolder.name}
+                                </Chip>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-accent/10 text-accent">
+                                    <FolderOpen className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <div className="text-xl font-bold tracking-[-0.03em] text-foreground">{selectedFolder.name}</div>
+                                    <p className="text-sm leading-6 text-default-500">
+                                        Review pending files, refresh the directory, or change the source if needed.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex w-full gap-2 lg:w-auto">
+                            <Button
+                                variant="ghost"
+                                onPress={onLoadFiles}
+                                isIconOnly={isLoading}
+                                isDisabled={isLoading}
+                                className="flex-1 rounded-full lg:flex-none"
+                            >
+                                {!isLoading && <RefreshCw className="mr-2 h-4 w-4" />}
+                                {isLoading ? <Spinner size="sm" /> : 'Refresh'}
+                            </Button>
+
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 isIconOnly
                                 onPress={onClearFolder}
-                                className="text-danger"
+                                className="rounded-full text-danger"
                                 aria-label="Change folder"
                             >
                                 <X className="h-4 w-4" />
                             </Button>
-                        </div>
-                        <div className="flex gap-4 mt-2 text-sm">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-warning"></div>
-                                <span>{pendingFilesCount} Pending ({formatFileSize(pendingSize)})</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-success"></div>
-                                <span>{syncedTotal} Synced</span>
-                            </div>
+
+                            {selectedCount > 0 && (
+                                <Button
+                                    variant="primary"
+                                    onPress={onSync}
+                                    isIconOnly={isSyncing}
+                                    isDisabled={isSyncing}
+                                    className="flex-1 rounded-full px-5 font-semibold lg:flex-none"
+                                >
+                                    {!isSyncing && <Upload className="mr-2 h-4 w-4" />}
+                                    {isSyncing ? <Spinner size="sm" color="current" /> : `Sync ${selectedCount} files`}
+                                </Button>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        <Button
-                            variant="ghost"
-                            onPress={onLoadFiles}
-                            isIconOnly={isLoading}
-                            isDisabled={isLoading}
-                        >
-                            {!isLoading && <RefreshCw className="h-4 w-4 mr-2" />}
-                            {isLoading ? <Spinner size="sm" /> : 'Refresh'}
-                        </Button>
-
-                        {selectedCount > 0 && (
-                            <Button
-                                variant="primary"
-                                onPress={onSync}
-                                isIconOnly={isSyncing}
-                                isDisabled={isSyncing}
-                            >
-                                {!isSyncing && <Upload className="h-4 w-4 mr-2" />}
-                                {isSyncing ? <Spinner size="sm" color="current" /> : `Sync ${selectedCount} Files`}
-                            </Button>
-                        )}
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Pending</div>
+                            <div className="mt-1 text-2xl font-bold text-foreground">{pendingFilesCount}</div>
+                            <div className="text-sm text-default-500">Files still waiting in this folder</div>
+                        </Surface>
+                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Payload</div>
+                            <div className="mt-1 text-2xl font-bold text-foreground">{formatFileSize(pendingSize)}</div>
+                            <div className="text-sm text-default-500">Estimated size for pending files</div>
+                        </Surface>
+                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Already synced</div>
+                            <div className="mt-1 text-2xl font-bold text-foreground">{syncedTotal}</div>
+                            <div className="text-sm text-default-500">Historical files copied from this device</div>
+                        </Surface>
                     </div>
-                </div>
+                </Card.Content>
             )}
         </Card>
     );

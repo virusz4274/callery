@@ -4,6 +4,7 @@ export {
     countRecordingsByUser,
     countRecordingsForExport,
     getRecordingById,
+    getRecordingByR2Key,
     getRecordingsByUser,
     getRecordingsForApi,
     getRecordingsPageForExport,

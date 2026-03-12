@@ -12,6 +12,11 @@ import { createNotification } from '@/lib/notifications';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { reportUsage } from '@/lib/stripe/usage';
 import { incrementTranscriptionUsed } from '@/lib/db/users';
+import {
+    buildTranscriptionFileSizeError,
+    isTranscriptionFileSizeAllowed,
+    MAX_TRANSCRIPTION_FILE_SIZE_LABEL,
+} from '@/lib/transcription-limits';
 
 const aiService = new GeminiService();
 
@@ -20,12 +25,27 @@ export async function triggerAutoTranscription(
     recordingId: string,
     r2Key: string,
     duration: number,
+    fileSize: number,
     fileName: string,
     standardizedDisplayName: string
 ) {
     try {
         const user = await findUserByFirebaseUid(firebaseUid);
         if (!user?.transcriptionSettings?.autoTranscribe) return;
+
+        if (!isTranscriptionFileSizeAllowed(fileSize)) {
+            const reason = buildTranscriptionFileSizeError(fileSize);
+            logger.warn(`[triggerAutoTranscription] Skipped for ${recordingId}: ${reason}`);
+            await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
+            await createNotification(
+                user._id,
+                'warning',
+                'Transcription Skipped',
+                `Skipped "${standardizedDisplayName || fileName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
+                `/?id=${recordingId}`
+            );
+            return;
+        }
 
         // Determine Provider and Model
         let providerId: TranscriptionProviderId = user.transcriptionSettings?.defaultProvider || 'soniox';

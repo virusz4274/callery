@@ -8,6 +8,7 @@ export {
 export {
     copyR2Object,
     deleteFromR2,
+    getR2ObjectDurationSeconds,
     getR2ObjectMetadata,
     getSignedR2Url,
     uploadToR2WithMetadata,

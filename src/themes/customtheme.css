@@ -43,12 +43,17 @@
     /* Surface: Used for non-overlay components (cards, accordions, disclosure groups) */
     --surface: var(--white);
     --surface-foreground: var(--foreground);
+    --card: var(--surface);
+    --card-foreground: var(--surface-foreground);
 
     /* Overlay: Used for floating/overlay components (tooltips, popovers, modals, menus) */
     --overlay: var(--white);
     --overlay-foreground: var(--foreground);
+    --popover: var(--overlay);
+    --popover-foreground: var(--overlay-foreground);
 
     --muted: oklch(0.5517 0.0138 285.94);
+    --muted-foreground: var(--muted);
 
     --scrollbar: oklch(87.1% 0.006 286.286);
 
@@ -95,6 +100,8 @@
     --border: oklch(0 0 0 / 0%);
     --separator: oklch(92% 0.004 286.32);
     --focus: var(--accent);
+    --input: var(--separator);
+    --ring: var(--focus);
     --link: var(--foreground);
 
     /* Shadows */
@@ -123,14 +130,19 @@
     /* Surface: Used for non-overlay components (cards, accordions, disclosure groups) */
     --surface: oklch(0.2103 0.0059 285.89);
     --surface-foreground: var(--foreground);
+    --card: var(--surface);
+    --card-foreground: var(--surface-foreground);
 
     /* Overlay: Used for floating/overlay components (tooltips, popovers, modals, menus) - lighter for contrast */
     --overlay: oklch(
       0.22 0.0059 285.89
     ); /* A bit lighter than surface for visibility in dark mode */
     --overlay-foreground: var(--foreground);
+    --popover: var(--overlay);
+    --popover-foreground: var(--overlay-foreground);
 
     --muted: oklch(70.5% 0.015 286.067);
+    --muted-foreground: var(--muted);
 
     --scrollbar: oklch(70.5% 0.015 286.067);
 
@@ -175,6 +187,8 @@
     --border: oklch(1 0 0 / 0%);
     --separator: oklch(22% 0.006 286.033);
     --focus: var(--accent);
+    --input: var(--separator);
+    --ring: var(--focus);
     --link: var(--foreground);
 
     /* Shadows */

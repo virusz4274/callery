@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, Button, Card } from '@heroui/react';
+import { Avatar, Button, Card, Chip } from '@heroui/react';
 import { RotateCcw, Trash2 } from 'lucide-react';
 import type { User } from '@/lib/types';
 
@@ -15,19 +15,33 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
     const isSoftDeleted = user.softDelete?.isDeleted;
 
     return (
-        <Card>
-            <Card.Header className="flex gap-4 justify-between">
+        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card.Header className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-start">
+                <div className="flex items-start gap-4">
                 <Avatar className="h-16 w-16">
                     <Avatar.Image src={user.photoURL} alt={user.name} />
                     <Avatar.Fallback>{user.name.charAt(0)}</Avatar.Fallback>
                 </Avatar>
-                <div>
-                    <h2 className="text-3xl font-bold">{user.name}</h2>
-                    <p className="text-default-500">{user.phoneNumber || 'No phone number'}</p>
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Chip variant="soft" color="accent">
+                            Account details
+                        </Chip>
+                        {isSoftDeleted && (
+                            <Chip variant="soft" color="warning">
+                                Pending deletion
+                            </Chip>
+                        )}
+                    </div>
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-[-0.03em] text-foreground">{user.name}</h2>
+                        <p className="text-default-500">{user.phoneNumber || 'No phone number on file'}</p>
+                    </div>
                 </div>
-                <div className="flex gap-2 ml-auto">
+                </div>
+                <div className="flex gap-2 md:ml-auto">
                     {isSoftDeleted ? (
-                        <Button variant="secondary" isDisabled={isRestoring} onPress={onRestoreUser}>
+                        <Button variant="secondary" className="rounded-full px-5 font-semibold" isDisabled={isRestoring} onPress={onRestoreUser}>
                             {isRestoring ? (
                                 'Restoring...'
                             ) : (
@@ -38,7 +52,7 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                             )}
                         </Button>
                     ) : (
-                        <Button variant="danger-soft" isDisabled={isDeleting} onPress={onDeleteUser}>
+                        <Button variant="danger-soft" className="rounded-full px-5 font-semibold" isDisabled={isDeleting} onPress={onDeleteUser}>
                             {isDeleting ? (
                                 'Deleting...'
                             ) : (

@@ -5,11 +5,16 @@ import { UserResponse } from '@/lib/db/types';
 import {
     Modal,
     Button,
+    Chip,
     Input,
     Label,
-    Description
+    Description,
+    Surface,
 } from '@heroui/react';
+import { HardDrive, Waves } from 'lucide-react';
 import { updateUserUsage } from '@/app/actions/admin';
+import { useToast } from '@/components/toast-provider';
+import { useRouter } from 'next/navigation';
 
 type EditUsageDialogProps = {
     user: UserResponse;
@@ -19,6 +24,8 @@ type EditUsageDialogProps = {
 
 export function EditUsageDialog({ user, isOpen, onClose }: EditUsageDialogProps) {
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+    const router = useRouter();
 
     // Initial values
     const [storageBytes, setStorageBytes] = useState(user.storageUsed.toString());
@@ -36,29 +43,67 @@ export function EditUsageDialog({ user, isOpen, onClose }: EditUsageDialogProps)
                 storageUsed: Number(storageBytes),
                 transcriptionUsed: Number(transcriptionSeconds)
             });
+            toast({ title: 'Usage updated', description: 'The account usage counters were saved.', status: 'success' });
+            router.refresh();
             onClose();
         } catch (error) {
             console.error('Failed to update usage:', error);
-            alert('Failed to update usage');
+            toast({ title: 'Update failed', description: 'Failed to update usage counters.', status: 'danger' });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Modal isOpen={isOpen} onOpenChange={onClose}>
+        <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
             <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog className="w-full max-w-md bg-card p-6 rounded-xl shadow-xl border border-default-200">
-                        <Modal.Header>
-                            <Modal.Heading className="text-xl font-bold">Edit Usage (Forgiveness)</Modal.Heading>
-                            <p className="text-sm text-default-500">
-                                Manually adjust usage counters. Use this to credit back usage for failed uploads or tests.
-                            </p>
+                    <Modal.Dialog className="w-full max-w-xl rounded-[1.75rem] border border-default-200/80 bg-background p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]">
+                        <Modal.Header className="border-b border-default-100/80 px-6 py-5">
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Chip variant="soft" color="accent">Usage forgiveness</Chip>
+                                    <Chip variant="soft" color="default">{user.name}</Chip>
+                                </div>
+                                <Modal.Heading className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                                    Edit usage
+                                </Modal.Heading>
+                                <p className="text-sm leading-6 text-default-500">
+                                    Manually adjust usage counters when you need to credit back failed uploads, testing activity, or support remediation.
+                                </p>
+                            </div>
                         </Modal.Header>
 
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-6 mt-4">
-                            {/* Storage Input */}
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-6 py-5">
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="rounded-2xl bg-accent/10 p-2.5 text-accent">
+                                            <HardDrive className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-foreground">Storage usage</div>
+                                            <p className="mt-1 text-sm leading-6 text-default-500">
+                                                Adjust the bytes already consumed when uploads were removed or written off.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </Surface>
+                                <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="rounded-2xl bg-success/10 p-2.5 text-success">
+                                            <Waves className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-foreground">Transcription usage</div>
+                                            <p className="mt-1 text-sm leading-6 text-default-500">
+                                                Credit back consumed transcription seconds for failed processing or test data.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </Surface>
+                            </div>
+
                             <div className="flex flex-col gap-2">
                                 <Label>Storage Used (Bytes)</Label>
                                 <Input
@@ -72,7 +117,6 @@ export function EditUsageDialog({ user, isOpen, onClose }: EditUsageDialogProps)
                                 </Description>
                             </div>
 
-                            {/* Transcription Input */}
                             <div className="flex flex-col gap-2">
                                 <Label>Transcription Used (Seconds)</Label>
                                 <Input
@@ -86,11 +130,11 @@ export function EditUsageDialog({ user, isOpen, onClose }: EditUsageDialogProps)
                                 </Description>
                             </div>
 
-                            <div className="flex justify-end gap-2 mt-2">
-                                <Button variant="ghost" onPress={onClose} isDisabled={loading}>
+                            <div className="mt-2 flex justify-end gap-2 border-t border-default-100/80 pt-4">
+                                <Button variant="ghost" className="rounded-full" onPress={onClose} isDisabled={loading}>
                                     Cancel
                                 </Button>
-                                <Button type="submit" variant="primary" isPending={loading}>
+                                <Button type="submit" variant="primary" className="rounded-full px-5 font-semibold" isPending={loading}>
                                     Update Usage
                                 </Button>
                             </div>

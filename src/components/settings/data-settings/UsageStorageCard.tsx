@@ -1,4 +1,5 @@
-import { Card, Select, Label, ListBox } from '@heroui/react';
+import { Card, Chip, Label, ListBox, Select } from '@heroui/react';
+import { Database, FileAudio2, ShieldEllipsis } from 'lucide-react';
 import type { User } from '@/lib/types';
 
 interface UsageStorageProps {
@@ -7,82 +8,121 @@ interface UsageStorageProps {
     onPolicyChange: (policy: string) => void;
 }
 
+function UsageMeter({ label, value, description, percent, icon: Icon }: {
+    label: string;
+    value: string;
+    description: string;
+    percent: number;
+    icon: typeof FileAudio2;
+}) {
+    const tone = percent > 90 ? 'bg-danger' : 'bg-primary';
+
+    return (
+        <div className="rounded-[1.3rem] border border-default-200/80 bg-background p-4">
+            <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div className="w-full space-y-3">
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">{label}</p>
+                        <p className="text-sm text-default-500">{description}</p>
+                    </div>
+                    <div className="flex items-end justify-between gap-3">
+                        <p className="text-lg font-semibold tracking-[-0.03em] text-foreground">{value}</p>
+                        <p className="text-xs font-medium uppercase tracking-[0.16em] text-default-400">{Math.min(percent, 100).toFixed(0)}% used</p>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-default-100">
+                        <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function UsageStorageCard({
     userProfile,
     deletionPolicy,
-    onPolicyChange
+    onPolicyChange,
 }: UsageStorageProps) {
     const storageUsed = userProfile?.storageUsed || 0;
-    const storageAllocation = userProfile?.storageAllocation || 1; // Prevent div by zero
+    const storageAllocation = userProfile?.storageAllocation || 1;
     const storagePercentage = (storageUsed / storageAllocation) * 100;
 
-    // Unit Conversion: Used is in seconds, Allocation is in minutes.
     const transcriptionUsedSeconds = userProfile?.transcriptionUsed || 0;
     const transcriptionUsedMinutes = transcriptionUsedSeconds / 60;
-    const transcriptionAllocationSeconds = userProfile?.transcriptionAllocation || 3600; // Default 60 mins (3600s)
+    const transcriptionAllocationSeconds = userProfile?.transcriptionAllocation || 3600;
     const transcriptionAllocationMinutes = transcriptionAllocationSeconds / 60;
-
     const transcriptionPercentage = (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100;
 
     return (
-        <Card className="bg-card/70 border-default-200">
-            <Card.Content className="space-y-6">
-                {/* Transcription Usage */}
-                <div>
-                    <h4 className="font-medium mb-2">Transcription Usage</h4>
-                    <p className="text-sm text-default-500 mb-2">
-                        You have used {transcriptionUsedMinutes.toFixed(1)} minutes of {transcriptionAllocationMinutes} minutes.
-                    </p>
-                    {/* Custom Progress Bar */}
-                    <div className="h-2 w-full bg-default-100 rounded-full overflow-hidden">
-                        <div
-                            className={`h-full transition-all duration-500 ${transcriptionPercentage > 90 ? "bg-danger" : "bg-primary"}`}
-                            style={{ width: `${Math.min(transcriptionPercentage, 100)}%` }}
-                        />
-                    </div>
+        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+            <Card.Content className="space-y-5 p-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Chip size="sm" variant="soft" color="accent">Usage overview</Chip>
+                    <Chip size="sm" variant="soft" color="default">Retention policy</Chip>
                 </div>
 
-                <div>
-                    <h4 className="font-medium mb-2">Storage Usage</h4>
-                    <p className="text-sm text-default-500 mb-2">
-                        You are currently using {((storageUsed) / (1024 * 1024 * 1024)).toFixed(2)} GB of {((storageAllocation) / (1024 * 1024 * 1024)).toFixed(0)} GB.
-                    </p>
-                    {/* Custom Progress Bar */}
-                    <div className="h-2 w-full bg-default-100 rounded-full overflow-hidden">
-                        <div
-                            className={`h-full transition-all duration-500 ${storagePercentage > 90 ? "bg-danger" : "bg-primary"}`}
-                            style={{ width: `${Math.min(storagePercentage, 100)}%` }}
-                        />
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <UsageMeter
+                        label="Transcription usage"
+                        value={`${transcriptionUsedMinutes.toFixed(1)} min / ${transcriptionAllocationMinutes} min`}
+                        description="Track how much automated and manual transcription time has been consumed this cycle."
+                        percent={transcriptionPercentage}
+                        icon={FileAudio2}
+                    />
+                    <UsageMeter
+                        label="Storage usage"
+                        value={`${(storageUsed / (1024 * 1024 * 1024)).toFixed(2)} GB / ${(storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB`}
+                        description="Monitor cloud storage consumption so your library and uploads stay within plan limits."
+                        percent={storagePercentage}
+                        icon={Database}
+                    />
+                </div>
+
+                <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <ShieldEllipsis className="h-5 w-5" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-base font-semibold text-foreground">Automatic deletion policy</p>
+                                <p className="max-w-2xl text-sm leading-6 text-default-500">
+                                    Choose how aggressively the system should remove older recordings to keep storage predictable.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="w-full lg:w-64">
+                            <Label className="mb-2 text-sm font-medium">Retention window</Label>
+                            <Select
+                                aria-label="Automatic deletion policy"
+                                placeholder="Select a policy"
+                                selectedKey={deletionPolicy}
+                                onSelectionChange={(key) => {
+                                    if (key) {
+                                        onPolicyChange(key as string);
+                                    }
+                                }}
+                            >
+                                <Select.Trigger>
+                                    <Select.Value />
+                                    <Select.Indicator />
+                                </Select.Trigger>
+                                <Select.Popover>
+                                    <ListBox>
+                                        <ListBox.Item key="never" id="never" textValue="Never">Never</ListBox.Item>
+                                        <ListBox.Item key="3m" id="3m" textValue="3 Months">3 Months</ListBox.Item>
+                                        <ListBox.Item key="6m" id="6m" textValue="6 Months">6 Months</ListBox.Item>
+                                        <ListBox.Item key="1y" id="1y" textValue="1 Year">1 Year</ListBox.Item>
+                                    </ListBox>
+                                </Select.Popover>
+                            </Select>
+                        </div>
                     </div>
                 </div>
-                <div className="w-full max-w-sm">
-                    <Select
-                        placeholder="Select a policy"
-                        selectedKey={deletionPolicy}
-                        onSelectionChange={(key) => {
-                            if (key) {
-                                onPolicyChange(key as string);
-                            }
-                        }}
-                    >
-                        <Label>Automatic Deletion Policy</Label>
-                        <Select.Trigger>
-                            <Select.Value />
-                            <Select.Indicator />
-                        </Select.Trigger>
-                        <Select.Popover>
-                            <ListBox>
-                                <ListBox.Item key="never" id="never" textValue="Never">Never</ListBox.Item>
-                                <ListBox.Item key="3m" id="3m" textValue="3 Months">3 Months</ListBox.Item>
-                                <ListBox.Item key="6m" id="6m" textValue="6 Months">6 Months</ListBox.Item>
-                                <ListBox.Item key="1y" id="1y" textValue="1 Year">1 Year</ListBox.Item>
-                            </ListBox>
-                        </Select.Popover>
-                    </Select>
-                    <p className="text-xs text-default-500 mt-1">Automatically delete old recordings to manage storage space.</p>
-                </div>
             </Card.Content>
-            {/* Save handled by parent */}
         </Card>
     );
 }

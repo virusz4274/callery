@@ -10,150 +10,190 @@ type PlanFormBodyProps = {
 
 export function PlanFormBody({ values, setField }: PlanFormBodyProps) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Plan Name</Label>
-                <Input
-                    placeholder="e.g. Enterprise"
-                    value={values.name}
-                    onChange={(event) => setField('name', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Stripe Price ID (Base)</Label>
-                <Input
-                    placeholder="price_H5ggY..."
-                    value={values.stripePriceId}
-                    onChange={(event) => setField('stripePriceId', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Stripe Storage Price ID (Metered)</Label>
-                <Input
-                    placeholder="price_..."
-                    value={values.stripeStoragePriceId}
-                    onChange={(event) => setField('stripeStoragePriceId', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Stripe Transcription Price ID (Metered)</Label>
-                <Input
-                    placeholder="price_..."
-                    value={values.stripeTranscriptionPriceId}
-                    onChange={(event) => setField('stripeTranscriptionPriceId', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Price (USD)</Label>
-                <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={values.price}
-                    onChange={(event) => setField('price', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="md:col-span-2 flex flex-col gap-2">
-                <Label className="text-sm font-medium">Description</Label>
-                <Input
-                    placeholder="Short description for the pricing table"
-                    value={values.description}
-                    onChange={(event) => setField('description', event.target.value)}
-                    className="w-full"
-                />
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Billing Interval</Label>
-                <Select
-                    selectedKey={values.interval}
-                    onSelectionChange={(key) => setField('interval', key as PlanFormValues['interval'])}
-                >
-                    <Select.Trigger className="w-full">
-                        <Select.Value />
-                        <Select.Indicator />
-                    </Select.Trigger>
-                    <Select.Popover>
-                        <ListBox>
-                            {INTERVALS.map((item) => (
-                                <ListBox.Item key={item.value} id={item.value} textValue={item.label}>
-                                    {item.label}
-                                </ListBox.Item>
-                            ))}
-                        </ListBox>
-                    </Select.Popover>
-                </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Status & Visibility</Label>
-                <div className="flex flex-col gap-2 pt-2">
-                    <Checkbox
-                        isSelected={values.isActive}
-                        onChange={() => setField('isActive', !values.isActive)}
-                    >
-                        <Checkbox.Control>
-                            <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Checkbox.Content>Active (Visible)</Checkbox.Content>
-                    </Checkbox>
-
-                    <Checkbox
-                        isSelected={values.isDefault}
-                        onChange={() => setField('isDefault', !values.isDefault)}
-                    >
-                        <Checkbox.Control>
-                            <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <Checkbox.Content>Default Plan for New Users</Checkbox.Content>
-                    </Checkbox>
+        <div className="space-y-6">
+            <section className="rounded-[1.5rem] border border-default-200/80 bg-background p-5 sm:p-6">
+                <div className="mb-5 space-y-1">
+                    <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">Plan identity</h3>
+                    <p className="text-sm leading-6 text-default-500">
+                        Set the customer-facing name, description, and Stripe catalog references for this plan.
+                    </p>
                 </div>
-            </div>
 
-            <div className="md:col-span-2 flex items-center gap-2 mt-4 font-bold text-sm text-default-500">
-                <div className="h-px flex-1 bg-default-200"></div>
-                <span>Limits</span>
-                <div className="h-px flex-1 bg-default-200"></div>
-            </div>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Plan name</Label>
+                        <Input
+                            aria-label="Plan name"
+                            placeholder="Starter, Pro, Team, Enterprise..."
+                            value={values.name}
+                            onChange={(event) => setField('name', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
 
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Storage (GB)</Label>
-                <Input
-                    type="number"
-                    value={values.storageGB}
-                    onChange={(event) => setField('storageGB', event.target.value)}
-                    className="w-full"
-                />
-            </div>
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Price (USD)</Label>
+                        <Input
+                            aria-label="Plan price"
+                            type="number"
+                            placeholder="0.00"
+                            value={values.price}
+                            onChange={(event) => setField('price', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
 
-            <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Transcription (Min)</Label>
-                <Input
-                    type="number"
-                    value={values.transcriptionMinutes}
-                    onChange={(event) => setField('transcriptionMinutes', event.target.value)}
-                    className="w-full"
-                />
-            </div>
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Description</Label>
+                        <Input
+                            aria-label="Plan description"
+                            placeholder="Describe who this plan is for and what value it unlocks."
+                            value={values.description}
+                            onChange={(event) => setField('description', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
 
-            <div className="md:col-span-2 flex flex-col gap-2">
-                <Label className="text-sm font-medium">Features (One per line)</Label>
-                <TextArea
-                    placeholder="Feature 1&#10;Feature 2&#10;Feature 3"
-                    value={values.featuresInput}
-                    onChange={(event) => setField('featuresInput', event.target.value)}
-                    className="w-full"
-                />
-            </div>
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Billing interval</Label>
+                        <Select
+                            aria-label="Billing interval"
+                            selectedKey={values.interval}
+                            onSelectionChange={(key) => setField('interval', key as PlanFormValues['interval'])}
+                        >
+                            <Select.Trigger className="w-full">
+                                <Select.Value />
+                                <Select.Indicator />
+                            </Select.Trigger>
+                            <Select.Popover>
+                                <ListBox>
+                                    {INTERVALS.map((item) => (
+                                        <ListBox.Item key={item.value} id={item.value} textValue={item.label}>
+                                            {item.label}
+                                        </ListBox.Item>
+                                    ))}
+                                </ListBox>
+                            </Select.Popover>
+                        </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Visibility</Label>
+                        <div className="rounded-[1.25rem] border border-default-200/80 bg-default-50/70 px-4 py-3">
+                            <div className="flex flex-col gap-3">
+                                <Checkbox
+                                    aria-label="Plan active"
+                                    isSelected={values.isActive}
+                                    onChange={() => setField('isActive', !values.isActive)}
+                                >
+                                    <Checkbox.Control>
+                                        <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                    <Checkbox.Content>Active and available for assignment</Checkbox.Content>
+                                </Checkbox>
+
+                                <Checkbox
+                                    aria-label="Plan default"
+                                    isSelected={values.isDefault}
+                                    onChange={() => setField('isDefault', !values.isDefault)}
+                                >
+                                    <Checkbox.Control>
+                                        <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                    <Checkbox.Content>Default plan for new users</Checkbox.Content>
+                                </Checkbox>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Stripe price ID (base)</Label>
+                        <Input
+                            aria-label="Stripe base price ID"
+                            placeholder="price_..."
+                            value={values.stripePriceId}
+                            onChange={(event) => setField('stripePriceId', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Stripe storage price ID</Label>
+                        <Input
+                            aria-label="Stripe storage price ID"
+                            placeholder="price_..."
+                            value={values.stripeStoragePriceId}
+                            onChange={(event) => setField('stripeStoragePriceId', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Stripe transcription price ID</Label>
+                        <Input
+                            aria-label="Stripe transcription price ID"
+                            placeholder="price_..."
+                            value={values.stripeTranscriptionPriceId}
+                            onChange={(event) => setField('stripeTranscriptionPriceId', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-default-200/80 bg-default-50/70 p-5 sm:p-6">
+                <div className="mb-5 space-y-1">
+                    <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">Usage limits</h3>
+                    <p className="text-sm leading-6 text-default-500">
+                        Define the included storage and transcription allowance before overage rules apply.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Storage (GB)</Label>
+                        <Input
+                            aria-label="Storage limit in gigabytes"
+                            type="number"
+                            value={values.storageGB}
+                            onChange={(event) => setField('storageGB', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Transcription (minutes)</Label>
+                        <Input
+                            aria-label="Transcription limit in minutes"
+                            type="number"
+                            value={values.transcriptionMinutes}
+                            onChange={(event) => setField('transcriptionMinutes', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-default-200/80 bg-background p-5 sm:p-6">
+                <div className="mb-5 space-y-1">
+                    <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">Included features</h3>
+                    <p className="text-sm leading-6 text-default-500">
+                        Add one feature per line. These are reused in pricing and admin review surfaces.
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-medium">Features</Label>
+                    <TextArea
+                        aria-label="Plan features"
+                        placeholder="Unlimited library search&#10;AI summaries&#10;Team billing controls"
+                        value={values.featuresInput}
+                        onChange={(event) => setField('featuresInput', event.target.value)}
+                        className="w-full"
+                        rows={6}
+                    />
+                </div>
+            </section>
         </div>
     );
 }

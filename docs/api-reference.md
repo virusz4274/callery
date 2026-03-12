@@ -13,8 +13,9 @@ Location: `src/app/actions`
   - `deleteRecordingAction`
   - `updateRecordingAction`
   - `getPlaybackUrlAction`
-- `upload-recordings.ts`
-  - `uploadRecordings`
+- `upload/direct-upload.ts`
+  - `initializeDirectUpload`
+  - `completeDirectUpload`
 - `transcription.ts`
   - `transcribeRecordingAction`
 - `search-actions.ts`
@@ -47,6 +48,14 @@ Location: `src/app/actions`
   - `updateTranscriptionSettings`
 - `admin/users.ts`
   - `restoreUser`
+
+### Upload and transcription constraints
+
+- Direct upload path: client uploads bytes directly to R2 using presigned PUT URLs from `initializeDirectUpload`.
+- Upload finalize path: `completeDirectUpload` verifies object existence/size before DB write and transcription scheduling.
+- Upload size limit: 5 GiB per recording.
+- Transcription processing limit: 2 GiB per recording.
+- Legacy action `upload-recordings.ts` remains in code but is not the primary client flow.
 
 ### Admin actions
 

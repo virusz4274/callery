@@ -1,71 +1,75 @@
-
 import React from 'react';
-import { Card } from '@heroui/react';
-import { LucideIcon } from 'lucide-react';
+import { Chip, Surface } from '@heroui/react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatsCardProps {
     title: string;
     value: string | number;
-    trend?: string; // e.g. "+2.5%" or "-5%"
-    trendLabel?: string; // e.g. "Stable"
-    trendType?: 'success' | 'warning' | 'danger' | 'default';
+    subtitle: string;
+    statusLabel?: string;
     icon: LucideIcon;
-    iconClassName?: string; // e.g. "text-primary"
-    iconBgClassName?: string; // e.g. "bg-primary/20"
-    progressValue?: number; // 0-100
-    progressColorClass?: string; // e.g. "from-primary to-primary/60"
-    progressShadowClass?: string; // e.g. "shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+    tone?: 'accent' | 'success' | 'warning' | 'default';
 }
 
 export function StatsCard({
     title,
     value,
-    trend,
-    trendLabel,
-    trendType = 'default',
+    subtitle,
+    statusLabel,
     icon: Icon,
-    iconClassName,
-    iconBgClassName,
-    progressValue = 0,
-    progressColorClass,
-    progressShadowClass
+    tone = 'default',
 }: StatsCardProps) {
-
-    const getTrendColor = (type: string) => {
-        switch (type) {
-            case 'success': return 'text-success bg-success/10';
-            case 'warning': return 'text-warning bg-warning/10';
-            case 'danger': return 'text-danger bg-danger/10';
-            default: return 'text-default-400 bg-default-200/50';
-        }
-    };
+    const toneClasses = {
+        accent: {
+            icon: 'bg-accent/10 text-accent',
+            chip: 'accent' as const,
+        },
+        success: {
+            icon: 'bg-success/10 text-success',
+            chip: 'success' as const,
+        },
+        warning: {
+            icon: 'bg-warning/10 text-warning',
+            chip: 'warning' as const,
+        },
+        default: {
+            icon: 'bg-default-100 text-default-500',
+            chip: 'default' as const,
+        },
+    }[tone];
 
     return (
-        <Card className="border-none bg-gradient-to-br from-content1/50 to-content2/50 backdrop-blur-xl shadow-medium hover:shadow-lg transition-all duration-300">
-            <Card.Content className="p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs font-medium text-default-500 uppercase tracking-wider truncate">{title}</p>
-                        <div className="mt-1 flex items-baseline gap-1 sm:gap-2 flex-wrap">
-                            <span className="text-xl sm:text-2xl font-bold text-foreground truncate">{value}</span>
-                            {(trend || trendLabel) && (
-                                <span className={`text-[8px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${getTrendColor(trendType)} whitespace-nowrap`}>
-                                    {trend || trendLabel}
-                                </span>
-                            )}
-                        </div>
+        <Surface
+            variant="secondary"
+            className="rounded-[1.5rem] border border-default-200/80 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
+        >
+            <div className="flex h-full flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">{title}</p>
+                        <div className="text-3xl font-bold tracking-[-0.03em] text-foreground">{value}</div>
+                        <p className="text-sm leading-6 text-default-500">{subtitle}</p>
                     </div>
-                    <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl shadow-sm ${iconBgClassName}`}>
-                        <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${iconClassName}`} />
-                    </div>
-                </div>
-                <div className="mt-3 h-1 sm:h-1.5 w-full rounded-full bg-default-100/50 overflow-hidden">
+
                     <div
-                        className={`h-full rounded-full bg-gradient-to-r ${progressColorClass} ${progressShadowClass}`}
-                        style={{ width: `${Math.min(100, Math.max(0, progressValue))}%` }}
-                    />
+                        className={cn(
+                            'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[1.1rem]',
+                            toneClasses.icon
+                        )}
+                    >
+                        <Icon className="h-5 w-5" />
+                    </div>
                 </div>
-            </Card.Content>
-        </Card>
+
+                {statusLabel && (
+                    <div className="pt-1">
+                        <Chip size="sm" variant="soft" color={toneClasses.chip} className="rounded-full">
+                            {statusLabel}
+                        </Chip>
+                    </div>
+                )}
+            </div>
+        </Surface>
     );
 }

@@ -47,13 +47,8 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
     };
 
     return (
-        <div className="space-y-6 max-w-3xl">
-            <div>
-                <h1 className="text-2xl font-bold">Global System Settings</h1>
-                <p className="text-default-500">Configure application-wide defaults and availability.</p>
-            </div>
-
-            <Card className="p-6 space-y-6">
+        <div className="max-w-3xl space-y-6">
+            <Card className="space-y-6 rounded-[1.9rem] border border-default-200/80 p-6 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div>
                     <h3 className="text-lg font-semibold mb-4">Access Control</h3>
                     <div className="flex flex-col gap-4">

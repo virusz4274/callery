@@ -20,6 +20,7 @@ type AuditLogsTableProps = {
 
 export function AuditLogsTable({
     initialLogs,
+    totalLogs,
     currentPage,
     totalPages,
     initialActionFilter,
@@ -35,7 +36,8 @@ export function AuditLogsTable({
         const params = new URLSearchParams(searchParams);
         mutate(params);
         startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
+            const query = params.toString();
+            router.push(query ? `${pathname}?${query}` : pathname);
         });
     };
 
@@ -67,10 +69,22 @@ export function AuditLogsTable({
         });
     };
 
+    const handleClearFilters = () => {
+        navigateWithParams((params) => {
+            params.delete('action');
+            params.delete('startDate');
+            params.delete('endDate');
+            params.set('page', '1');
+        });
+    };
+
     return (
-        <Card className="p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">System Audit Logs</h3>
+        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">System audit logs</h3>
+                    <p className="text-sm text-default-500">{totalLogs} matching events across admin actions, account changes, and system controls.</p>
+                </div>
                 {isPending && <Spinner size="sm" />}
             </div>
 
@@ -80,6 +94,7 @@ export function AuditLogsTable({
                 initialEndDate={initialEndDate}
                 onActionFilterChange={handleActionFilterChange}
                 onDateChange={handleDateChange}
+                onClearFilters={handleClearFilters}
             />
 
             <AuditLogsTableContent logs={initialLogs} />

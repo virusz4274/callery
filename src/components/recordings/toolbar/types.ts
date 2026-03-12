@@ -1,5 +1,22 @@
 import type { Contact } from '@/lib/types';
 
+export type SavedRecordingsView = {
+    id: string;
+    name: string;
+    search?: string;
+    sortBy: 'date' | 'duration';
+    sortOrder: 'asc' | 'desc';
+    startDate?: string;
+    endDate?: string;
+    contactId?: string;
+};
+
+export type SmartCollection = {
+    id: string;
+    name: string;
+    description: string;
+};
+
 export type RecordingsToolbarProps = {
     search: string;
     onSearchChange: (val: string) => void;
@@ -18,4 +35,12 @@ export type RecordingsToolbarProps = {
     onClearSemanticSearch: () => void;
     isSemanticSearching: boolean;
     semanticResultsCount?: number;
+    savedViews: SavedRecordingsView[];
+    activeViewId?: string;
+    smartCollections: SmartCollection[];
+    activeSmartCollectionId?: string;
+    onApplySavedView: (viewId: string) => void;
+    onDeleteSavedView: (viewId: string) => void;
+    onSaveCurrentView: (name: string) => void;
+    onApplySmartCollection: (collectionId: string) => void;
 };

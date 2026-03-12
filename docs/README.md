@@ -20,3 +20,6 @@ This folder contains the maintained project documentation for Call Memo.
 
 - Historical migration notes and one-off reports were removed.
 - Setup steps were consolidated into `setup-guide.md` and `billing.md` for simpler handoff.
+- Uploads use direct client-to-R2 flow with presigned PUT URLs.
+- Upload limit is 5 GiB per recording and transcription limit is 2 GiB per recording.
+- Cloudflare CORS setup for direct uploads is documented in `setup-guide.md` section `4. Cloudflare R2 Setup`.

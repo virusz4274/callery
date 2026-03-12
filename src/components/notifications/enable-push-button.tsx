@@ -17,8 +17,8 @@ export function EnablePushButton() {
             const result = await enablePushNotifications(vapidPublicKey);
             if (!result.isEnabled) {
                 toast({
-                    title: 'Permission Denied',
-                    description: 'Please allow notifications in browser settings.',
+                    title: 'Permission denied',
+                    description: 'Please allow notifications in your browser settings.',
                     status: 'warning',
                 });
                 return;
@@ -26,15 +26,15 @@ export function EnablePushButton() {
 
             setIsEnabled(true);
             toast({
-                title: 'Notifications Enabled!',
-                description: 'You will receive push notifications.',
+                title: 'Notifications enabled',
+                description: 'Push alerts are now active for this browser.',
                 status: 'success',
             });
         } catch (error) {
             console.error('[Enable Push] Error:', error);
             toast({
-                title: 'Error',
-                description: 'Failed to enable notifications.',
+                title: 'Enable push failed',
+                description: 'Please try again.',
                 status: 'danger',
             });
         } finally {
@@ -52,10 +52,11 @@ export function EnablePushButton() {
             variant="ghost"
             onPress={handleEnable}
             isPending={isLoading}
-            className="text-xs h-7 px-2"
+            className="h-8 gap-2 rounded-full px-3 text-xs font-medium"
+            aria-label="Enable browser push notifications"
         >
-            {isLoading ? <Loader2 className="size-3 animate-spin" /> : <BellRing className="size-3 mr-1" />}
-            Enable Push
+            {isLoading ? <Loader2 className="size-3 animate-spin" /> : <BellRing className="size-3.5" />}
+            Enable push
         </Button>
     );
 }

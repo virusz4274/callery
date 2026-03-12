@@ -109,6 +109,7 @@ export async function uploadSingleFile(file: File, firebaseUid: string): Promise
                 createdRecording._id.toString(),
                 r2Key,
                 duration,
+                buffer.length,
                 file.name,
                 displayName
             );

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button, Card, Dropdown } from '@heroui/react';
+import { Button, Card, Chip, Dropdown } from '@heroui/react';
 import { ChevronRight, FileText, Folder, MoreVertical, PlayCircle, Trash2 } from 'lucide-react';
 import type { FileSystemNode } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
@@ -26,10 +26,24 @@ export function FileBrowserTable({
     onNodeClick,
     onDeleteClick,
 }: FileBrowserTableProps) {
+    const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
+
     return (
-        <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl overflow-visible transition-all duration-300 rounded-xl md:rounded-2xl">
-            <Card.Header className="flex flex-col items-start px-6 pt-6 pb-0">
-                <div className="pt-2 pb-4 flex items-center flex-wrap gap-1 text-sm text-default-500">
+        <Card className="overflow-visible rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 px-6 py-6">
+                <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                            Current directory
+                        </div>
+                        <div className="text-2xl font-bold tracking-[-0.03em] text-foreground">{currentLocation}</div>
+                    </div>
+                    <Chip variant="soft" color="default" className="rounded-full">
+                        {items.length} visible item{items.length === 1 ? '' : 's'}
+                    </Chip>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-1 text-sm text-default-500">
                     {breadcrumbItems.map((item, index) => {
                         const isLast = index === breadcrumbItems.length - 1;
 
@@ -55,10 +69,10 @@ export function FileBrowserTable({
                 </div>
             </Card.Header>
 
-            <Card.Content className="pb-8 px-0 sm:px-6">
-                <div className="rounded-xl border border-default-200/50 overflow-hidden mt-4 bg-background/40 shadow-sm backdrop-blur-md">
+            <Card.Content className="px-0 pb-8 sm:px-6">
+                <div className="mt-6 overflow-hidden rounded-[1.4rem] border border-default-200/80 bg-background/60 shadow-sm">
                     <table className="w-full text-sm text-left table-fixed sm:table-auto">
-                        <thead className="text-default-500 font-medium bg-default-50/50 border-b border-default-100/50">
+                        <thead className="border-b border-default-100/70 bg-default-50/70 text-default-500 font-medium">
                             <tr>
                                 <th className="h-12 px-4 align-middle pl-6 w-full sm:w-[400px]">Name</th>
                                 <th className="h-12 px-4 align-middle hidden sm:table-cell w-[100px]">Type</th>
@@ -75,9 +89,9 @@ export function FileBrowserTable({
                                 items.map((item) => (
                                     <tr
                                         key={item.id}
-                                        className={`transition-colors group ${
-                                            item.type === 'folder' ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-default-50'
-                                        }`}
+                                            className={`transition-colors group ${
+                                                item.type === 'folder' ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-default-50'
+                                            }`}
                                     >
                                         <td className="p-4 align-middle pl-6 truncate" onClick={() => onNodeClick(item)}>
                                             <div className="flex items-center gap-3">
@@ -167,9 +181,16 @@ export function FileBrowserTable({
                             ) : (
                                 <tr>
                                     <td colSpan={5} className="p-16 text-center text-default-500">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Folder className="h-10 w-10 text-default-200" />
-                                            <p>This folder is empty.</p>
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-default-100 text-default-300">
+                                                <Folder className="h-7 w-7" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-foreground">This folder is empty</p>
+                                                <p className="mt-1 text-sm text-default-500">
+                                                    Use the breadcrumbs to move elsewhere or return later after new uploads land.
+                                                </p>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@heroui/react';
+import { Button, Chip } from '@heroui/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type AuditLogsPaginationProps = {
@@ -16,28 +16,35 @@ export function AuditLogsPagination({ currentPage, totalPages, onPageChange }: A
     }
 
     return (
-        <div className="flex justify-center items-center gap-4 mt-4">
-            <Button
-                size="sm"
-                variant="ghost"
-                isDisabled={currentPage <= 1}
-                onPress={() => onPageChange(currentPage - 1)}
-            >
-                <ChevronLeft size={16} />
-                Previous
-            </Button>
-            <span className="text-sm text-default-400">
-                Page {currentPage} of {totalPages}
-            </span>
-            <Button
-                size="sm"
-                variant="ghost"
-                isDisabled={currentPage >= totalPages}
-                onPress={() => onPageChange(currentPage + 1)}
-            >
-                Next
-                <ChevronRight size={16} />
-            </Button>
+        <div className="mt-6 flex flex-col gap-3 border-t border-default-100/80 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-default-500">
+                Review adjacent pages to verify who changed what and when.
+            </p>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    isDisabled={currentPage <= 1}
+                    onPress={() => onPageChange(currentPage - 1)}
+                    className="gap-2"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                </Button>
+                <Chip variant="soft" color="default" className="rounded-full px-3 py-1 text-xs font-semibold">
+                    Page {currentPage} of {totalPages}
+                </Chip>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    isDisabled={currentPage >= totalPages}
+                    onPress={() => onPageChange(currentPage + 1)}
+                    className="gap-2"
+                >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
     );
 }

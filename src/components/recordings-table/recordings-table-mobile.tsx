@@ -1,6 +1,6 @@
-
 import React, { memo } from 'react';
 import { Recording, Contact } from '@/lib/types';
+import Link from 'next/link';
 import { Avatar, Button, Dropdown, Checkbox } from '@heroui/react';
 import { MoreHorizontal, FileText, RefreshCcw, Play } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
@@ -37,7 +37,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
     const { isSelected, toggleSelect } = selection;
 
     return (
-        <div className="md:hidden flex flex-col divide-y divide-default-100/50 pb-24">
+        <div className="md:hidden flex flex-col divide-y divide-default-100/50 pb-6">
             {recordings.length > 0 ? (
                 recordings.map((rec) => {
                     const selected = isSelected(rec.id);
@@ -186,6 +186,11 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                             <FileText className="h-6 w-6 text-default-400" />
                         </div>
                         <p className="text-default-500 text-sm">No recordings found</p>
+                        <Link href="/upload">
+                            <Button variant="secondary" className="rounded-full">
+                                Upload a recording
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             )}

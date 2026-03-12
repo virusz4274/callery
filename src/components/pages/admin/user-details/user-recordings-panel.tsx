@@ -10,15 +10,15 @@ type UserRecordingsPanelProps = {
 
 export function UserRecordingsPanel({ recordings }: UserRecordingsPanelProps) {
     return (
-        <Card>
-            <Card.Header>
+        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card.Header className="border-b border-default-100/70 px-6 py-5">
                 <div className="flex flex-col">
-                    <h3 className="text-lg font-bold">User Recordings</h3>
+                    <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">User recordings</h3>
                     <p className="text-small text-default-500">A list of all recordings associated with this user.</p>
                 </div>
             </Card.Header>
-            <Card.Content>
-                <div className="rounded-lg border border-default-200 overflow-hidden">
+            <Card.Content className="p-6">
+                <div className="overflow-hidden rounded-[1.25rem] border border-default-200/80">
                     <table className="w-full text-sm text-left">
                         <thead className="text-default-500 font-medium bg-default-50 border-b border-default-200">
                             <tr>
