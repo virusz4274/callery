@@ -2,7 +2,7 @@
 
 import type { UserResponse } from '@/lib/db/types';
 import { Avatar, Button, Chip, Dropdown } from '@heroui/react';
-import { MoreVertical } from 'lucide-react';
+import { ChevronRight, MoreVertical } from 'lucide-react';
 
 type UserManagementTableRowProps = {
     user: UserResponse;
@@ -35,7 +35,9 @@ export function UserManagementTableRow({
 
     return (
         <div
-            className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 p-4 hover:bg-default-50 transition-colors ${user.disabled || isSoftDeleted ? 'opacity-60 bg-default-100' : ''}`}
+            className={`grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 transition-colors ${
+                user.disabled || isSoftDeleted ? 'bg-default-100/70 opacity-70' : 'hover:bg-default-50/80'
+            }`}
         >
             <div className="flex items-center gap-4 min-w-0">
                 <Avatar className="h-10 w-10 flex-shrink-0">
@@ -44,7 +46,7 @@ export function UserManagementTableRow({
                 </Avatar>
                 <div className="min-w-0 overflow-hidden">
                     <div className="flex items-center gap-2">
-                        <p className="font-semibold truncate">{user.name || 'Unnamed User'}</p>
+                        <p className="truncate font-semibold text-foreground">{user.name || 'Unnamed User'}</p>
                         {user.role === 'admin' && (
                             <Chip color="warning" variant="soft" size="sm" className="ml-2 flex-shrink-0">
                                 Admin
@@ -62,6 +64,14 @@ export function UserManagementTableRow({
                         )}
                     </div>
                     <p className="text-small text-default-500 truncate">{user.email}</p>
+                    <div className="mt-2 flex flex-wrap gap-2 md:hidden">
+                        <Chip size="sm" variant="soft" color="default">
+                            {user.plan}
+                        </Chip>
+                        <Chip size="sm" variant="soft" color="default">
+                            {(user.storageUsed / (1024 * 1024 * 1024)).toFixed(1)} / {(user.storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB
+                        </Chip>
+                    </div>
                     {isSoftDeleted ? (
                         <p className="text-xs text-warning-600 truncate">
                             Restore by {new Date(user.softDelete!.restoreUntil).toLocaleDateString()}
@@ -97,10 +107,16 @@ export function UserManagementTableRow({
             </div>
 
             <Dropdown>
-                <Button variant="ghost" isIconOnly size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Actions</span>
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="hidden rounded-full md:inline-flex" onPress={() => onViewDetails(user.id)}>
+                        Details
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" isIconOnly size="sm" className="rounded-full">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">Actions</span>
+                    </Button>
+                </div>
                 <Dropdown.Popover>
                     <Dropdown.Menu aria-label="User Actions">
                         <Dropdown.Item key="details" onPress={() => onViewDetails(user.id)}>

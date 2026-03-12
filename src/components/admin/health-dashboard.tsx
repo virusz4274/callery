@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, Chip, Button, Spinner } from '@heroui/react';
+import { Card, Chip, Button, Spinner, Surface } from '@heroui/react';
 import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Server, Database, Cloud, Cpu } from 'lucide-react';
 import { checkSystemHealth } from '@/app/actions/admin-health';
 
@@ -51,12 +51,16 @@ export function HealthDashboard() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">System Health</h2>
+                <div>
+                    <h2 className="text-xl font-bold tracking-[-0.03em] text-foreground">System health</h2>
+                    <p className="text-sm text-default-500">Check the core services that keep storage, billing, and transcription running.</p>
+                </div>
                 <Button 
                     size="sm" 
                     variant="ghost" 
                     onPress={fetchHealth} 
                     isPending={loading}
+                    className="rounded-full"
                 >
                     <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
@@ -64,9 +68,9 @@ export function HealthDashboard() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {statuses.map((service) => (
-                    <Card key={service.name} className="p-4 border border-default-200">
+                    <Card key={service.name} className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
                         <div className="flex items-start justify-between mb-2">
-                            <div className="p-2 bg-default-100 rounded-lg text-default-600">
+                            <div className="rounded-2xl bg-default-100 p-2 text-default-600">
                                 {getIcon(service.name)}
                             </div>
                             <Chip 
@@ -83,15 +87,15 @@ export function HealthDashboard() {
                             </Chip>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-sm">{service.name}</h3>
+                            <h3 className="font-semibold text-sm text-foreground">{service.name}</h3>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-muted-foreground">Latency:</span>
+                                <span className="text-xs text-default-500">Latency:</span>
                                 <span className={`text-xs font-mono ${service.latency > 500 ? 'text-warning' : 'text-success'}`}>
                                     {service.latency}ms
                                 </span>
                             </div>
                             {service.message && (
-                                <p className="text-xs text-danger mt-2 bg-danger/10 p-1.5 rounded">
+                                <p className="mt-2 rounded-xl bg-danger/10 p-2 text-xs text-danger">
                                     {service.message}
                                 </p>
                             )}
@@ -101,10 +105,10 @@ export function HealthDashboard() {
                 
                 {loading && statuses.length === 0 && (
                     <>
-                        <Card className="p-4 h-32 flex items-center justify-center"><Spinner /></Card>
-                        <Card className="p-4 h-32 flex items-center justify-center"><Spinner /></Card>
-                        <Card className="p-4 h-32 flex items-center justify-center"><Spinner /></Card>
-                        <Card className="p-4 h-32 flex items-center justify-center"><Spinner /></Card>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
                     </>
                 )}
             </div>

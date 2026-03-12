@@ -20,9 +20,19 @@ type AppHeaderProps = {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onLogout: () => void;
+  showPrimaryNav?: boolean;
+  compact?: boolean;
 };
 
-export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLogout }: AppHeaderProps) {
+export function AppHeader({
+  user,
+  userProfile,
+  searchQuery,
+  onSearchChange,
+  onLogout,
+  showPrimaryNav = true,
+  compact = false,
+}: AppHeaderProps) {
   const pathname = usePathname();
 
   const getSearchPlaceholder = () => {
@@ -37,7 +47,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">
-      <div className="w-full max-w-full mx-auto flex h-16 items-center px-4 md:px-6">
+      <div className={`w-full max-w-full mx-auto flex items-center px-4 md:px-6 ${compact ? 'h-14' : 'h-16'}`}>
 
         {/* Mobile Menu - Only show if burger menu is enabled */}
         {showHamburger && (
@@ -60,7 +70,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
         </div>
 
         {/* Desktop Navigation */}
-        <MainNav userProfile={userProfile} loggedIn={!!user} />
+        {showPrimaryNav && <MainNav userProfile={userProfile} loggedIn={!!user} />}
 
         <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
           {/* Search Bar - Desktop */}

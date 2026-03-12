@@ -19,9 +19,11 @@ graph TD
     U["Client"] --> A["Next.js UI"]
     A --> SA["Server Actions"]
     A --> API["API Routes"]
+    A --> R2PUT["R2 Presigned PUT Upload"]
+    R2PUT --> R2["Cloudflare R2"]
 
     SA --> MDB["MongoDB"]
-    SA --> R2["Cloudflare R2"]
+    SA --> R2
     SA --> GEM["Gemini"]
     SA --> TR["Transcription Providers"]
     SA --> STR["Stripe"]
@@ -55,9 +57,13 @@ docs/                   # Maintained project documentation
 
 ### 1. Recordings
 
-- Upload path writes files to R2 and metadata to MongoDB.
+- Upload path uses a 3-step direct flow:
+  - `initializeDirectUpload` (server action) signs R2 PUT URL + upload token.
+  - Client uploads bytes directly to R2.
+  - `completeDirectUpload` (server action) verifies object + writes metadata to MongoDB.
 - R2 key structure is user-partitioned and date-grouped.
 - Recordings are managed via Server Actions in `src/app/actions/recordings.ts`.
+- Upload limit is 5 GiB per recording.
 
 ### 2. Transcription + AI
 
@@ -69,6 +75,7 @@ docs/                   # Maintained project documentation
 - Webhook callbacks are correlated with `recordings.externalTranscriptionId` before state or usage updates.
 - Transcription webhook processing is idempotent via persisted event state in `transcription_webhook_events`.
 - Gemini generates summaries and embeddings for search.
+- Transcription size limit is 2 GiB per recording (larger files are stored but not transcribed).
 
 ### 3. Search
 
@@ -95,3 +102,4 @@ docs/                   # Maintained project documentation
 - No Edge middleware dependency for auth decisions.
 - Sensitive operations verify authenticated user/admin per request.
 - Share links are signed tokens using `SHARE_LINK_SECRET` (or `NEXTAUTH_SECRET` fallback).
+- Upload finalize requests are protected by signed upload-session tokens (`UPLOAD_SESSION_SECRET`).

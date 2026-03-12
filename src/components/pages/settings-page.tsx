@@ -18,13 +18,10 @@ export function SettingsPage() {
     const isDetailView = state.view === 'detail';
 
     return (
-        <div className="w-full h-full min-h-screen relative">
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl opacity-40 animate-pulse" />
-                <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-secondary/5 blur-3xl opacity-40" />
-            </div>
+        <div className="relative min-h-screen">
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.14),transparent_32%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_28%)]" />
 
-            <div className="max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
+            <div className="mx-auto max-w-[1600px] space-y-6 sm:space-y-8">
                 <SettingsHeader
                     activeTab={state.activeTab}
                     isMobile={isMobile}
@@ -33,7 +30,7 @@ export function SettingsPage() {
                     onBack={state.handleBack}
                 />
 
-                <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
                     <SettingsSidebar
                         activeTab={state.activeTab}
                         tabs={state.tabs}
@@ -41,10 +38,7 @@ export function SettingsPage() {
                         onSelectTab={state.handleTabSelect}
                     />
 
-                    <SettingsTabContent
-                        isMobileDetailView={isDetailView}
-                        state={state}
-                    />
+                    <SettingsTabContent isMobileDetailView={isDetailView} state={state} />
                 </div>
             </div>
         </div>

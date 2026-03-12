@@ -1,13 +1,19 @@
 "use client";
 
-import { useCallback, useState, useEffect, useRef } from 'react';
-import { Popover, Button } from '@heroui/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Chip, Popover } from '@heroui/react';
 import { Bell, CheckCheck, Plus, Trash2 } from 'lucide-react';
-import { NotificationResponse } from '@/lib/db/types';
-import { fetchNotifications, readNotification, readAllNotifications, sendTestNotification, clearAllNotifications } from '@/app/actions/notifications';
-import { NotificationItem } from './notification-item';
+import {
+    clearAllNotifications,
+    fetchNotifications,
+    readAllNotifications,
+    readNotification,
+    sendTestNotification,
+} from '@/app/actions/notifications';
 import { useToast } from '@/components/toast-provider';
+import { NotificationResponse } from '@/lib/db/types';
 import { EnablePushButton } from './enable-push-button';
+import { NotificationItem } from './notification-item';
 
 export function NotificationCenter() {
     const [isOpen, setIsOpen] = useState(false);
@@ -17,31 +23,29 @@ export function NotificationCenter() {
     const lastUnreadCount = useRef(0);
     const { toast } = useToast();
 
-    const loadNotifications = useCallback(async (isInitial: boolean = false) => {
+    const loadNotifications = useCallback(async (isInitial = false) => {
         try {
             const data = await fetchNotifications();
             setNotifications(data);
 
-            const newUnreadCount = data.filter(n => !n.isRead).length;
+            const newUnreadCount = data.filter((item) => !item.isRead).length;
 
-            // Show toast if new notifications arrived (not on initial load)
             if (!isInitial && newUnreadCount > lastUnreadCount.current) {
                 const diff = newUnreadCount - lastUnreadCount.current;
-                // Find the newest 'diff' unread notifications
-                const newItems = data.filter(n => !n.isRead).slice(0, diff);
+                const newItems = data.filter((item) => !item.isRead).slice(0, diff);
 
-                newItems.forEach(item => {
-                    const statusMap: Record<string, "default" | "success" | "warning" | "danger"> = {
-                        'info': 'default',
-                        'success': 'success',
-                        'warning': 'warning',
-                        'error': 'danger'
+                newItems.forEach((item) => {
+                    const statusMap: Record<string, 'default' | 'success' | 'warning' | 'danger'> = {
+                        info: 'default',
+                        success: 'success',
+                        warning: 'warning',
+                        error: 'danger',
                     };
 
                     toast({
                         title: item.title,
                         description: item.message,
-                        status: statusMap[item.type] || 'default'
+                        status: statusMap[item.type] || 'default',
                     });
                 });
             }
@@ -53,15 +57,15 @@ export function NotificationCenter() {
         }
     }, [toast]);
 
-    // Initial load
     useEffect(() => {
         const initialLoadTimer = setTimeout(() => {
-            loadNotifications(true);
+            void loadNotifications(true);
         }, 0);
-        // Poll every 60 seconds
+
         const interval = setInterval(() => {
-            loadNotifications(false);
+            void loadNotifications(false);
         }, 60000);
+
         return () => {
             clearTimeout(initialLoadTimer);
             clearInterval(interval);
@@ -69,36 +73,31 @@ export function NotificationCenter() {
     }, [loadNotifications]);
 
     const handleRead = async (id: string) => {
-        // Optimistic update
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications((prev) => prev.map((item) => item.id === id ? { ...item, isRead: true } : item));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
         await readNotification(id);
     };
 
     const handleReadAll = async () => {
-        // Optimistic update
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
         setUnreadCount(0);
         try {
             await readAllNotifications();
-            // Re-fetch to confirm state using the server source of truth
             await loadNotifications();
-        } catch (e) {
-            console.error('Mark all as read Failed', e);
-            // Revert state if failed (optional, but good practice)
+        } catch (error) {
+            console.error('Mark all as read failed', error);
             await loadNotifications();
         }
     };
 
     const handleClearAll = async () => {
-        // Optimistic update
         setNotifications([]);
         setUnreadCount(0);
         try {
             await clearAllNotifications();
             await loadNotifications();
-        } catch (e) {
-            console.error('Clear all Failed', e);
+        } catch (error) {
+            console.error('Clear all failed', error);
             await loadNotifications();
         }
     };
@@ -113,63 +112,78 @@ export function NotificationCenter() {
     return (
         <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
             <Popover.Trigger>
-                <Button
-                    variant="ghost"
-                    isIconOnly
-                    className="relative"
-                    aria-label="Notifications"
-                >
+                <Button variant="ghost" isIconOnly className="relative rounded-full" aria-label="Notifications">
                     <Bell className="size-5 text-default-500" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full ring-2 ring-background transform translate-x-1/2 -translate-y-1/2" />
+                        <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-background">
+                            {Math.min(unreadCount, 9)}
+                        </span>
                     )}
                 </Button>
             </Popover.Trigger>
-            <Popover.Content className="w-80 p-0 overflow-hidden" placement="bottom end">
-                <Popover.Dialog className="flex flex-col max-h-[500px]">
-                    <div className="flex items-center justify-between p-3 border-b border-default-200 bg-background/50 backdrop-blur-md sticky top-0 z-10">
-                        <Popover.Heading className="text-sm font-semibold">Notifications</Popover.Heading>
-                        <div className="flex gap-1">
-                            {process.env.NODE_ENV === 'development' && (
-                                <Button size="sm" variant="ghost" isIconOnly onPress={handleTest} isPending={isLoading}>
-                                    <Plus className="size-4" />
-                                </Button>
-                            )}
-                            <EnablePushButton />
-                            {notifications.length > 0 && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    isIconOnly
-                                    onPress={handleClearAll}
-                                    className="text-default-500 hover:text-danger"
-                                    aria-label="Clear all notifications"
-                                >
-                                    <Trash2 className="size-4" />
-                                </Button>
-                            )}
-                            {unreadCount > 0 && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onPress={handleReadAll}
-                                    className="text-xs h-7 px-2"
-                                >
-                                    <CheckCheck className="size-3 mr-1" /> Mark all read
-                                </Button>
-                            )}
+            <Popover.Content className="w-[380px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[1.6rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom end">
+                <Popover.Dialog className="flex max-h-[560px] flex-col">
+                    <div className="border-b border-default-100/80 bg-background/90 px-4 py-4 backdrop-blur-md">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Popover.Heading className="text-sm font-semibold tracking-[-0.02em]">Notifications</Popover.Heading>
+                                    <Chip size="sm" variant="soft" color={unreadCount > 0 ? 'accent' : 'default'}>
+                                        {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                                    </Chip>
+                                </div>
+                                <p className="text-xs leading-5 text-default-500">
+                                    System alerts, sync updates, and workflow confirmations land here.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                                {process.env.NODE_ENV === 'development' && (
+                                    <Button size="sm" variant="ghost" isIconOnly onPress={handleTest} isPending={isLoading} aria-label="Send test notification">
+                                        <Plus className="size-4" />
+                                    </Button>
+                                )}
+                                <EnablePushButton />
+                            </div>
                         </div>
+
+                        {(notifications.length > 0 || unreadCount > 0) && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {unreadCount > 0 && (
+                                    <Button size="sm" variant="ghost" onPress={handleReadAll} className="h-8 gap-2 rounded-full px-3 text-xs font-medium">
+                                        <CheckCheck className="size-3.5" />
+                                        Mark all read
+                                    </Button>
+                                )}
+                                {notifications.length > 0 && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onPress={handleClearAll}
+                                        className="h-8 gap-2 rounded-full px-3 text-xs font-medium text-default-500 hover:text-danger"
+                                    >
+                                        <Trash2 className="size-3.5" />
+                                        Clear list
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="overflow-y-auto flex-1 overscroll-contain">
+                    <div className="flex-1 overflow-y-auto overscroll-contain bg-default-50/30">
                         {notifications.length === 0 ? (
-                            <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
-                                <Bell className="size-8 mb-2 opacity-20" />
-                                <p className="text-sm">No notifications yet</p>
+                            <div className="flex flex-col items-center px-6 py-12 text-center">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-default-100 text-default-400">
+                                    <Bell className="size-6" />
+                                </div>
+                                <p className="mt-4 text-base font-semibold text-foreground">No notifications yet</p>
+                                <p className="mt-2 max-w-xs text-sm leading-6 text-default-500">
+                                    When uploads finish, syncs fail, or admin notices go live, they will appear here.
+                                </p>
                             </div>
                         ) : (
-                            <div className="flex flex-col">
-                                {notifications.map(notification => (
+                            <div className="flex flex-col p-2">
+                                {notifications.map((notification) => (
                                     <NotificationItem
                                         key={notification.id}
                                         notification={notification}

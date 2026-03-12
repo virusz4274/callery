@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Card, Chip, Spinner, Switch, Tooltip } from '@heroui/react';
-import { Info } from 'lucide-react';
+import { CreditCard, Info, Sparkles, WalletCards } from 'lucide-react';
 import { UpgradePlanModal } from './upgrade-plan-modal';
 import { UsageProgressBar } from './usage-progress-bar';
 import { formatBytes, formatSeconds } from './format';
@@ -52,32 +52,39 @@ export function CurrentPlanCard({
     onToggleOverage,
 }: CurrentPlanCardProps) {
     return (
-        <Card className="bg-card/70 border-default-200">
-            <Card.Content className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h4 className="text-lg font-medium">Current Plan</h4>
-                        <div className="mt-1 flex items-center gap-2 text-default-500">
-                            <span className="font-semibold text-foreground">{planName}</span>
-                            <Chip color={isTrial ? 'warning' : 'success'} size="sm" variant="soft">
-                                {isTrial ? 'Trial Active' : 'Active'}
-                            </Chip>
+        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+            <Card.Content className="space-y-6 p-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Chip size="sm" variant="soft" color="accent">Subscription</Chip>
+                    <Chip size="sm" variant="soft" color={isTrial ? 'warning' : 'success'}>
+                        {isTrial ? 'Trial active' : 'Plan active'}
+                    </Chip>
+                </div>
+
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <WalletCards className="h-5 w-5" />
                         </div>
-                        <p className="mt-2 text-sm text-default-400">
-                            {isTrial
-                                ? 'Trial ends in 30 days. Upgrade to keep full access.'
-                                : 'Manage your plan and billing details.'}
-                        </p>
+                        <div className="space-y-2">
+                            <h4 className="text-xl font-semibold tracking-[-0.03em] text-foreground">{planName}</h4>
+                            <p className="max-w-2xl text-sm leading-6 text-default-500">
+                                {isTrial
+                                    ? 'Trial access is active. Upgrade before it ends to keep your workspace fully available.'
+                                    : 'Review included usage, adjust overage rules, and open the billing portal when you need to manage payment details.'}
+                            </p>
+                        </div>
                     </div>
 
                     {canManageSubscription ? (
                         <Button
                             variant="primary"
-                            className="mt-4 sm:mt-0 font-medium"
+                            className="w-full gap-2 rounded-full sm:w-auto"
                             onPress={onPortal}
                             isDisabled={isLoadingPortal}
                         >
-                            {isLoadingPortal ? <Spinner size="sm" color="current" /> : 'Manage Subscription'}
+                            {isLoadingPortal ? <Spinner size="sm" color="current" /> : <CreditCard className="h-4 w-4" />}
+                            {isLoadingPortal ? 'Opening portal...' : 'Manage subscription'}
                         </Button>
                     ) : (
                         <UpgradePlanModal
@@ -90,53 +97,70 @@ export function CurrentPlanCard({
                     )}
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-default-100">
-                    <UsageProgressBar
-                        label="Storage Usage"
-                        usedLabel={`${formatBytes(storageUsed)} / ${formatBytes(storageAlloc)}`}
-                        percent={storagePercent}
-                    />
-                    <UsageProgressBar
-                        label="Transcription Minutes"
-                        usedLabel={`${formatSeconds(transcribeUsed)} / ${formatSeconds(transcribeAlloc)}`}
-                        percent={transcribePercent}
-                    />
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            Included usage
+                        </div>
+                        <div className="space-y-4">
+                            <UsageProgressBar
+                                label="Storage usage"
+                                usedLabel={`${formatBytes(storageUsed)} / ${formatBytes(storageAlloc)}`}
+                                percent={storagePercent}
+                            />
+                            <UsageProgressBar
+                                label="Transcription minutes"
+                                usedLabel={`${formatSeconds(transcribeUsed)} / ${formatSeconds(transcribeAlloc)}`}
+                                percent={transcribePercent}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                        <p className="text-sm font-medium text-foreground">Billing notes</p>
+                        <p className="mt-2 text-sm leading-6 text-default-500">
+                            Usage bars update against your current allocation. The billing portal handles payment methods, invoices, and subscription changes.
+                        </p>
+                    </div>
                 </div>
 
                 {!isFree && !isTrial && (
-                    <div className="pt-4 border-t border-default-100 flex items-center justify-between">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-foreground">Pay Per Usage (Overage)</h4>
-                                <Tooltip delay={0}>
-                                    <Button
-                                        isIconOnly
-                                        className="w-auto h-auto min-w-0 min-h-0 bg-transparent data-[hover=true]:bg-transparent p-0"
-                                    >
-                                        <Info className="w-4 h-4 text-default-400" />
-                                    </Button>
-                                    <Tooltip.Content>
-                                        <div className="max-w-[200px] p-2">
-                                            Allow usage beyond plan limits. You will be billed for extra usage.
-                                        </div>
-                                    </Tooltip.Content>
-                                </Tooltip>
+                    <div className="rounded-[1.3rem] border border-default-200/80 bg-background p-4 sm:p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-foreground">Pay per usage</h4>
+                                    <Tooltip delay={0}>
+                                        <Button
+                                            isIconOnly
+                                            className="h-auto min-h-0 w-auto min-w-0 bg-transparent p-0 data-[hover=true]:bg-transparent"
+                                        >
+                                            <Info className="h-4 w-4 text-default-400" />
+                                        </Button>
+                                        <Tooltip.Content>
+                                            <div className="max-w-[220px] p-2 text-sm leading-5">
+                                                Allow usage past plan limits and bill the excess at standard rates.
+                                            </div>
+                                        </Tooltip.Content>
+                                    </Tooltip>
+                                </div>
+                                <p className="max-w-2xl text-sm leading-6 text-default-500">
+                                    Keep this on if you never want uploads or transcription jobs blocked when your included quota runs out.
+                                </p>
                             </div>
-                            <p className="text-sm text-default-500 max-w-md">
-                                If enabled, you can continue using features after hitting your plan limits. Extra
-                                usage is billed at standard rates.
-                            </p>
-                        </div>
 
-                        <Switch
-                            isSelected={allowOverage}
-                            onChange={onToggleOverage}
-                            isDisabled={isTogglingRules}
-                        >
-                            <Switch.Control className={allowOverage ? 'bg-success' : 'bg-default-200'}>
-                                <Switch.Thumb />
-                            </Switch.Control>
-                        </Switch>
+                            <Switch
+                                aria-label="Allow pay per usage"
+                                isSelected={allowOverage}
+                                onChange={(nextValue) => onToggleOverage(nextValue)}
+                                isDisabled={isTogglingRules}
+                            >
+                                <Switch.Control className={allowOverage ? 'bg-success' : 'bg-default-200'}>
+                                    <Switch.Thumb />
+                                </Switch.Control>
+                            </Switch>
+                        </div>
                     </div>
                 )}
             </Card.Content>

@@ -4,11 +4,7 @@ import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings'
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
-
-// Initialize Firebase Admin
-getFirebaseAdminApp();
+import { getAdminAuth } from '@/lib/firebase/admin';
 
 /**
  * Get the Firebase UID from the session cookie.
@@ -21,7 +17,8 @@ async function getFirebaseUidFromSession(): Promise<string | null> {
     if (!sessionCookie || !sessionCookie.value) {
       return null;
     }
-    const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
+    const auth = getAdminAuth();
+    const decodedToken = await auth.verifySessionCookie(sessionCookie.value, true);
     return decodedToken.uid;
   } catch (error) {
     console.error('Error verifying session:', error);

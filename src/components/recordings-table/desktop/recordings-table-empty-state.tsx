@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+import { Button } from '@heroui/react';
 import { FileText } from 'lucide-react';
 
 export function RecordingsTableEmptyState() {
@@ -15,6 +17,11 @@ export function RecordingsTableEmptyState() {
                             Upload new calls or wait for them to appear here.
                         </p>
                     </div>
+                    <Link href="/upload">
+                        <Button variant="secondary" className="rounded-full">
+                            Upload recordings
+                        </Button>
+                    </Link>
                 </div>
             </td>
         </tr>

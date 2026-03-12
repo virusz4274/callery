@@ -4,6 +4,7 @@ import { AuditLogsTable } from '@/components/admin/audit-logs-table';
 import { connection } from 'next/server';
 import { AdminLogResponse } from '@/lib/db/types';
 import { redirect } from 'next/navigation';
+import { AdminPageShell } from '@/components/admin/admin-page-shell';
 
 export default async function AuditPage({
     searchParams
@@ -36,10 +37,31 @@ export default async function AuditPage({
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-            <h1 className="text-3xl font-bold">Audit Logs</h1>
-            <p className="text-default-500">Track all administrative actions and system changes.</p>
-
+        <AdminPageShell
+            eyebrow="Accountability"
+            title="Audit logs"
+            description="Review administrative actions and time-bound system changes with filters for action type and date range."
+            stats={[
+                {
+                    label: 'Results',
+                    value: total,
+                    helper: 'Log entries available for the current filter scope',
+                    iconName: 'ScrollText',
+                },
+                {
+                    label: 'Action filter',
+                    value: actionParam || 'All',
+                    helper: 'Current action type restriction',
+                    iconName: 'Activity',
+                },
+                {
+                    label: 'Date range',
+                    value: startDate || endDate ? 'Filtered' : 'All time',
+                    helper: 'Whether the log timeline is date constrained',
+                    iconName: 'CalendarDays',
+                },
+            ]}
+        >
             <AuditLogsTable
                 initialLogs={logs}
                 totalLogs={total}
@@ -49,6 +71,6 @@ export default async function AuditPage({
                 initialStartDate={startDate}
                 initialEndDate={endDate}
             />
-        </div>
+        </AdminPageShell>
     );
 }

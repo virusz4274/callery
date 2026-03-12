@@ -45,14 +45,10 @@ export function PlansList({ initialPlans }: PlansListProps) {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold">Pricing Plans</h1>
-                    <p className="text-default-500">Manage subscription tiers and limits.</p>
-                </div>
+            <div className="flex justify-end items-center">
                 <Button
                     onPress={handleCreate}
-                    className="gap-2 bg-primary text-white"
+                    className="gap-2 rounded-full bg-primary px-5 text-white"
                 >
                     <Plus className="h-4 w-4" />
                     Create Plan
@@ -61,7 +57,7 @@ export function PlansList({ initialPlans }: PlansListProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {initialPlans.map((plan) => (
-                    <Card key={plan.id} className={`p-6 border-2 ${plan.isDefault ? 'border-primary' : 'border-transparent'}`}>
+                    <Card key={plan.id} className={`rounded-[1.75rem] p-6 border-2 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] ${plan.isDefault ? 'border-primary' : 'border-default-200/80'}`}>
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h3 className="text-xl font-bold">{plan.name}</h3>

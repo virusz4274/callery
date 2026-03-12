@@ -1,6 +1,6 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadRecordings } from '@/app/actions/upload-recordings';
+import { uploadFileDirectToR2 } from '@/lib/r2-direct-upload-client';
 import type { UploadItem } from './types';
 
 type ToastFn = (params: {
@@ -17,6 +17,10 @@ function createUploadId() {
     return Math.random().toString(36).substring(2);
 }
 
+function getFileFingerprint(file: File) {
+    return `${file.name.toLowerCase()}-${file.size}-${file.lastModified}`;
+}
+
 export function useUploadQueue(toast: ToastFn) {
     const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
     const [isUploading, startUploadTransition] = useTransition();
@@ -24,13 +28,47 @@ export function useUploadQueue(toast: ToastFn) {
     const router = useRouter();
 
     const addFiles = (files: File[]) => {
-        const newItems: UploadItem[] = files.map((file) => ({
-            id: createUploadId(),
-            file,
-            status: 'pending',
-        }));
+        setUploadItems((prev) => {
+            const knownFingerprints = new Map(prev.map((item) => [item.fingerprint, item.id]));
+            let duplicateCount = 0;
 
-        setUploadItems((prev) => [...prev, ...newItems]);
+            const nextItems: UploadItem[] = files.map((file) => {
+                const fingerprint = getFileFingerprint(file);
+                const duplicateOfId = knownFingerprints.get(fingerprint);
+                const id = createUploadId();
+
+                if (duplicateOfId) {
+                    duplicateCount += 1;
+                    return {
+                        id,
+                        file,
+                        status: 'pending',
+                        fingerprint,
+                        isDuplicate: true,
+                        duplicateOfId,
+                        error: 'Duplicate file already in queue',
+                    };
+                }
+
+                knownFingerprints.set(fingerprint, id);
+                return {
+                    id,
+                    file,
+                    status: 'pending',
+                    fingerprint,
+                };
+            });
+
+            if (duplicateCount > 0) {
+                toast({
+                    title: 'Duplicates detected',
+                    description: `${duplicateCount} duplicate file(s) were flagged and will be skipped.`,
+                    status: 'warning',
+                });
+            }
+
+            return [...prev, ...nextItems];
+        });
     };
 
     const removeFile = (id: string) => {
@@ -44,7 +82,9 @@ export function useUploadQueue(toast: ToastFn) {
     };
 
     const handleUpload = async () => {
-        const pendingItems = uploadItems.filter((item) => item.status === 'pending' || item.status === 'error');
+        const pendingItems = uploadItems.filter(
+            (item) => (item.status === 'pending' || item.status === 'error') && !item.isDuplicate
+        );
 
         if (pendingItems.length === 0) {
             toast({
@@ -58,7 +98,7 @@ export function useUploadQueue(toast: ToastFn) {
         startUploadTransition(async () => {
             setUploadItems((prev) =>
                 prev.map((item) =>
-                    item.status === 'pending' || item.status === 'error'
+                    (item.status === 'pending' || item.status === 'error') && !item.isDuplicate
                         ? { ...item, status: 'uploading', error: undefined }
                         : item
                 )
@@ -66,11 +106,8 @@ export function useUploadQueue(toast: ToastFn) {
 
             const results = await Promise.all(
                 pendingItems.map(async (item) => {
-                    const formData = new FormData();
-                    formData.append('files', item.file);
-
                     try {
-                        const result = await uploadRecordings(formData);
+                        const result = await uploadFileDirectToR2(item.file);
 
                         if (result.success) {
                             updateItemStatus(item.id, 'success');

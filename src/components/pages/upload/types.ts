@@ -3,4 +3,7 @@ export interface UploadItem {
     file: File;
     status: 'pending' | 'uploading' | 'success' | 'error';
     error?: string;
+    fingerprint: string;
+    isDuplicate?: boolean;
+    duplicateOfId?: string;
 }

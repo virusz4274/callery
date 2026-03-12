@@ -22,9 +22,29 @@ export async function createShareLink(recordingId: string, expiresIn: string) {
 
     // 3. Generate Token
     const token = await generateShareToken(recordingId, expiresIn);
-    
+
     // 4. Return Full URL
     // Use NEXT_PUBLIC_APP_URL if available, otherwise assume local/vercel defaults
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
     return `${baseUrl}/s/${token}`;
+}
+
+export async function createShareLinkForClip(
+    recordingId: string,
+    expiresIn: string,
+    clipStartSeconds?: number,
+    clipEndSeconds?: number
+) {
+    const baseUrl = await createShareLink(recordingId, expiresIn);
+    const url = new URL(baseUrl);
+
+    if (typeof clipStartSeconds === 'number' && Number.isFinite(clipStartSeconds) && clipStartSeconds >= 0) {
+        url.searchParams.set('clipStart', Math.floor(clipStartSeconds).toString());
+    }
+
+    if (typeof clipEndSeconds === 'number' && Number.isFinite(clipEndSeconds) && clipEndSeconds >= 0) {
+        url.searchParams.set('clipEnd', Math.floor(clipEndSeconds).toString());
+    }
+
+    return url.toString();
 }

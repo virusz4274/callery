@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Avatar, Chip, Dropdown, Separator, Spinner } from '@heroui/react';
+import Link from 'next/link';
+import { Avatar, Button, Chip, Dropdown, Separator, Spinner } from '@heroui/react';
 import { ChevronRight, Mic, MoreVertical, Phone } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 import { ContactPhoneDisplay } from './contact-phone-display';
@@ -28,30 +29,30 @@ export function ContactList({
             {Object.keys(groupedContacts).length > 0 ? (
                 Object.entries(groupedContacts).map(([letter, contacts]) => (
                     <div key={letter} id={`letter-group-${letter}`} className="pt-0">
-                        <h3 className="text-sm font-bold px-6 py-2 text-primary bg-default-50/80 backdrop-blur-sm z-10 w-full sticky top-0 border-y border-default-100/50 uppercase tracking-widest">
+                        <h3 className="sticky top-0 z-10 w-full border-y border-default-100/50 bg-default-50/90 px-6 py-3 text-sm font-bold uppercase tracking-widest text-primary backdrop-blur-sm">
                             {letter}
                         </h3>
 
                         {contacts.map((contact, index) => (
                             <React.Fragment key={contact.id || contact.phoneNumbers?.[0] || index}>
                                 <div
-                                    className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
+                                    className="group flex items-center justify-between gap-4 px-6 py-5 transition-colors hover:bg-primary/5 cursor-pointer"
                                     onClick={() => onContactClick(contact.id)}
                                 >
                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <Avatar className="w-10 h-10 md:w-12 md:h-12 ring-2 ring-transparent group-hover:ring-primary/20 transition-all shadow-sm">
+                                        <Avatar className="h-11 w-11 ring-2 ring-transparent shadow-sm transition-all group-hover:ring-primary/20 md:h-12 md:w-12">
                                             <Avatar.Fallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground">
                                                 {contact.name.charAt(0)}
                                             </Avatar.Fallback>
                                         </Avatar>
 
-                                        <div>
-                                            <p className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
                                                 {contact.name}
                                             </p>
 
                                             {(contact.jobTitle || contact.company) && (
-                                                <div className="text-small text-default-500 flex items-center gap-2 mt-0.5">
+                                                <div className="mt-0.5 flex items-center gap-2 text-small text-default-500">
                                                     {contact.jobTitle && <span>{contact.jobTitle}</span>}
                                                     {contact.jobTitle && contact.company && (
                                                         <span className="text-default-300">•</span>
@@ -61,20 +62,25 @@ export function ContactList({
                                             )}
 
                                             <ContactPhoneDisplay phoneNumbers={contact.phoneNumbers} />
+
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <Chip size="sm" variant="soft" color="accent">
+                                                    <Mic className="mr-1 h-3 w-3" />
+                                                    {contact.totalRecordings} recording{contact.totalRecordings === 1 ? '' : 's'}
+                                                </Chip>
+                                                {contact.company && (
+                                                    <Chip size="sm" variant="soft" color="default">
+                                                        {contact.company}
+                                                    </Chip>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-6 flex-shrink-0">
-                                        <div className="hidden sm:inline-flex">
-                                            <Chip size="sm" variant="soft" color="accent">
-                                                <Mic className="w-3 h-3 mr-1" />
-                                                {contact.totalRecordings} recordings
-                                            </Chip>
-                                        </div>
-
+                                    <div className="flex flex-shrink-0 items-center gap-4">
                                         <div onClick={(event) => event.stopPropagation()}>
                                             <Dropdown>
-                                                <Dropdown.Trigger className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground p-1.5 rounded-md hover:bg-default-100 cursor-pointer">
+                                                <Dropdown.Trigger className="rounded-md p-1.5 text-default-400 transition-opacity hover:bg-default-100 hover:text-foreground cursor-pointer md:opacity-0 md:group-hover:opacity-100">
                                                     <MoreVertical className="h-4 w-4" />
                                                     <span className="sr-only">Actions</span>
                                                 </Dropdown.Trigger>
@@ -87,13 +93,13 @@ export function ContactList({
                                                             }
                                                         }}
                                                     >
-                                                        <Dropdown.Item id="view">View Recordings</Dropdown.Item>
+                                                        <Dropdown.Item id="view">Open Contact Workspace</Dropdown.Item>
                                                     </Dropdown.Menu>
                                                 </Dropdown.Popover>
                                             </Dropdown>
                                         </div>
 
-                                        <ChevronRight className="h-5 w-5 text-default-300 sm:hidden group-hover:text-primary transition-colors" />
+                                        <ChevronRight className="h-5 w-5 text-default-300 transition-colors group-hover:text-primary" />
                                     </div>
                                 </div>
 
@@ -115,6 +121,13 @@ export function ContactList({
                     <p className="text-default-500">
                         {searchQuery ? 'Try putting in a different term.' : 'Your contacts will appear here.'}
                     </p>
+                    {!searchQuery && (
+                        <Link href="/upload" className="mt-5">
+                            <Button variant="secondary" className="rounded-full">
+                                Upload recordings
+                            </Button>
+                        </Link>
+                    )}
                 </div>
             )}
 

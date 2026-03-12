@@ -31,12 +31,12 @@ export function UserManagementTable({
 
     return (
         <>
-            <Card>
-                <Card.Header className="flex flex-col items-start gap-4 p-4">
+            <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 p-5">
                     <div className="flex justify-between w-full items-center">
                         <div>
-                            <h3 className="text-xl font-bold">User Management</h3>
-                            <p className="text-small text-default-500">Total Users: {totalUsers}</p>
+                            <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">User table</h3>
+                            <p className="text-small text-default-500">Total users: {totalUsers}</p>
                         </div>
                         {state.isPending && <Spinner size="sm" />}
                     </div>

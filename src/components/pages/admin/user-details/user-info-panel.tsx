@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Chip } from '@heroui/react';
+import { Card, Chip, Surface } from '@heroui/react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import type { User } from '@/lib/types';
 import { SimpleProgress } from './simple-progress';
@@ -10,22 +10,33 @@ type UserInfoPanelProps = {
 
 export function UserInfoPanel({ user }: UserInfoPanelProps) {
     return (
-        <Card>
-            <Card.Header>
-                <h3 className="text-xl font-bold">Plan & Usage</h3>
+        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card.Header className="border-b border-default-100/70 px-6 py-5">
+                <div>
+                    <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">Plan and usage</h3>
+                    <p className="mt-1 text-sm text-default-500">Subscription assignment, recent access, and quota utilization.</p>
+                </div>
             </Card.Header>
-            <Card.Content className="space-y-6">
+            <Card.Content className="space-y-6 p-6">
+                <div className="grid gap-3 md:grid-cols-2">
+                    <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Current plan</div>
+                        <div className="mt-2">
+                            <Chip>{user.plan}</Chip>
+                        </div>
+                    </Surface>
+                    <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Last login</div>
+                        <div className="mt-2 text-sm text-default-600">
+                            {user.lastLoginAt ? <ClientFormattedDate date={user.lastLoginAt} formatString="PPp" /> : 'Never'}
+                        </div>
+                    </Surface>
+                </div>
                 <div className="flex justify-between items-center">
-                    <span className="font-semibold">Current Plan:</span>
+                    <span className="font-semibold">Current plan:</span>
                     <div>
                         <Chip>{user.plan}</Chip>
                     </div>
-                </div>
-                <div className="flex justify-between items-center border-b border-default-100 pb-4">
-                    <span className="font-semibold text-small">Last Logged In:</span>
-                    <span className="text-small text-default-500">
-                        {user.lastLoginAt ? <ClientFormattedDate date={user.lastLoginAt} formatString="PPp" /> : 'Never'}
-                    </span>
                 </div>
                 <div>
                     <div className="flex justify-between mb-1">

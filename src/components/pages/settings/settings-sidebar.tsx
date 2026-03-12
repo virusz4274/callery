@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card, Chip } from '@heroui/react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SettingsTab } from '@/hooks/use-settings-page';
@@ -14,28 +15,83 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
     return (
         <div
             className={cn(
-                'w-full lg:w-72 flex-shrink-0 flex flex-col gap-2 p-2 rounded-2xl bg-card/30 backdrop-blur-md border border-default-200/50 h-fit lg:sticky lg:top-6 transition-all',
-                view === 'detail' ? 'hidden lg:flex' : 'flex'
+                'w-full xl:w-[320px] flex-shrink-0 transition-all',
+                view === 'detail' ? 'hidden xl:block' : 'block'
             )}
         >
-            {tabs.map((tab) => (
-                <button
-                    key={tab.id}
-                    onClick={() => onSelectTab(tab.id)}
-                    className={cn(
-                        'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left',
-                        activeTab === tab.id
-                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 font-medium'
-                            : 'hover:bg-default-100 text-foreground/80 hover:text-foreground'
-                    )}
-                >
-                    <span className={cn('text-xl transition-transform', activeTab === tab.id && 'scale-110')}>{tab.icon}</span>
-                    <span className="text-lg">{tab.label}</span>
-                    <ChevronRight
-                        className={cn('w-5 h-5 ml-auto opacity-50 lg:hidden', activeTab === tab.id && 'opacity-100')}
-                    />
-                </button>
-            ))}
+            <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)] xl:sticky xl:top-6">
+                <Card.Header className="flex items-start justify-between gap-3 border-b border-default-100/70 px-5 py-5">
+                    <div className="space-y-1">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                            Sections
+                        </div>
+                        <div className="text-xl font-bold tracking-[-0.03em] text-foreground">Settings map</div>
+                        <p className="text-sm leading-6 text-default-500">
+                            Move between account, preferences, data, and billing without losing context.
+                        </p>
+                    </div>
+                    <Chip variant="soft" color="default" className="rounded-full">
+                        {tabs.length}
+                    </Chip>
+                </Card.Header>
+
+                <Card.Content className="space-y-2 p-3">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => onSelectTab(tab.id)}
+                                className={cn(
+                                    'w-full rounded-[1.35rem] border px-4 py-4 text-left transition-all duration-200',
+                                    isActive
+                                        ? 'border-accent/20 bg-accent/8 shadow-[0_20px_44px_-36px_rgba(38,132,255,0.45)]'
+                                        : 'border-transparent hover:border-default-200 hover:bg-default-50/80'
+                                )}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div
+                                        className={cn(
+                                            'mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl',
+                                            isActive ? 'bg-accent text-accent-foreground' : 'bg-default-100 text-default-500'
+                                        )}
+                                    >
+                                        <Icon className="h-5 w-5" />
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                className={cn(
+                                                    'text-base font-semibold',
+                                                    isActive ? 'text-foreground' : 'text-foreground/90'
+                                                )}
+                                            >
+                                                {tab.label}
+                                            </span>
+                                            {isActive && (
+                                                <Chip size="sm" variant="soft" color="accent">
+                                                    Open
+                                                </Chip>
+                                            )}
+                                        </div>
+                                        <p className="mt-1 text-sm leading-6 text-default-500">{tab.description}</p>
+                                    </div>
+
+                                    <ChevronRight
+                                        className={cn(
+                                            'mt-1 h-5 w-5 flex-shrink-0 text-default-300 transition-colors',
+                                            isActive && 'text-accent'
+                                        )}
+                                    />
+                                </div>
+                            </button>
+                        );
+                    })}
+                </Card.Content>
+            </Card>
         </div>
     );
 }

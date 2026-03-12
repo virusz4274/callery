@@ -75,6 +75,18 @@ export async function getRecordingById(recordingId: string, firebaseUid: string)
 }
 
 /**
+ * Get a single recording by its R2 key.
+ */
+export async function getRecordingByR2Key(firebaseUid: string, r2Key: string): Promise<Recording | null> {
+    const db = await getMongoDb();
+
+    return db.collection<Recording>(Collections.RECORDINGS).findOne({
+        firebaseUid,
+        r2Key,
+    });
+}
+
+/**
  * Get recordings for API response (without signed URLs).
  */
 export async function getRecordingsForApi(

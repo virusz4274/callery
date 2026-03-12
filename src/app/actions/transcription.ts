@@ -12,6 +12,7 @@ import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCy
 import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createNotification } from '@/lib/notifications';
+import { buildTranscriptionFileSizeError, isTranscriptionFileSizeAllowed } from '@/lib/transcription-limits';
 
 const aiService = new GeminiService();
 const transcriptionService = new SonioxService();
@@ -54,6 +55,10 @@ export async function transcribeRecordingAction(recordingId: string) {
         const recording = await getRecordingById(validatedRecordingId, uid);
         if (!recording) {
             return { error: 'Recording not found' };
+        }
+
+        if (!isTranscriptionFileSizeAllowed(recording.fileSize)) {
+            return { error: buildTranscriptionFileSizeError(recording.fileSize) };
         }
 
         // 3. Check Transcription Access

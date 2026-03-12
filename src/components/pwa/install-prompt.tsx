@@ -1,71 +1,62 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { Button } from '@heroui/react';
-import { Download, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Chip } from '@heroui/react';
+import { Download, Share2, Smartphone, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 
-/**
- * Custom PWA Install Prompt component.
- * Shows a bottom sheet/banner when the browser detects the app can be installed.
- */
+type DeferredInstallPrompt = {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 export function InstallPwaPrompt() {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPrompt | null>(null);
     const [isVisible, setIsVisible] = useState(false);
+    const [showIosSteps, setShowIosSteps] = useState(false);
+
     const isIOS = useMemo(() => {
         if (typeof navigator === 'undefined' || typeof window === 'undefined') {
             return false;
         }
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
     }, []);
 
     useEffect(() => {
-        const isIosDevice = isIOS;
-
-        // Check if running in standalone mode (already installed)
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone;
         if (isStandalone) {
             return;
         }
 
         const checkDismissal = () => {
             const dismissedAt = localStorage.getItem('install-prompt-dismissed-at');
-            if (dismissedAt) {
-                const diff = Date.now() - parseInt(dismissedAt, 10);
-                // 7 days cooldown
-                if (diff < 7 * 24 * 60 * 60 * 1000) {
-                    return true; // Still verified as dismissed
-                }
+            if (!dismissedAt) {
+                return false;
             }
-            return false;
-        }
+
+            const diff = Date.now() - parseInt(dismissedAt, 10);
+            return diff < 7 * 24 * 60 * 60 * 1000;
+        };
 
         if (checkDismissal()) {
             return;
         }
 
-        const handleBeforeInstallPrompt = (e: any) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            setDeferredPrompt(e);
+        const handleBeforeInstallPrompt = (event: Event) => {
+            const promptEvent = event as Event & DeferredInstallPrompt & { preventDefault: () => void };
+            promptEvent.preventDefault();
+            setDeferredPrompt(promptEvent);
 
             if (!checkDismissal()) {
-                // Update UI to notify the user they can add to home screen
                 setIsVisible(true);
             }
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-        // For iOS, check if we should show a custom instruction (optional logic)
-        // Usually we check simply if it's not standalone and IS iOS
-        if (isIosDevice && !isStandalone) {
-            if (!checkDismissal()) {
-                setTimeout(() => setIsVisible(true), 0);
-            }
+        if (isIOS && !isStandalone && !checkDismissal()) {
+            setTimeout(() => setIsVisible(true), 0);
         }
 
         return () => {
@@ -75,26 +66,14 @@ export function InstallPwaPrompt() {
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) {
-            // If iOS, we can't programmatically trigger install, so just close or show modal
             if (isIOS) {
-                // Ideally show a modal with instructions
-                alert("To install on iOS: Tap 'Share' icon and select 'Add to Home Screen'");
-                handleDismiss();
+                setShowIosSteps((prev) => !prev);
             }
             return;
         }
 
-        // Show the install prompt
-        deferredPrompt.prompt();
-
-        // Wait for the user to respond to the prompt
-        const choiceResult = await deferredPrompt.userChoice;
-
-        if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the A2HS prompt');
-        } else {
-            console.log('User dismissed the A2HS prompt');
-        }
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
 
         setDeferredPrompt(null);
         setIsVisible(false);
@@ -102,58 +81,94 @@ export function InstallPwaPrompt() {
 
     const handleDismiss = () => {
         setIsVisible(false);
-        // Save dismissal time
+        setShowIosSteps(false);
         localStorage.setItem('install-prompt-dismissed-at', Date.now().toString());
     };
 
-    if (!isVisible) return null;
+    if (!isVisible) {
+        return null;
+    }
 
     return (
         <AnimatePresence>
-            {isVisible && (
-                <motion.div
-                    initial={{ y: 200, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 200, opacity: 0 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 500 }}
-                    className="fixed bottom-24 left-4 right-4 md:left-auto md:right-4 md:bottom-4 md:w-96 z-[60] p-4 bg-background/90 backdrop-blur-xl border border-default-200 rounded-xl shadow-2xl flex flex-col gap-3"
-                >
-                    <div className="flex items-start justify-between">
-                        <div className="flex gap-3">
-                            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 shadow-sm border border-primary/20">
+            <motion.div
+                initial={{ y: 200, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 200, opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 500 }}
+                className="fixed bottom-24 left-4 right-4 z-[60] md:bottom-4 md:left-auto md:right-4 md:w-[24rem]"
+            >
+                <div className="overflow-hidden rounded-[1.6rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_24px_64px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
                                 <Image
                                     src="/icons/android-chrome-192x192.png"
                                     alt="VoSift"
-                                    width={32}
-                                    height={32}
+                                    width={34}
+                                    height={34}
                                     className="size-8 object-contain"
                                 />
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-sm">Install VoSift</h3>
-                                <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Install VoSift</h3>
+                                    <Chip size="sm" variant="soft" color="accent">
+                                        {isIOS ? 'iPhone / iPad' : 'App install available'}
+                                    </Chip>
+                                </div>
+                                <p className="text-sm leading-6 text-default-500">
                                     {isIOS
-                                        ? "Add to Home Screen for the best experience."
-                                        : "Install our app for easier access and better performance."}
+                                        ? 'Add VoSift to your home screen for a faster, app-like workspace.'
+                                        : 'Install the app for quicker access, better launch behavior, and a more reliable mobile workflow.'}
                                 </p>
                             </div>
                         </div>
-                        <button onClick={handleDismiss} className="text-default-400 hover:text-default-600 p-1 hover:bg-default-100 rounded-full transition-colors">
+                        <Button isIconOnly variant="ghost" size="sm" onPress={handleDismiss} aria-label="Dismiss install prompt">
                             <X className="size-4" />
-                        </button>
+                        </Button>
                     </div>
 
-                    <Button
-                        size="sm"
-                        variant="primary"
-                        onPress={handleInstallClick}
-                        className="w-full font-medium shadow-md"
-                    >
-                        {!isIOS && <Download className="size-3 mr-2" />}
-                        {isIOS ? "How to Install" : "Install App"}
-                    </Button>
-                </motion.div>
-            )}
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Why install</p>
+                            <p className="mt-2 text-sm leading-6 text-default-500">
+                                Faster returning sessions, cleaner fullscreen feel, and easier access while reviewing calls on mobile.
+                            </p>
+                        </div>
+                        <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Prompt timing</p>
+                            <p className="mt-2 text-sm leading-6 text-default-500">
+                                If you dismiss this, we will wait a week before asking again.
+                            </p>
+                        </div>
+                    </div>
+
+                    {isIOS && showIosSteps && (
+                        <div className="mt-4 rounded-[1.2rem] border border-default-200/80 bg-background p-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <Share2 className="size-4 text-primary" />
+                                Install on iPhone or iPad
+                            </div>
+                            <ol className="mt-3 space-y-2 text-sm leading-6 text-default-500">
+                                <li>1. Open the browser share menu.</li>
+                                <li>2. Choose <span className="font-medium text-foreground">Add to Home Screen</span>.</li>
+                                <li>3. Confirm the app name, then tap <span className="font-medium text-foreground">Add</span>.</li>
+                            </ol>
+                        </div>
+                    )}
+
+                    <div className="mt-4 flex gap-3">
+                        <Button variant="ghost" className="flex-1 rounded-full" onPress={handleDismiss}>
+                            Not now
+                        </Button>
+                        <Button size="sm" variant="primary" onPress={handleInstallClick} className="flex-1 rounded-full font-medium">
+                            {isIOS ? <Smartphone className="mr-2 size-4" /> : <Download className="mr-2 size-4" />}
+                            {isIOS ? (showIosSteps ? 'Hide steps' : 'Show steps') : 'Install app'}
+                        </Button>
+                    </div>
+                </div>
+            </motion.div>
         </AnimatePresence>
     );
 }

@@ -6,10 +6,6 @@ import { useToast } from '@/components/toast-provider';
 import { disablePushNotifications, enablePushNotifications } from './push/helpers';
 import { usePushStatus } from './push/use-push-status';
 
-/**
- * Push Notification toggle component.
- * Allows users to enable/disable browser push notifications.
- */
 export function PushNotificationToggle() {
     const { toast } = useToast();
     const {
@@ -34,8 +30,8 @@ export function PushNotificationToggle() {
 
                 if (!result.isEnabled) {
                     toast({
-                        title: 'Permission Denied',
-                        description: 'You need to allow notifications in your browser settings.',
+                        title: 'Permission denied',
+                        description: 'Allow notifications in your browser settings to turn alerts on.',
                         status: 'warning',
                     });
                     return;
@@ -43,8 +39,8 @@ export function PushNotificationToggle() {
 
                 setIsEnabled(true);
                 toast({
-                    title: 'Notifications Enabled',
-                    description: 'You will now receive push notifications.',
+                    title: 'Notifications enabled',
+                    description: 'Push alerts are now active for this browser.',
                     status: 'success',
                 });
                 return;
@@ -53,15 +49,15 @@ export function PushNotificationToggle() {
             await disablePushNotifications();
             setIsEnabled(false);
             toast({
-                title: 'Notifications Disabled',
-                description: 'You will no longer receive push notifications.',
+                title: 'Notifications disabled',
+                description: 'This browser will no longer receive push alerts.',
                 status: 'default',
             });
         } catch (error) {
             console.error('[Push Toggle] Error:', error);
             toast({
-                title: 'Error',
-                description: 'Failed to update notification settings. Please try again.',
+                title: 'Notification update failed',
+                description: 'Please try again in a moment.',
                 status: 'danger',
             });
         } finally {
@@ -69,42 +65,70 @@ export function PushNotificationToggle() {
         }
     };
 
+    if (isLoading) {
+        return <div className="h-24 animate-pulse rounded-[1.4rem] border border-default-200/80 bg-default-100/70" />;
+    }
+
     if (!isSupported) {
         return (
-            <div className="flex items-center gap-3 text-muted-foreground">
-                <BellOff className="size-5" />
-                <span className="text-sm">Push notifications not supported in this browser</span>
+            <div className="rounded-[1.4rem] border border-default-200/80 bg-default-50/70 p-4">
+                <div className="flex items-start gap-3 text-default-500">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-default-100">
+                        <BellOff className="size-5" />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Push notifications are not supported</p>
+                        <p className="text-sm leading-6 text-default-500">
+                            This browser does not support web push, so alerts will stay inside the in-app notification center.
+                        </p>
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (permission === 'denied') {
         return (
-            <div className="flex items-center gap-3 text-warning">
-                <BellOff className="size-5" />
-                <span className="text-sm">Notifications blocked. Enable them in your browser settings.</span>
+            <div className="rounded-[1.4rem] border border-warning/20 bg-warning/5 p-4">
+                <div className="flex items-start gap-3 text-warning">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-warning/10">
+                        <BellOff className="size-5" />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Notifications are blocked</p>
+                        <p className="text-sm leading-6 text-default-500">
+                            Re-enable notification permission in your browser settings if you want call and workflow alerts outside the app.
+                        </p>
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                {isEnabled ? (
-                    <BellRing className="size-5 text-success" />
-                ) : (
-                    <BellOff className="size-5 text-default-400" />
-                )}
-                <div>
-                    <p className="text-sm font-medium">Push Notifications</p>
-                    <p className="text-xs text-muted-foreground">
-                        {isEnabled
-                            ? "Enabled - You'll receive alerts even when the app is closed"
-                            : 'Enable to get alerts even when the app is closed'}
-                    </p>
+        <div className="rounded-[1.4rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.35)]">
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isEnabled ? 'bg-success/10 text-success' : 'bg-default-100 text-default-400'}`}>
+                        {isEnabled ? <BellRing className="size-5" /> : <BellOff className="size-5" />}
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Browser push alerts</p>
+                        <p className="text-sm leading-6 text-default-500">
+                            {isEnabled
+                                ? 'Active for this browser. Alerts can arrive even when the app is closed.'
+                                : 'Turn this on if you want processing, sync, and admin alerts outside the app.'}
+                        </p>
+                    </div>
                 </div>
+                <Switch
+                    aria-label="Toggle browser push alerts"
+                    isSelected={isEnabled}
+                    onChange={handleToggle}
+                    isDisabled={isLoading}
+                    size="sm"
+                />
             </div>
-            <Switch isSelected={isEnabled} onChange={handleToggle} isDisabled={isLoading} size="sm" />
         </div>
     );
 }

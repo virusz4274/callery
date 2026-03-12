@@ -1,6 +1,7 @@
 # Call Memo (VoSift)
 
 Call Memo is a Next.js application for uploading, transcribing, searching, and organizing call recordings.
+It uses direct browser/mobile uploads to Cloudflare R2 (up to 5 GiB per file), with a 2 GiB transcription processing limit.
 
 ## Documentation
 

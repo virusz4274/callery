@@ -3,6 +3,7 @@ import { getCurrentAdmin } from '@/app/actions/admin';
 import { AnnouncementsList } from '@/components/admin/announcements-list';
 import { connection } from 'next/server';
 import { redirect } from 'next/navigation';
+import { AdminPageShell } from '@/components/admin/admin-page-shell';
 
 export default async function AnnouncementsPage() {
     const admin = await getCurrentAdmin();
@@ -14,13 +15,32 @@ export default async function AnnouncementsPage() {
     const announcements = await getAnnouncements();
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">Announcements</h1>
-                <p className="text-default-500">Manage site-wide banners and notifications.</p>
-            </div>
-
+        <AdminPageShell
+            eyebrow="Broadcasts"
+            title="Announcements"
+            description="Manage banners and time-bound product notices that affect every user in the application."
+            stats={[
+                {
+                    label: 'Announcements',
+                    value: announcements.length,
+                    helper: 'Total notices currently stored',
+                    iconName: 'Megaphone',
+                },
+                {
+                    label: 'Active',
+                    value: announcements.filter((announcement) => announcement.isActive).length,
+                    helper: 'Notices currently enabled for display',
+                    iconName: 'BellRing',
+                },
+                {
+                    label: 'Alerts',
+                    value: announcements.filter((announcement) => announcement.type === 'alert').length,
+                    helper: 'High-urgency announcement count',
+                    iconName: 'ShieldAlert',
+                },
+            ]}
+        >
             <AnnouncementsList announcements={announcements} />
-        </div>
+        </AdminPageShell>
     );
 }

@@ -7,11 +7,14 @@ import React, { useState } from 'react';
 import {
   Modal,
   Button,
+  Chip,
   Select,
   Input,
   Label,
-  ListBox
+  ListBox,
+  Surface,
 } from '@heroui/react';
+import { CreditCard, ShieldCheck } from 'lucide-react';
 import { PlanResponse } from '@/lib/db/types';
 import type { User } from '@/lib/types';
 import { updateContactPlan } from '@/app/actions/update-contact-plan';
@@ -63,13 +66,24 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
       <Button className="hidden" aria-hidden="true" />
       <Modal.Backdrop>
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="w-full max-w-xl rounded-[1.75rem] border border-default-200/80 bg-background p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]">
             <Modal.CloseTrigger />
-            <Modal.Header>
-              <Modal.Heading>Manage Plan for {user.name}</Modal.Heading>
+            <Modal.Header className="border-b border-default-100/80 px-6 py-5">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Chip variant="soft" color="accent">Plan assignment</Chip>
+                  <Chip variant="soft" color="default">{user.name}</Chip>
+                </div>
+                <Modal.Heading className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                  Manage plan
+                </Modal.Heading>
+                <p className="text-sm leading-6 text-default-500">
+                  Choose the subscription tier for this user and preview the default limits that come with it.
+                </p>
+              </div>
             </Modal.Header>
-            <Modal.Body>
-              <div className="space-y-4 py-4">
+            <Modal.Body className="px-6 py-5">
+              <div className="space-y-5">
                 <Select
                   placeholder="Select a plan"
                   selectedKey={selectedPlan}
@@ -91,35 +105,37 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
                   </Select.Popover>
                 </Select>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Storage Allocation (GB)</Label>
-                    <Input
-                      type="number"
-                      value={String(displayStorage)}
-                      readOnly
-                      disabled
-                      className="bg-default-100"
-                    />
-                    <p className="text-xs text-default-400">Defined by Plan</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Transcription (min)</Label>
-                    <Input
-                      type="number"
-                      value={String(displayTranscription)}
-                      readOnly
-                      disabled
-                      className="bg-default-100"
-                    />
-                    <p className="text-xs text-default-400">Defined by Plan</p>
-                  </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-2xl bg-accent/10 p-2.5 text-accent">
+                        <CreditCard className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Storage allocation</div>
+                        <div className="mt-2 text-2xl font-bold text-foreground">{displayStorage} GB</div>
+                        <p className="mt-1 text-sm text-default-500">Applied automatically from the selected plan.</p>
+                      </div>
+                    </div>
+                  </Surface>
+                  <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-2xl bg-success/10 p-2.5 text-success">
+                        <ShieldCheck className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Transcription quota</div>
+                        <div className="mt-2 text-2xl font-bold text-foreground">{displayTranscription} min</div>
+                        <p className="mt-1 text-sm text-default-500">Plan-defined allowance before custom overrides.</p>
+                      </div>
+                    </div>
+                  </Surface>
                 </div>
               </div>
             </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={onClose}>Cancel</Button>
-              <Button variant="primary" onPress={handleSave} isPending={loading}>
+            <Modal.Footer className="border-t border-default-100/80 px-6 py-4">
+              <Button variant="ghost" className="rounded-full" onPress={onClose}>Cancel</Button>
+              <Button variant="primary" className="rounded-full px-5 font-semibold" onPress={handleSave} isPending={loading}>
                 Save Changes
               </Button>
             </Modal.Footer>

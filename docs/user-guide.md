@@ -11,9 +11,15 @@ This guide explains day-to-day usage of Call Memo.
 ## Recording Workflow
 
 1. Upload audio files from the Upload page.
-2. Files are stored in cloud storage and indexed.
-3. Transcription runs with your selected provider.
+2. Files upload directly from your device to Cloudflare R2 and are then indexed.
+3. Transcription runs with your selected provider when the file is within provider limits.
 4. Summaries/search embeddings are generated when AI is configured.
+
+Upload and transcription limits:
+
+- Upload supports files up to 5 GiB.
+- Transcription supports files up to 2 GiB.
+- Files larger than 2 GiB can still be uploaded and played, but transcription is blocked/skipped.
 
 ## Working with Recordings
 

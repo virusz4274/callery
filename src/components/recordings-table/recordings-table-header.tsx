@@ -1,6 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import { Button, Card } from '@heroui/react';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 type RecordingsTableHeaderProps = {
     totalCount: number;
@@ -30,7 +31,9 @@ export function RecordingsTableHeader({
             }`}
         >
             <div>
-                <h2 className="text-lg font-semibold text-foreground">Recent Recordings</h2>
+                <h2 className="text-lg font-semibold text-foreground">
+                    {selectedCount > 0 ? 'Selection active' : 'Library results'}
+                </h2>
                 <p className="text-sm text-default-500">
                     {selectedCount > 0
                         ? `${selectedCount} item(s) selected`
@@ -38,29 +41,42 @@ export function RecordingsTableHeader({
                 </p>
             </div>
 
-            {selectedCount > 0 && (
-                <Button
-                    variant="danger"
-                    size="sm"
-                    onPress={onDeleteSelection}
-                    isDisabled={isDeleting}
-                    className="animate-appearance-in font-medium"
-                >
-                    {isDeleting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Delete Selection ({selectedCount})
-                </Button>
-            )}
-
-            <div className="md:hidden">
-                {isSelectionMode ? (
-                    <Button size="sm" variant="ghost" onPress={onToggleSelectionMode}>
-                        Cancel
+            <div className="flex flex-wrap items-center gap-2">
+                {selectedCount > 0 && (
+                    <Button
+                        variant="danger"
+                        size="sm"
+                        onPress={onDeleteSelection}
+                        isDisabled={isDeleting}
+                        className="animate-appearance-in font-medium"
+                    >
+                        {isDeleting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete Selection ({selectedCount})
                     </Button>
-                ) : null}
+                )}
+
+                <div className="md:hidden">
+                    {isSelectionMode ? (
+                        <Button size="sm" variant="ghost" onPress={onToggleSelectionMode}>
+                            Cancel
+                        </Button>
+                    ) : (
+                        <Button size="sm" variant="ghost" onPress={onToggleSelectionMode}>
+                            Select items
+                        </Button>
+                    )}
+                </div>
+
+                <Link href="/upload">
+                    <Button size="sm" variant="secondary" className="rounded-full font-medium">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Upload
+                    </Button>
+                </Link>
             </div>
         </Card.Header>
     );

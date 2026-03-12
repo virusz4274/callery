@@ -7,6 +7,7 @@ This is the complete setup guide for handing this project to a new developer or 
 - Local app setup
 - Firebase + Google Cloud + People API setup
 - Cloudflare R2 setup
+- Direct browser uploads to R2 (presigned URL flow)
 - AI/transcription setup (Gemini, Soniox, ElevenLabs)
 - Stripe basics needed by the app
 - Webhooks, cron jobs, and verification checklist
@@ -103,6 +104,43 @@ These steps are required for authentication and Google Contacts sync.
    - Prefix: `exports/`
    - Action: Delete object
    - Age: 7 days
+5. Configure bucket CORS for browser direct uploads:
+   - Dashboard path: `R2` -> `Bucket` -> `Settings` -> `CORS policy`.
+   - Allowed origin: your app URL(s), for example `http://localhost:9000` and production domain.
+   - Allowed methods: `PUT`, `GET`, `HEAD`.
+   - Allowed headers: `Content-Type`.
+   - Expose headers: `ETag`.
+   - Max age: `86400`.
+
+Example CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:9000",
+      "https://<your-domain>"
+    ],
+    "AllowedMethods": [
+      "PUT",
+      "GET",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "Content-Type"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
+    "MaxAgeSeconds": 86400
+  }
+]
+```
+
+6. Understand the upload flow used by the app:
+   - `initializeDirectUpload` (server action): validates auth + storage limits, signs a short-lived R2 PUT URL, returns upload token.
+   - Browser/mobile client uploads bytes directly to R2 with PUT.
+   - `completeDirectUpload` (server action): verifies uploaded object in R2, creates DB record, updates storage billing, and triggers auto-transcription.
 
 ## 5. AI and Transcription Providers
 
@@ -116,6 +154,12 @@ Webhook security for async transcription now requires both:
 
 - `SONIOX_WEBHOOK_SECRET` (required)
 - `ELEVENLABS_WEBHOOK_SECRET` (required)
+
+Transcription file-size limit:
+
+- Upload limit: 5 GiB per recording.
+- Transcription processing limit: 2 GiB per recording.
+- Files larger than 2 GiB can be stored but transcription is blocked/skipped with a user-facing message.
 
 ## 6. Stripe Setup (Minimum)
 
@@ -163,6 +207,7 @@ R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
 R2_BUCKET_NAME=...
+UPLOAD_SESSION_SECRET=...
 
 # Sharing
 SHARE_LINK_SECRET=...
@@ -183,6 +228,10 @@ ELEVENLABS_API_KEY=...
 ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
 ELEVENLABS_MODEL_ID=scribe_v2
 ELEVENLABS_WEBHOOK_SECRET=...
+
+# Transcription constraints
+# Recordings can upload up to 5 GiB.
+# Transcription services process up to 2 GiB per recording.
 
 # Billing
 NEXT_PUBLIC_ENABLE_BILLING=true
@@ -211,6 +260,12 @@ SUPPORT_EMAIL=support@example.com
 
 # UI toggle
 NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+```
+
+Generate `UPLOAD_SESSION_SECRET` with OpenSSL:
+
+```bash
+openssl rand -base64 48
 ```
 
 ## 8. Initialize Database and Run
@@ -317,13 +372,15 @@ A new owner should verify these before going live:
 1. Can log in via Firebase auth.
 2. Can sync Google contacts.
 3. Can upload and play a recording.
-4. Soniox/ElevenLabs webhook completes transcription.
-5. Gemini summary appears.
-6. Export job runs and downloadable archive is produced.
-7. Stripe checkout + webhook + plan sync works.
-8. Cron jobs run with valid `CRON_SECRET`.
-9. Support email endpoint works.
-10. Backup owner has access to Firebase, GCP, Cloudflare, Stripe, and SMTP.
+4. Files upload directly to R2 from browser/mobile (no request body size failures in app server).
+5. Soniox/ElevenLabs webhook completes transcription for files <= 2 GiB.
+6. Transcription is blocked/skipped for files > 2 GiB with clear error/notification.
+7. Gemini summary appears.
+8. Export job runs and downloadable archive is produced.
+9. Stripe checkout + webhook + plan sync works.
+10. Cron jobs run with valid `CRON_SECRET`.
+11. Support email endpoint works.
+12. Backup owner has access to Firebase, GCP, Cloudflare, Stripe, and SMTP.
 
 ## 12. Useful Commands
 

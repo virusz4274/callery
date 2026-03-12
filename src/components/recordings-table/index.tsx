@@ -48,7 +48,7 @@ export function RecordingsTable({
                     className={`transition-all duration-300 ${
                         variant === 'flat'
                             ? 'bg-transparent border-none shadow-none'
-                            : 'bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-lg md:shadow-xl rounded-xl md:rounded-2xl'
+                            : 'rounded-[1.75rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]'
                     }`}
                 >
                     <RecordingsTableHeader

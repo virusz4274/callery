@@ -15,12 +15,24 @@ import { Spinner } from '@heroui/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
 import { BillingAlert } from '@/components/billing-alert';
 import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
+import { PublicHeader } from '@/components/public-header';
+import { ProductSidebar } from '@/components/navigation/product-sidebar';
 
 type AppLayoutProps = {
   children: React.ReactNode;
 };
 
+const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
 const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance']);
+const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance']);
+const MARKETING_LAYOUT_PATHS = new Set([
+  '/',
+  '/pricing',
+  '/support',
+  '/changelog',
+  '/privacy-policy',
+  '/terms-of-service',
+]);
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { toast } = useToast();
@@ -109,6 +121,26 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const searchQuery = searchParams.get('q') || '';
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+  const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
+  const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
+  const showProductChrome = Boolean(user) && !isMinimalLayoutRoute;
+  const showPublicHeader = !user && isMarketingLayoutRoute;
+  const showAppHeader = !isMinimalLayoutRoute && !showPublicHeader;
+  const showDesktopSidebar = showProductChrome && !pathname.startsWith('/admin');
+  const showBottomNav = showProductChrome && isMobile && !showHamburger && !pathname.startsWith('/admin');
+  const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
+  const mainClassName = isMinimalLayoutRoute || isMarketingLayoutRoute
+    ? 'flex flex-1 flex-col'
+    : `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-6 md:py-6 ${
+        showBottomNav
+          ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
+          : 'pb-6'
+      }`;
+  const desktopProductMainClassName = `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-8 md:py-6 ${
+    showBottomNav
+      ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
+      : 'pb-6'
+  }`;
 
   const handleSearchChange = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -163,29 +195,74 @@ export function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
+  if (showDesktopSidebar) {
+    return (
+      <div className="flex min-h-dvh w-full bg-background">
+        <ProductSidebar userProfile={userProfile} />
+        <div className="flex min-h-dvh flex-1 flex-col">
+          {showAppHeader && (
+            <AppHeader
+              user={user}
+              userProfile={userProfile}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onLogout={handleLogout}
+              showPrimaryNav={false}
+              compact
+            />
+          )}
+          <main className={desktopProductMainClassName}>
+            {showProductChrome && (
+              <>
+                <EmailVerificationAlert
+                  user={user}
+                  onResend={handleResendVerification}
+                />
+                <BillingAlert userProfile={userProfile} />
+                <AnnouncementBanner />
+              </>
+            )}
+            {children}
+          </main>
+        </div>
+        <ClientOnly>
+          {showInstallPrompt && <InstallPwaPrompt />}
+          {showBottomNav && <MobileNav />}
+        </ClientOnly>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh w-full flex-col bg-background">
-      <AppHeader
-        user={user}
-        userProfile={userProfile}
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        onLogout={handleLogout}
-      />
+      {showPublicHeader && <PublicHeader />}
 
-
-      <main className="flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-6 md:py-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
-        <EmailVerificationAlert
+      {showAppHeader && (
+        <AppHeader
           user={user}
-          onResend={handleResendVerification}
+          userProfile={userProfile}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onLogout={handleLogout}
         />
-        <BillingAlert userProfile={userProfile} />
-        <AnnouncementBanner />
+      )}
+
+      <main className={mainClassName}>
+        {showProductChrome && (
+          <>
+            <EmailVerificationAlert
+              user={user}
+              onResend={handleResendVerification}
+            />
+            <BillingAlert userProfile={userProfile} />
+            <AnnouncementBanner />
+          </>
+        )}
         {children}
       </main>
       <ClientOnly>
-        <InstallPwaPrompt />
-        {isMobile && !showHamburger && <MobileNav />}
+        {showInstallPrompt && <InstallPwaPrompt />}
+        {showBottomNav && <MobileNav />}
       </ClientOnly>
     </div>
   );

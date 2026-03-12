@@ -11,9 +11,9 @@ interface FileItemProps {
 export function FileItem({ file, onToggle }: FileItemProps) {
     return (
         <div
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${file.selected
-                ? 'bg-primary/10 border-primary/30'
-                : 'bg-content1 hover:bg-content2 border-default-100'
+            className={`flex items-center gap-3 rounded-[1.1rem] border p-3 transition-colors ${file.selected
+                ? 'border-primary/30 bg-primary/10'
+                : 'border-default-100 bg-default-50/40 hover:bg-default-100/60'
                 }`}
         >
             <div className="flex items-center justify-center shrink-0">

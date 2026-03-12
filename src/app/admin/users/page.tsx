@@ -4,6 +4,7 @@ import { getPlans } from '@/app/actions/admin-plans';
 import { UserManagementTable } from '@/components/admin/user-management-table';
 import { Spinner } from '@/components/ui-primitives';
 import { redirect } from 'next/navigation';
+import { AdminPageShell } from '@/components/admin/admin-page-shell';
 
 export default async function UsersPage({
     searchParams,
@@ -26,12 +27,31 @@ export default async function UsersPage({
     ]);
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-                <p className="text-default-500">Manage system users, roles, and limits.</p>
-            </div>
-
+        <AdminPageShell
+            eyebrow="Accounts and access"
+            title="User management"
+            description="Search accounts, adjust plans and limits, and inspect operational state without leaving the admin console."
+            stats={[
+                {
+                    label: 'Users',
+                    value: data.total,
+                    helper: 'Accounts matching the current system scope',
+                    iconName: 'Users',
+                },
+                {
+                    label: 'Search',
+                    value: search || 'None',
+                    helper: 'Current search filter applied to the table',
+                    iconName: 'Search',
+                },
+                {
+                    label: 'Plans',
+                    value: plans.length,
+                    helper: 'Available plans that can be assigned to users',
+                    iconName: 'ShieldCheck',
+                },
+            ]}
+        >
             <Suspense fallback={<div className="flex justify-center p-8"><Spinner size="lg" /></div>}>
                 <UserManagementTable
                     initialUsers={data.users}
@@ -42,6 +62,6 @@ export default async function UsersPage({
                     plans={plans}
                 />
             </Suspense>
-        </div>
+        </AdminPageShell>
     );
 }

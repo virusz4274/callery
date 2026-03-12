@@ -1,6 +1,6 @@
-import { uploadRecordings } from '@/app/actions/upload-recordings';
 import { markAsSynced } from '@/lib/sync-store';
 import type { Folder } from '@/lib/capacitor';
+import { uploadFileDirectToR2 } from '@/lib/r2-direct-upload-client';
 import type { SyncableFile } from './types';
 
 type SyncRunnerParams = {
@@ -34,11 +34,7 @@ export async function syncAndroidFiles({
         try {
             const blob = await readFileAsBlob(selectedFolder, file.path);
             const fileObj = new File([blob], file.name, { type: file.mimeType });
-
-            const formData = new FormData();
-            formData.append('files', fileObj);
-
-            const result = await uploadRecordings(formData);
+            const result = await uploadFileDirectToR2(fileObj);
 
             if (result.success) {
                 successCount++;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Recording } from '@/lib/types';
 import { Button, ScrollShadow, Avatar, Accordion } from '@heroui/react';
 import { Loader2, Wand2, ChevronDown } from 'lucide-react';
@@ -12,6 +12,8 @@ type RecordingContentProps = {
   isLoadingUrl?: boolean;
   onTranscribe?: () => void;
   isProcessing?: boolean;
+  clipStartSeconds?: number;
+  clipEndSeconds?: number;
 };
 
 export function RecordingContent({
@@ -19,9 +21,12 @@ export function RecordingContent({
   playbackUrl,
   isLoadingUrl = false,
   onTranscribe,
-  isProcessing = false
+  isProcessing = false,
+  clipStartSeconds,
+  clipEndSeconds
 }: RecordingContentProps) {
   const [showTransliteration, setShowTransliteration] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -29,8 +34,69 @@ export function RecordingContent({
     return `${mins}m ${secs}s`;
   };
 
+  const visibleTranscript = useMemo(() => {
+    if (!recording.fullTranscript || recording.fullTranscript.length === 0) {
+      return recording.fullTranscript;
+    }
+
+    if (typeof clipStartSeconds !== 'number' && typeof clipEndSeconds !== 'number') {
+      return recording.fullTranscript;
+    }
+
+    const startBoundary = typeof clipStartSeconds === 'number' ? clipStartSeconds : 0;
+    const endBoundary = typeof clipEndSeconds === 'number' ? clipEndSeconds : Number.POSITIVE_INFINITY;
+
+    const filtered = recording.fullTranscript.filter((segment) => {
+      const segmentStart = segment.start ?? 0;
+      const segmentEnd = segment.end ?? segmentStart;
+      return segmentEnd >= startBoundary && segmentStart <= endBoundary;
+    });
+
+    return filtered.length > 0 ? filtered : recording.fullTranscript;
+  }, [clipEndSeconds, clipStartSeconds, recording.fullTranscript]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    const handleLoadedMetadata = () => {
+      if (typeof clipStartSeconds === 'number' && Number.isFinite(clipStartSeconds)) {
+        audio.currentTime = Math.max(0, clipStartSeconds);
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      if (typeof clipEndSeconds !== 'number' || !Number.isFinite(clipEndSeconds)) {
+        return;
+      }
+
+      if (audio.currentTime >= clipEndSeconds) {
+        audio.pause();
+      }
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [clipEndSeconds, clipStartSeconds, playbackUrl]);
+
   return (
     <div className="flex flex-col gap-4 h-full">
+      {(typeof clipStartSeconds === 'number' || typeof clipEndSeconds === 'number') && (
+        <div className="rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
+          Sharing clip
+          {typeof clipStartSeconds === 'number' ? ` from ${formatDuration(clipStartSeconds)}` : ''}
+          {typeof clipEndSeconds === 'number' ? ` to ${formatDuration(clipEndSeconds)}` : ''}
+          .
+        </div>
+      )}
+
       {/* Audio Player */}
       <div className="flex-shrink-0 w-full bg-default-50 rounded-xl p-2 border border-default-100 min-h-[54px] flex items-center justify-center">
         {isLoadingUrl ? (
@@ -39,7 +105,7 @@ export function RecordingContent({
             <span className="text-sm">Loading audio...</span>
           </div>
         ) : playbackUrl ? (
-          <audio controls className="w-full h-10" key={recording.id}>
+          <audio controls className="w-full h-10" key={recording.id} ref={audioRef}>
             <source src={playbackUrl} type="audio/mpeg" />
             Your browser does not support the audio element.
           </audio>
@@ -84,7 +150,7 @@ export function RecordingContent({
         <div className="flex items-center justify-between mb-2 sm:mb-3 py-2">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-base sm:text-lg">Transcript</h3>
-            {recording.fullTranscript && recording.fullTranscript.length > 0 && (
+            {visibleTranscript && visibleTranscript.length > 0 && (
               <span className="text-[10px] font-mono text-default-400 bg-default-100 px-2 py-0.5 rounded-full border border-default-200">
                 DIARIZED
               </span>
@@ -92,7 +158,7 @@ export function RecordingContent({
           </div>
           <div className="flex items-center gap-2">
             {/* Transliteration Toggle */}
-            {recording.fullTranscript?.some(s => s.transliteratedText) && (
+            {visibleTranscript?.some(s => s.transliteratedText) && (
               <div className="flex items-center bg-default-100/50 rounded-lg p-1 gap-1 h-8 sm:h-9 border border-default-200/50">
                 <button
                   onClick={() => setShowTransliteration(false)}
@@ -139,9 +205,9 @@ export function RecordingContent({
         </div>
 
         <ScrollShadow className="flex-1 w-full rounded-xl border border-default-200/60 bg-default-50/50 p-3 sm:p-4 overflow-y-auto">
-          {recording.fullTranscript && recording.fullTranscript.length > 0 ? (
+          {visibleTranscript && visibleTranscript.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
-              {recording.fullTranscript.map((segment, index) => (
+              {visibleTranscript.map((segment, index) => (
                 <div key={index} className="flex gap-2 sm:gap-3 group">
                   <Avatar className="flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 mt-0.5 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                     <Avatar.Fallback className={`text-[9px] sm:text-xs font-bold ${segment.speakerId === 'Speaker 0' ? 'bg-primary/20 text-primary' :
