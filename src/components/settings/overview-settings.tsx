@@ -57,7 +57,7 @@ export function OverviewSettings() {
                             Workspace snapshot
                         </h2>
                         <p className="max-w-2xl text-base leading-7 text-default-600">
-                            Check how active the library is, spot records that still need cleanup, and jump into the next operational task without leaving settings.
+                            Check how active the library is, spot records that still need cleanup, and jump into the next archive task without leaving settings.
                         </p>
                     </div>
                 </div>
@@ -145,7 +145,7 @@ export function OverviewSettings() {
                                 Next actions
                             </div>
                             <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">
-                                Shortcuts for the most common operational tasks
+                                Shortcuts for the most common library tasks
                             </h3>
                         </div>
 
@@ -188,7 +188,7 @@ export function OverviewSettings() {
                                     <div>
                                         <div className="font-semibold text-foreground">Audit the library</div>
                                         <p className="mt-1 text-sm leading-6 text-default-500">
-                                            Jump into recordings, use AI search, and review filtered results from the main workspace.
+                                            Jump into recordings, use semantic search, and review filtered results from the main workspace.
                                         </p>
                                     </div>
                                     <ArrowRight className="h-4 w-4 text-default-300" />

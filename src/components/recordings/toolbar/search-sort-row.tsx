@@ -80,8 +80,8 @@ export function SearchSortRow({
                     Narrow the archive without losing your place.
                 </h3>
                 <p className="text-sm leading-6 text-default-600">
-                    Use transcript text, contact, date range, and sort order together. AI search sits
-                    above this and can be cleared independently.
+                    Use transcript text, contact, date range, and sort order together. Semantic search
+                    sits above this and can be cleared independently.
                 </p>
             </div>
 

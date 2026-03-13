@@ -9,12 +9,12 @@ const changes = [
         version: 'v0.1.0',
         date: 'February 2, 2026',
         type: 'Beta',
-        summary: 'First public beta of the call intelligence workspace.',
+        summary: 'First public beta of the call archive, transcript, and search workspace.',
         items: [
             'Initial beta release',
-            'Call recording and transcription',
+            'Call recording archive and transcription',
             'Contact management',
-            'Basic file management',
+            'Semantic search and basic file management',
         ],
     },
 ];
@@ -35,7 +35,7 @@ export default function ChangelogPage() {
                                 Changelog
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Track what shipped, what improved, and where the product is getting sharper over time.
+                                Track what shipped, what improved, and how the archive, transcript, and search workflow is evolving over time.
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

@@ -42,8 +42,8 @@ export function useExportJob(toast: ToastFn) {
             const result = await startExport();
             if (result.success) {
                 toast({
-                    title: 'Export Started',
-                    description: 'We are preparing your files. You will receive an email when ready.',
+                    title: 'Export Queued',
+                    description: 'We queued your archive and will email you when it is ready to download.',
                     status: 'success',
                 });
                 setExportJob({ id: 'temp', status: 'pending', progress: 0, createdAt: new Date().toISOString() });

@@ -301,9 +301,9 @@ export function RecordingsPage() {
             : null,
     ].filter(Boolean) as string[];
     const visibleResultsLabel = isShowingSemanticResults
-        ? `${displayTotalCount} AI matches`
+        ? `${displayTotalCount} semantic matches`
         : `${displayTotalCount} recordings`;
-    const searchModeLabel = isShowingSemanticResults ? 'AI search view' : 'Library view';
+    const searchModeLabel = isShowingSemanticResults ? 'Semantic search view' : 'Library view';
     const checklistItems = [
         {
             id: 'upload',
@@ -319,7 +319,7 @@ export function RecordingsPage() {
         },
         {
             id: 'semantic',
-            title: 'Run one AI semantic search',
+            title: 'Run one semantic search',
             done: hasRunSemanticSearch,
             href: '#semantic-search',
         },
@@ -350,8 +350,8 @@ export function RecordingsPage() {
                                 Recordings
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Review the call library, switch between keyword and AI search, and
-                                move from raw transcript to the exact moment that needs action.
+                                Review the call library, switch between keyword and semantic search,
+                                and jump from transcript results to the exact section you need.
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -438,7 +438,7 @@ export function RecordingsPage() {
                             </div>
                             <div className="text-sm text-default-500">
                                 {isShowingSemanticResults
-                                    ? 'AI results temporarily replace the library list until you clear them.'
+                                    ? 'Semantic results temporarily replace the library list until you clear them.'
                                     : 'Use contact and date filters to narrow the archive without losing context.'}
                             </div>
                         </div>
@@ -543,7 +543,7 @@ export function RecordingsPage() {
                             </h2>
                             <p className="text-sm leading-6 text-default-500">
                                 {isShowingSemanticResults
-                                    ? 'These results come from AI search and are separate from the normal paginated library view.'
+                                    ? 'These results come from semantic search and are separate from the normal paginated library view.'
                                     : 'Browse every recording, open details, and manage the archive from one surface.'}
                             </p>
                         </div>

@@ -16,17 +16,17 @@ export function ContactPhoneDisplay({ phoneNumbers }: ContactPhoneDisplayProps) 
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-            <Chip size="sm" variant="soft" color="default">
-                <Phone className="w-3 h-3 mr-1" />
-                {phoneNumbers[0]}
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+            <Chip size="sm" variant="soft" color="default" className="max-w-full">
+                <Phone className="mr-1 h-3 w-3 shrink-0" />
+                <span className="truncate">{phoneNumbers[0]}</span>
             </Chip>
 
             {isExpanded &&
                 phoneNumbers.slice(1).map((number, index) => (
-                    <Chip key={index} size="sm" variant="soft" color="default">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {number}
+                    <Chip key={index} size="sm" variant="soft" color="default" className="max-w-full">
+                        <Phone className="mr-1 h-3 w-3 shrink-0" />
+                        <span className="truncate">{number}</span>
                     </Chip>
                 ))}
 

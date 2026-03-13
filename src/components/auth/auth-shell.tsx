@@ -10,7 +10,7 @@ const authHighlights = [
   {
     icon: Search,
     title: "Search by meaning",
-    description: "Ask for pricing calls, objections, or follow-ups instead of hunting through filenames.",
+    description: "Find payment confirmations, client discussions, or older calls without hunting through filenames.",
   },
   {
     icon: FileText,
@@ -69,7 +69,7 @@ export function AuthShell({
 
           <div className="relative space-y-8">
             <Chip variant="soft" color="accent" className="w-fit">
-              Call intelligence workspace
+              Call archive and search
             </Chip>
 
             <div className="space-y-4">
@@ -77,8 +77,8 @@ export function AuthShell({
                 Find the moment that matters in every conversation.
               </h2>
               <p className="max-w-xl text-base leading-7 text-default-600 xl:text-lg">
-                VoSift brings recordings, transcripts, and contacts into one review flow so teams can
-                search faster and act on calls with less friction.
+                VoSift brings recordings, transcripts, and contacts into one organized archive so you
+                can search faster and revisit important calls with less friction.
               </p>
             </div>
 
@@ -111,7 +111,7 @@ export function AuthShell({
                   Designed For
                 </p>
                 <p className="mt-2 text-lg font-semibold text-foreground">
-                  Call review, meeting archives, and mobile-first upload workflows.
+                  Personal archives, important business calls, and mobile-first upload workflows.
                 </p>
               </div>
               <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
