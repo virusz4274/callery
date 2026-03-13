@@ -1,6 +1,20 @@
 // Custom Service Worker for handling Push Notifications
 // This file will be injected into the next-pwa generated service worker
 
+const LEGACY_RUNTIME_CACHES = ['apis', 'start-url'];
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) =>
+            Promise.all(
+                cacheNames
+                    .filter((cacheName) => LEGACY_RUNTIME_CACHES.includes(cacheName))
+                    .map((cacheName) => caches.delete(cacheName))
+            )
+        )
+    );
+});
+
 self.addEventListener('push', (event) => {
     console.log('[Service Worker] Push Received.');
     console.log(`[Service Worker] Push had this data: "${event.data.text()}"`);

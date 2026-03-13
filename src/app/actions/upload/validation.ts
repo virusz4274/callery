@@ -2,6 +2,7 @@ import { extractFileExtension, validateAudioMimeType } from '@/lib/r2';
 import { parseContactFromFilename } from '@/lib/utils/filename-parser';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
 import { logger } from '@/lib/logger';
+import { resolveUploadMimeType } from '@/lib/upload-audio-support';
 
 export interface ValidatedFile {
     file: File;
@@ -19,12 +20,16 @@ export interface ValidatedFile {
 export async function validateAndHydrateFile(file: File, firebaseUid: string): Promise<ValidatedFile | { error: string }> {
     try {
         const buffer = Buffer.from(await file.arrayBuffer());
+        const mimeType = resolveUploadMimeType(file.name, file.type);
+        if (!mimeType) {
+            return { error: `Unsupported file type for ${file.name}` };
+        }
 
         // Extract Metadata (Duration)
         let duration = 0;
         try {
             const { parseBuffer } = await import('music-metadata');
-            const metadata = await parseBuffer(buffer, file.type || 'audio/mpeg');
+            const metadata = await parseBuffer(buffer, mimeType);
             duration = metadata.format.duration || 0;
         } catch (e) {
             logger.warn(`[validateAndHydrate] Failed to extract duration for ${file.name}:`, e);
@@ -33,7 +38,6 @@ export async function validateAndHydrateFile(file: File, firebaseUid: string): P
         // Parse Filename
         const contactInfo = parseContactFromFilename(file.name);
         const extension = extractFileExtension(file.name);
-        const mimeType = file.type || 'audio/mpeg';
 
         // Validate MIME
         if (!validateAudioMimeType(mimeType)) {

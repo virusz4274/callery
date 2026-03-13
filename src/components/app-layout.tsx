@@ -15,6 +15,7 @@ import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 import { PublicHeader } from '@/components/public-header';
 import { ProductSidebar } from '@/components/navigation/product-sidebar';
 import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
+import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -22,7 +23,7 @@ type AppLayoutProps = {
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
 const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance']);
-const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance']);
+const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance', '/~offline']);
 const MARKETING_LAYOUT_PATHS = new Set([
   '/',
   '/pricing',
@@ -142,6 +143,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       // Clear session cookie on server
       await fetch('/api/auth/logout', { method: 'POST' });
       await signOut(auth);
+      await clearPrivatePwaCaches();
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);

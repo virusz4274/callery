@@ -27,7 +27,6 @@ export function FileItem({ file, onToggle }: FileItemProps) {
                     <Checkbox
                         isSelected={file.selected}
                         onChange={() => onToggle(file.fingerprint)}
-                        isDisabled={file.status !== 'pending'}
                     />
                 )}
             </div>
@@ -41,9 +40,8 @@ export function FileItem({ file, onToggle }: FileItemProps) {
                         <Clock className="h-3 w-3" />
                         {formatDate(file.mtime)}
                     </span>
-                    {file.status === 'synced' && (
-                        <span className="text-success ml-2 font-medium">Synced</span>
-                    )}
+                    {file.status === 'synced' && <span className="text-success ml-2 font-medium">Synced</span>}
+                    {file.status === 'error' && <span className="text-danger ml-2 font-medium">Needs retry</span>}
                 </div>
                 {file.error && (
                     <p className="text-xs text-danger mt-1">{file.error}</p>

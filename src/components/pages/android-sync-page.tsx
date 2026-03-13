@@ -84,7 +84,7 @@ export function AndroidSyncPage() {
                             <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
                                 <div className="font-semibold text-foreground">What this does</div>
                                 <p className="mt-2 text-sm leading-6 text-default-500">
-                                    Browse a folder on your phone, review pending call recordings, and sync selected files into the workspace.
+                                    Browse a folder on your phone, scan nested recording folders, and sync selected files into the workspace.
                                 </p>
                             </Surface>
                             <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">

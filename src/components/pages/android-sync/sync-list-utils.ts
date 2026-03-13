@@ -50,8 +50,10 @@ export function getSelectionMetrics(
     filteredFiles: SyncableFile[],
     searchQuery: string
 ) {
-    const pendingFiles = files.filter((file) => file.status === 'pending');
-    const relevantFiles = searchQuery ? filteredFiles.filter((file) => file.status === 'pending') : pendingFiles;
+    const pendingFiles = files.filter((file) => file.status === 'pending' || file.status === 'error');
+    const relevantFiles = searchQuery
+        ? filteredFiles.filter((file) => file.status === 'pending' || file.status === 'error')
+        : pendingFiles;
     const selectedRelevantCount = relevantFiles.filter((file) => file.selected).length;
     const totalRelevantCount = relevantFiles.length;
 
@@ -84,7 +86,7 @@ export function toggleFileSelection(files: SyncableFile[], fingerprint: string):
 
 export function selectAllPendingFiles(files: SyncableFile[]): SyncableFile[] {
     return files.map((file) =>
-        file.status === 'pending' ? { ...file, selected: true } : file
+        file.status === 'pending' || file.status === 'error' ? { ...file, selected: true } : file
     );
 }
 

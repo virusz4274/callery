@@ -2,10 +2,12 @@
     "name": "VoSift",
     "short_name": "VoSift",
     "description": "VoSift - Search deeper than words. Managing, transcribing, and organizing phone call recordings.",
+    "id": "/",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#000000",
+    "theme_color": "#ffffff",
     "orientation": "portrait-primary",
     "categories": [
         "productivity",

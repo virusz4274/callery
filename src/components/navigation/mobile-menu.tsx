@@ -8,6 +8,7 @@ import { Menu } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
+import { useIsCapacitor } from '@/hooks/use-is-capacitor';
 import type { User as UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 
@@ -22,11 +23,16 @@ export function MobileMenu({
 }: MobileMenuProps) {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = React.useState(false);
+    const isCapacitor = useIsCapacitor();
 
     const handleClose = () => setIsOpen(false);
 
     // Combine items based on auth state
     let items = user ? [...navigationConfig.main] : [...navigationConfig.public];
+
+    if (user && isCapacitor) {
+        items.push(...navigationConfig.android);
+    }
 
     if (user && userProfile?.role === 'admin') {
         items.push(navigationConfig.adminLink);

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button, Card, Chip, Surface } from '@heroui/react';
 import { ArrowRight, ShieldCheck, UploadCloud } from 'lucide-react';
+import { UPLOAD_AUDIO_ACCEPT_ATTRIBUTE, UPLOAD_AUDIO_FORMAT_LABELS } from '@/lib/upload-audio-support';
 
 type UploadDropzoneCardProps = {
     isDragging: boolean;
@@ -114,7 +115,7 @@ export function UploadDropzoneCard({
                     </div>
 
                     <div className="flex flex-wrap justify-center gap-2 text-xs text-default-500">
-                        {['MP3', 'WAV', 'M4A', 'MP4', 'MOV'].map((format) => (
+                        {UPLOAD_AUDIO_FORMAT_LABELS.map((format) => (
                             <span
                                 key={format}
                                 className="rounded-full border border-default-200 bg-default-100/70 px-3 py-1 font-medium"
@@ -130,7 +131,7 @@ export function UploadDropzoneCard({
                         multiple
                         className="hidden"
                         onChange={handleFileChange}
-                        accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4"
+                        accept={UPLOAD_AUDIO_ACCEPT_ATTRIBUTE}
                     />
                 </div>
 

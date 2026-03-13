@@ -1,6 +1,7 @@
 import { extractFileExtension, generateRecordingKey, validateAudioMimeType } from '@/lib/r2';
 import { parseContactFromFilename } from '@/lib/utils/filename-parser';
 import { findContactByName, findContactByPhone } from '@/lib/db/contacts';
+import { resolveUploadMimeType } from '@/lib/upload-audio-support';
 
 export interface PreparedUploadContext {
     contactId: string | null;
@@ -14,44 +15,15 @@ export interface PreparedUploadContext {
     r2Key: string;
 }
 
-function inferMimeType(fileName: string): string {
-    const extension = extractFileExtension(fileName);
-
-    switch (extension) {
-        case 'mp3':
-            return 'audio/mpeg';
-        case 'wav':
-            return 'audio/wav';
-        case 'm4a':
-            return 'audio/m4a';
-        case 'mp4':
-            return 'audio/mp4';
-        case 'webm':
-            return 'audio/webm';
-        default:
-            return 'audio/mpeg';
-    }
-}
-
-function normalizeMimeType(fileName: string, mimeType?: string): string {
-    const normalized = mimeType?.trim().toLowerCase();
-    if (!normalized) {
-        return inferMimeType(fileName);
-    }
-
-    if (normalized === 'video/mp4') {
-        return 'audio/mp4';
-    }
-
-    return normalized;
-}
-
 export async function prepareUploadContext(
     firebaseUid: string,
     fileName: string,
     mimeType?: string
 ): Promise<PreparedUploadContext | { error: string }> {
-    const normalizedMimeType = normalizeMimeType(fileName, mimeType);
+    const normalizedMimeType = resolveUploadMimeType(fileName, mimeType);
+    if (!normalizedMimeType) {
+        return { error: `Unsupported file type for ${fileName}` };
+    }
 
     if (!validateAudioMimeType(normalizedMimeType)) {
         return { error: `Invalid MIME type: ${normalizedMimeType}` };

@@ -64,7 +64,7 @@ npm run cap:prod
 
 ## Android-Specific Flow
 
-The app exposes `/android-sync`, which is intended for the Capacitor experience. It supports folder-based sync and still uses the same direct-to-R2 upload architecture as the web uploader.
+The app exposes `/android-sync`, which is intended for the Capacitor experience. It scans the selected folder recursively, filters to the same upload-safe formats as the web uploader, and uses the same direct-to-R2 upload architecture for synced files.
 
 ## Build APK
 

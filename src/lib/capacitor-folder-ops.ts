@@ -14,36 +14,36 @@ export async function pickSyncFolder(): Promise<Folder | null> {
 }
 
 export async function listAudioFiles(folder: Folder, subPath?: string): Promise<AudioFileInfo[]> {
-    try {
-        const options: { folder: Folder; path?: string } = { folder };
-        if (subPath && subPath.length > 0) {
-            options.path = subPath;
-        }
-
-        console.log('[Capacitor] Reading directory:', options);
-        const result = await ScopedStorage.readdir(options);
-        console.log('[Capacitor] Directory entries:', result.entries.length);
-
-        const audioFiles: AudioFileInfo[] = [];
-        for (const entry of result.entries) {
-            console.log('[Capacitor] Entry:', entry.name, 'isDir:', entry.isDir);
-            if (!entry.isDir && isSupportedAudioFile(entry.name)) {
-                audioFiles.push({
-                    name: entry.name,
-                    path: subPath ? `${subPath}/${entry.name}` : entry.name,
-                    size: entry.size || 0,
-                    mtime: entry.mtime || Date.now(),
-                    mimeType: getAudioMimeType(entry.name),
-                });
-            }
-        }
-
-        console.log('[Capacitor] Audio files found:', audioFiles.length);
-        return audioFiles.sort((a, b) => b.mtime - a.mtime);
-    } catch (error) {
-        console.error('[Capacitor] Error listing audio files:', error);
-        throw error;
+    const options: { folder: Folder; path?: string } = { folder };
+    if (subPath && subPath.length > 0) {
+        options.path = subPath;
     }
+
+    const result = await ScopedStorage.readdir(options);
+    const audioFiles: AudioFileInfo[] = [];
+
+    for (const entry of result.entries) {
+        const entryPath = subPath ? `${subPath}/${entry.name}` : entry.name;
+
+        if (entry.isDir) {
+            audioFiles.push(...(await listAudioFiles(folder, entryPath)));
+            continue;
+        }
+
+        if (!isSupportedAudioFile(entry.name)) {
+            continue;
+        }
+
+        audioFiles.push({
+            name: entry.name,
+            path: entryPath,
+            size: entry.size || 0,
+            mtime: entry.mtime || Date.now(),
+            mimeType: getAudioMimeType(entry.name),
+        });
+    }
+
+    return audioFiles.sort((a, b) => b.mtime - a.mtime);
 }
 
 export async function listDirectories(folder: Folder, subPath?: string): Promise<string[]> {
