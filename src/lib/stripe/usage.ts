@@ -13,7 +13,7 @@ export async function reportUsage(
     firebaseUid: string,
     type: 'storage' | 'transcription',
     quantity: number,
-    options?: { multiplier?: number }
+    options?: { multiplier?: number; identifier?: string }
 ) {
     if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
     if (!Number.isFinite(quantity)) return;
@@ -39,9 +39,11 @@ export async function reportUsage(
         const eventName = type === 'storage' ? 'storage_usage_bytes' : 'transcription_usage_seconds';
 
         // Stripe V2 Meter Events
-        // We send the 'value' as the quantity. The Stripe Meter must be configured to aggregate by 'sum'.
+        // Storage events are sent as the current peak for the billing period and should use a "Last" meter aggregation.
+        // Transcription events are incremental and should use a "Sum" meter aggregation.
         // We use the Stripe Customer ID to link the event.
         await stripe.billing.meterEvents.create({
+            identifier: options?.identifier,
             event_name: eventName,
             payload: {
                 stripe_customer_id: user.stripeCustomerId,

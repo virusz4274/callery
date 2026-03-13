@@ -108,7 +108,9 @@ export async function transcribeRecordingAction(recordingId: string) {
                 // Calculate and record billed usage
                 const billedDuration = calculateBilledDuration(recording.duration);
                 await incrementTranscriptionUsed(uid, billedDuration);
-                await reportUsage(uid, 'transcription', billedDuration);
+                await reportUsage(uid, 'transcription', billedDuration, {
+                    identifier: `transcription:${uid}:recording:${validatedRecordingId}:manual`,
+                });
                 logger.info(`[Action/Transcribe] Job completed for ${validatedRecordingId}`);
 
                 // Delete from Soniox

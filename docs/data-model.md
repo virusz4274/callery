@@ -1,297 +1,256 @@
 # Data Model
 
-This document outlines the MongoDB data model used in the application.
+This document describes the MongoDB collections currently used by Call Memo.
 
-## Collections
+Collection names are defined in `src/lib/mongodb.ts`.
 
-### **`users`**
-Stores user profile information and settings.
+## Core Collections
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `firebaseUid` | `string` | Link to Firebase Auth user. |
-| `email` | `string` | User's email address. |
-| `firstName` | `string` | First name. |
-| `lastName` | `string` | Last name. |
-| `name` | `string` | Full name (computed or stored). |
-| `phoneNumber` | `string` | User's primary phone number. |
-| `photoURL` | `string` | (Optional) Profile picture URL. |
-| `role` | `'user' \| 'admin'` | User role. |
-| `plan` | `string` | Subscription plan name. |
-| `disabled` | `boolean` | (Optional) Account disabled status. |
-| `timezone` | `string` | User's preferred timezone. |
-| `storageUsed` | `number` | Storage used in bytes. |
-| `storageAllocation` | `number` | Storage limit in bytes. |
-| `storagePeakUsed` | `number` | Peak stored bytes for the current billing period. |
-| `storagePeakPeriodEnd` | `Date` | Billing period end associated with `storagePeakUsed`. |
-| `transcriptionUsed` | `number` | Transcription used in seconds. |
-| `transcriptionAllocation` | `number` | Transcription limit in seconds. |
-| `totalContacts` | `number` | Total number of contacts. |
-| `totalRecordings` | `number` | Total number of recordings. |
-| `totalDuration` | `number` | Total duration of all recordings. |
-| `stripeCustomerId` | `string` | Stripe Customer ID. |
-| `stripeSubscriptionId` | `string` | Stripe Subscription ID. |
-| `stripePriceId` | `string` | Current Stripe Price ID. |
-| `stripeSubscriptionStatus` | `string` | Stripe status (active, past_due, etc.). |
-| `stripeCurrentPeriodEnd` | `Date` | End of current Stripe billing period. |
-| `trialEndsAt` | `Date` | Timestamp when free trial expires. |
-| `lastLoginAt` | `Date` | Last login timestamp. |
-| `softDelete` | `object` | Soft deletion lifecycle metadata (`isDeleted`, `deletedAt`, `restoreUntil`, `previousDisabled`, `deletedByAdminId`). |
-| `createdAt` | `Date` | Account creation timestamp. |
-| `updatedAt` | `Date` | Last update timestamp. |
+### `users`
 
-**Settings Fields:**
-```typescript
+Stores application users linked to Firebase Auth.
+
+Important fields:
+
+- `firebaseUid`
+- `email`, `firstName`, `lastName`, `name`, `phoneNumber`
+- `role`
+- `plan`
+- `disabled`
+- `timezone`
+- `notificationSettings`
+- `transcriptionSettings`
+- `storageSettings`
+- `billingSettings`
+- `storageUsed`, `storageAllocation`, `storagePeakUsed`, `storagePeakPeriodEnd`
+- `transcriptionUsed`, `transcriptionAllocation`
+- `totalContacts`, `totalRecordings`, `totalDuration`
+- Stripe fields such as `stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`
+- `trialEndsAt`, `lastLoginAt`
+- `pushSubscriptions`
+- `softDelete`
+
+Notable nested structures:
+
+```ts
 notificationSettings: {
-    activityDigest: 'off' | 'weekly' | 'monthly';
-    ingestSuccess: boolean;
-    ingestFail: boolean;
+  activityDigest: 'off' | 'weekly' | 'monthly';
+  ingestSuccess: boolean;
+  ingestFail: boolean;
 }
-billingSettings: {
-    allowOverage: boolean; // "Pay Per Usage" toggle
-}
-storageSettings: {
-    deletionPolicy: 'never' | '3m' | '6m' | '1y';
-}
+
 transcriptionSettings: {
-    autoTranscribe: boolean;
-    defaultProvider?: 'soniox' | 'elevenlabs';
-    defaultModel?: string;
+  autoTranscribe: boolean;
+  defaultProvider?: 'soniox' | 'elevenlabs';
+  defaultModel?: string;
+}
+
+storageSettings: {
+  deletionPolicy: 'never' | '3m' | '6m' | '1y';
+}
+
+billingSettings: {
+  allowOverage: boolean;
 }
 ```
 
----
+### `recordings`
 
-### **`plans`**
-Stores subscription plan definitions.
+Stores uploaded audio metadata, transcript state, search payloads, and library-level tags.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `name` | `string` | Plan name (e.g., "Free Trial", "Pro"). |
-| `description` | `string` | (Optional) Brief plan description. |
-| `price` | `number` | Cost in cents/units. |
-| `currency` | `string` | Currency code (e.g., 'USD'). |
-| `interval` | `'monthly' \| 'yearly' \| 'lifetime'` | Billing interval. |
-| `limits` | `object` | `{ storage: number, transcription: number }` |
-| `stripePriceId` | `string` | Stripe Price ID for base plan. |
-| `stripeStoragePriceId` | `string` | Stripe Price ID for Metered Storage. |
-| `stripeTranscriptionPriceId` | `string` | Stripe Price ID for Metered Transcription. |
-| `features` | `string[]` | List of features for UI display. |
-| `isDefault` | `boolean` | Whether this is the default plan. |
-| `isActive` | `boolean` | Whether the plan is currently available. |
-| `createdAt` | `Date` | Creation timestamp. |
-| `updatedAt` | `Date` | Last update timestamp. |
+Important fields:
 
----
+- `firebaseUid`
+- `contactId`, `contactName`, `phoneNumber`
+- `r2Key`, `fileName`, `fileSize`, `mimeType`, `duration`
+- `recordedAt`, `createdAt`, `updatedAt`
+- `transcriptionStatus`
+- `fullTranscript`
+- `languageCode`
+- `transcriptionProvider`, `transcriptionModel`, `transcriptionCostMultiplier`
+- `externalTranscriptionId`
+- `transliteratedTranscript`, `translatedTranscript`, `additionalTranscriptions`
+- `summary`, `summaryEmbedding`, `transcriptEmbedding`
+- `tags`
+- `isStarred`, `isArchived`
 
-### **`recordings`**
-Stores metadata for audio recordings.
+Transcript segments are stored as:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `firebaseUid` | `string` | Reference to the owner (Firebase UID). |
-| `contactId` | `ObjectId` | Reference to `contacts` collection (optional). |
-| `contactName` | `string` | Cached contact name. |
-| `phoneNumber` | `string` | Phone number associated with the call. |
-| `r2Key` | `string` | Key/Path in Cloudflare R2 storage. |
-| `fileName` | `string` | Original file name. |
-| `fileSize` | `number` | Size of file in bytes. |
-| `mimeType` | `string` | MIME type of file. |
-| `duration` | `number` | Duration in seconds. |
-| `standardizedDisplayName` | `string` | (Optional) Cached display name for UI. |
-| `transcriptionStatus` | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Current status of transcription. |
-| `transcriptionProvider` | `'soniox' \| 'elevenlabs'` | Provider used. |
-| `transcriptionModel` | `string` | Model used (e.g., 'scribe_v2'). |
-| `transcriptionCostMultiplier` | `number` | Multiplier applied at time of upload. |
-| `externalTranscriptionId` | `string` | ID from external provider (for webhooks). |
-| `languageCode` | `string` | Language code (e.g., 'en-US'). |
-| `summary` | `string` | AI-generated summary of the call. |
-| `summaryEmbedding` | `number[]` | Vector embedding of the summary. |
-| `transcriptEmbedding` | `number[]` | (Deprecated) Vector embedding of transcript. |
-| `transliteratedTranscript` | `string` | (Optional) Transliterated text (e.g., Manglish). |
-| `translatedTranscript` | `string` | (Optional) Translated text (e.g., English). |
-| `additionalTranscriptions` | `object` | Flexible bucket for other variations. |
-| `tags` | `string[]` | Array of tags. |
-| `isStarred` | `boolean` | Starred status. |
-| `isArchived` | `boolean` | Archived status. |
-| `recordedAt` | `Date` | Date the call took place. |
-| `createdAt` | `Date` | Date the record was created. |
-| `updatedAt` | `Date` | Last update timestamp. |
-
-**Transcript Structure:**
-```typescript
+```ts
 fullTranscript: {
-    speakerId: string;
+  speakerId: string;
+  text: string;
+  start?: number;
+  end?: number;
+  words: {
     text: string;
     start?: number;
     end?: number;
-    words: {
-        text: string;
-        start?: number;
-        end?: number;
-        speakerId?: string;
-        confidence?: number;
-    }[];
-    transliteratedText?: string;
+    speakerId?: string;
+    confidence?: number;
+  }[];
+  transliteratedText?: string;
 }[]
 ```
 
----
+### `contacts`
 
-### **`contacts`**
-Stores contact information synced from Google Contacts or manually added.
+Stores contact records from Google sync and app-side normalization.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `firebaseUid` | `string` | Owner reference (Firebase UID). |
-| `googleContactId` | `string` | ID from Google People API. |
-| `name` | `string` | Contact's full name. |
-| `phoneNumbers` | `string[]` | List of phone numbers. |
-| `email` | `string` | Contact's email. |
-| `firstName` | `string` | First name. |
-| `lastName` | `string` | Last name. |
-| `jobTitle` | `string` | Job title. |
-| `company` | `string` | Company name. |
-| `totalRecordings` | `number` | Cache of total recordings with this contact. |
-| `lastRecordingAt` | `Date` | Timestamp of the last conversation. |
-| `createdAt` | `Date` | Creation timestamp. |
-| `updatedAt` | `Date` | Last update timestamp. |
+Important fields:
 
----
+- `firebaseUid`
+- `googleContactId`
+- `name`, `firstName`, `lastName`
+- `phoneNumbers`
+- `email`
+- `jobTitle`, `company`
+- `totalRecordings`
+- `lastRecordingAt`
 
-### **`system_settings`**
-Singleton document for global system configuration.
+### `plans`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `allowSignups` | `boolean` | Toggle to allow/block new signups. |
-| `maintenanceMode` | `boolean` | Toggle maintenance mode. |
-| `defaultPlanId` | `ObjectId` | Reference to the default plan for new users. |
-| `transcriptionMultipliers` | `object` | `{ soniox: number, elevenlabs: number }` |
-| `updatedAt` | `Date` | Last update timestamp. |
+Stores plan definitions shown in pricing and used by billing logic.
 
----
+Important fields:
 
-### **`announcements`**
-System-wide announcements.
+- `name`, `description`
+- `price`, `currency`, `interval`
+- `limits.storage`, `limits.transcription`
+- `features`
+- `stripePriceId`
+- `stripeStoragePriceId`
+- `stripeTranscriptionPriceId`
+- `isDefault`, `isActive`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `title` | `string` | Announcement title. |
-| `message` | `string` | Announcement body content. |
-| `type` | `'info' \| 'warning' \| 'alert' \| 'success'` | Visual type. |
-| `isActive` | `boolean` | Whether the announcement is currently active. |
-| `startDate` | `Date` | Start date to display. |
-| `endDate` | `Date` | (Optional) End date. |
-| `createdBy` | `ObjectId` | Admin ID who created it. |
-| `createdAt` | `Date` | Creation timestamp. |
+### `system_settings`
 
----
+Singleton-like collection for platform-wide configuration.
 
-### **`notifications`**
-In-app user notifications and alerts.
+Important fields:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `userId` | `ObjectId` | Reference to the recipient user. |
-| `type` | `'info' \| 'success' \| 'warning' \| 'error'` | Notification type. |
-| `title` | `string` | Short title. |
-| `message` | `string` | Detailed message. |
-| `isRead` | `boolean` | Read status. |
-| `link` | `string` | (Optional) Action link. |
-| `createdAt` | `Date` | Creation timestamp. |
+- `allowSignups`
+- `maintenanceMode`
+- `defaultPlanId`
+- `transcriptionMultipliers`
+- `updatedAt`
 
----
+## Operational Collections
 
-### **`admin_logs`**
-Audit trail for admin actions.
+### `announcements`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `adminId` | `string` | ID of the admin who performed the action. |
-| `adminEmail` | `string` | Cached email of the admin. |
-| `action` | `string` | Action type (e.g., "USER_BAN", "PLAN_UPDATE"). |
-| `targetId` | `string` | (Optional) ID of the affected resource. |
-| `targetType` | `string` | (Optional) Type of affected resource. |
-| `details` | `object` | Snapshot of changes or arguments. |
-| `ipAddress` | `string` | (Optional) IP address. |
-| `createdAt` | `Date` | Creation timestamp. |
+System-wide notices shown to users.
 
----
+Fields include:
 
-### **`export_jobs`**
-Tracks background data export tasks.
+- `title`
+- `message`
+- `type`
+- `isActive`
+- `startDate`
+- `endDate`
+- `createdBy`
+- `createdAt`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `ObjectId` | Unique identifier. |
-| `firebaseUid` | `string` | User reference. |
-| `status` | `'pending' \| 'processing' \| 'completed' \| 'failed'` | Job status. |
-| `progress` | `number` | Progress (0-100). |
-| `totalRecordings` | `number` | Total items to process. |
-| `processedRecordings` | `number` | Items completed so far. |
-| `parts` | `Array` | List of generated archive parts `{ key, size, url }`. |
-| `error` | `string` | Error message if failed. |
-| `createdAt` | `Date` | Creation timestamp. |
-| `updatedAt` | `Date` | Last update timestamp. |
+### `notifications`
 
----
+In-app notification center entries.
 
-### **`stripe_webhook_events`**
-Tracks Stripe webhook processing state for idempotency and retries.
+Fields include:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `string` | Stripe `event.id` (unique). |
-| `type` | `string` | Stripe event type. |
-| `status` | `'processing' \| 'processed' \| 'failed'` | Current handler state. |
-| `attempts` | `number` | Processing attempt counter. |
-| `receivedAt` | `Date` | First receipt timestamp (TTL indexed). |
-| `updatedAt` | `Date` | Last processing timestamp. |
-| `processedAt` | `Date` | (Optional) Success timestamp. |
-| `lastError` | `string` | (Optional) Last failure reason. |
+- `userId`
+- `type`
+- `title`
+- `message`
+- `isRead`
+- `link`
+- `createdAt`
 
----
+### `admin_logs`
 
-### **`transcription_webhook_events`**
-Tracks Soniox/ElevenLabs transcription webhook processing for idempotency and safe retries.
+Audit log entries for admin actions.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `_id` | `string` | Internal dedupe key (`provider:recordingId:externalTranscriptionId:status`). |
-| `provider` | `'soniox' \| 'elevenlabs'` | Source provider. |
-| `recordingId` | `string` | Internal recording ID (string form). |
-| `externalTranscriptionId` | `string` | Provider transcription/request correlation ID. |
-| `deliveryStatus` | `string` | Provider delivery status for this callback. |
-| `status` | `'processing' \| 'processed' \| 'failed'` | Current handler state. |
-| `attempts` | `number` | Processing attempt counter. |
-| `receivedAt` | `Date` | First receipt timestamp (TTL indexed). |
-| `updatedAt` | `Date` | Last processing timestamp. |
-| `processedAt` | `Date` | (Optional) Success timestamp. |
-| `lastError` | `string` | (Optional) Last failure reason. |
+Fields include:
 
-## Relationships
+- `adminId`
+- `adminEmail`
+- `action`
+- `targetId`
+- `targetType`
+- `details`
+- `ipAddress`
+- `createdAt`
 
-*   **User -> Plans**: Reference by `plan` name or dynamic lookup.
-*   **User -> Recordings**: One-to-Many (via `firebaseUid`).
-*   **User -> Contacts**: One-to-Many (via `firebaseUid`).
-*   **Contact -> Recordings**: One-to-Many (via `contactId`).
+### `export_jobs`
 
-## Indexes
+Tracks long-running user export jobs.
 
-*   `users`: `firebaseUid` (unique), `email`.
-*   `plans`: `name` (unique).
-*   `recordings`: `firebaseUid`, `contactId`, `recordedAt`, `r2Key`.
-*   `contacts`: `firebaseUid`, `phoneNumbers` (unique per user), `name` (text).
-*   `admin_logs`: `createdAt` (desc), `adminId`, `action`.
-*   `export_jobs`: `firebaseUid + createdAt`, `status + updatedAt`.
-*   `stripe_webhook_events`: `status + updatedAt`, TTL on `receivedAt` (90 days).
-*   `transcription_webhook_events`: `status + updatedAt`, `recordingId + provider + updatedAt`, TTL on `receivedAt` (90 days).
+Fields include:
+
+- `firebaseUid`
+- `status`
+- `progress`
+- `totalRecordings`
+- `processedRecordings`
+- `parts`
+- `checkpoint`
+- `error`
+- `createdAt`, `updatedAt`, `startedAt`, `completedAt`
+
+Export parts currently store signed download URLs, expiration timestamps, sizes, and R2 keys.
+
+### `support_messages`
+
+Stores submissions from `/api/support`.
+
+Fields include:
+
+- `firebaseUid`
+- `name`
+- `email`
+- `subject`
+- `message`
+- `userAgent`
+- `ipAddress`
+- `createdAt`
+
+## Idempotency And Integration Collections
+
+### `stripe_webhook_events`
+
+Tracks Stripe webhook processing state.
+
+Fields include:
+
+- `_id` as Stripe `event.id`
+- `type`
+- `status`
+- `attempts`
+- `createdAt`
+- `receivedAt`
+- `updatedAt`
+- `processedAt`
+- `lastError`
+
+### `transcription_webhook_events`
+
+Tracks Soniox and ElevenLabs callback processing state to prevent duplicate transcript handling and duplicate billing/usage side effects.
+
+The exact payload shape is operational rather than user-facing, but the collection exists specifically for webhook idempotency and retry safety.
+
+## Collection Summary
+
+```text
+users
+recordings
+contacts
+plans
+system_settings
+announcements
+notifications
+admin_logs
+export_jobs
+support_messages
+stripe_webhook_events
+transcription_webhook_events
+```

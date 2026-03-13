@@ -94,11 +94,15 @@ export async function uploadSingleFile(file: File, firebaseUid: string): Promise
 
             if (periodMismatch) {
                 await setStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
-                await reportUsage(firebaseUid, 'storage', currentStorage);
+                await reportUsage(firebaseUid, 'storage', currentStorage, {
+                    identifier: `storage:${firebaseUid}:peak:${periodEnd?.toISOString() ?? 'none'}:${currentStorage}`,
+                });
             } else if (currentStorage > currentPeak) {
                 const updated = await bumpStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
                 if (updated) {
-                    await reportUsage(firebaseUid, 'storage', currentStorage);
+                    await reportUsage(firebaseUid, 'storage', currentStorage, {
+                        identifier: `storage:${firebaseUid}:peak:${periodEnd?.toISOString() ?? 'none'}:${currentStorage}`,
+                    });
                 }
             }
         }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
 import { Button, Card, Skeleton, Surface } from '@heroui/react';
@@ -9,11 +10,11 @@ import { LandingPage } from '@/components/pages/landing-page';
 import { authFetch } from '@/lib/api-client';
 import type { User } from 'firebase/auth';
 import { ArrowRight, FolderTree, TriangleAlert } from 'lucide-react';
-import Link from 'next/link';
 
 const AUTH_PENDING_ERROR = 'Authentication pending';
 
 function FilesBrowserContent({ user }: { user: User }) {
+  const router = useRouter();
   const [fileSystem, setFileSystem] = useState<FileSystemNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,12 +130,10 @@ function FilesBrowserContent({ user }: { user: User }) {
               <Button variant="secondary" className="rounded-full px-5 font-semibold" onPress={fetchFileSystem}>
                 Retry
               </Button>
-              <Link href="/recordings">
-                <Button className="rounded-full px-5 font-semibold">
-                  Back to recordings
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              <Button className="rounded-full px-5 font-semibold" onPress={() => router.push('/recordings')}>
+                Back to recordings
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
           </Card.Content>
         </Card>

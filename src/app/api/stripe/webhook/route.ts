@@ -48,7 +48,6 @@ async function claimWebhookEvent(event: Stripe.Event): Promise<'claimed' | 'alre
             },
             {
                 $setOnInsert: {
-                    type: event.type,
                     createdAt: new Date(event.created * 1000),
                     receivedAt: now,
                 },

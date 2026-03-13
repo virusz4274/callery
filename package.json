@@ -9,6 +9,8 @@
     "start": "next start -p 9000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "cap:sync": "npx cap sync android",
     "cap:prod": "NODE_ENV=production npx cap sync android"
   },
@@ -64,6 +66,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.0.2",
     "@eslint/eslintrc": "^3.3.3",
+    "@playwright/test": "^1.58.2",
     "@types/archiver": "^7.0.0",
     "@types/node": "^20.19.27",
     "@types/nodemailer": "^7.0.9",

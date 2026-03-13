@@ -1,116 +1,196 @@
 # API Reference
 
-The app uses Server Actions for most authenticated operations and API routes for webhooks, auth callbacks, and integration endpoints.
+Call Memo uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, support, filesystem, and scheduled jobs.
 
 ## Server Actions
 
 Location: `src/app/actions`
 
-### User-facing actions
+## Product Actions
 
-- `recordings.ts`
-  - `getRecordingsAction`
-  - `deleteRecordingAction`
-  - `updateRecordingAction`
-  - `getPlaybackUrlAction`
-- `upload/direct-upload.ts`
-  - `initializeDirectUpload`
-  - `completeDirectUpload`
-- `transcription.ts`
-  - `transcribeRecordingAction`
-- `search-actions.ts`
-  - `searchRecordingsAction`
-- `stats.ts`
-  - `getStatsAction`
-- `sharing.ts`
-  - `createShareLink`
-- `export.ts`
-  - `startExport`
-  - `getExportStatus`
-- `notifications.ts`
-  - `fetchNotifications`
-  - `readNotification`
-  - `readAllNotifications`
-  - `clearAllNotifications`
-  - `sendTestNotification`
-- `google-auth.ts`
-  - `getGoogleAuthUrl`
-- `contacts.ts`
-  - `syncGoogleContacts`
-- `save-contacts.ts`
-  - `saveContactsToMongoDB`
-- `plans.ts`
-  - `getPublishedPlans`
-- `transcription-providers.ts`
-  - `getAvailableProviders`
-  - `getProviderMultiplier`
-- `user-settings.ts`
-  - `updateTranscriptionSettings`
-- `admin/users.ts`
-  - `restoreUser`
+### Recordings
 
-### Upload and transcription constraints
+File: `src/app/actions/recordings.ts`
 
-- Direct upload path: client uploads bytes directly to R2 using presigned PUT URLs from `initializeDirectUpload`.
-- Upload finalize path: `completeDirectUpload` verifies object existence/size before DB write and transcription scheduling.
-- Upload size limit: 5 GiB per recording.
-- Transcription processing limit: 2 GiB per recording.
-- Legacy action `upload-recordings.ts` remains in code but is not the primary client flow.
+- `getRecordingsAction`
+- `getRecordingDetailsAction`
+- `getPlaybackUrlAction`
+- `updateRecordingAction`
+- `deleteRecordingAction`
 
-### Admin actions
+### Upload
 
-- `admin-health.ts`: `checkSystemHealth`
-- `admin-plans.ts`: `getPlans`, `getPlanById`, `createPlan`, `updatePlan`, `deletePlan`
-- `admin-settings.ts`: `getSystemSettings`, `updateSystemSettings`
-- `admin-announcements.ts`: CRUD + active announcements
-- `audit-log.ts`: `logAdminAction`, `getAuditLogs`
-- `update-contact-plan.ts`: `updateContactPlan`
-- `delete-recordings.ts`: `deleteRecordings`
+Files:
 
-## API Routes
+- `src/app/actions/upload/direct-upload.ts`
+- `src/app/actions/upload/upload-single-file.ts`
+- `src/app/actions/upload/transcription.ts`
+- `src/app/actions/upload/prepare-upload-context.ts`
+- `src/app/actions/upload/validation.ts`
+
+Main public flow:
+
+- `initializeDirectUpload`
+- `completeDirectUpload`
+- `uploadSingleFile`
+- `triggerAutoTranscription`
+
+Legacy note:
+
+- `src/app/actions/upload-recordings.ts` still exists but is not the primary browser flow.
+
+### Transcription And Search
+
+Files:
+
+- `src/app/actions/transcription.ts`
+- `src/app/actions/search-actions.ts`
+- `src/app/actions/transcription-providers.ts`
+- `src/app/actions/user-settings.ts`
+
+Main actions:
+
+- `transcribeRecordingAction`
+- `searchRecordingsAction`
+- `getAvailableProviders`
+- `getProviderMultiplier`
+- `updateTranscriptionSettings`
+
+### Contacts And Google Sync
+
+Files:
+
+- `src/app/actions/contacts.ts`
+- `src/app/actions/google-auth.ts`
+- `src/app/actions/save-contacts.ts`
+
+Main actions:
+
+- `getGoogleAuthUrl`
+- `syncGoogleContacts`
+- `saveContactsToMongoDB`
+
+### Sharing, Stats, Export, Notifications, Plans
+
+Files:
+
+- `src/app/actions/sharing.ts`
+- `src/app/actions/stats.ts`
+- `src/app/actions/export.ts`
+- `src/app/actions/notifications.ts`
+- `src/app/actions/plans.ts`
+
+Main actions:
+
+- `createShareLink`
+- `createShareLinkForClip`
+- `getStatsAction`
+- `startExport`
+- `getExportStatus`
+- `fetchNotifications`
+- `readNotification`
+- `readAllNotifications`
+- `clearAllNotifications`
+- `sendTestNotification`
+- `getPublishedPlans`
+
+## Admin Actions
+
+Files:
+
+- `src/app/actions/admin-health.ts`
+- `src/app/actions/admin-plans.ts`
+- `src/app/actions/admin-settings.ts`
+- `src/app/actions/admin-announcements.ts`
+- `src/app/actions/audit-log.ts`
+- `src/app/actions/admin/users.ts`
+- `src/app/actions/admin/recordings.ts`
+- `src/app/actions/admin/stats.ts`
+- `src/app/actions/delete-recordings.ts`
+- `src/app/actions/update-contact-plan.ts`
+- `src/app/actions/admin.ts`
+
+Main admin operations include:
+
+- system health checks
+- plan CRUD
+- system settings reads and updates
+- announcement CRUD
+- audit log retrieval
+- user search and mutations
+- orphaned recording cleanup
+- bulk deletion
+
+## Route Handlers
 
 Location: `src/app/api`
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Create login session/cookies |
-| `POST`, `GET` | `/api/auth/logout` | End session |
-| `GET` | `/api/auth/google/callback` | OAuth callback for Google contacts |
-| `GET` | `/api/user/profile` | Read current user profile |
-| `PATCH` | `/api/user/profile` | Update current user profile |
-| `POST` | `/api/user/ensure-profile` | Ensure initial user record exists |
-| `PATCH` | `/api/user/billing-settings` | Update overage toggle |
-| `GET` | `/api/contacts` | Contacts API endpoint |
-| `GET` | `/api/filesystem` | File browser tree data |
-| `GET` | `/api/recordings/[id]` | Recording details endpoint |
-| `POST` | `/api/stripe/checkout` | Create Stripe checkout session |
-| `POST` | `/api/stripe/portal` | Create Stripe customer portal URL |
-| `GET` | `/api/stripe/invoices` | Fetch current user Stripe invoice history |
-| `POST` | `/api/stripe/webhook` | Stripe event handler |
-| `POST` | `/api/webhooks/soniox` | Soniox transcription webhook |
-| `POST` | `/api/webhooks/elevenlabs` | ElevenLabs transcription webhook |
-| `POST` | `/api/notifications/subscribe` | Register push subscription |
-| `DELETE` | `/api/notifications/subscribe` | Remove push subscription |
-| `POST` | `/api/support` | Support request endpoint |
-| `GET` | `/api/cron/process-exports` | Process queued export jobs |
-| `GET` | `/api/cron/cleanup-recordings` | Run retention cleanup |
+| `POST` | `/api/auth/login` | Creates a server session from the authenticated Firebase user |
+| `GET`, `POST` | `/api/auth/logout` | Clears the current session |
+| `GET` | `/api/auth/google/callback` | OAuth callback for Google Contacts sync |
+| `GET`, `PATCH` | `/api/user/profile` | Read and update the current profile |
+| `POST` | `/api/user/ensure-profile` | Ensure a MongoDB user exists for the signed-in Firebase user |
+| `PATCH` | `/api/user/billing-settings` | Toggle overage preferences |
+| `GET` | `/api/contacts` | Read contacts for the current user |
+| `GET` | `/api/filesystem` | Return the storage/file tree for the current user |
+| `GET` | `/api/recordings/[id]` | Read a single recording payload |
+| `POST` | `/api/stripe/checkout` | Create a Stripe Checkout session |
+| `POST` | `/api/stripe/portal` | Create a Stripe Customer Portal session |
+| `GET` | `/api/stripe/invoices` | Read recent invoices for the current user |
+| `POST` | `/api/stripe/webhook` | Handle Stripe events |
+| `POST` | `/api/webhooks/soniox` | Handle Soniox transcription callbacks |
+| `POST` | `/api/webhooks/elevenlabs` | Handle ElevenLabs transcription callbacks |
+| `POST`, `DELETE` | `/api/notifications/subscribe` | Register or remove a browser push subscription |
+| `GET` | `/api/system-settings/public` | Return public-facing system settings needed by the client |
+| `POST` | `/api/support` | Create a support request |
+| `GET` | `/api/cron/process-exports` | Process pending export jobs |
+| `GET` | `/api/cron/cleanup-recordings` | Enforce cleanup and retention rules |
 
-## Transcription Webhook Security
+## Public Pages With Signed Access
 
-- Soniox (`POST /api/webhooks/soniox`)
-  - Requires `X-Soniox-Secret` header matching `SONIOX_WEBHOOK_SECRET`.
-  - Requires callback metadata (`recordingId`, `firebaseUid`) and payload `id/status`.
-- ElevenLabs (`POST /api/webhooks/elevenlabs`)
-  - Requires `ElevenLabs-Signature` verification using `ELEVENLABS_WEBHOOK_SECRET`.
-  - Requires webhook metadata with `recordingId` + `firebaseUid`.
+- `/s/[token]`: public read-only shared recording page
 
-Both webhook handlers:
+This route is page-based rather than an API handler.
 
-- Validate callback correlation against `recordings.externalTranscriptionId`.
-- Use idempotent event claiming/marking in `transcription_webhook_events`.
-- Only report usage/billing after a successful idempotent claim.
+## Upload Flow
 
-## Stripe Webhook Events Handled
+The production upload path is:
+
+1. `initializeDirectUpload`
+2. direct client `PUT` to R2
+3. `completeDirectUpload`
+4. optional `triggerAutoTranscription`
+
+Constraints:
+
+- Maximum upload size: `5 GiB`
+- Maximum transcription size: `2 GiB`
+
+## Webhook Security
+
+### Soniox
+
+- Endpoint: `POST /api/webhooks/soniox`
+- Requires `X-Soniox-Secret`
+- Expects callback metadata containing recording and user context
+
+### ElevenLabs
+
+- Endpoint: `POST /api/webhooks/elevenlabs`
+- Requires valid `ElevenLabs-Signature`
+- Expects callback metadata for recording correlation
+
+### Shared webhook behavior
+
+Both transcription webhooks:
+
+- validate the callback against the stored external transcription ID
+- process idempotently through `transcription_webhook_events`
+- only finalize usage/accounting after successful claim and processing
+
+## Stripe Webhook Events
 
 `POST /api/stripe/webhook` currently handles:
 
@@ -134,22 +214,20 @@ Both webhook handlers:
 - `invoice.marked_uncollectible`
 - `customer.deleted`
 
-Webhook processing is idempotent by Stripe `event.id`.
+Stripe event processing is idempotent through the `stripe_webhook_events` collection.
 
-## Index Initialization
+## Cron Authentication
 
-After first setup and after pulling backend/index changes, run:
-
-```bash
-npx tsx src/lib/db/init.ts
-```
-
-This applies indexes required for webhook idempotency collections (`stripe_webhook_events`, `transcription_webhook_events`) and core query paths.
-
-## Cron Auth
-
-Cron routes require:
+Both cron routes require:
 
 ```http
 Authorization: Bearer <CRON_SECRET>
+```
+
+## Index And Seed Initialization
+
+After initial setup and after backend index changes:
+
+```bash
+npx tsx src/lib/db/init.ts
 ```

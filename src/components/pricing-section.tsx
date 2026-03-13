@@ -7,57 +7,7 @@ import { useState } from "react";
 import { useToast } from "@/components/toast-provider";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/api-client";
-
-// Use a known plan name that matches your DB Plan 'name' field
-const PRO_PLAN_NAME = 'Pro';
-
-const plans = [
-    {
-        name: 'Free',
-        price: '$0',
-        cadence: '/month',
-        description: 'For individuals proving out the workflow on a smaller archive.',
-        highlights: [
-            '100 MB storage',
-            'Basic transcription',
-            'Search across your transcript library',
-            'A clean starting point for personal call review',
-        ],
-        icon: Rocket,
-        accentClass: 'bg-default-100 text-foreground',
-    },
-    {
-        name: PRO_PLAN_NAME,
-        price: '$29',
-        cadence: '/month',
-        description: 'For operators, consultants, and teams that need the full review surface.',
-        highlights: [
-            '10 GB storage',
-            'Advanced AI transcription',
-            'Priority email support',
-            'Export and richer analytics',
-            'Best fit for active review queues',
-        ],
-        icon: Sparkles,
-        accentClass: 'bg-primary/10 text-primary',
-        featured: true,
-    },
-    {
-        name: 'Enterprise',
-        price: 'Custom',
-        cadence: '',
-        description: 'For larger teams that need custom storage, controls, and procurement support.',
-        highlights: [
-            'Everything in Pro',
-            'Large or unlimited storage options',
-            'Team collaboration and rollout support',
-            'Dedicated account coverage',
-            'Custom integrations and controls',
-        ],
-        icon: Building2,
-        accentClass: 'bg-secondary/10 text-secondary',
-    },
-];
+import type { PublicPlan } from '@/app/actions/plans';
 
 const addOns = [
     {
@@ -74,12 +24,84 @@ const addOns = [
     },
 ];
 
-export function PricingSection() {
+type PricingSectionProps = {
+    availablePlans?: PublicPlan[];
+};
+
+function formatCadence(interval: PublicPlan['interval']) {
+    if (interval === 'monthly') {
+        return '/month';
+    }
+
+    if (interval === 'yearly') {
+        return '/year';
+    }
+
+    return '';
+}
+
+export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<string | null>(null);
+    const featuredPaidPlan =
+        availablePlans.find((plan) => plan.interval !== 'lifetime') ??
+        availablePlans[0] ??
+        null;
+    const featuredPlanName = featuredPaidPlan?.name ?? 'Pro';
 
-
+    const plans = [
+        {
+            name: 'Free',
+            price: '$0',
+            cadence: '/month',
+            description: 'For individuals proving out the workflow on a smaller archive.',
+            highlights: [
+                '100 MB storage',
+                'Basic transcription',
+                'Search across your transcript library',
+                'A clean starting point for personal call review',
+            ],
+            icon: Rocket,
+            accentClass: 'bg-default-100 text-foreground',
+        },
+        {
+            name: featuredPlanName,
+            price: featuredPaidPlan ? `$${featuredPaidPlan.price}` : '$29',
+            cadence: featuredPaidPlan ? formatCadence(featuredPaidPlan.interval) : '/month',
+            description:
+                featuredPaidPlan?.description ||
+                'For operators, consultants, and teams that need the full review surface.',
+            highlights:
+                featuredPaidPlan?.features?.length
+                    ? featuredPaidPlan.features
+                    : [
+                          '10 GB storage',
+                          'Advanced AI transcription',
+                          'Priority email support',
+                          'Export and richer analytics',
+                          'Best fit for active review queues',
+                      ],
+            icon: Sparkles,
+            accentClass: 'bg-primary/10 text-primary',
+            featured: true,
+        },
+        {
+            name: 'Enterprise',
+            price: 'Custom',
+            cadence: '',
+            description: 'For larger teams that need custom storage, controls, and procurement support.',
+            highlights: [
+                `Everything in ${featuredPlanName}`,
+                'Large or unlimited storage options',
+                'Team collaboration and rollout support',
+                'Dedicated account coverage',
+                'Custom integrations and controls',
+            ],
+            icon: Building2,
+            accentClass: 'bg-secondary/10 text-secondary',
+        },
+    ];
 
     const handleSubscribe = async (planName: string) => {
         setIsLoading(planName);
@@ -196,20 +218,20 @@ export function PricingSection() {
                                     </Link>
                                 )}
 
-                                {plan.name === PRO_PLAN_NAME && (
+                                {plan.name === featuredPlanName && (
                                     <Button
                                         className="w-full rounded-full font-semibold"
-                                        onPress={() => handleSubscribe(PRO_PLAN_NAME)}
+                                        onPress={() => handleSubscribe(featuredPlanName)}
                                         isDisabled={isLoading !== null}
                                     >
-                                        {isLoading === PRO_PLAN_NAME ? (
+                                        {isLoading === featuredPlanName ? (
                                             <>
                                                 <Spinner size="sm" color="current" />
                                                 Processing...
                                             </>
                                         ) : (
                                             <>
-                                                Upgrade to Pro
+                                                {featuredPaidPlan ? `Upgrade to ${featuredPlanName}` : 'Upgrade plan'}
                                                 <ArrowRight className="h-4 w-4" />
                                             </>
                                         )}

@@ -1,45 +1,64 @@
 # Billing
 
-This guide is intended to be handoff-friendly for setting up Stripe billing end-to-end.
+This document describes the billing model currently implemented in Call Memo and how to wire Stripe to it.
 
-## Overview
+## Billing Model
 
-Call Memo uses a hybrid model:
+The app supports:
 
-- Base plan pricing (subscription or one-time)
-- Metered overage for storage/transcription
+- base plans stored in MongoDB
+- Stripe Checkout for paid upgrades
+- Stripe Customer Portal for self-serve management
+- metered storage overage
+- metered transcription overage
+- per-user overage opt-in through `billingSettings.allowOverage`
 
-Overage enablement is controlled per-user via `billingSettings.allowOverage`.
+Billing can be disabled entirely with:
 
-## Plan Defaults Seeded by App
+```env
+NEXT_PUBLIC_ENABLE_BILLING=false
+```
 
-Source: `src/lib/db/init/seed.ts`
+When billing is disabled, the billing UI is hidden and Stripe operations are skipped.
 
-| Plan | Price | Interval | Storage Limit | Transcription Limit |
-| :--- | :--- | :--- | :--- | :--- |
-| Free Trial | $0 | monthly | 100 MB | 10 min |
-| Standard | $10 | monthly | 2 GB | 60 min |
-| Pro | $20 | monthly | 5 GB | 120 min |
-| Lifetime | $299 | lifetime | 0 (metered) | 0 (metered) |
+## Seeded Plans
 
-## Core Billing Rules
+Plan seeds live in `src/lib/db/init/seed.ts`.
 
-1. Trial expiry blocks action-based workflows until upgrade.
-2. Standard/Pro enforce limits unless overage is enabled.
-3. Lifetime has no included allowance and is fully metered.
-4. Storage is billed as recurring overage by period peak.
-5. Transcription usage is billed as metered seconds.
+Current seeded plans:
+
+| Plan | Interval | Stored Price | Included Storage | Included Transcription | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Free Trial | monthly | `0` | `100 MiB` | `10 min` | Default plan, 30-day trial language in description |
+| Standard | monthly | `10` | `2 GiB` | `60 min` | Main paid plan |
+| Pro | monthly | `20` | `5 GiB` | `120 min` | Higher paid tier |
+| Lifetime | lifetime | `299` | `0` | `0` | Fully metered after purchase |
+| Internal | lifetime | `0` | `1 TiB` | `99999 min` | Internal unrestricted seed |
+| Custom | yearly | `0` | `0` | `0` | Enterprise-style placeholder seed |
+
+The app enforces the values stored in the plan document, not any older marketing text.
+
+## Core Rules
+
+1. Trial users start on `Free Trial`.
+2. Standard and Pro include bundled storage and transcription allowances.
+3. Lifetime has no included allowance in the current seed and relies on metered usage.
+4. Overages only apply when the user enables them.
+5. Storage billing is based on peak usage for the billing period.
+6. Transcription billing is based on seconds processed, multiplied by the provider multiplier.
 
 ## Transcription Multipliers
 
-Default multipliers from system settings:
+System settings seed these defaults:
 
 - Soniox: `1.0x`
 - ElevenLabs: `6.0x`
 
-Reported transcription usage = audio duration (seconds) x multiplier.
+Reported transcription usage is:
 
-## Required Environment Variables
+`audio duration in seconds * provider multiplier`
+
+## Required Stripe Environment Variables
 
 ```env
 NEXT_PUBLIC_ENABLE_BILLING=true
@@ -47,75 +66,66 @@ STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-If `NEXT_PUBLIC_ENABLE_BILLING=false`, billing UI and Stripe operations are skipped.
+## Stripe Setup
 
-## Stripe Dashboard Setup (Step-by-Step)
+### 1. Create Stripe meters
 
-### 1. Decide pricing model inputs
+The app expects these exact meter event names:
 
-Before configuring Stripe, decide:
+- `storage_usage_bytes`
+- `transcription_usage_seconds`
 
-1. Base plan prices (Standard, Pro, Lifetime)
-2. Storage overage $/GB
-3. Transcription overage $/minute
+Recommended configuration:
 
-Recommended unit model:
+- storage aggregation: `Last`
+- transcription aggregation: `Sum`
 
-- `1 GB = 1,000,000,000` bytes
+### 2. Create base plan prices
 
-### 2. Create Stripe meters
+Create Stripe prices for the plans you want to sell through the app, for example:
 
-In Stripe Dashboard -> `Billing` -> `Meters`, create:
+- Standard monthly
+- Pro monthly
+- Lifetime one-time
 
-1. Storage meter
-   - Name: `Storage Usage (Bytes)`
-   - Event name: `storage_usage_bytes`
-   - Aggregation: `Last`
-2. Transcription meter
-   - Name: `Transcription Usage (Seconds)`
-   - Event name: `transcription_usage_seconds`
-   - Aggregation: `Sum`
+These values map to `stripePriceId`.
 
-Event names must match exactly.
+### 3. Create metered prices
 
-### 3. Create base plan prices
+Create metered prices for:
 
-Create Stripe products/prices for each paid plan:
+- storage overage
+- transcription overage
 
-- Standard (monthly recurring)
-- Pro (monthly recurring)
-- Lifetime (one-time)
+These map to:
 
-These map to `stripePriceId`.
+- `stripeStoragePriceId`
+- `stripeTranscriptionPriceId`
 
-### 4. Create usage-based prices
+### 4. Map Stripe IDs in the admin UI
 
-For each plan, configure metered prices for:
+Open:
 
-- Storage overage (linked to `storage_usage_bytes` meter)
-- Transcription overage (linked to `transcription_usage_seconds` meter)
+- `/admin/plans`
 
-Recommended package configuration:
+Set the correct Stripe IDs on each plan document used in production.
 
-- Storage package size: `1,000,000,000` units
-- Transcription package size: `60` units
+### 5. Configure the Stripe Customer Portal
 
-### 5. Configure Customer Portal
+Recommended portal features:
 
-Enable in Stripe customer portal:
+- payment method management
+- plan switching
+- cancellation
+- invoice history
 
-- Plan switching
-- Cancellation
-- Payment method updates
-- Invoice history
+### 6. Configure the webhook endpoint
 
-### 6. Configure webhook endpoint
-
-Endpoint in app:
+Endpoint:
 
 - `POST /api/stripe/webhook`
 
-Configure these events in Stripe (exact names):
+Register these events:
 
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`
@@ -137,25 +147,7 @@ Configure these events in Stripe (exact names):
 - `invoice.marked_uncollectible`
 - `customer.deleted`
 
-Webhook processing is idempotent: each Stripe event ID is tracked in
-`stripe_webhook_events` and retried safely on failures.
-
-### 7. Map IDs inside app
-
-Go to admin UI:
-
-- `/admin/plans`
-
-For each paid plan, set:
-
-- `stripePriceId`
-- `stripeStoragePriceId`
-- `stripeTranscriptionPriceId`
-
-## How App Reports Usage
-
-- Storage: peak bytes for billing period (`storage_usage_bytes`)
-- Transcription: rounded/weighted seconds (`transcription_usage_seconds`)
+## What The App Reports To Stripe
 
 Related code:
 
@@ -163,38 +155,40 @@ Related code:
 - `src/lib/stripe/sync.ts`
 - `src/app/api/stripe/webhook/route.ts`
 
-## Sandbox Validation Checklist
+Usage events:
 
-Use these tests after setup:
-
-1. New user starts on Free Trial limits.
-2. Checkout upgrades user to Standard/Pro.
-3. Overage OFF blocks usage past plan limits.
-4. Overage ON allows usage and reports meter events.
-5. ElevenLabs usage reflects multiplier.
-6. Deleting files lowers app usage but does not lower already reported monthly peak.
-7. Plan change retains correct metered items.
-8. Failed payment moves subscription to restricted behavior.
-9. Lifetime plan is usable with fully metered billing.
-10. Webhook retries do not create duplicate-billing corruption.
-11. Stripe invoice history appears in Settings billing tab.
+- storage peak for the billing period -> `storage_usage_bytes`
+- weighted transcription seconds -> `transcription_usage_seconds`
 
 ## Local Stripe Testing
 
-Run webhook forwarding:
+Forward events locally:
 
 ```bash
 stripe listen --forward-to localhost:9000/api/stripe/webhook
 ```
 
-Helpful test cards:
+Common test cards:
 
 - Success: `4242 4242 4242 4242`
-- Declined: `4000 0000 0000 0002`
+- Generic decline: `4000 0000 0000 0002`
 - Payment failure scenario: `4000 0000 0000 0341`
+
+## Validation Checklist
+
+1. New users land on the expected default plan.
+2. Checkout upgrades the user and syncs plan data back into MongoDB.
+3. Customer portal opens successfully for active paid users.
+4. Overage off blocks actions beyond plan limits.
+5. Overage on allows continued usage and creates meter events.
+6. ElevenLabs usage uses the configured multiplier.
+7. Invoice history appears in Settings -> Billing.
+8. Webhook retries do not duplicate billing side effects.
+9. Customer deletion in Stripe resets billing linkage in the app.
 
 ## Troubleshooting
 
-- Signature errors: wrong `STRIPE_WEBHOOK_SECRET`.
-- No usage events: meter names or mapped price IDs are wrong.
-- Portal failures: missing `stripeCustomerId` or portal config incomplete.
+- `Billing disabled`: `NEXT_PUBLIC_ENABLE_BILLING` is false.
+- Webhook signature errors: `STRIPE_WEBHOOK_SECRET` is wrong.
+- Usage not appearing: Stripe meter names or mapped price IDs do not match the app expectations.
+- Portal failures: user is missing a valid `stripeCustomerId` or Stripe portal is not configured.

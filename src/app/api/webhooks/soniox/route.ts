@@ -216,7 +216,10 @@ export async function POST(request: Request) {
         const billedCostDuration = baseDuration * multiplier;
 
         await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
-        await reportUsage(firebaseUid, 'transcription', baseDuration, { multiplier });
+        await reportUsage(firebaseUid, 'transcription', baseDuration, {
+            multiplier,
+            identifier: `transcription:${firebaseUid}:recording:${recordingId}:soniox:${recording.externalTranscriptionId}`,
+        });
 
         const totalBilled = Math.ceil(baseDuration * multiplier);
         logger.info(`[Soniox Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
