@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, Chip, Input, ListBox, SearchField, Select } from '@heroui/react';
+import { parseDate, type DateValue } from '@internationalized/date';
+import { Button, Chip, DateField, DateRangePicker, FieldError, ListBox, RangeCalendar, SearchField, Select } from '@heroui/react';
 import { CalendarRange, Filter, SlidersHorizontal, User, X } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 
@@ -17,6 +18,11 @@ type SearchSortRowProps = {
     onDateChange: (start?: string, end?: string) => void;
 };
 
+type DateRangeValue = {
+    start: DateValue;
+    end: DateValue;
+} | null;
+
 function resolveSortKey(key: unknown): string | null {
     if (!key) {
         return null;
@@ -33,6 +39,21 @@ function resolveSortKey(key: unknown): string | null {
     return null;
 }
 
+function getDateRangeValue(startDate?: string, endDate?: string): DateRangeValue {
+    if (!startDate || !endDate) {
+        return null;
+    }
+
+    try {
+        return {
+            start: parseDate(startDate),
+            end: parseDate(endDate),
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function SearchSortRow({
     search,
     onSearchChange,
@@ -47,6 +68,7 @@ export function SearchSortRow({
     onDateChange,
 }: SearchSortRowProps) {
     const selectedContact = contacts.find((contact) => contact.id === contactId);
+    const dateRangeValue = getDateRangeValue(startDate, endDate);
 
     return (
         <div className="space-y-5">
@@ -172,32 +194,61 @@ export function SearchSortRow({
                 </div>
             </div>
 
-            <div className="grid gap-4 border-t border-default-100/80 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
-                <div>
-                    <label className="mb-2 flex items-center gap-2 text-small font-medium text-default-500">
+            <div className="grid gap-4 border-t border-default-100/80 pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-small font-medium text-default-500">
                         <CalendarRange className="h-4 w-4" />
-                        From date
+                        Date range
                     </label>
-                    <Input
-                        aria-label="From date"
-                        type="date"
-                        variant="secondary"
-                        value={startDate || ''}
-                        onChange={(event) => onDateChange(event.target.value || undefined, endDate)}
-                    />
-                </div>
-                <div>
-                    <label className="mb-2 flex items-center gap-2 text-small font-medium text-default-500">
-                        <CalendarRange className="h-4 w-4" />
-                        To date
-                    </label>
-                    <Input
-                        aria-label="To date"
-                        type="date"
-                        variant="secondary"
-                        value={endDate || ''}
-                        onChange={(event) => onDateChange(startDate, event.target.value || undefined)}
-                    />
+                    <DateRangePicker
+                        aria-label="Recordings date range"
+                        value={dateRangeValue}
+                        onChange={(value: DateRangeValue) => {
+                            if (!value) {
+                                onDateChange(undefined, undefined);
+                                return;
+                            }
+
+                            onDateChange(value.start.toString(), value.end.toString());
+                        }}
+                    >
+                        <DateField.Group fullWidth variant="secondary">
+                            <DateField.InputContainer>
+                                <DateField.Input slot="start">
+                                    {(segment) => <DateField.Segment segment={segment} />}
+                                </DateField.Input>
+                                <DateRangePicker.RangeSeparator />
+                                <DateField.Input slot="end">
+                                    {(segment) => <DateField.Segment segment={segment} />}
+                                </DateField.Input>
+                            </DateField.InputContainer>
+                            <DateField.Suffix>
+                                <DateRangePicker.Trigger>
+                                    <DateRangePicker.TriggerIndicator />
+                                </DateRangePicker.Trigger>
+                            </DateField.Suffix>
+                        </DateField.Group>
+                        <FieldError>Please select a valid start and end date.</FieldError>
+                        <DateRangePicker.Popover>
+                            <RangeCalendar aria-label="Choose recordings date range">
+                                <RangeCalendar.Header>
+                                    <RangeCalendar.Heading />
+                                    <div className="flex items-center gap-2">
+                                        <RangeCalendar.NavButton slot="previous" />
+                                        <RangeCalendar.NavButton slot="next" />
+                                    </div>
+                                </RangeCalendar.Header>
+                                <RangeCalendar.Grid>
+                                    <RangeCalendar.GridHeader>
+                                        {(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}
+                                    </RangeCalendar.GridHeader>
+                                    <RangeCalendar.GridBody>
+                                        {(date) => <RangeCalendar.Cell date={date} />}
+                                    </RangeCalendar.GridBody>
+                                </RangeCalendar.Grid>
+                            </RangeCalendar>
+                        </DateRangePicker.Popover>
+                    </DateRangePicker>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:justify-end">
                     {(startDate || endDate || contactId || search) && (
