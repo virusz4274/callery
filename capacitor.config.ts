@@ -21,7 +21,17 @@ const config: CapacitorConfig = {
     // Allow mixed content (HTTP images on HTTPS pages if needed)
     allowMixedContent: true,
   },
+  plugins: {
+    SocialLogin: {
+      providers: {
+        google: true,
+        facebook: false,
+        apple: false,
+        twitter: false,
+      },
+      logLevel: 1,
+    },
+  },
 };
 
 export default config;
-

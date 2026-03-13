@@ -47,6 +47,13 @@ npm run cap:sync
 npx cap open android
 ```
 
+6. For native Google sign-in, make sure the Firebase project and Google Cloud OAuth setup include:
+
+- a web client ID exposed as `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- your Android app package `com.coarde.vosift`
+- the Android SHA fingerprints for the signing key you use locally / in release
+- the app domain in Firebase Authentication authorized domains for session sync
+
 ## Development Loop
 
 For most UI and server work:

@@ -9,7 +9,13 @@ import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
 import { useIsCapacitor } from '@/hooks/use-is-capacitor';
 import { navigationConfig } from '@/config/navigation';
-import { Ellipsis, LogIn, ArrowLeft, Settings } from 'lucide-react';
+import { Ellipsis, LogIn, ArrowLeft, Settings, type LucideIcon } from 'lucide-react';
+
+type NavItem = {
+  href: string;
+  name: string;
+  icon: LucideIcon;
+};
 
 export function MobileNav() {
   const pathname = usePathname()
@@ -18,8 +24,8 @@ export function MobileNav() {
   const isCapacitor = useIsCapacitor();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  let navItems = [];
-  let secondaryItems = [];
+  let navItems: NavItem[] = [];
+  let secondaryItems: NavItem[] = [];
 
   if (pathname.startsWith('/admin')) {
     // Admin View - Limit to first 4 admin items + App button
@@ -28,24 +34,29 @@ export function MobileNav() {
       { href: "/", name: "App", icon: ArrowLeft }
     ];
   } else if (user) {
-    // Logged In User View (Bottom Bar handles main items)
-    // We typically want limited items on the bottom bar for mobile
-    // Let's use the main navigation items, but maybe limit to 4-5
-    navItems = [...navigationConfig.main];
-
-    // Add Android-specific navigation when running in Capacitor
     if (isCapacitor) {
-      secondaryItems.push(...navigationConfig.android);
+      navItems = [
+        navigationConfig.main[0],
+        navigationConfig.main[1],
+        navigationConfig.android[0],
+        navigationConfig.main[2],
+      ];
+
+      secondaryItems = [
+        navigationConfig.main[3],
+        { href: "/settings", name: "Settings", icon: Settings },
+      ];
+    } else {
+      // Logged In User View (non-Capacitor)
+      navItems = [...navigationConfig.main];
+      secondaryItems.unshift({ href: "/files", name: "Files", icon: navigationConfig.main[2].icon });
+      navItems = navItems.filter((item) => item.href !== '/files');
+      navItems.push({ href: "/settings", name: "Settings", icon: Settings });
     }
 
     if (userProfile?.role === 'admin') {
-      // Append Admin link
       secondaryItems.push(navigationConfig.adminLink);
     }
-
-    secondaryItems.unshift({ href: "/files", name: "Files", icon: navigationConfig.main[2].icon });
-    navItems = navItems.filter((item) => item.href !== '/files');
-    navItems.push({ href: "/settings", name: "Settings", icon: Settings });
   } else {
     // Public View
     // Usually standard mobile menu handles this, but if we want a bottom bar for public:

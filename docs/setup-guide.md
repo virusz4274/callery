@@ -51,6 +51,7 @@ NEXT_PUBLIC_FIREBASE_API_KEY=...
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
 
 # Choose one Firebase Admin approach:
 # 1) service-account.json in repo root
@@ -144,6 +145,7 @@ Firebase is used for client auth, session verification, and user identity.
 1. Open [Firebase Console](https://console.firebase.google.com/).
 2. Create a project.
 3. Add a web app and copy the web config values into `.env`.
+4. Create or reuse a Google OAuth web client ID and set `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
 
 ### 4.2 Enable sign-in methods
 
@@ -152,6 +154,7 @@ In Firebase Console:
 1. Go to `Authentication`.
 2. Enable `Email/Password`.
 3. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
+4. Add your production domain and local dev host to Firebase Auth authorized domains.
 
 ### 4.3 Create a Firebase Admin service account
 

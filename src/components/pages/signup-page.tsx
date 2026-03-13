@@ -5,12 +5,13 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AppleIcon } from '@/components/icons/apple-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { ensureUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useAuth, useUser } from '@/lib/firebase/provider';
+import { isGoogleSignInCancelledError, signInWithGoogle } from '@/lib/firebase/google-sign-in';
 
 export function SignupPage() {
   const { toast } = useToast();
@@ -61,21 +62,14 @@ export function SignupPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account',
-    });
 
     try {
-      if (auth.currentUser) {
-        await signOut(auth);
-      }
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithGoogle(auth);
       await ensureUserProfile(result.user);
       router.replace('/recordings');
     } catch (error: unknown) {
-      const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code !== 'auth/popup-closed-by-user') {
+      const firebaseError = error as { message?: string };
+      if (!isGoogleSignInCancelledError(error)) {
         toast({
           title: 'Google Sign-In Failed',
           description: firebaseError.message || 'Could not sign in with Google.',
