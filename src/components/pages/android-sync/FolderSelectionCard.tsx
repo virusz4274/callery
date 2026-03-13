@@ -40,7 +40,7 @@ export function FolderSelectionCard({
                     <div>
                         <div className="text-2xl font-bold tracking-[-0.03em] text-foreground">Choose a folder to begin</div>
                         <p className="mt-2 text-sm leading-6 text-default-500">
-                            Point the app at the location where your call recordings live. We’ll inspect the contents before syncing anything.
+                            Point the app at the location where your call recordings live. We’ll scan the folder tree before syncing anything.
                         </p>
                     </div>
                     <Button onPress={onPickFolder} size="lg" variant="primary" className="rounded-full px-6 font-semibold">
@@ -67,7 +67,7 @@ export function FolderSelectionCard({
                                 <div>
                                     <div className="text-xl font-bold tracking-[-0.03em] text-foreground">{selectedFolder.name}</div>
                                     <p className="text-sm leading-6 text-default-500">
-                                        Review pending files, refresh the directory, or change the source if needed.
+                                        Review unsynced files, refresh the scan, or change the source if needed.
                                     </p>
                                 </div>
                             </div>
@@ -120,7 +120,7 @@ export function FolderSelectionCard({
                         <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Payload</div>
                             <div className="mt-1 text-2xl font-bold text-foreground">{formatFileSize(pendingSize)}</div>
-                            <div className="text-sm text-default-500">Estimated size for pending files</div>
+                            <div className="text-sm text-default-500">Estimated size for files still waiting to sync</div>
                         </Surface>
                         <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Already synced</div>

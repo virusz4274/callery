@@ -1,6 +1,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadFileDirectToR2 } from '@/lib/r2-direct-upload-client';
+import { isSupportedUploadFile, UPLOAD_AUDIO_FORMAT_LABELS } from '@/lib/upload-audio-support';
 import type { UploadItem } from './types';
 
 type ToastFn = (params: {
@@ -28,11 +29,30 @@ export function useUploadQueue(toast: ToastFn) {
     const router = useRouter();
 
     const addFiles = (files: File[]) => {
+        const supportedFiles = files.filter((file) => isSupportedUploadFile(file));
+        const unsupportedFiles = files.filter((file) => !isSupportedUploadFile(file));
+
+        if (unsupportedFiles.length > 0) {
+            const sampleNames = unsupportedFiles.slice(0, 2).map((file) => file.name).join(', ');
+            const remainingCount = unsupportedFiles.length - Math.min(unsupportedFiles.length, 2);
+            const suffix = remainingCount > 0 ? ` and ${remainingCount} more` : '';
+
+            toast({
+                title: 'Unsupported files skipped',
+                description: `${sampleNames}${suffix}. Supported formats: ${UPLOAD_AUDIO_FORMAT_LABELS.join(', ')}.`,
+                status: 'warning',
+            });
+        }
+
+        if (supportedFiles.length === 0) {
+            return;
+        }
+
         setUploadItems((prev) => {
             const knownFingerprints = new Map(prev.map((item) => [item.fingerprint, item.id]));
             let duplicateCount = 0;
 
-            const nextItems: UploadItem[] = files.map((file) => {
+            const nextItems: UploadItem[] = supportedFiles.map((file) => {
                 const fingerprint = getFileFingerprint(file);
                 const duplicateOfId = knownFingerprints.get(fingerprint);
                 const id = createUploadId();

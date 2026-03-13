@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button, Modal } from "@heroui/react";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
+import { useIsCapacitor } from '@/hooks/use-is-capacitor';
 import { navigationConfig } from '@/config/navigation';
 import { Ellipsis, LogIn, ArrowLeft, Settings } from 'lucide-react';
 
@@ -14,21 +15,8 @@ export function MobileNav() {
   const pathname = usePathname()
   const { user } = useUser();
   const { userProfile } = useUserProfile(user);
-  const [isCapacitor, setIsCapacitor] = useState(false);
+  const isCapacitor = useIsCapacitor();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-
-  // Detect if running in Capacitor (Android app)
-  useEffect(() => {
-    async function checkCapacitor() {
-      try {
-        const { isCapacitorApp } = await import('@/lib/capacitor');
-        setIsCapacitor(isCapacitorApp());
-      } catch {
-        setIsCapacitor(false);
-      }
-    }
-    checkCapacitor();
-  }, []);
 
   let navItems = [];
   let secondaryItems = [];

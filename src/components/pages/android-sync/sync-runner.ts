@@ -36,7 +36,7 @@ export async function syncAndroidFiles({
             const fileObj = new File([blob], file.name, { type: file.mimeType });
             const result = await uploadFileDirectToR2(fileObj);
 
-            if (result.success) {
+            if (result.success && result.recordingId) {
                 successCount++;
 
                 await markAsSynced(
@@ -45,13 +45,13 @@ export async function syncAndroidFiles({
                     file.name,
                     file.size,
                     file.mtime,
-                    file.fingerprint
+                    result.recordingId
                 );
 
                 onSynced(file.path);
             } else {
                 failCount++;
-                onError(file.path, result.error || 'Upload failed');
+                onError(file.path, result.error || 'Upload completed without a recording ID');
             }
         } catch (error) {
             failCount++;

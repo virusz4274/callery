@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { navigationConfig } from '@/config/navigation';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/icons';
+import { useIsCapacitor } from '@/hooks/use-is-capacitor';
 import { ArrowRight, Settings } from 'lucide-react';
 import type { User as UserProfile } from '@/lib/types';
 
@@ -15,10 +16,11 @@ type ProductSidebarProps = {
 export function ProductSidebar({ userProfile }: ProductSidebarProps) {
     const pathname = usePathname();
     const isAdminRoute = pathname.startsWith('/admin');
+    const isCapacitor = useIsCapacitor();
 
     const primaryNav = isAdminRoute
         ? [...navigationConfig.admin, { href: '/recordings', name: 'Back to app', icon: ArrowRight }]
-        : navigationConfig.main;
+        : [...navigationConfig.main, ...(isCapacitor ? navigationConfig.android : [])];
 
     const secondaryNav = isAdminRoute
         ? [{ href: '/settings', name: 'Workspace settings', icon: Settings }]

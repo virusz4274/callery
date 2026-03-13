@@ -3,6 +3,7 @@
 import React, { useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
 import { initializeFirebase } from './client';
+import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
 
 interface FirebaseClientProviderProps {
     children: ReactNode;
@@ -24,6 +25,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
     const lastSyncTime = useRef(0);
     const syncFailed = useRef(false);
     const circuitOpenedAt = useRef<number | null>(null);
+    const previousUid = useRef<string | null>(null);
 
     // Effect to subscribe to Firebase auth state changes and sync session
     useEffect(() => {
@@ -32,6 +34,13 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         // Use onIdTokenChanged to handle token refreshes as well
         const unsubscribe = auth.onIdTokenChanged(async (firebaseUser) => {
             const now = Date.now();
+            const nextUid = firebaseUser?.uid ?? null;
+
+            if (previousUid.current && previousUid.current !== nextUid) {
+                await clearPrivatePwaCaches();
+            }
+
+            previousUid.current = nextUid;
 
             // Debounce rapid token changes
             if (now - lastSyncTime.current < SYNC_DEBOUNCE_MS) {

@@ -1,4 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
+import { SUPPORTED_UPLOAD_AUDIO_MIME_TYPES } from './upload-audio-support';
 
 if (!process.env.R2_ENDPOINT) {
     throw new Error('Please define the R2_ENDPOINT environment variable');
@@ -24,12 +25,4 @@ export const r2Client = new S3Client({
 
 export const R2_BUCKET = process.env.R2_BUCKET_NAME;
 
-export const ALLOWED_AUDIO_MIME_TYPES = new Set([
-    'audio/mpeg',
-    'audio/mp4',
-    'audio/x-m4a',
-    'audio/m4a',
-    'audio/wav',
-    'audio/x-wav',
-    'audio/webm',
-]);
+export const ALLOWED_AUDIO_MIME_TYPES = SUPPORTED_UPLOAD_AUDIO_MIME_TYPES;

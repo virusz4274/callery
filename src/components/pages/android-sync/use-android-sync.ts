@@ -87,6 +87,9 @@ export function useAndroidSync() {
         try {
             const folder = await pickAndSaveFolder();
             if (folder) {
+                setFiles([]);
+                setSyncedCount(0);
+                setLastSyncTime(null);
                 setSelectedFolder(folder);
             }
         } catch (error) {
@@ -100,6 +103,10 @@ export function useAndroidSync() {
             await clearSavedFolder();
             setSelectedFolder(null);
             setFiles([]);
+            setSyncedCount(0);
+            setLastSyncTime(null);
+            setSyncProgress(null);
+            setIsSyncing(false);
         } catch (error) {
             console.error('Error clearing folder:', error);
         }
@@ -110,7 +117,9 @@ export function useAndroidSync() {
             return;
         }
 
-        const selectedFiles = files.filter((file) => file.selected && file.status === 'pending');
+        const selectedFiles = files.filter(
+            (file) => file.selected && (file.status === 'pending' || file.status === 'error')
+        );
         if (selectedFiles.length === 0) {
             toast({ title: 'Warning', description: 'No files selected for sync', status: 'warning' });
             return;
@@ -126,7 +135,11 @@ export function useAndroidSync() {
                 setSyncProgress({ current, total, currentFileName });
             },
             onUploading: (path) => {
-                setFiles((prev) => prev.map((file) => (file.path === path ? { ...file, status: 'uploading' } : file)));
+                setFiles((prev) =>
+                    prev.map((file) =>
+                        file.path === path ? { ...file, status: 'uploading', error: undefined } : file
+                    )
+                );
             },
             onSynced: (path) => {
                 setFiles((prev) =>
@@ -138,7 +151,7 @@ export function useAndroidSync() {
             onError: (path, error) => {
                 setFiles((prev) =>
                     prev.map((file) =>
-                        file.path === path ? { ...file, status: 'error', error } : file
+                        file.path === path ? { ...file, status: 'error', error, selected: true } : file
                     )
                 );
             },
