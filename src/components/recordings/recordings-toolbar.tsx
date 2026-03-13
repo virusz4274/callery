@@ -10,7 +10,7 @@ export function RecordingsToolbar(props: RecordingsToolbarProps) {
     return (
         <Surface
             variant="default"
-            className="rounded-[1.75rem] border border-default-200/80 bg-linear-to-r from-primary/6 via-background to-secondary/6 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] md:sticky md:top-4 md:z-20 md:bg-background/92 md:backdrop-blur"
+            className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 rounded-[1.75rem] border border-default-200/80 bg-background/92 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:top-4 md:bg-linear-to-r md:from-primary/6 md:via-background md:to-secondary/6"
         >
             <div className="space-y-4">
                 <SearchSortRow

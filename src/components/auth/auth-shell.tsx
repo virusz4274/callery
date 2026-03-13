@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { Card, Chip, Surface } from "@heroui/react";
 import { FileText, Search, Users } from "lucide-react";
 import { Logo as BrandLogo } from "@/components/icons";
+import { useIsCapacitor } from "@/hooks/use-is-capacitor";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const authHighlights = [
   {
@@ -30,6 +32,7 @@ type AuthShellProps = {
   description: string;
   children: ReactNode;
   footer?: ReactNode;
+  compactOnMobile?: boolean;
 };
 
 export function AuthShell({
@@ -38,26 +41,31 @@ export function AuthShell({
   description,
   children,
   footer,
+  compactOnMobile = false,
 }: AuthShellProps) {
+  const isMobile = useIsMobile();
+  const isCapacitor = useIsCapacitor();
+  const useCompactLayout = compactOnMobile && (isMobile || isCapacitor);
+
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(0,111,238,0.14),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(148,82,255,0.1),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,247,250,1))] text-foreground dark:bg-[radial-gradient(circle_at_top_left,rgba(0,111,238,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(148,82,255,0.12),transparent_24%),linear-gradient(180deg,rgba(18,18,22,1),rgba(12,12,16,1))]">
-      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1fr)] lg:gap-8 lg:px-8 lg:py-8">
-        <div className="flex items-center justify-between py-2 lg:col-span-2">
+      <div className={`mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 ${useCompactLayout ? 'py-3' : 'py-4'} sm:px-6 lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1fr)] lg:gap-8 lg:px-8 lg:py-8`}>
+        <div className={`flex items-center justify-between ${useCompactLayout ? 'py-1' : 'py-2'} lg:col-span-2`}>
           <Link
             href="/"
             className="inline-flex items-center gap-3 rounded-full px-1 py-1 text-sm font-medium text-foreground transition-colors hover:text-primary"
           >
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-background/80 text-primary shadow-sm ring-1 ring-default-200/60">
-              <BrandLogo className="size-6" />
+            <span className={`flex items-center justify-center rounded-2xl bg-background/80 text-primary shadow-sm ring-1 ring-default-200/60 ${useCompactLayout ? 'size-9' : 'size-10'}`}>
+              <BrandLogo className={useCompactLayout ? 'size-5.5' : 'size-6'} />
             </span>
             <span className="text-base font-semibold tracking-tight">VoSift</span>
           </Link>
 
           <Link
             href="/"
-            className="rounded-full border border-default-200/70 bg-background/70 px-4 py-2 text-sm font-medium text-default-600 transition-colors hover:border-primary/25 hover:text-primary"
+            className={`rounded-full border border-default-200/70 bg-background/70 text-sm font-medium text-default-600 transition-colors hover:border-primary/25 hover:text-primary ${useCompactLayout ? 'px-3 py-1.5' : 'px-4 py-2'}`}
           >
-            Back to site
+            {useCompactLayout ? 'Back' : 'Back to site'}
           </Link>
         </div>
 
@@ -101,10 +109,10 @@ export function AuthShell({
           </div>
         </Surface>
 
-        <Card className="w-full rounded-[2rem] border border-default-200/70 bg-background/92 shadow-2xl shadow-black/10 backdrop-blur-md">
-          <Card.Header className="flex flex-col gap-5 px-6 pt-6 sm:px-8 sm:pt-8">
-            <div className="flex size-14 items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary ring-1 ring-primary/10">
-              <BrandLogo className="size-8" />
+        <Card className={`w-full border border-default-200/70 bg-background/92 shadow-2xl shadow-black/10 backdrop-blur-md ${useCompactLayout ? 'rounded-[1.75rem]' : 'rounded-[2rem]'}`}>
+          <Card.Header className={`flex flex-col ${useCompactLayout ? 'gap-4 px-5 pt-5 sm:px-6 sm:pt-6' : 'gap-5 px-6 pt-6 sm:px-8 sm:pt-8'}`}>
+            <div className={`flex items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary ring-1 ring-primary/10 ${useCompactLayout ? 'size-12' : 'size-14'}`}>
+              <BrandLogo className={useCompactLayout ? 'size-7' : 'size-8'} />
             </div>
 
             <div className="space-y-3">
@@ -112,7 +120,7 @@ export function AuthShell({
                 {badge}
               </p>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                <h1 className={`font-semibold tracking-tight text-foreground ${useCompactLayout ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
                   {title}
                 </h1>
                 <p className="max-w-md text-sm leading-6 text-default-600 sm:text-base">{description}</p>
@@ -120,10 +128,10 @@ export function AuthShell({
             </div>
           </Card.Header>
 
-          <Card.Content className="px-6 pb-6 pt-6 sm:px-8">{children}</Card.Content>
+          <Card.Content className={useCompactLayout ? 'px-5 pb-5 pt-4 sm:px-6' : 'px-6 pb-6 pt-6 sm:px-8'}>{children}</Card.Content>
 
           {footer ? (
-            <Card.Footer className="border-t border-default-100/80 px-6 py-5 sm:px-8">
+            <Card.Footer className={`${useCompactLayout ? 'px-5 py-4 sm:px-6' : 'px-6 py-5 sm:px-8'} border-t border-default-100/80`}>
               {footer}
             </Card.Footer>
           ) : null}
