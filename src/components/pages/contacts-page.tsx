@@ -10,7 +10,8 @@ import { ContactList } from './contacts/contact-list';
 import { useContactGroups } from './contacts/use-contact-groups';
 import { ContextHelp } from '@/components/context-help';
 import { QuickStartPopover } from '@/components/quick-start-popover';
-import { ArrowRight, Building2, Search, Users } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ArrowRight, Building2, ChevronDown, Search, Users } from 'lucide-react';
 
 type ContactsPageProps = {
     allContacts: Contact[];
@@ -58,6 +59,7 @@ export function ContactsPage({
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('q') || '';
     const { user, isUserLoading } = useUser();
+    const isMobile = useIsMobile();
 
     const { groupedContacts, sortedAndFilteredContacts } = useContactGroups(allContacts, searchQuery);
 
@@ -121,10 +123,10 @@ export function ContactsPage({
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid min-w-0 gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="min-w-0 space-y-4">
-                        <div className="flex items-center gap-2">
-                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                                Contact directory
-                            </Chip>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                                Contacts
+                            </h1>
                             <ContextHelp
                                 title="Contacts workspace"
                                 description="Use this page to find people fast and jump straight into their linked call history."
@@ -135,14 +137,10 @@ export function ContactsPage({
                                 ]}
                             />
                         </div>
-                        <div className="space-y-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                                    Contacts
-                                </h1>
-                            </div>
-                        </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                                Contact directory
+                            </Chip>
                             <Chip variant="soft" color="default">
                                 {displayedCount} visible
                             </Chip>
@@ -155,97 +153,118 @@ export function ContactsPage({
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <QuickStartPopover
-                            title="Get value from contacts quickly"
-                            description="These are the fastest first-time actions for making the directory useful."
-                            steps={[
-                                {
-                                    title: 'Search for a person or company',
-                                    description: 'Start with the directory search box to find existing matches fast.',
-                                },
-                                {
-                                    title: 'Open a contact workspace',
-                                    description: 'Use a contact page to review linked calls and recent activity.',
-                                },
-                                {
-                                    title: 'Add more matches',
-                                    description: 'Upload more calls or sync data so future recordings connect to real people.',
-                                    href: '/upload',
-                                },
-                            ]}
-                        />
-                        <Link href="/recordings" className="w-full sm:w-auto xl:w-full">
-                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
-                                View recordings
-                            </Button>
-                        </Link>
+                        {!isMobile && (
+                            <QuickStartPopover
+                                title="Get value from contacts quickly"
+                                description="These are the fastest first-time actions for making the directory useful."
+                                steps={[
+                                    {
+                                        title: 'Search for a person or company',
+                                        description: 'Start with the directory search box to find existing matches fast.',
+                                    },
+                                    {
+                                        title: 'Open a contact workspace',
+                                        description: 'Use a contact page to review linked calls and recent activity.',
+                                    },
+                                    {
+                                        title: 'Add more matches',
+                                        description: 'Upload more calls or sync data so future recordings connect to real people.',
+                                        href: '/upload',
+                                    },
+                                ]}
+                            />
+                        )}
                         <Link href="/upload" className="w-full sm:w-auto xl:w-full">
                             <Button className="w-full rounded-full px-6 font-semibold">
                                 Upload more calls
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
+                        <Link href="/recordings" className="w-full sm:w-auto xl:w-full">
+                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
+                                View recordings
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
-                <div className="grid min-w-0 gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 md:px-8 xl:grid-cols-4">
-                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Users className="h-3.5 w-3.5" />
-                                Total contacts
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">{totalCount || allContacts.length}</div>
-                            <div className="text-sm text-default-500">
-                                Everyone currently linked to your recordings
-                            </div>
+                <details className="group border-t border-default-100/80 bg-default-50/50">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 md:px-8 [&::-webkit-details-marker]:hidden">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Chip variant="soft" color="default">
+                                Total: {totalCount || allContacts.length}
+                            </Chip>
+                            <Chip variant="soft" color="success">
+                                Showing: {displayedCount}
+                            </Chip>
+                            <Chip variant="soft" color="default">
+                                Companies: {uniqueCompanies}
+                            </Chip>
                         </div>
-                    </Surface>
-                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Search className="h-3.5 w-3.5" />
-                                Showing now
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">{displayedCount}</div>
-                            <div className="text-sm text-default-500">
-                                Current result set after local directory search
-                            </div>
+                        <div className="flex items-center gap-2 text-sm text-default-500">
+                            Directory details
+                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                         </div>
-                    </Surface>
-                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Building2 className="h-3.5 w-3.5" />
-                                Companies
+                    </summary>
+                    <div className="grid min-w-0 gap-3 border-t border-default-100/80 px-5 py-4 md:grid-cols-2 md:px-8 xl:grid-cols-4">
+                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                    <Users className="h-3.5 w-3.5" />
+                                    Total contacts
+                                </div>
+                                <div className="text-2xl font-bold text-foreground">{totalCount || allContacts.length}</div>
+                                <div className="text-sm text-default-500">
+                                    Everyone currently linked to your recordings
+                                </div>
                             </div>
-                            <div className="text-2xl font-bold text-foreground">{uniqueCompanies}</div>
-                            <div className="text-sm text-default-500">
-                                Distinct companies represented in the directory
+                        </Surface>
+                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                    <Search className="h-3.5 w-3.5" />
+                                    Showing now
+                                </div>
+                                <div className="text-2xl font-bold text-foreground">{displayedCount}</div>
+                                <div className="text-sm text-default-500">
+                                    Current result set after local directory search
+                                </div>
                             </div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <ArrowRight className="h-3.5 w-3.5" />
-                                Linked calls
+                        </Surface>
+                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                    <Building2 className="h-3.5 w-3.5" />
+                                    Companies
+                                </div>
+                                <div className="text-2xl font-bold text-foreground">{uniqueCompanies}</div>
+                                <div className="text-sm text-default-500">
+                                    Distinct companies represented in the directory
+                                </div>
                             </div>
-                            <div className="text-2xl font-bold text-foreground">{totalRecordings}</div>
-                            <div className="text-sm text-default-500">
-                                Total recordings connected to known contacts
+                        </Surface>
+                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                    Linked calls
+                                </div>
+                                <div className="text-2xl font-bold text-foreground">{totalRecordings}</div>
+                                <div className="text-sm text-default-500">
+                                    Total recordings connected to known contacts
+                                </div>
                             </div>
-                        </div>
-                    </Surface>
-                </div>
+                        </Surface>
+                    </div>
+                </details>
             </section>
 
             <Surface
                 variant="default"
-                className="min-w-0 rounded-[1.75rem] border border-default-200/80 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
+                className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:top-4"
             >
-                <div className="space-y-4">
-                    <div className="space-y-1">
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             Search directory
                             <ContextHelp
@@ -258,9 +277,15 @@ export function ContactsPage({
                                 placement="right"
                             />
                         </div>
-                        <h2 className="text-xl font-bold tracking-[-0.03em] text-foreground">
-                            Find a person, phone number, company, or role.
-                        </h2>
+                        {searchQuery ? (
+                            <Chip variant="soft" color="warning" size="sm">
+                                {displayedCount} match{displayedCount === 1 ? '' : 'es'}
+                            </Chip>
+                        ) : (
+                            <Chip variant="soft" color="default" size="sm">
+                                {displayedCount} visible
+                            </Chip>
+                        )}
                     </div>
 
                     <SearchField
@@ -279,12 +304,13 @@ export function ContactsPage({
                         variant="secondary"
                         className="w-full"
                     >
-                        <SearchField.Group className="flex h-12 items-center overflow-hidden rounded-2xl border border-default-200 bg-default-50 px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                        <SearchField.Group className="flex h-11 items-center overflow-hidden rounded-2xl border border-default-200 bg-default-50 px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
                             <SearchField.SearchIcon className="mr-2 text-default-400" />
                             <SearchField.Input
                                 className="w-full bg-transparent p-0 text-small text-foreground placeholder:text-default-400"
                                 placeholder="Search by name, number, role, or company"
                             />
+                            <SearchField.ClearButton />
                         </SearchField.Group>
                     </SearchField>
                 </div>

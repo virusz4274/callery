@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button, Card, Chip, Surface } from '@heroui/react';
+import { Card, Chip, Surface } from '@heroui/react';
 import { ArrowRight, ShieldCheck, UploadCloud } from 'lucide-react';
 import { UPLOAD_AUDIO_ACCEPT_ATTRIBUTE, UPLOAD_AUDIO_FORMAT_LABELS } from '@/lib/upload-audio-support';
 
@@ -21,11 +21,21 @@ export function UploadDropzoneCard({
     onSelectFiles,
 }: UploadDropzoneCardProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const fileInputId = React.useId();
+
+    const openFilePicker = () => {
+        fileInputRef.current?.click();
+    };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            onSelectFiles(Array.from(event.target.files));
+        const files = event.target.files ? Array.from(event.target.files) : [];
+
+        if (files.length > 0) {
+            onSelectFiles(files);
         }
+
+        // Allow selecting the same file again after it is removed or uploaded.
+        event.target.value = '';
     };
 
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -48,6 +58,13 @@ export function UploadDropzoneCard({
         event.preventDefault();
         event.stopPropagation();
         onDragLeave();
+    };
+
+    const handleBrowseKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openFilePicker();
+        }
     };
 
     return (
@@ -77,9 +94,13 @@ export function UploadDropzoneCard({
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
-                    >
-                        <div
+                    onClick={openFilePicker}
+                    onKeyDown={handleBrowseKeyDown}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Choose audio files to upload"
+                >
+                    <div
                         className={`absolute inset-0 bg-grid-default-200/20 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none rounded-[1.75rem] transition-opacity duration-300 ${
                             isDragging ? 'opacity-50' : 'opacity-100'
                         }`}
@@ -104,10 +125,14 @@ export function UploadDropzoneCard({
                     </h3>
                     <p className="text-sm text-default-500 mb-2 max-w-sm text-center px-4">or click to browse</p>
 
-                    <Button variant="secondary" className="mb-5 rounded-full px-5 font-medium">
+                    <label
+                        htmlFor={fileInputId}
+                        onClick={(event) => event.stopPropagation()}
+                        className="mb-5 inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/25 transition-colors duration-200 hover:bg-primary/90 focus-within:bg-primary/90"
+                    >
                         Choose files
                         <ArrowRight className="h-4 w-4" />
-                    </Button>
+                    </label>
 
                     <div className="mb-5 flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-yellow-600 dark:text-yellow-400">
                         <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
@@ -126,10 +151,11 @@ export function UploadDropzoneCard({
                     </div>
 
                     <input
+                        id={fileInputId}
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        className="hidden"
+                        className="sr-only"
                         onChange={handleFileChange}
                         accept={UPLOAD_AUDIO_ACCEPT_ATTRIBUTE}
                     />

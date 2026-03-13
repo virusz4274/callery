@@ -124,11 +124,20 @@ export function SearchSortRow({
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    {activeFilterCount > 0 ? (
+                        <Chip variant="soft" color="warning" size="sm">
+                            {activeFilterCount} active
+                        </Chip>
+                    ) : (
+                        <Chip variant="soft" color="default" size="sm">
+                            Filters ready
+                        </Chip>
+                    )}
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
                         <Sparkles className="h-3.5 w-3.5" />
-                        Search recordings
+                        Search tools
                         <ContextHelp
                             title="Unified search"
                             description="Use one search surface for both exact text filtering and AI search."
@@ -140,35 +149,24 @@ export function SearchSortRow({
                             placement="right"
                         />
                     </div>
-                    <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">
-                        Find recordings fast
-                    </h3>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    {activeFilterCount > 0 && (
-                        <Chip variant="soft" color="warning" size="sm">
-                            {activeFilterCount} active
-                        </Chip>
-                    )}
-                    <div className="inline-flex items-center rounded-full border border-default-200 bg-background/80 p-1">
-                        <Button
-                            size="sm"
-                            variant={searchMode === 'text' ? 'secondary' : 'ghost'}
-                            className="rounded-full"
-                            onPress={() => onSearchModeChange('text')}
-                        >
-                            Text
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={searchMode === 'semantic' ? 'secondary' : 'ghost'}
-                            className="rounded-full"
-                            onPress={() => onSearchModeChange('semantic')}
-                        >
-                            AI search
-                        </Button>
-                    </div>
+                <div className="inline-flex items-center rounded-full border border-default-200 bg-background/80 p-1">
+                    <Button
+                        size="sm"
+                        variant={searchMode === 'text' ? 'secondary' : 'ghost'}
+                        className="rounded-full"
+                        onPress={() => onSearchModeChange('text')}
+                    >
+                        Text
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={searchMode === 'semantic' ? 'secondary' : 'ghost'}
+                        className="rounded-full"
+                        onPress={() => onSearchModeChange('semantic')}
+                    >
+                        AI search
+                    </Button>
                 </div>
             </div>
 
