@@ -12,6 +12,7 @@ type RecordingsTableHeaderProps = {
     onToggleSelectionMode: () => void;
     onDeleteSelection: () => void;
     variant?: 'default' | 'flat';
+    density?: 'comfortable' | 'dense';
 };
 
 export function RecordingsTableHeader({
@@ -23,10 +24,13 @@ export function RecordingsTableHeader({
     onToggleSelectionMode,
     onDeleteSelection,
     variant = 'default',
+    density = 'comfortable',
 }: RecordingsTableHeaderProps) {
     return (
         <Card.Header
-            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 md:gap-4 md:p-6 ${
+            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 ${
+                density === 'dense' ? 'py-2.5 md:px-5 md:py-3.5' : 'py-3 md:gap-4 md:p-6'
+            } ${
                 variant === 'flat' ? 'px-0 py-2 border-none' : 'border-b border-default-100/50'
             }`}
         >

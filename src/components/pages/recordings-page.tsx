@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { RecordingsToolbar } from '@/components/recordings/recordings-toolbar';
@@ -12,12 +12,16 @@ import { useStats } from '@/hooks/use-stats';
 import { useContacts } from '@/hooks/use-contacts';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
 import { useToast } from '@/components/toast-provider';
+import { ContextHelp } from '@/components/context-help';
+import { QuickStartPopover } from '@/components/quick-start-popover';
 import type { Recording } from '@/lib/types';
 import type { SavedRecordingsView, SmartCollection } from '@/components/recordings/toolbar/types';
-import { ArrowRight, CalendarRange, CheckCircle2, Sparkles, Users, X } from 'lucide-react';
+import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
+import { ArrowRight, CalendarRange, CheckCircle2, ChevronDown, Sparkles, Users, X } from 'lucide-react';
 
 const SAVED_VIEWS_STORAGE_KEY = 'vosift:recordings:saved-views';
 const CHECKLIST_DISMISSED_STORAGE_KEY = 'vosift:recordings:checklist-dismissed';
+const DENSITY_STORAGE_KEY = 'vosift:recordings:density';
 
 const SMART_COLLECTIONS: SmartCollection[] = [
     {
@@ -121,6 +125,8 @@ export function RecordingsPage() {
     const [semanticQuery, setSemanticQuery] = useState('');
     const [semanticResults, setSemanticResults] = useState<Recording[] | null>(null);
     const [semanticTotalCount, setSemanticTotalCount] = useState(0);
+    const [semanticSearchMode, setSemanticSearchMode] = useState<SemanticSearchMode | undefined>(undefined);
+    const [semanticFallbackReason, setSemanticFallbackReason] = useState<SemanticFallbackReason | undefined>(undefined);
     const [isSemanticSearching, startSearchTransition] = useTransition();
     const [hasRunSemanticSearch, setHasRunSemanticSearch] = useState(false);
     const [savedViews, setSavedViews] = useState<SavedRecordingsView[]>(() => {
@@ -153,6 +159,28 @@ export function RecordingsPage() {
             return false;
         }
     });
+    const [density, setDensity] = useState<'comfortable' | 'dense'>(() => {
+        if (typeof window === 'undefined') {
+            return 'dense';
+        }
+
+        try {
+            return window.localStorage.getItem(DENSITY_STORAGE_KEY) === 'comfortable'
+                ? 'comfortable'
+                : 'dense';
+        } catch {
+            return 'dense';
+        }
+    });
+    const [searchMode, setSearchMode] = useState<'text' | 'semantic'>('text');
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
+    }, [density]);
 
     const persistSavedViews = useCallback((nextViews: SavedRecordingsView[]) => {
         setSavedViews(nextViews);
@@ -173,12 +201,15 @@ export function RecordingsPage() {
 
     const handleSemanticSearch = useCallback(() => {
         if (!semanticQuery.trim()) return;
+        setSearchMode('semantic');
         setHasRunSemanticSearch(true);
         startSearchTransition(async () => {
             const response = await searchRecordingsAction(semanticQuery, 1, limit);
             if (response.success) {
                 setSemanticResults(response.results as unknown as Recording[]);
                 setSemanticTotalCount(response.totalCount || response.results.length);
+                setSemanticSearchMode(response.mode);
+                setSemanticFallbackReason(response.fallbackReason);
             } else {
                 toast({ title: 'Search failed', description: response.error, status: 'danger' });
             }
@@ -189,7 +220,42 @@ export function RecordingsPage() {
         setSemanticQuery('');
         setSemanticResults(null);
         setSemanticTotalCount(0);
+        setSemanticSearchMode(undefined);
+        setSemanticFallbackReason(undefined);
+        setSearchMode('text');
     }, []);
+
+    const handleSearchModeChange = useCallback((mode: 'text' | 'semantic') => {
+        setSearchMode(mode);
+        if (mode === 'text') {
+            setSemanticQuery('');
+            setSemanticResults(null);
+            setSemanticTotalCount(0);
+            setSemanticSearchMode(undefined);
+            setSemanticFallbackReason(undefined);
+        }
+    }, []);
+
+    const handleResetAll = useCallback(() => {
+        setSemanticQuery('');
+        setSemanticResults(null);
+        setSemanticTotalCount(0);
+        setSemanticSearchMode(undefined);
+        setSemanticFallbackReason(undefined);
+        setSearchMode('text');
+        setDensity('dense');
+        updateUrl({
+            q: undefined,
+            sortBy: 'date',
+            order: 'desc',
+            start: undefined,
+            end: undefined,
+            contact: undefined,
+            view: undefined,
+            collection: undefined,
+            page: '1',
+        });
+    }, [updateUrl]);
 
     const applySavedView = useCallback((viewId: string) => {
         const view = savedViews.find((item) => item.id === viewId);
@@ -288,44 +354,45 @@ export function RecordingsPage() {
     const displayTotalCount = activeSmartCollectionId === 'needs-transcription'
         ? displayedRecordings.length
         : (isShowingSemanticResults ? semanticTotalCount : totalCount);
-    const activeFilters = [
-        search ? `Text: ${search}` : null,
-        contactId ? `Contact: ${contacts?.find((contact) => contact.id === contactId)?.name || 'Unknown'}` : null,
-        startDate ? `From ${startDate}` : null,
-        endDate ? `To ${endDate}` : null,
-        activeSmartCollectionId
-            ? `Collection: ${SMART_COLLECTIONS.find((item) => item.id === activeSmartCollectionId)?.name || activeSmartCollectionId}`
-            : null,
-        activeViewId
-            ? `View: ${savedViews.find((item) => item.id === activeViewId)?.name || 'Saved'}`
-            : null,
-    ].filter(Boolean) as string[];
     const visibleResultsLabel = isShowingSemanticResults
-        ? `${displayTotalCount} semantic matches`
+        ? `${displayTotalCount} AI matches`
         : `${displayTotalCount} recordings`;
-    const searchModeLabel = isShowingSemanticResults ? 'Semantic search view' : 'Library view';
+    const totalLibraryCount = stats?.totalRecordings ?? totalCount;
+    const hasRecordings = totalLibraryCount > 0;
+    const hasContacts = (contacts?.length ?? 0) > 0;
+    const activeCollectionName = activeSmartCollectionId
+        ? SMART_COLLECTIONS.find((item) => item.id === activeSmartCollectionId)?.name || activeSmartCollectionId
+        : null;
+    const filteredContactName = contactId
+        ? contacts?.find((contact) => contact.id === contactId)?.name || 'Filtered contact'
+        : null;
+    const activeViewName = activeViewId
+        ? savedViews.find((item) => item.id === activeViewId)?.name || 'Saved'
+        : null;
+    const shouldShowHeaderStats = !hasRecordings || isShowingSemanticResults || Boolean(activeCollectionName) || Boolean(filteredContactName);
     const checklistItems = [
         {
             id: 'upload',
             title: 'Upload your first recording',
-            done: (stats?.totalRecordings ?? totalCount) > 0,
+            done: hasRecordings,
             href: '/upload',
         },
         {
             id: 'contacts',
             title: 'Review contacts workspace',
-            done: (contacts?.length ?? 0) > 0,
+            done: hasContacts,
             href: '/contacts',
         },
         {
             id: 'semantic',
-            title: 'Run one semantic search',
+            title: 'Run one AI search',
             done: hasRunSemanticSearch,
             href: '#semantic-search',
         },
     ];
     const completedChecklistCount = checklistItems.filter((item) => item.done).length;
-    const shouldShowChecklist = !isChecklistDismissed && completedChecklistCount < checklistItems.length;
+    const shouldShowChecklist = !isChecklistDismissed && (!hasRecordings || !hasContacts);
+    const shouldShowQuickStart = !hasRecordings;
 
     // -- Handlers --
     const handlePageChange = (newPage: number) => updateUrl({ page: newPage.toString() });
@@ -336,154 +403,159 @@ export function RecordingsPage() {
     }
 
     return (
-        <div className="relative space-y-8">
+        <div className="relative space-y-5">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
-                    <div className="space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                            Recordings workspace
-                        </Chip>
-                        <div className="space-y-3">
-                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                <div className={`grid gap-4 px-5 md:px-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center ${
+                    hasRecordings ? 'py-4 md:py-5' : 'py-5 md:py-6'
+                }`}>
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="mr-1 text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
                                 Recordings
                             </h1>
-                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Review the call library, switch between keyword and semantic search,
-                                and jump from transcript results to the exact section you need.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color={isShowingSemanticResults ? 'accent' : 'default'}>
-                                {searchModeLabel}
-                            </Chip>
                             <Chip variant="soft" color="success">
                                 {visibleResultsLabel}
                             </Chip>
-                            {activeFilters.length > 0 && (
-                                <Chip variant="soft" color="warning">
-                                    {activeFilters.length} active filter{activeFilters.length > 1 ? 's' : ''}
+                            {isShowingSemanticResults && (
+                                <Chip variant="soft" color="accent">
+                                    AI search
                                 </Chip>
                             )}
+                            {activeCollectionName && (
+                                <Chip variant="soft" color="warning">
+                                    {activeCollectionName}
+                                </Chip>
+                            )}
+                            {activeViewName && (
+                                <Chip variant="soft" color="default">
+                                    {activeViewName}
+                                </Chip>
+                            )}
+                            <ContextHelp
+                                title="Recordings workspace"
+                                description="This is the main operating surface for finding, filtering, and opening calls."
+                                points={[
+                                    'Use the unified search bar for exact text or AI search.',
+                                    'Open More filters only when you need contact, date, or sort controls.',
+                                    'Save views when you repeat the same workflow often.',
+                                ]}
+                            />
                         </div>
+                        {!hasRecordings && (
+                            <p className="max-w-2xl text-sm text-default-500">
+                                Bring audio into the workspace, then search, filter, and review everything from one library.
+                            </p>
+                        )}
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                    <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+                        {shouldShowQuickStart && (
+                            <QuickStartPopover
+                                title="Fastest way to start using the library"
+                                description="These are the core actions most new users need on day one."
+                                steps={[
+                                    {
+                                        title: 'Upload at least one call',
+                                        description: 'Bring audio into the workspace so the library has something to search.',
+                                        href: '/upload',
+                                    },
+                                    {
+                                        title: 'Filter or search the list',
+                                        description: 'Use text, date, contact, or saved views to narrow the archive.',
+                                    },
+                                    {
+                                        title: 'Try AI search',
+                                        description: 'Search by intent when you only remember the topic of a conversation.',
+                                    },
+                                ]}
+                            />
+                        )}
                         <Link href="/upload">
-                            <Button className="w-full rounded-full px-6 font-semibold">
+                            <Button className="w-full rounded-full px-5 font-semibold">
                                 Upload recordings
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
-                        <Link href="/contacts">
-                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
-                                Review contacts
-                            </Button>
-                        </Link>
+                        {!hasContacts && (
+                            <Link href="/contacts">
+                                <Button variant="secondary" className="w-full rounded-full px-5 font-semibold">
+                                    Review contacts
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 
-                <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 xl:grid-cols-4 md:px-8">
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                Total library
+                {shouldShowHeaderStats ? (
+                    <details className="group border-t border-default-100/80 bg-default-50/50">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 md:px-8 [&::-webkit-details-marker]:hidden">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Chip variant="soft" color="default">
+                                    Total: {isLoadingStats ? '...' : stats?.totalRecordings ?? totalCount}
+                                </Chip>
+                                <Chip variant="soft" color="success">
+                                    Showing: {displayTotalCount}
+                                </Chip>
+                                <Chip variant="soft" color={isShowingSemanticResults ? 'accent' : 'default'}>
+                                    {isShowingSemanticResults ? <Sparkles className="mr-1 h-3.5 w-3.5" /> : <Users className="mr-1 h-3.5 w-3.5" />}
+                                    {isShowingSemanticResults
+                                        ? 'AI search'
+                                        : filteredContactName || 'Entire workspace'}
+                                </Chip>
                             </div>
-                            <div className="text-2xl font-bold text-foreground">
-                                {isLoadingStats ? '...' : stats?.totalRecordings ?? totalCount}
+                            <div className="flex items-center gap-2 text-sm text-default-500">
+                                Library stats
+                                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                             </div>
-                            <div className="text-sm text-default-500">
-                                All stored recordings in your workspace
-                            </div>
+                        </summary>
+                        <div className="flex flex-wrap items-center gap-2 border-t border-default-100/80 px-5 py-3 md:px-8">
+                            <Chip variant="soft" color="default">
+                                <CalendarRange className="mr-1 h-3.5 w-3.5" />
+                                Avg: {isLoadingStats ? '...' : formatAverageDuration(stats?.avgDuration)}
+                            </Chip>
+                            {activeCollectionName && (
+                                <Chip variant="soft" color="warning">
+                                    Collection: {activeCollectionName}
+                                </Chip>
+                            )}
+                            {activeViewName && (
+                                <Chip variant="soft" color="default">
+                                    View: {activeViewName}
+                                </Chip>
+                            )}
                         </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                Showing now
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">{displayTotalCount}</div>
-                            <div className="text-sm text-default-500">
-                                Current result set after filters and search
-                            </div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <CalendarRange className="h-3.5 w-3.5" />
-                                Avg duration
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">
-                                {isLoadingStats ? '...' : formatAverageDuration(stats?.avgDuration)}
-                            </div>
-                            <div className="text-sm text-default-500">
-                                Average call length across the account
-                            </div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                {isShowingSemanticResults ? <Sparkles className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
-                                Focus
-                            </div>
-                            <div className="text-lg font-bold text-foreground">
-                                {isShowingSemanticResults
-                                    ? 'Meaning-based search'
-                                    : contactId
-                                        ? contacts?.find((contact) => contact.id === contactId)?.name || 'Filtered contact'
-                                        : 'Entire workspace'}
-                            </div>
-                            <div className="text-sm text-default-500">
-                                {isShowingSemanticResults
-                                    ? 'Semantic results temporarily replace the library list until you clear them.'
-                                    : 'Use contact and date filters to narrow the archive without losing context.'}
-                            </div>
-                        </div>
-                    </Surface>
-                </div>
+                    </details>
+                ) : null}
             </section>
 
             {shouldShowChecklist && (
-                <Surface variant="default" className="rounded-[1.6rem] border border-default-200/80 p-5">
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    First-run checklist
-                                </div>
-                                <h2 className="text-xl font-bold tracking-[-0.03em] text-foreground">
-                                    Complete these steps to finish workspace setup.
-                                </h2>
-                                <p className="text-sm text-default-500">
-                                    {completedChecklistCount} of {checklistItems.length} complete
-                                </p>
-                            </div>
-                            <Button size="sm" variant="ghost" onPress={dismissChecklist}>
-                                <X className="h-4 w-4" />
-                                Dismiss
-                            </Button>
-                        </div>
-                        <div className="grid gap-2 md:grid-cols-3">
+                <Surface variant="default" className="rounded-[1.35rem] border border-default-200/80 p-3 md:p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Chip variant="soft" color="warning">
+                                Setup {completedChecklistCount}/{checklistItems.length}
+                            </Chip>
                             {checklistItems.map((item) => (
                                 <Link
                                     key={item.id}
                                     href={item.href}
-                                    className={`rounded-[1rem] border px-3 py-3 transition-colors ${
+                                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                                         item.done
-                                            ? 'border-success/30 bg-success/10'
-                                            : 'border-default-200 bg-default-50/70 hover:border-default-300'
+                                            ? 'border-success/30 bg-success/10 text-foreground'
+                                            : 'border-default-200 bg-default-50/70 text-foreground hover:border-default-300'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                        <CheckCircle2 className={`h-4 w-4 ${item.done ? 'text-success' : 'text-default-300'}`} />
-                                        {item.title}
-                                    </div>
+                                    <CheckCircle2 className={`h-4 w-4 ${item.done ? 'text-success' : 'text-default-300'}`} />
+                                    {item.title}
                                 </Link>
                             ))}
                         </div>
+                        <Button size="sm" variant="ghost" onPress={dismissChecklist} className="self-start text-default-500">
+                            <X className="h-4 w-4" />
+                            Dismiss
+                        </Button>
                     </div>
                 </Surface>
             )}
@@ -517,11 +589,16 @@ export function RecordingsPage() {
                     }
                     // Semantic Search
                     semanticQuery={semanticQuery}
-                    onSemanticQueryChange={setSemanticQuery}
+                    onSemanticQueryChange={(value) => {
+                        setSearchMode('semantic');
+                        setSemanticQuery(value);
+                    }}
                     onSemanticSearch={handleSemanticSearch}
                     onClearSemanticSearch={clearSemanticSearch}
                     isSemanticSearching={isSemanticSearching}
                     semanticResultsCount={isShowingSemanticResults ? semanticTotalCount : undefined}
+                    semanticSearchMode={semanticSearchMode}
+                    semanticFallbackReason={semanticFallbackReason}
                     savedViews={savedViews}
                     activeViewId={activeViewId}
                     smartCollections={SMART_COLLECTIONS}
@@ -530,35 +607,14 @@ export function RecordingsPage() {
                     onDeleteSavedView={deleteSavedView}
                     onSaveCurrentView={saveCurrentView}
                     onApplySmartCollection={applySmartCollection}
+                    searchMode={searchMode}
+                    onSearchModeChange={handleSearchModeChange}
+                    density={density}
+                    onDensityChange={setDensity}
+                    onResetAll={handleResetAll}
                 />
 
-                <section className="space-y-4">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                        <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                Results
-                            </div>
-                            <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
-                                {isShowingSemanticResults ? 'Semantic matches' : 'Recording library'}
-                            </h2>
-                            <p className="text-sm leading-6 text-default-500">
-                                {isShowingSemanticResults
-                                    ? 'These results come from semantic search and are separate from the normal paginated library view.'
-                                    : 'Browse every recording, open details, and manage the archive from one surface.'}
-                            </p>
-                        </div>
-
-                        {activeFilters.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {activeFilters.map((filter) => (
-                                    <Chip key={filter} variant="soft" color="default">
-                                        {filter}
-                                    </Chip>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
+                <section>
                     <div className="min-h-[400px]">
                     {isLoadingRecordings && !isShowingSemanticResults ? (
                         <div className="flex justify-center items-center h-64">
@@ -574,16 +630,8 @@ export function RecordingsPage() {
                                 setPage={handlePageChange}
                                 onRecordingsChange={refetch}
                                 contacts={contacts || []}
+                                density={density}
                             />
-
-                            <div className="mt-4 flex justify-between items-center">
-                                <div className="text-small text-default-500">
-                                    {isShowingSemanticResults
-                                        ? `Found ${displayTotalCount} matching recordings`
-                                        : `Total ${displayTotalCount} recordings`
-                                    }
-                                </div>
-                            </div>
                         </>
                     )}
                     </div>

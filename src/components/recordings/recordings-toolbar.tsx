@@ -2,42 +2,45 @@
 
 import React from 'react';
 import { Surface } from '@heroui/react';
-import { SemanticSearchRow } from './toolbar/semantic-search-row';
 import { SearchSortRow } from './toolbar/search-sort-row';
 import { SavedViewsRow } from './toolbar/saved-views-row';
 import type { RecordingsToolbarProps } from './toolbar/types';
 
 export function RecordingsToolbar(props: RecordingsToolbarProps) {
     return (
-        <div className="space-y-4">
-            <SemanticSearchRow
-                semanticQuery={props.semanticQuery}
-                onSemanticQueryChange={props.onSemanticQueryChange}
-                onSemanticSearch={props.onSemanticSearch}
-                onClearSemanticSearch={props.onClearSemanticSearch}
-                isSemanticSearching={props.isSemanticSearching}
-                semanticResultsCount={props.semanticResultsCount}
-            />
+        <Surface
+            variant="default"
+            className="rounded-[1.75rem] border border-default-200/80 bg-linear-to-r from-primary/6 via-background to-secondary/6 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] md:sticky md:top-4 md:z-20 md:bg-background/92 md:backdrop-blur"
+        >
+            <div className="space-y-4">
+                <SearchSortRow
+                    searchMode={props.searchMode}
+                    onSearchModeChange={props.onSearchModeChange}
+                    search={props.search}
+                    onSearchChange={props.onSearchChange}
+                    sortBy={props.sortBy}
+                    sortOrder={props.sortOrder}
+                    onSortChange={props.onSortChange}
+                    contacts={props.contacts}
+                    contactId={props.contactId}
+                    onContactChange={props.onContactChange}
+                    startDate={props.startDate}
+                    endDate={props.endDate}
+                    onDateChange={props.onDateChange}
+                    semanticQuery={props.semanticQuery}
+                    onSemanticQueryChange={props.onSemanticQueryChange}
+                    onSemanticSearch={props.onSemanticSearch}
+                    onClearSemanticSearch={props.onClearSemanticSearch}
+                    isSemanticSearching={props.isSemanticSearching}
+                    semanticResultsCount={props.semanticResultsCount}
+                    semanticSearchMode={props.semanticSearchMode}
+                    semanticFallbackReason={props.semanticFallbackReason}
+                    density={props.density}
+                    onDensityChange={props.onDensityChange}
+                    onResetAll={props.onResetAll}
+                />
 
-            <Surface
-                variant="default"
-                className="rounded-[1.75rem] border border-default-200/80 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
-            >
-                <div className="space-y-5">
-                    <SearchSortRow
-                        search={props.search}
-                        onSearchChange={props.onSearchChange}
-                        sortBy={props.sortBy}
-                        sortOrder={props.sortOrder}
-                        onSortChange={props.onSortChange}
-                        contacts={props.contacts}
-                        contactId={props.contactId}
-                        onContactChange={props.onContactChange}
-                        startDate={props.startDate}
-                        endDate={props.endDate}
-                        onDateChange={props.onDateChange}
-                    />
-
+                <div className="border-t border-default-100/80 pt-3">
                     <SavedViewsRow
                         savedViews={props.savedViews}
                         activeViewId={props.activeViewId}
@@ -49,7 +52,7 @@ export function RecordingsToolbar(props: RecordingsToolbarProps) {
                         onApplySmartCollection={props.onApplySmartCollection}
                     />
                 </div>
-            </Surface>
-        </div>
+            </div>
+        </Surface>
     );
 }

@@ -1,8 +1,13 @@
 'use server';
 
 import { getMongoDb } from '@/lib/mongodb';
+import {
+    getOpenExternalServiceIncidentCount,
+    getOpenExternalServiceIncidents,
+} from '@/lib/external-service-incidents';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { requireCurrentAdmin } from '@/lib/admin-auth';
+import type { ExternalServiceIncidentResponse } from '@/lib/db/types';
 
 type ServiceStatus = {
     name: string;
@@ -11,7 +16,15 @@ type ServiceStatus = {
     message?: string;
 };
 
-export async function checkSystemHealth(): Promise<ServiceStatus[]> {
+export type SystemHealthResponse = {
+    services: ServiceStatus[];
+    incidents: {
+        openCount: number;
+        recent: ExternalServiceIncidentResponse[];
+    };
+};
+
+export async function checkSystemHealth(): Promise<SystemHealthResponse> {
     await requireCurrentAdmin();
 
     const results: ServiceStatus[] = [];
@@ -71,7 +84,13 @@ export async function checkSystemHealth(): Promise<ServiceStatus[]> {
     try {
         const gemini = new GeminiService();
         // Simple generation test (fast)
-        await gemini.generateEmbedding("Health Check");
+        const embedding = await gemini.generateEmbedding("Health Check", {
+            throwOnError: true,
+            reportIncident: false,
+        });
+        if (embedding.length === 0) {
+            throw new Error('Gemini returned an empty embedding');
+        }
         results.push({
             name: 'Google Gemini',
             status: 'operational',
@@ -123,5 +142,16 @@ export async function checkSystemHealth(): Promise<ServiceStatus[]> {
         });
     }
 
-    return results;
+    const [openCount, recentIncidents] = await Promise.all([
+        getOpenExternalServiceIncidentCount(),
+        getOpenExternalServiceIncidents(),
+    ]);
+
+    return {
+        services: results,
+        incidents: {
+            openCount,
+            recent: recentIncidents,
+        },
+    };
 }

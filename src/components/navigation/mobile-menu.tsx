@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button, Modal, Input } from "@heroui/react";
-import { Search, Menu } from 'lucide-react';
+import { Button, Modal } from "@heroui/react";
+import { Menu } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
@@ -14,19 +14,11 @@ import type { User } from 'firebase/auth';
 interface MobileMenuProps {
     user: User | null;
     userProfile: UserProfile | null;
-    searchQuery: string;
-    onSearchChange: (query: string) => void;
-    isSearchablePage: boolean;
-    getSearchPlaceholder: () => string;
 }
 
 export function MobileMenu({
     user,
     userProfile,
-    searchQuery,
-    onSearchChange,
-    isSearchablePage,
-    getSearchPlaceholder
 }: MobileMenuProps) {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = React.useState(false);
@@ -59,19 +51,6 @@ export function MobileMenu({
                                 </div>
                             </Modal.Header>
                             <Modal.Body className="p-4 gap-6">
-                                {user && isSearchablePage && (
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-default-400 z-10" />
-                                        <Input
-                                            className="w-full h-10 text-small font-normal text-default-500 bg-default-100 dark:bg-default-50/20 shadow-none border-none focus:ring-2 focus:ring-primary rounded-md px-9"
-                                            placeholder={getSearchPlaceholder()}
-                                            type="search"
-                                            value={searchQuery}
-                                            onChange={(e) => onSearchChange(e.target.value)}
-                                        />
-                                    </div>
-                                )}
-
                                 <div className="flex flex-col gap-2">
                                     {items.map((item) => (
                                         <Link

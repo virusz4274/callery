@@ -1,7 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { TranscriptionSegment } from '@/lib/db/types';
-import { IAIService } from './types';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { logger } from '@/lib/logger';
+import { AIRequestOptions, IAIService } from './types';
+
+const GEMINI_PROVIDER = 'gemini';
+const GEMINI_SERVICE = 'Google Gemini';
 
 export class GeminiService implements IAIService {
     private ai: GoogleGenAI;
@@ -18,8 +22,35 @@ export class GeminiService implements IAIService {
         this.ai = new GoogleGenAI({ apiKey: this.apiKey || 'dummy_key_for_init' });
     }
 
-    async generateSummary(transcript: string, languageCode: string): Promise<string> {
-        if (!this.apiKey) return '';
+    private async handleUnavailableConfiguration<T>(
+        operation: string,
+        fallbackValue: T,
+        options?: AIRequestOptions
+    ): Promise<T> {
+        const error = new Error('GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY is not defined');
+
+        if (options?.reportIncident !== false) {
+            await safelyReportExternalServiceIncident({
+                provider: GEMINI_PROVIDER,
+                service: GEMINI_SERVICE,
+                operation,
+                error,
+                context: {
+                    configured: false,
+                },
+                notifyAdmins: true,
+            });
+        }
+
+        if (options?.throwOnError) {
+            throw error;
+        }
+
+        return fallbackValue;
+    }
+
+    async generateSummary(transcript: string, languageCode: string, options?: AIRequestOptions): Promise<string> {
+        if (!this.apiKey) return this.handleUnavailableConfiguration('generate_summary', '', options);
         if (!transcript || !transcript.trim()) return '';
 
         const prompt = `
@@ -36,9 +67,28 @@ ${transcript.substring(0, 100000)} [Truncated if too long]
                 model: process.env.GEMINI_MODEL_SUMMARY || 'gemini-2.0-flash-lite-preview-02-05', // Updated to newer model as default if not set
                 contents: prompt,
             });
+            await resolveExternalServiceIncident({
+                provider: GEMINI_PROVIDER,
+                operation: 'generate_summary',
+            });
             return result.text || '';
         } catch (error) {
             logger.error('Error generating summary:', error);
+            if (options?.reportIncident !== false) {
+                await safelyReportExternalServiceIncident({
+                    provider: GEMINI_PROVIDER,
+                    service: GEMINI_SERVICE,
+                    operation: 'generate_summary',
+                    error,
+                    context: {
+                        languageCode,
+                    },
+                    notifyAdmins: true,
+                });
+            }
+            if (options?.throwOnError) {
+                throw error;
+            }
             // Fallback to empty string on error to not block flow
             return '';
         }
@@ -46,9 +96,10 @@ ${transcript.substring(0, 100000)} [Truncated if too long]
 
     async generateTransliteration(
         segments: TranscriptionSegment[],
-        languageCode: string
+        languageCode: string,
+        options?: AIRequestOptions
     ): Promise<TranscriptionSegment[]> {
-        if (!this.apiKey) return segments;
+        if (!this.apiKey) return this.handleUnavailableConfiguration('generate_transliteration', segments, options);
         if (!segments || segments.length === 0) return segments;
 
         const prompt = `
@@ -91,6 +142,11 @@ ${JSON.stringify(segments)}
 
             const transliteratedSegments = JSON.parse(responseText) as TranscriptionSegment[];
 
+            await resolveExternalServiceIncident({
+                provider: GEMINI_PROVIDER,
+                operation: 'generate_transliteration',
+            });
+
             return segments.map((original, index) => ({
                 ...original,
                 transliteratedText: transliteratedSegments[index]?.transliteratedText || ''
@@ -98,21 +154,57 @@ ${JSON.stringify(segments)}
 
         } catch (error) {
             logger.error('Error generating transliteration:', error);
+            if (options?.reportIncident !== false) {
+                await safelyReportExternalServiceIncident({
+                    provider: GEMINI_PROVIDER,
+                    service: GEMINI_SERVICE,
+                    operation: 'generate_transliteration',
+                    error,
+                    context: {
+                        languageCode,
+                        segmentCount: segments.length,
+                    },
+                    notifyAdmins: true,
+                });
+            }
+            if (options?.throwOnError) {
+                throw error;
+            }
             return segments;
         }
     }
 
-    async generateEmbedding(text: string): Promise<number[]> {
-        if (!this.apiKey || !text) return [];
+    async generateEmbedding(text: string, options?: AIRequestOptions): Promise<number[]> {
+        if (!this.apiKey) return this.handleUnavailableConfiguration('generate_embedding', [], options);
+        if (!text) return [];
 
         try {
             const result = await this.ai.models.embedContent({
                 model: 'gemini-embedding-001',
                 contents: text,
             });
+            await resolveExternalServiceIncident({
+                provider: GEMINI_PROVIDER,
+                operation: 'generate_embedding',
+            });
             return result.embeddings?.[0]?.values || [];
         } catch (error) {
             logger.error('Error generating embedding:', error);
+            if (options?.reportIncident !== false) {
+                await safelyReportExternalServiceIncident({
+                    provider: GEMINI_PROVIDER,
+                    service: GEMINI_SERVICE,
+                    operation: 'generate_embedding',
+                    error,
+                    context: {
+                        inputLength: text.length,
+                    },
+                    notifyAdmins: true,
+                });
+            }
+            if (options?.throwOnError) {
+                throw error;
+            }
             return [];
         }
     }

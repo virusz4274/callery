@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Card, Chip, Button, Spinner, Surface } from '@heroui/react';
-import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Server, Database, Cloud, Cpu } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Server, Database, Cloud, Cpu, Siren, BellRing } from 'lucide-react';
 import { checkSystemHealth } from '@/app/actions/admin-health';
+import type { ExternalServiceIncidentResponse } from '@/lib/db/types';
 
 type ServiceStatus = {
     name: string;
@@ -14,13 +15,17 @@ type ServiceStatus = {
 
 export function HealthDashboard() {
     const [statuses, setStatuses] = useState<ServiceStatus[]>([]);
+    const [incidents, setIncidents] = useState<ExternalServiceIncidentResponse[]>([]);
+    const [openIncidentCount, setOpenIncidentCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
     const fetchHealth = async () => {
         setLoading(true);
         try {
             const data = await checkSystemHealth();
-            setStatuses(data);
+            setStatuses(data.services);
+            setIncidents(data.incidents.recent);
+            setOpenIncidentCount(data.incidents.openCount);
         } catch (error) {
             console.error(error);
         } finally {
@@ -46,6 +51,20 @@ export function HealthDashboard() {
             case 'down': return 'danger';
             default: return 'default';
         }
+    };
+
+    const formatRelativeTime = (value: string) => {
+        const diffMs = Date.now() - new Date(value).getTime();
+        const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+        if (diffMinutes < 1) return 'just now';
+        if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays}d ago`;
     };
 
     return (
@@ -112,6 +131,77 @@ export function HealthDashboard() {
                     </>
                 )}
             </div>
+
+            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-2xl bg-warning/10 p-2 text-warning">
+                                <Siren className="size-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-foreground">Service incidents</h3>
+                                <p className="text-sm text-default-500">
+                                    Deduped runtime failures from Gemini, transcription providers, Stripe, and other external services.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Chip color={openIncidentCount > 0 ? 'warning' : 'success'} variant="soft">
+                        <span className="flex items-center gap-1">
+                            <BellRing className="size-3" />
+                            {openIncidentCount > 0 ? `${openIncidentCount} open` : 'No open incidents'}
+                        </span>
+                    </Chip>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                    {incidents.length === 0 ? (
+                        <div className="rounded-[1.25rem] border border-success/20 bg-success/5 p-4 text-sm text-success-700">
+                            No active external-service incidents right now.
+                        </div>
+                    ) : (
+                        incidents.map((incident) => (
+                            <div
+                                key={incident.id}
+                                className={`rounded-[1.25rem] border p-4 ${
+                                    incident.severity === 'down'
+                                        ? 'border-danger/30 bg-danger/5'
+                                        : 'border-warning/30 bg-warning/5'
+                                }`}
+                            >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                    <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-semibold text-foreground">
+                                                {incident.service} / {incident.operation.replace(/_/g, ' ')}
+                                            </p>
+                                            <Chip
+                                                size="sm"
+                                                color={incident.severity === 'down' ? 'danger' : 'warning'}
+                                                variant="soft"
+                                            >
+                                                {incident.severity.toUpperCase()}
+                                            </Chip>
+                                            <Chip size="sm" variant="soft">
+                                                {incident.errorKind}
+                                            </Chip>
+                                        </div>
+                                        <p className="text-sm leading-6 text-default-600">{incident.message}</p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-default-500">
+                                        <span>Seen {incident.occurrenceCount}x</span>
+                                        <span>Last {formatRelativeTime(incident.lastSeenAt)}</span>
+                                        {incident.httpStatus ? <span>HTTP {incident.httpStatus}</span> : null}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </Card>
         </div>
     );
 }

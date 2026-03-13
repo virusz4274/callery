@@ -1,22 +1,20 @@
 
 "use client";
 import { useToast } from '@/components/toast-provider';
-import React, { useCallback, useEffect, useState, useTransition } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
 import { MobileNav } from './mobile-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ClientOnly } from './client-only';
-import { EmailVerificationAlert } from './email-verification-alert';
 import { useUser, useAuth } from '@/lib/firebase/provider';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { signOut, sendEmailVerification } from 'firebase/auth';
 import { Spinner } from '@heroui/react';
-import { AnnouncementBanner } from '@/components/announcement-banner';
-import { BillingAlert } from '@/components/billing-alert';
 import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 import { PublicHeader } from '@/components/public-header';
 import { ProductSidebar } from '@/components/navigation/product-sidebar';
+import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -39,8 +37,6 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
   const isMobile = useIsMobile();
 
   // Data fetching and auth logic is now in the layout container
@@ -119,7 +115,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, [maintenanceMode, pathname, isUserLoading, isProfileLoading, userProfile, router]);
 
-  const searchQuery = searchParams.get('q') || '';
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
   const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
   const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
@@ -141,21 +136,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
       : 'pb-6'
   }`;
-
-  const handleSearchChange = useCallback((value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set('q', value);
-    } else {
-      params.delete('q');
-    }
-    const queryString = params.toString();
-    const newPath = queryString ? `${pathname}?${queryString}` : pathname;
-
-    startTransition(() => {
-      router.replace(newPath, { scroll: false });
-    });
-  }, [pathname, router, searchParams]);
 
   const handleLogout = async () => {
     try {
@@ -204,8 +184,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             <AppHeader
               user={user}
               userProfile={userProfile}
-              searchQuery={searchQuery}
-              onSearchChange={handleSearchChange}
               onLogout={handleLogout}
               showPrimaryNav={false}
               compact
@@ -213,14 +191,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           )}
           <main className={desktopProductMainClassName}>
             {showProductChrome && (
-              <>
-                <EmailVerificationAlert
-                  user={user}
-                  onResend={handleResendVerification}
-                />
-                <BillingAlert userProfile={userProfile} />
-                <AnnouncementBanner />
-              </>
+              <WorkspaceStatusRail
+                user={user}
+                userProfile={userProfile}
+                onResendVerification={handleResendVerification}
+              />
             )}
             {children}
           </main>
@@ -241,22 +216,17 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppHeader
           user={user}
           userProfile={userProfile}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
           onLogout={handleLogout}
         />
       )}
 
       <main className={mainClassName}>
         {showProductChrome && (
-          <>
-            <EmailVerificationAlert
-              user={user}
-              onResend={handleResendVerification}
-            />
-            <BillingAlert userProfile={userProfile} />
-            <AnnouncementBanner />
-          </>
+          <WorkspaceStatusRail
+            user={user}
+            userProfile={userProfile}
+            onResendVerification={handleResendVerification}
+          />
         )}
         {children}
       </main>

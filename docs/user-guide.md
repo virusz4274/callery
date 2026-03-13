@@ -2,6 +2,8 @@
 
 This guide explains the current day-to-day workflow for Call Memo users.
 
+The main purpose of the app is to turn a messy collection of call recordings into a searchable archive. Instead of leaving recordings scattered across phone storage, copied folders, or old backups, users can keep the original audio, transcript, summary, timestamps, and search context together in one place.
+
 ## Sign In And Access
 
 - Users can sign in with email/password.
@@ -21,6 +23,7 @@ What happens next:
 - File bytes go directly from the client to Cloudflare R2.
 - The app finalizes the upload, creates the recording record, and can trigger auto-transcription.
 - Files stay visible in the queue with success or failure state, so retries do not require rebuilding the whole batch.
+- The goal is to make imports safe and repeatable, especially when users are moving old recordings out of phones or copied backup folders.
 
 Limits:
 
@@ -40,9 +43,12 @@ From `/recordings`, users can:
 - Save personal views in local storage
 - Use built-in smart collections like recent uploads or items that still need transcription
 
+This is the main retrieval workflow in the product. Instead of scrolling through file names or listening to old calls one by one, users can search and narrow the archive until they reach the right recording.
+
 Opening a recording shows:
 
 - Secure playback
+- The original recording kept as the source file
 - Transcript and speaker segments when available
 - Summary output
 - Status for transcription processing
@@ -95,6 +101,8 @@ Users can:
 
 Use this when you want to reason about storage layout rather than search the main recordings table.
 
+This is especially useful when users imported large historical archives and want to understand how recordings are organized after upload.
+
 ## Settings
 
 The settings area includes these tabs:
@@ -112,6 +120,8 @@ Notable data settings:
 - Default transcription provider
 - Deletion policy: `never`, `3m`, `6m`, or `1y`
 - Export jobs with downloadable archive parts and an offline viewer
+
+Exports are designed to stay usable outside the app. Instead of producing a flat unsorted dump, the export flow organizes recordings, transcripts, and metadata, and includes a viewer so users can browse history more easily offline.
 
 ## Notifications
 
@@ -136,6 +146,14 @@ When billing is enabled, users can:
 - Review recent invoices
 
 If billing is disabled through environment config, the billing tab is hidden.
+
+## Private Hosting
+
+Some users may want to keep the application on their own server for stronger control over storage and data ownership.
+
+- Individuals can purchase a self-hosted license for private deployment.
+- Teams can use private hosting arrangements when needed.
+- The hosted app and private deployments follow the same core workflow: archive recordings, generate transcript context, and make the library searchable.
 
 ## Support
 

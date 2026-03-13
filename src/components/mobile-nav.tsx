@@ -1,22 +1,21 @@
 "use client"
 
-import React, { useState, useTransition, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
+import { Button, Modal } from "@heroui/react";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/firebase/provider";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
-import { LogIn, ArrowLeft } from 'lucide-react';
+import { Ellipsis, LogIn, ArrowLeft, Settings } from 'lucide-react';
 
 export function MobileNav() {
   const pathname = usePathname()
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user);
-  const [, startTransition] = useTransition();
   const [isCapacitor, setIsCapacitor] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // Detect if running in Capacitor (Android app)
   useEffect(() => {
@@ -31,9 +30,8 @@ export function MobileNav() {
     checkCapacitor();
   }, []);
 
-
-
   let navItems = [];
+  let secondaryItems = [];
 
   if (pathname.startsWith('/admin')) {
     // Admin View - Limit to first 4 admin items + App button
@@ -49,13 +47,17 @@ export function MobileNav() {
 
     // Add Android-specific navigation when running in Capacitor
     if (isCapacitor) {
-      navItems.push(...navigationConfig.android);
+      secondaryItems.push(...navigationConfig.android);
     }
 
     if (userProfile?.role === 'admin') {
       // Append Admin link
-      navItems.push(navigationConfig.adminLink);
+      secondaryItems.push(navigationConfig.adminLink);
     }
+
+    secondaryItems.unshift({ href: "/files", name: "Files", icon: navigationConfig.main[2].icon });
+    navItems = navItems.filter((item) => item.href !== '/files');
+    navItems.push({ href: "/settings", name: "Settings", icon: Settings });
   } else {
     // Public View
     // Usually standard mobile menu handles this, but if we want a bottom bar for public:
@@ -68,7 +70,8 @@ export function MobileNav() {
   }
 
   // Limit to 5 items max for bottom bar to avoid crowding
-  const displayItems = navItems.slice(0, 5);
+  const displayItems = user ? navItems.slice(0, 4) : navItems.slice(0, 5);
+  const isMoreActive = secondaryItems.some((item) => pathname.startsWith(item.href));
 
   return (
     <>
@@ -100,8 +103,55 @@ export function MobileNav() {
             )
           })}
 
+          {user && secondaryItems.length > 0 && (
+            <Button
+              variant="ghost"
+              onPress={() => setIsMoreOpen(true)}
+              className={cn(
+                "flex min-w-[64px] flex-col items-center gap-1.5 rounded-xl p-2 text-[10px] font-medium leading-none transition-all duration-200",
+                isMoreActive
+                  ? "text-primary bg-primary/10"
+                  : "text-default-500 hover:text-foreground hover:bg-default-100/50"
+              )}
+            >
+              <Ellipsis className="h-5 w-5" />
+              <span className="text-[10px] font-medium text-center leading-none">More</span>
+            </Button>
+          )}
         </nav>
       </div>
+
+      {user && secondaryItems.length > 0 && (
+        <Modal isOpen={isMoreOpen} onOpenChange={setIsMoreOpen}>
+          <Modal.Backdrop>
+            <Modal.Container>
+              <Modal.Dialog className="mx-0 mt-auto w-full max-w-full rounded-t-[1.75rem] rounded-b-none">
+                <Modal.Header className="border-b border-default-100 px-5 py-4">
+                  <div className="text-sm font-semibold text-foreground">More tools</div>
+                </Modal.Header>
+                <Modal.Body className="space-y-2 px-4 py-4">
+                  {secondaryItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMoreOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-[1rem] border px-4 py-3 text-sm font-medium transition-colors",
+                        pathname.startsWith(item.href)
+                          ? "border-primary/25 bg-primary/10 text-primary"
+                          : "border-default-200 text-default-700 hover:bg-default-50"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  ))}
+                </Modal.Body>
+              </Modal.Dialog>
+            </Modal.Container>
+          </Modal.Backdrop>
+        </Modal>
+      )}
     </>
   )
 }

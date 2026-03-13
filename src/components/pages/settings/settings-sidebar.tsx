@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Chip } from '@heroui/react';
+import { ContextHelp } from '@/components/context-help';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SettingsTab } from '@/hooks/use-settings-page';
@@ -22,13 +23,19 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
             <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)] xl:sticky xl:top-6">
                 <Card.Header className="flex items-start justify-between gap-3 border-b border-default-100/70 px-5 py-5">
                     <div className="space-y-1">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             Sections
+                            <ContextHelp
+                                title="Settings map"
+                                description="Pick a section from here to swap the active settings panel on the right."
+                                points={[
+                                    'The active section is highlighted.',
+                                    'Each section groups related controls together.',
+                                ]}
+                                placement="right"
+                            />
                         </div>
                         <div className="text-xl font-bold tracking-[-0.03em] text-foreground">Settings map</div>
-                        <p className="text-sm leading-6 text-default-500">
-                            Move between account, preferences, data, and billing without losing context.
-                        </p>
                     </div>
                     <Chip variant="soft" color="default" className="rounded-full">
                         {tabs.length}

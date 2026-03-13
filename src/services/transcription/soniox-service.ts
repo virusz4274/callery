@@ -5,6 +5,7 @@ import {
     TranscribeOptions,
     TranscriptionResult,
 } from './types';
+import { safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { logger } from '@/lib/logger';
 import { deleteTranscript as deleteSonioxTranscript, pollCompletedTranscript, startAsyncTranscription, startTranscription } from '@/services/transcription/soniox/api';
 import { processWordsIntoSegments } from '@/services/transcription/soniox/processing';
@@ -34,7 +35,15 @@ export class SonioxService implements ITranscriptionService {
 
     async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
         if (!this.apiKey) {
-            throw new Error('SONIOX_API_KEY is not defined');
+            const configError = new Error('SONIOX_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'Soniox API',
+                operation: 'transcribe',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
 
         const durationSeconds = options?.durationSeconds;
@@ -73,7 +82,15 @@ export class SonioxService implements ITranscriptionService {
 
     async transcribeAsync(fileUrl: string, options?: TranscribeAsyncOptions): Promise<TranscribeAsyncResult> {
         if (!this.apiKey) {
-            throw new Error('SONIOX_API_KEY is not defined');
+            const configError = new Error('SONIOX_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'Soniox API',
+                operation: 'transcribe_async',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
 
         const modelToUse = options?.model || this.model;

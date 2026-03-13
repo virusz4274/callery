@@ -3,6 +3,8 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Chip, Spinner, Surface } from '@heroui/react';
+import { ContextHelp } from '@/components/context-help';
+import { QuickStartPopover } from '@/components/quick-start-popover';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import { DeleteConfirmationModal } from '@/components/recordings-table/delete-confirmation-modal';
 import type { FileSystemNode } from '@/lib/types';
@@ -53,16 +55,24 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                            File library
-                        </Chip>
+                        <div className="flex items-center gap-2">
+                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                                File library
+                            </Chip>
+                            <ContextHelp
+                                title="File browser"
+                                description="Use this view to inspect stored files, move through folders, and open recording details."
+                                points={[
+                                    'Follow the breadcrumb to move up the tree.',
+                                    'Open a file to inspect recording details.',
+                                    'Delete deliberately from the current folder view.',
+                                ]}
+                            />
+                        </div>
                         <div className="space-y-3">
                             <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
                                 File browser
                             </h1>
-                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Inspect folders, open recording details, and clean up stored files without leaving the workspace.
-                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -75,6 +85,25 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <QuickStartPopover
+                            title="Use the file browser quickly"
+                            description="This view is best for storage cleanup and inspection."
+                            steps={[
+                                {
+                                    title: 'Open the folder you need',
+                                    description: 'Use the current table and breadcrumb trail to move through the library.',
+                                },
+                                {
+                                    title: 'Inspect a recording',
+                                    description: 'Select a file when you need detail before deleting or cross-checking it.',
+                                },
+                                {
+                                    title: 'Return to recordings',
+                                    description: 'Use the recordings workspace for search and day-to-day review.',
+                                    href: '/recordings',
+                                },
+                            ]}
+                        />
                         <Button
                             variant="secondary"
                             className="w-full rounded-full px-6 font-semibold"

@@ -8,6 +8,7 @@ type CollectionsMap = {
     EXPORT_JOBS: string;
     ADMIN_LOGS: string;
     NOTIFICATIONS: string;
+    EXTERNAL_SERVICE_INCIDENTS: string;
     SUPPORT_MESSAGES: string;
     STRIPE_WEBHOOK_EVENTS: string;
     TRANSCRIPTION_WEBHOOK_EVENTS: string;
@@ -75,6 +76,16 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
                 { key: { userId: 1, createdAt: -1 }, name: 'userId_createdAt' },
             ],
             errorMessage: '⚠️ Notifications index creation failed:',
+        },
+        {
+            label: 'External Service Incidents',
+            collection: collections.EXTERNAL_SERVICE_INCIDENTS,
+            indexes: [
+                { key: { dedupeKey: 1, status: 1 }, name: 'dedupeKey_status' },
+                { key: { status: 1, lastSeenAt: -1 }, name: 'status_lastSeenAt' },
+                { key: { provider: 1, operation: 1, status: 1 }, name: 'provider_operation_status' },
+            ],
+            errorMessage: '⚠️ External service incidents index creation failed:',
         },
         {
             label: 'Support Messages',
