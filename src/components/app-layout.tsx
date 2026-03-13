@@ -16,6 +16,7 @@ import { PublicHeader } from '@/components/public-header';
 import { ProductSidebar } from '@/components/navigation/product-sidebar';
 import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
+import { signOutNativeGoogle } from '@/lib/firebase/google-sign-in';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -142,6 +143,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     try {
       // Clear session cookie on server
       await fetch('/api/auth/logout', { method: 'POST' });
+      await signOutNativeGoogle(user);
       await signOut(auth);
       await clearPrivatePwaCaches();
       router.push('/');

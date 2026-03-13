@@ -20,6 +20,7 @@
     "@capacitor/android": "^8.0.2",
     "@capacitor/core": "^8.0.2",
     "@capacitor/filesystem": "^8.1.0",
+    "@capgo/capacitor-social-login": "^8.3.9",
     "@daniele-rolli/capacitor-scoped-storage": "^0.0.2",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@google-cloud/local-auth": "^3.0.1",
