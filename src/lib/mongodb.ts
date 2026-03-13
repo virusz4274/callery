@@ -222,6 +222,7 @@ export const Collections = {
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',
     NOTIFICATIONS: 'notifications',
+    EXTERNAL_SERVICE_INCIDENTS: 'external_service_incidents',
     SUPPORT_MESSAGES: 'support_messages',
     STRIPE_WEBHOOK_EVENTS: 'stripe_webhook_events',
     TRANSCRIPTION_WEBHOOK_EVENTS: 'transcription_webhook_events',

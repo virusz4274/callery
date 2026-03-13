@@ -23,6 +23,7 @@ interface RecordingsTableMobileProps {
     onRetryTranscription?: (recording: Recording) => void;
     isSelectionMode: boolean;
     toggleSelectionMode: () => void;
+    density?: 'comfortable' | 'dense';
 }
 
 export const RecordingsTableMobile = memo(function RecordingsTableMobile({
@@ -32,7 +33,8 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
     onDeleteRequest,
     onRetryTranscription,
     isSelectionMode,
-    toggleSelectionMode
+    toggleSelectionMode,
+    density = 'comfortable',
 }: RecordingsTableMobileProps) {
     const { isSelected, toggleSelect } = selection;
 
@@ -45,7 +47,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                     return (
                         <div
                             key={rec.id}
-                            className={`p-3 transition-colors ${selected ? 'bg-primary/5' : ''}`}
+                            className={`${density === 'dense' ? 'p-2' : 'p-3'} transition-colors ${selected ? 'bg-primary/5' : ''}`}
                         >
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -141,7 +143,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                 <div className="mb-1.5 bg-default-100/30 p-2 rounded-lg border border-default-100/50" onClick={(e) => e.stopPropagation()}>
                                     <ExpandableSummary
                                         text={rec.summary || (rec.fullTranscript && rec.fullTranscript[0]?.text) || "No transcript available..."}
-                                        compactMaxLength={100}
+                                        compactMaxLength={density === 'dense' ? 70 : 100}
                                         className="text-default-600 text-sm"
                                     />
                                 </div>

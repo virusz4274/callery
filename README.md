@@ -1,6 +1,14 @@
 # Call Memo (VoSift)
 
-Call Memo is a Next.js 16 application for storing, transcribing, searching, and sharing recorded conversations. It combines direct audio uploads, transcript review, contact linking, semantic search, billing, admin controls, push notifications, and an Android wrapper in a single product.
+Call Memo is a Next.js 16 application for turning messy call-recording folders into an organized archive. It helps individuals, business owners, and small teams store important recordings, generate transcripts and summaries, search by meaning, and find the right call again later without digging through unsorted files.
+
+The core product value is simple:
+
+- move recordings out of scattered phone or desktop storage
+- keep the original audio together with transcript, speaker labels, timestamps, and summary
+- search old calls by text, semantic meaning, contact, or date
+- export the archive in an organized format with an included viewer instead of a flat unsorted dump
+- optionally run the product on your own private server if you want full control of hosting and data
 
 ## What The App Does
 
@@ -9,6 +17,7 @@ Call Memo is a Next.js 16 application for storing, transcribing, searching, and 
 - Generate summaries, transliterations, and embeddings with Gemini.
 - Search recordings by text, semantic meaning, contact, date, and duration.
 - Organize a call library with contacts, tags, starring, archiving, and retention rules.
+- Export recordings, transcripts, and metadata in a structured archive with an offline viewer.
 - Share full recordings or clipped segments with signed public links.
 - Manage subscriptions, usage, overage, announcements, and users from an admin surface.
 
@@ -78,4 +87,5 @@ npm run cap:sync
 - The web app runs on port `9000` by default.
 - Uploads support files up to `5 GiB`.
 - Transcription is limited to files up to `2 GiB`; larger files can still be stored and played back.
+- Exports are organized and include an offline viewer for browsing recordings and transcripts outside the app.
 - Billing, Google Contacts sync, push notifications, SMTP support, and transcription providers are all environment-driven and can be enabled independently.

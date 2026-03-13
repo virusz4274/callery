@@ -14,6 +14,7 @@ type RecordingsTableRowProps = {
     onOpenDialog: (recording: Recording) => void;
     onDeleteRequest: (recordings: Recording[]) => void;
     onRetryTranscription?: (recording: Recording) => void;
+    density?: 'comfortable' | 'dense';
 };
 
 export function RecordingsTableRow({
@@ -23,6 +24,7 @@ export function RecordingsTableRow({
     onOpenDialog,
     onDeleteRequest,
     onRetryTranscription,
+    density = 'comfortable',
 }: RecordingsTableRowProps) {
     return (
         <tr
@@ -30,7 +32,7 @@ export function RecordingsTableRow({
                 selected ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-default-100/50'
             }`}
         >
-            <td className="p-4 align-top">
+            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
                 <div className="flex items-center justify-center relative h-5 w-5">
                     <div
                         className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
@@ -50,10 +52,10 @@ export function RecordingsTableRow({
                 </div>
             </td>
 
-            <td className="p-4 align-top">
-                <div className="flex items-center gap-4">
+            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
+                <div className={`flex items-center ${density === 'dense' ? 'gap-3' : 'gap-4'}`}>
                     <Avatar
-                        className={`h-10 w-10 transition-transform group-hover:scale-105 ring-2 ${
+                        className={`${density === 'dense' ? 'h-9 w-9' : 'h-10 w-10'} transition-transform group-hover:scale-105 ring-2 ${
                             selected ? 'ring-primary' : 'ring-transparent group-hover:ring-default-200'
                         }`}
                         color={selected ? 'success' : 'default'}
@@ -69,7 +71,7 @@ export function RecordingsTableRow({
                 </div>
             </td>
 
-            <td className="p-4 align-top">
+            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded-full bg-default-100 text-[10px] font-bold text-default-600 uppercase tracking-wide">
@@ -83,7 +85,7 @@ export function RecordingsTableRow({
                                 (recording.fullTranscript && recording.fullTranscript[0]?.text) ||
                                 'No transcript available...'
                             }
-                            compactMaxLength={60}
+                            compactMaxLength={density === 'dense' ? 40 : 60}
                             className="text-default-500"
                         />
                     </div>
@@ -93,7 +95,7 @@ export function RecordingsTableRow({
                 </div>
             </td>
 
-            <td className="p-4 align-top">
+            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
                 <div className="text-sm text-default-600">
                     <ClientFormattedDate date={recording.recordedAt} formatString="MMM d, yyyy" />
                 </div>
@@ -102,7 +104,7 @@ export function RecordingsTableRow({
                 </div>
             </td>
 
-            <td className="p-4 align-top text-right">
+            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top text-right`}>
                 <div className="relative flex justify-end items-center gap-2">
                     <RecordingActionsMenu
                         recording={recording}

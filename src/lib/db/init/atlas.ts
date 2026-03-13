@@ -44,6 +44,10 @@ const ATLAS_VECTOR_INDEX_CONFIG = {
             path: 'firebaseUid',
             type: 'filter',
         },
+        {
+            path: 'isArchived',
+            type: 'filter',
+        },
     ],
 };
 

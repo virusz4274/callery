@@ -1,7 +1,7 @@
 
 import { ITranscriptionService, TranscriptionResult, TranscribeOptions, TranscribeAsyncOptions, TranscribeAsyncResult } from './types';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
-import { logSystemEvent } from '@/lib/db/system-log';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { logger } from '@/lib/logger';
 
 export class ElevenLabsService implements ITranscriptionService {
@@ -21,7 +21,15 @@ export class ElevenLabsService implements ITranscriptionService {
 
     async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
         if (!this.apiKey) {
-            throw new Error('ELEVENLABS_API_KEY is not defined');
+            const configError = new Error('ELEVENLABS_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
 
         // Allow model override if passed, otherwise default
@@ -49,10 +57,14 @@ export class ElevenLabsService implements ITranscriptionService {
                 logger.error(`[ElevenLabs] API Error (${response.status}): ${errorText}`);
 
                 if (response.status === 401) {
-                    throw new Error('ElevenLabs API Auth failed');
+                    const authError = new Error('ElevenLabs API Auth failed') as Error & { status?: number };
+                    authError.status = response.status;
+                    throw authError;
                 }
 
-                throw new Error(`ElevenLabs API failed: ${response.status} ${errorText}`);
+                const apiError = new Error(`ElevenLabs API failed: ${response.status} ${errorText}`) as Error & { status?: number };
+                apiError.status = response.status;
+                throw apiError;
             }
 
             const data = await response.json();
@@ -63,6 +75,10 @@ export class ElevenLabsService implements ITranscriptionService {
             const transcriptionId = data.transcription_id || `el_${Date.now()}`; // Fallback ID if not returned in sync mode
 
             logger.info(`[ElevenLabs] Success. ${segments.length} segments. Language: ${language}`);
+            await resolveExternalServiceIncident({
+                provider: this.provider,
+                operation: 'transcribe',
+            });
 
             return {
                 text: data.text || segments.map(s => s.text).join(' '),
@@ -75,6 +91,17 @@ export class ElevenLabsService implements ITranscriptionService {
 
         } catch (error) {
             logger.error('[ElevenLabs] Transcription Error:', error);
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe',
+                error,
+                context: {
+                    model: modelToUse,
+                    fileUrl,
+                },
+                notifyAdmins: true,
+            });
             throw error;
         }
     }
@@ -85,10 +112,26 @@ export class ElevenLabsService implements ITranscriptionService {
      */
     async transcribeAsync(fileUrl: string, options?: TranscribeAsyncOptions): Promise<TranscribeAsyncResult> {
         if (!this.apiKey) {
-            throw new Error('ELEVENLABS_API_KEY is not defined');
+            const configError = new Error('ELEVENLABS_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe_async',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
         if (!process.env.ELEVENLABS_WEBHOOK_SECRET) {
-            throw new Error('ELEVENLABS_WEBHOOK_SECRET is not defined');
+            const configError = new Error('ELEVENLABS_WEBHOOK_SECRET is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe_async',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
 
         const modelToUse = options?.model || this.model;
@@ -118,12 +161,18 @@ export class ElevenLabsService implements ITranscriptionService {
             if (!response.ok) {
                 const errorText = await response.text();
                 logger.error(`[ElevenLabs] Async API Error (${response.status}): ${errorText}`);
-                throw new Error(`ElevenLabs API failed: ${response.status} ${errorText}`);
+                const apiError = new Error(`ElevenLabs API failed: ${response.status} ${errorText}`) as Error & { status?: number };
+                apiError.status = response.status;
+                throw apiError;
             }
 
             const data = await response.json();
 
             logger.info(`[ElevenLabs] Async request submitted. Request ID: ${data.request_id}`);
+            await resolveExternalServiceIncident({
+                provider: this.provider,
+                operation: 'transcribe_async',
+            });
 
             return {
                 requestId: data.request_id,
@@ -133,6 +182,17 @@ export class ElevenLabsService implements ITranscriptionService {
 
         } catch (error) {
             logger.error('[ElevenLabs] Async Transcription Error:', error);
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe_async',
+                error,
+                context: {
+                    model: modelToUse,
+                    fileUrl,
+                },
+                notifyAdmins: true,
+            });
             throw error;
         }
     }

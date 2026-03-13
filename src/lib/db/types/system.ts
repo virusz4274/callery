@@ -44,6 +44,44 @@ export interface Notification {
     createdAt: Date;
 }
 
+export type ExternalServiceIncidentErrorKind =
+    | 'quota'
+    | 'auth'
+    | 'rate_limit'
+    | 'network'
+    | 'timeout'
+    | 'upstream_5xx'
+    | 'validation'
+    | 'unknown';
+
+export type ExternalServiceIncidentSeverity = 'degraded' | 'down';
+
+export type ExternalServiceIncidentStatus = 'open' | 'resolved' | 'stale';
+
+export interface ExternalServiceIncident {
+    _id: ObjectId;
+    provider: string;
+    service: string;
+    operation: string;
+    errorKind: ExternalServiceIncidentErrorKind;
+    severity: ExternalServiceIncidentSeverity;
+    status: ExternalServiceIncidentStatus;
+    retryable: boolean;
+    httpStatus?: number;
+    dedupeKey: string;
+    message: string;
+    firstSeenAt: Date;
+    lastSeenAt: Date;
+    occurrenceCount: number;
+    cooldownUntil: Date;
+    sentryEventId?: string;
+    sampleContext?: Record<string, unknown>;
+    resolvedAt?: Date;
+    staleAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 /**
  * Audit Log document.
  */
@@ -127,6 +165,30 @@ export interface NotificationResponse {
     isRead: boolean;
     link?: string;
     createdAt: string;
+}
+
+export interface ExternalServiceIncidentResponse {
+    id: string;
+    provider: string;
+    service: string;
+    operation: string;
+    errorKind: ExternalServiceIncidentErrorKind;
+    severity: ExternalServiceIncidentSeverity;
+    status: ExternalServiceIncidentStatus;
+    retryable: boolean;
+    httpStatus?: number;
+    dedupeKey: string;
+    message: string;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    occurrenceCount: number;
+    cooldownUntil: string;
+    sentryEventId?: string;
+    sampleContext?: Record<string, unknown>;
+    resolvedAt?: string;
+    staleAt?: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface AdminLogResponse {

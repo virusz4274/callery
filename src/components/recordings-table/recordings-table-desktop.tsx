@@ -11,6 +11,7 @@ interface RecordingsTableDesktopProps {
     onOpenDialog: (recording: Recording) => void;
     onDeleteRequest: (recordings: Recording[]) => void;
     onRetryTranscription?: (recording: Recording) => void;
+    density?: 'comfortable' | 'dense';
 }
 
 export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
@@ -19,13 +20,14 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
     onOpenDialog,
     onDeleteRequest,
     onRetryTranscription,
+    density = 'comfortable',
 }: RecordingsTableDesktopProps) {
     return (
-        <div className="hidden md:block relative w-full overflow-hidden pb-10">
+        <div className="relative hidden w-full overflow-hidden pb-6 md:block">
             <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase tracking-wider text-default-500 font-semibold bg-default-50/50 border-b border-default-200/50">
                     <tr>
-                        <th className="h-14 w-14 px-4 align-top py-4">
+                        <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} w-14 px-4 align-top`}>
                             <div className="flex items-center justify-center">
                                 <Checkbox
                                     isSelected={selection.isAllSelected}
@@ -39,10 +41,10 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                 </Checkbox>
                             </div>
                         </th>
-                        <th className="h-14 px-4 align-top py-4">Contact</th>
-                        <th className="h-14 px-4 align-top py-4">Recording Details</th>
-                        <th className="h-14 px-4 align-top py-4">Date</th>
-                        <th className="h-14 px-4 align-top py-4 text-right">Actions</th>
+                        <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} px-4 align-top`}>Contact</th>
+                        <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} px-4 align-top`}>Recording Details</th>
+                        <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} px-4 align-top`}>Date</th>
+                        <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} px-4 align-top text-right`}>Actions</th>
                     </tr>
                 </thead>
 
@@ -57,6 +59,7 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                 onOpenDialog={onOpenDialog}
                                 onDeleteRequest={onDeleteRequest}
                                 onRetryTranscription={onRetryTranscription}
+                                density={density}
                             />
                         ))
                     ) : (

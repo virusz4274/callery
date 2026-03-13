@@ -1,6 +1,7 @@
 
 import { stripe } from '@/lib/stripe';
 import { getMongoDb, Collections } from '@/lib/mongodb';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { User, Plan } from '@/lib/db/types';
 
 /**
@@ -53,9 +54,26 @@ export async function reportUsage(
         });
 
         console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${value}, Base: ${quantity}, Mult: ${multiplier}) for user ${firebaseUid}`);
+        await resolveExternalServiceIncident({
+            provider: 'stripe',
+            operation: 'report_usage',
+        });
 
     } catch (error) {
         console.error(`[Usage] Failed to report usage for ${firebaseUid}:`, error);
+        await safelyReportExternalServiceIncident({
+            provider: 'stripe',
+            service: 'Stripe',
+            operation: 'report_usage',
+            error,
+            context: {
+                firebaseUid,
+                usageType: type,
+                quantity,
+                multiplier,
+            },
+            notifyAdmins: true,
+        });
         // Don't throw, just log.
     }
 }

@@ -14,6 +14,7 @@ import { UsageStorageCard } from './data-settings/UsageStorageCard';
 import { ExportDataCard } from './data-settings/ExportDataCard';
 
 interface DataSettingsProps {
+    mode: 'sources' | 'processing' | 'retention' | 'export';
     userProfile: User | null;
     settings: {
         deletionPolicy: string;
@@ -36,6 +37,7 @@ interface DataSettingsProps {
 }
 
 export function DataSettings({
+    mode,
     userProfile,
     settings,
     onSettingsChange,
@@ -60,11 +62,14 @@ export function DataSettings({
     return (
         <>
             <div className="space-y-6">
-                <SettingsPage title="Data Sources" description="Manage where your call data comes from. Connect your Google account or manually upload recordings.">
+                {mode === 'sources' && (
+                <SettingsPage title="Sources" description="Connect or review the services that supply contacts and incoming data.">
                     <GoogleConnectCard isSyncing={isSyncing} onConnect={onConnectGoogle} />
                 </SettingsPage>
+                )}
 
-                <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
+                {mode === 'processing' && (
+                <SettingsPage title="Processing" description="Choose how new recordings are transcribed and which provider runs automated jobs.">
                     <TranscriptionSettingsCard
                         autoTranscribe={settings.transcriptionSettings.autoTranscribe}
                         defaultProvider={settings.transcriptionSettings.defaultProvider}
@@ -82,8 +87,10 @@ export function DataSettings({
                         </Button>
                     </div>
                 </SettingsPage>
+                )}
 
-                <SettingsPage title="Usage & Storage" description="View your data limits and manage retention policies.">
+                {mode === 'retention' && (
+                <SettingsPage title="Retention" description="Track storage and transcription usage, then tune how aggressively old recordings are removed.">
                     <UsageStorageCard
                         userProfile={userProfile}
                         deletionPolicy={settings.deletionPolicy}
@@ -97,14 +104,17 @@ export function DataSettings({
                         </Button>
                     </div>
                 </SettingsPage>
+                )}
 
-                <SettingsPage title="Export Data" description="Download all your recordings and transcripts. Exports include a standalone offline viewer.">
+                {mode === 'export' && (
+                <SettingsPage title="Export" description="Create a portable archive of recordings, transcripts, metadata, and the offline viewer.">
                     <ExportDataCard
                         exportJob={exportJob}
                         isExportStarting={isExportStarting}
                         onStartExport={onStartExport}
                     />
                 </SettingsPage>
+                )}
             </div >
             {showConnectDialog && (
                 <GoogleConnectDialog

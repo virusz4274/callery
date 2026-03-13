@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/firebase/provider';
 import { ContactList } from './contacts/contact-list';
 import { useContactGroups } from './contacts/use-contact-groups';
+import { ContextHelp } from '@/components/context-help';
+import { QuickStartPopover } from '@/components/quick-start-popover';
 import { ArrowRight, Building2, Search, Users } from 'lucide-react';
 
 type ContactsPageProps = {
@@ -119,18 +121,26 @@ export function ContactsPage({
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid min-w-0 gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="min-w-0 space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                            Contact directory
-                        </Chip>
+                        <div className="flex items-center gap-2">
+                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                                Contact directory
+                            </Chip>
+                            <ContextHelp
+                                title="Contacts workspace"
+                                description="Use this page to find people fast and jump straight into their linked call history."
+                                points={[
+                                    'Search by name, company, role, or phone number.',
+                                    'Open a contact to review recent conversations.',
+                                    'Upload or sync more calls to grow the directory.',
+                                ]}
+                            />
+                        </div>
                         <div className="space-y-3">
-                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                                Contacts
-                            </h1>
-                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Search people, jump straight into their recordings, and keep the
-                                directory connected to the rest of the workspace instead of hidden in
-                                a separate corner.
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                                    Contacts
+                                </h1>
+                            </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -145,6 +155,25 @@ export function ContactsPage({
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <QuickStartPopover
+                            title="Get value from contacts quickly"
+                            description="These are the fastest first-time actions for making the directory useful."
+                            steps={[
+                                {
+                                    title: 'Search for a person or company',
+                                    description: 'Start with the directory search box to find existing matches fast.',
+                                },
+                                {
+                                    title: 'Open a contact workspace',
+                                    description: 'Use a contact page to review linked calls and recent activity.',
+                                },
+                                {
+                                    title: 'Add more matches',
+                                    description: 'Upload more calls or sync data so future recordings connect to real people.',
+                                    href: '/upload',
+                                },
+                            ]}
+                        />
                         <Link href="/recordings" className="w-full sm:w-auto xl:w-full">
                             <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
                                 View recordings
@@ -217,8 +246,17 @@ export function ContactsPage({
             >
                 <div className="space-y-4">
                     <div className="space-y-1">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             Search directory
+                            <ContextHelp
+                                title="Directory search"
+                                description="This search runs locally against the contacts already loaded into the directory."
+                                points={[
+                                    'Matches name, phone number, company, and role.',
+                                    'Open a result to inspect the linked calls for that person.',
+                                ]}
+                                placement="right"
+                            />
                         </div>
                         <h2 className="text-xl font-bold tracking-[-0.03em] text-foreground">
                             Find a person, phone number, company, or role.

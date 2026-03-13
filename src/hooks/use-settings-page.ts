@@ -23,7 +23,12 @@ export function useSettingsPage() {
     const auth = useAuth();
 
     const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
-    const defaultTab = searchParams.get('tab') || 'overview';
+    const requestedTab = searchParams.get('tab') || 'profile';
+    const defaultTab = requestedTab === 'overview'
+        ? 'profile'
+        : requestedTab === 'data'
+            ? 'sources'
+            : requestedTab;
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
@@ -79,7 +84,7 @@ export function useSettingsPage() {
     useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab) {
-            setActiveTab(tab);
+            setActiveTab(tab === 'overview' ? 'profile' : tab === 'data' ? 'sources' : tab);
             setView('detail');
         }
     }, [searchParams]);

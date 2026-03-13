@@ -1,4 +1,5 @@
 import type { Contact } from '@/lib/types';
+import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
 
 export type SavedRecordingsView = {
     id: string;
@@ -18,6 +19,8 @@ export type SmartCollection = {
 };
 
 export type RecordingsToolbarProps = {
+    searchMode: 'text' | 'semantic';
+    onSearchModeChange: (mode: 'text' | 'semantic') => void;
     search: string;
     onSearchChange: (val: string) => void;
     sortBy: 'date' | 'duration';
@@ -35,6 +38,8 @@ export type RecordingsToolbarProps = {
     onClearSemanticSearch: () => void;
     isSemanticSearching: boolean;
     semanticResultsCount?: number;
+    semanticSearchMode?: SemanticSearchMode;
+    semanticFallbackReason?: SemanticFallbackReason;
     savedViews: SavedRecordingsView[];
     activeViewId?: string;
     smartCollections: SmartCollection[];
@@ -43,4 +48,7 @@ export type RecordingsToolbarProps = {
     onDeleteSavedView: (viewId: string) => void;
     onSaveCurrentView: (name: string) => void;
     onApplySmartCollection: (collectionId: string) => void;
+    density: 'comfortable' | 'dense';
+    onDensityChange: (density: 'comfortable' | 'dense') => void;
+    onResetAll: () => void;
 };

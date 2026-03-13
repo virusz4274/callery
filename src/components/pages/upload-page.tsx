@@ -10,6 +10,8 @@ import { UploadDropzoneCard } from '@/components/pages/upload/upload-dropzone-ca
 import { UploadEmptyState } from '@/components/pages/upload/upload-empty-state';
 import { UploadItemsCard } from '@/components/pages/upload/upload-items-card';
 import { useUploadQueue } from '@/components/pages/upload/use-upload-queue';
+import { ContextHelp } from '@/components/context-help';
+import { QuickStartPopover } from '@/components/quick-start-popover';
 import { CheckCircle2, Clock3, HardDriveUpload, TriangleAlert } from 'lucide-react';
 
 export function UploadPage() {
@@ -56,17 +58,24 @@ export function UploadPage() {
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                            Upload intake
-                        </Chip>
+                        <div className="flex items-center gap-2">
+                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                                Upload intake
+                            </Chip>
+                            <ContextHelp
+                                title="Upload flow"
+                                description="Use uploads to stage audio, confirm the queue, and push files into the workspace."
+                                points={[
+                                    'Drop one file or a whole batch.',
+                                    'Review duplicates and failed items before retrying.',
+                                    'Uploaded files continue into recordings and transcript processing.',
+                                ]}
+                            />
+                        </div>
                         <div className="space-y-3">
                             <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
                                 Upload recordings
                             </h1>
-                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Bring new calls into the workspace, review the queue before sending,
-                                and keep the upload status visible all the way through processing.
-                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -91,6 +100,25 @@ export function UploadPage() {
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <QuickStartPopover
+                            title="Get your first files into the workspace"
+                            description="This quick path keeps the upload flow simple the first time through."
+                            steps={[
+                                {
+                                    title: 'Drop or choose audio files',
+                                    description: 'Stage recordings in the queue first so you can review the batch.',
+                                },
+                                {
+                                    title: 'Confirm duplicates and failures',
+                                    description: 'Check the queue before uploading everything together.',
+                                },
+                                {
+                                    title: 'Open recordings after upload',
+                                    description: 'Successful files move into the recordings workspace for review.',
+                                    href: '/recordings',
+                                },
+                            ]}
+                        />
                         <Link href="/recordings">
                             <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
                                 View recordings
@@ -167,23 +195,6 @@ export function UploadPage() {
                         onDropFiles={addFiles}
                         onSelectFiles={addFiles}
                     />
-
-                    <Surface variant="secondary" className="rounded-[1.75rem] border border-default-200/80 p-5">
-                        <div className="space-y-3">
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                What happens next
-                            </div>
-                            <p className="text-sm leading-6 text-default-600">
-                                Files upload directly to storage first. Once they land, they begin
-                                appearing in the recordings workspace and can move into transcript and
-                                AI processing from there.
-                            </p>
-                            <p className="text-sm leading-6 text-default-600">
-                                Failed files stay in the queue so we can retry them without rebuilding
-                                the whole batch.
-                            </p>
-                        </div>
-                    </Surface>
                 </div>
 
                 <div className="space-y-6">

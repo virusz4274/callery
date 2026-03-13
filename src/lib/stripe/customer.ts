@@ -1,6 +1,7 @@
 import type Stripe from 'stripe';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '@/lib/db/types';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { stripe } from '@/lib/stripe';
 
 type UserWithStripeCustomerSync = User & {
@@ -100,16 +101,35 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
                 );
 
                 if (assignedUser?.stripeCustomerId) {
+                    await resolveExternalServiceIncident({
+                        provider: 'stripe',
+                        operation: 'create_customer',
+                    });
                     return assignedUser.stripeCustomerId;
                 }
 
                 const refreshedUser = await users.findOne({ _id: claimedUser._id });
                 if (refreshedUser?.stripeCustomerId) {
+                    await resolveExternalServiceIncident({
+                        provider: 'stripe',
+                        operation: 'create_customer',
+                    });
                     return refreshedUser.stripeCustomerId;
                 }
 
                 throw new Error('Failed to persist Stripe customer ID');
             } catch (error) {
+                await safelyReportExternalServiceIncident({
+                    provider: 'stripe',
+                    service: 'Stripe',
+                    operation: 'create_customer',
+                    error,
+                    context: {
+                        userId: claimedUser._id.toString(),
+                        firebaseUid: claimedUser.firebaseUid,
+                    },
+                    notifyAdmins: true,
+                });
                 await users.updateOne(
                     { _id: claimedUser._id },
                     {
@@ -128,5 +148,17 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
         await sleep(CUSTOMER_CREATE_WAIT_MS);
     }
 
-    throw new Error('Timed out while creating Stripe customer');
+    const timeoutError = new Error('Timed out while creating Stripe customer');
+    await safelyReportExternalServiceIncident({
+        provider: 'stripe',
+        service: 'Stripe',
+        operation: 'create_customer',
+        error: timeoutError,
+        context: {
+            userId: user._id.toString(),
+            firebaseUid: user.firebaseUid,
+        },
+        notifyAdmins: true,
+    });
+    throw timeoutError;
 }

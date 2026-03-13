@@ -2,9 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Button, Input } from "@heroui/react";
-import { Search } from 'lucide-react';
+import { Button } from "@heroui/react";
 import { Logo } from './icons';
 import { ThemeSwitcher } from './theme-switcher';
 import { NotificationCenter } from './notifications/notification-center';
@@ -17,8 +15,6 @@ import type { User as UserProfile } from '@/lib/types';
 type AppHeaderProps = {
   user: User | null;
   userProfile: UserProfile | null;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   onLogout: () => void;
   showPrimaryNav?: boolean;
   compact?: boolean;
@@ -27,22 +23,10 @@ type AppHeaderProps = {
 export function AppHeader({
   user,
   userProfile,
-  searchQuery,
-  onSearchChange,
   onLogout,
   showPrimaryNav = true,
   compact = false,
 }: AppHeaderProps) {
-  const pathname = usePathname();
-
-  const getSearchPlaceholder = () => {
-    if (pathname === '/contacts') {
-      return 'Search contacts...';
-    }
-    return 'Search recordings...';
-  }
-
-  const isSearchablePage = ['/', '/contacts', '/recordings'].includes(pathname);
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
 
   return (
@@ -54,10 +38,6 @@ export function AppHeader({
           <MobileMenu
             user={user}
             userProfile={userProfile}
-            searchQuery={searchQuery}
-            onSearchChange={onSearchChange}
-            isSearchablePage={isSearchablePage}
-            getSearchPlaceholder={getSearchPlaceholder}
           />
         )}
 
@@ -73,23 +53,6 @@ export function AppHeader({
         {showPrimaryNav && <MainNav userProfile={userProfile} loggedIn={!!user} />}
 
         <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
-          {/* Search Bar - Desktop */}
-          {user && isSearchablePage && (
-            <div className="hidden lg:flex w-full max-w-[240px]">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-default-400 z-10" />
-                <Input
-                  className="h-9 w-full text-small font-normal text-default-500 bg-default-100 dark:bg-default-50/10 shadow-none border-none focus:ring-2 focus:ring-primary rounded-md px-9"
-                  placeholder={getSearchPlaceholder()}
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  aria-label="Search"
-                />
-              </div>
-            </div>
-          )}
-
           <ThemeSwitcher />
 
           {user && <NotificationCenter />}

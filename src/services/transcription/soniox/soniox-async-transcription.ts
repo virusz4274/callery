@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import type { TranscribeAsyncOptions, TranscribeAsyncResult } from '../types';
 import type { SonioxConfig } from './soniox-api-types';
 
@@ -13,7 +14,15 @@ export async function startAsyncTranscription(
     const webhookSecret = process.env.SONIOX_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-        throw new Error('SONIOX_WEBHOOK_SECRET is not defined');
+        const configError = new Error('SONIOX_WEBHOOK_SECRET is not defined');
+        await safelyReportExternalServiceIncident({
+            provider: 'soniox',
+            service: 'Soniox API',
+            operation: 'start_async_transcription',
+            error: configError,
+            notifyAdmins: true,
+        });
+        throw configError;
     }
 
     let webhookUrl = `${appUrl}/api/webhooks/soniox`;
@@ -34,29 +43,67 @@ export async function startAsyncTranscription(
     requestBody.webhook_auth_header_name = 'X-Soniox-Secret';
     requestBody.webhook_auth_header_value = webhookSecret;
 
-    const response = await fetch(`${config.baseUrl}/v1/transcriptions`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-    });
+    try {
+        const response = await fetch(`${config.baseUrl}/v1/transcriptions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`[Soniox] Async API Error (${response.status}): ${errorText}`);
-        throw new Error(`Soniox API failed: ${response.status} ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            logger.error(`[Soniox] Async API Error (${response.status}): ${errorText}`);
+            const apiError = new Error(`Soniox API failed: ${response.status} ${errorText}`) as Error & {
+                status?: number;
+                incidentReported?: boolean;
+            };
+            apiError.status = response.status;
+            await safelyReportExternalServiceIncident({
+                provider: 'soniox',
+                service: 'Soniox API',
+                operation: 'start_async_transcription',
+                error: apiError,
+                context: {
+                    fileUrl,
+                    model: modelToUse,
+                },
+                notifyAdmins: true,
+            });
+            apiError.incidentReported = true;
+            throw apiError;
+        }
+
+        const data = await response.json();
+        const transcriptionId = data.id;
+
+        logger.info(`[Soniox] Async request submitted. Transcription ID: ${transcriptionId}`);
+        await resolveExternalServiceIncident({
+            provider: 'soniox',
+            operation: 'start_async_transcription',
+        });
+
+        return {
+            requestId: transcriptionId,
+            transcriptionId,
+            message: 'Transcription queued for processing',
+        };
+    } catch (error) {
+        if (!(error instanceof Error && 'incidentReported' in error && error.incidentReported)) {
+            await safelyReportExternalServiceIncident({
+                provider: 'soniox',
+                service: 'Soniox API',
+                operation: 'start_async_transcription',
+                error,
+                context: {
+                    fileUrl,
+                    model: modelToUse,
+                },
+                notifyAdmins: true,
+            });
+        }
+        throw error;
     }
-
-    const data = await response.json();
-    const transcriptionId = data.id;
-
-    logger.info(`[Soniox] Async request submitted. Transcription ID: ${transcriptionId}`);
-
-    return {
-        requestId: transcriptionId,
-        transcriptionId,
-        message: 'Transcription queued for processing',
-    };
 }

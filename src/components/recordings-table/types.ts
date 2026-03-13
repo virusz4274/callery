@@ -11,6 +11,7 @@ export type RecordingsTableProps = {
     onRecordingsChange?: () => Promise<void> | void;
     onRetryTranscription?: (recording: Recording) => void;
     variant?: 'default' | 'flat';
+    density?: 'comfortable' | 'dense';
 };
 
 export type TableSelectionState = {

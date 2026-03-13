@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Chip } from '@heroui/react';
 import { navigationConfig } from '@/config/navigation';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/icons';
@@ -29,7 +28,7 @@ export function ProductSidebar({ userProfile }: ProductSidebarProps) {
           ];
 
     return (
-        <aside className="hidden w-[272px] shrink-0 border-r border-default-200/80 bg-default-50/60 px-4 py-5 md:flex md:flex-col md:gap-6">
+        <aside className="sticky top-0 hidden h-dvh w-[272px] shrink-0 overflow-y-auto border-r border-default-200/80 bg-default-50/60 px-4 py-5 md:flex md:flex-col md:gap-6">
             <Link href="/recordings" className="rounded-[1.25rem] border border-default-200/80 bg-background px-4 py-3">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-default-200/80 bg-default-50 text-primary">
@@ -84,17 +83,6 @@ export function ProductSidebar({ userProfile }: ProductSidebarProps) {
                         </Link>
                     );
                 })}
-            </div>
-
-            <div className="mt-auto rounded-[1.25rem] border border-default-200/80 bg-background p-4">
-                <div className="space-y-2">
-                    <Chip variant="soft" size="sm" color="accent">
-                        Shell refresh
-                    </Chip>
-                    <p className="text-sm leading-6 text-default-600">
-                        Left rail keeps key routes persistent while the top bar stays utility-focused.
-                    </p>
-                </div>
             </div>
         </aside>
     );

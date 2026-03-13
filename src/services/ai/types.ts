@@ -1,12 +1,17 @@
 import { TranscriptionSegment } from '@/lib/db/types';
 
+export interface AIRequestOptions {
+    throwOnError?: boolean;
+    reportIncident?: boolean;
+}
+
 export interface IAIService {
     /**
      * Generates a concise summary of the transcript.
      * @param transcript The full text transcript
      * @param languageCode The ISO language code of the transcript
      */
-    generateSummary(transcript: string, languageCode: string): Promise<string>;
+    generateSummary(transcript: string, languageCode: string, options?: AIRequestOptions): Promise<string>;
 
     /**
      * Transliterates transcription segments into English characters (e.g. Manglish).
@@ -15,12 +20,13 @@ export interface IAIService {
      */
     generateTransliteration(
         segments: TranscriptionSegment[],
-        languageCode: string
+        languageCode: string,
+        options?: AIRequestOptions
     ): Promise<TranscriptionSegment[]>;
 
     /**
      * Generates a vector embedding for the given text.
      * @param text The text to embed
      */
-    generateEmbedding(text: string): Promise<number[]>;
+    generateEmbedding(text: string, options?: AIRequestOptions): Promise<number[]>;
 }

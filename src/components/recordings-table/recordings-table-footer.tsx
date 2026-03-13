@@ -25,13 +25,8 @@ export function RecordingsTableFooter({
                 variant === 'flat' ? 'px-0 border-none' : 'border-t border-default-100/50'
             }`}
         >
-            <div className="space-y-1">
-                <span className="block text-xs text-default-400 uppercase tracking-widest font-semibold">
-                    Page {page} of {totalPages}
-                </span>
-                <span className="block text-xs text-default-400">
-                    Keep browsing the archive without leaving the workspace.
-                </span>
+            <div className="text-xs font-semibold uppercase tracking-widest text-default-400">
+                Page {page} of {totalPages}
             </div>
             <div className="flex gap-2">
                 <Button

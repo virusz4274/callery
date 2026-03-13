@@ -1,6 +1,6 @@
 'use server';
 
-import { searchRecordingsByVector } from '@/lib/db/search';
+import { searchRecordingsByVector, type SemanticFallbackReason, type SemanticSearchMode } from '@/lib/db/search';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { RecordingResponse } from '@/lib/db/types';
 
@@ -8,6 +8,8 @@ export interface SearchResponse {
     success: boolean;
     results: RecordingResponse[];
     totalCount?: number;
+    mode?: SemanticSearchMode;
+    fallbackReason?: SemanticFallbackReason;
     error?: string;
 }
 
@@ -18,7 +20,7 @@ export async function searchRecordingsAction(query: string, page: number = 1, pa
             return { success: false, results: [], error: 'Unauthorized' };
         }
 
-        const { results: searchResults, totalCount } = await searchRecordingsByVector(query, uid, page, pageSize);
+        const { results: searchResults, totalCount, mode, fallbackReason } = await searchRecordingsByVector(query, uid, page, pageSize);
 
         // Convert to response type (serialize dates/IDs)
         const formattedResults: RecordingResponse[] = searchResults.map(rec => ({
@@ -46,10 +48,9 @@ export async function searchRecordingsAction(query: string, page: number = 1, pa
             // For now keeping it compatible with RecordingResponse
         }));
 
-        return { success: true, results: formattedResults, totalCount };
+        return { success: true, results: formattedResults, totalCount, mode, fallbackReason };
     } catch (error) {
         console.error('Search action error:', error);
         return { success: false, results: [], error: 'Search failed' };
     }
 }
-

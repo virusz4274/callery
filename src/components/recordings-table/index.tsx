@@ -21,6 +21,7 @@ export function RecordingsTable({
     onRecordingsChange,
     onRetryTranscription,
     variant = 'default',
+    density = 'comfortable',
 }: RecordingsTableProps) {
     const {
         activeRecording,
@@ -60,6 +61,7 @@ export function RecordingsTable({
                         onToggleSelectionMode={toggleSelectionMode}
                         onDeleteSelection={handleDeleteSelection}
                         variant={variant}
+                        density={density}
                     />
 
                     <Card.Content className={`p-0 ${variant === 'flat' ? 'mt-2' : ''}`}>
@@ -69,6 +71,7 @@ export function RecordingsTable({
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
+                            density={density}
                         />
                         <RecordingsTableMobile
                             recordings={recordings}
@@ -79,6 +82,7 @@ export function RecordingsTable({
                             onRetryTranscription={onRetryTranscription}
                             isSelectionMode={isSelectionMode}
                             toggleSelectionMode={toggleSelectionMode}
+                            density={density}
                         />
                     </Card.Content>
 

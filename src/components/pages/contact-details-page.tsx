@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Avatar, Button, Chip, Skeleton, Surface } from '@heroui/react';
+import { ContextHelp } from '@/components/context-help';
+import { QuickStartPopover } from '@/components/quick-start-popover';
 import { useUser } from '@/lib/firebase/provider';
 import { useContacts } from '@/hooks/use-contacts';
 import { useRecordings } from '@/hooks/use-recordings';
@@ -93,10 +95,22 @@ export function ContactDetailsPage() {
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="space-y-4">
-                        <Link href="/contacts" className="inline-flex items-center gap-2 text-sm font-medium text-default-500 hover:text-foreground">
-                            <ArrowLeft className="h-4 w-4" />
-                            Back to contacts
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Link href="/contacts" className="inline-flex items-center gap-2 text-sm font-medium text-default-500 hover:text-foreground">
+                                <ArrowLeft className="h-4 w-4" />
+                                Back to contacts
+                            </Link>
+                            <ContextHelp
+                                title="Contact detail view"
+                                description="Use this page to review a person’s recent calls, identity details, and recurring tags."
+                                points={[
+                                    'Jump to the filtered recordings workspace when you need the full library.',
+                                    'Use the timeline to scan recent conversations quickly.',
+                                    'Tags help spot themes that repeat across calls.',
+                                ]}
+                                placement="right"
+                            />
+                        </div>
                         <div className="flex items-center gap-4">
                             <Avatar className="h-16 w-16 ring-2 ring-default-200/70">
                                 <Avatar.Fallback className="text-xl font-semibold bg-primary/15 text-primary">
@@ -125,6 +139,26 @@ export function ContactDetailsPage() {
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <QuickStartPopover
+                            title="Get value from a contact page"
+                            description="This view is best when you want one person’s history without extra filtering."
+                            steps={[
+                                {
+                                    title: 'Scan the latest activity',
+                                    description: 'Use the header chips and timeline to see how recently this contact appeared.',
+                                },
+                                {
+                                    title: 'Open the filtered recordings view',
+                                    description: 'Jump into the recordings workspace when you need deeper search or pagination.',
+                                    href: `/recordings?contact=${contact.id}`,
+                                },
+                                {
+                                    title: 'Add more related calls',
+                                    description: 'Upload new recordings to keep this contact history current.',
+                                    href: '/upload',
+                                },
+                            ]}
+                        />
                         <Link href={`/recordings?contact=${contact.id}`}>
                             <Button className="w-full rounded-full px-6 font-semibold">
                                 Open recordings view
@@ -227,7 +261,7 @@ export function ContactDetailsPage() {
                                 <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                     Recent calls
                                 </div>
-                                <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">Workspace snippets</h2>
+                                <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">Recent call summaries</h2>
                             </div>
                             <div className="space-y-3">
                                 {recentRecordings.map((recording) => (

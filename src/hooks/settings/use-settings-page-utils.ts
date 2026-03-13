@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BellRing, CreditCard, Database, LayoutDashboard, Settings2, UserRound } from 'lucide-react';
+import { BellRing, CloudDownload, ContactRound, CreditCard, Database, Settings2, Sparkles, UserRound } from 'lucide-react';
 import { z } from 'zod';
 
 export const passwordFormSchema = z
@@ -28,12 +28,6 @@ export function buildSettingsPath(params: URLSearchParams): string {
 export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
     return [
         {
-            id: 'overview',
-            label: 'Overview',
-            description: 'Check account health, recording activity, and quick next steps.',
-            icon: LayoutDashboard,
-        },
-        {
             id: 'profile',
             label: 'Profile',
             description: 'Manage identity details, login credentials, and personal account info.',
@@ -46,10 +40,28 @@ export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
             icon: Settings2,
         },
         {
-            id: 'data',
-            label: 'Data',
-            description: 'Control exports, syncs, storage, and transcription-related settings.',
+            id: 'sources',
+            label: 'Sources',
+            description: 'Manage Google Contacts sync and other incoming data connections.',
+            icon: ContactRound,
+        },
+        {
+            id: 'processing',
+            label: 'Processing',
+            description: 'Control transcription defaults and automated AI behavior.',
+            icon: Sparkles,
+        },
+        {
+            id: 'retention',
+            label: 'Retention',
+            description: 'Review usage, storage, and automatic deletion policy.',
             icon: Database,
+        },
+        {
+            id: 'export',
+            label: 'Export',
+            description: 'Build offline archives and download data packages.',
+            icon: CloudDownload,
         },
         {
             id: 'notifications',

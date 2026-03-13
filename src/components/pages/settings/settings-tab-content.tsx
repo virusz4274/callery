@@ -2,11 +2,11 @@ import React from 'react';
 import { Chip } from '@heroui/react';
 import { cn } from '@/lib/utils';
 import { ClientOnly } from '@/components/client-only';
+import { ContextHelp } from '@/components/context-help';
 import { BillingSettings } from '@/components/settings/billing-settings';
 import { DataSettings } from '@/components/settings/data-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
 import { NotificationsSettings } from '@/components/settings/notifications-settings';
-import { OverviewSettings } from '@/components/settings/overview-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
 import type { useSettingsPage } from '@/hooks/use-settings-page';
 
@@ -22,11 +22,11 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
     const ActiveTabIcon = activeTabConfig?.icon;
 
     const panelLabel =
-        state.activeTab === 'overview'
-            ? 'Snapshot'
-            : state.activeTab === 'billing'
-              ? 'Plan and invoices'
-              : 'Editable preferences';
+        state.activeTab === 'billing'
+            ? 'Plan and invoices'
+            : state.activeTab === 'export'
+                ? 'Portable archive'
+                : 'Editable preferences';
 
     return (
         <div
@@ -46,15 +46,23 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                             )}
 
                             <div className="space-y-1">
-                                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                     Active section
+                                    {activeTabConfig?.description && (
+                                        <ContextHelp
+                                            title={activeTabConfig.label}
+                                            description={activeTabConfig.description}
+                                            points={[
+                                                'Changes in this section stay scoped to the current task.',
+                                                'Use the left rail to switch panels without losing context.',
+                                            ]}
+                                            placement="right"
+                                        />
+                                    )}
                                 </div>
                                 <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
                                     {activeTabConfig?.label}
                                 </h2>
-                                <p className="max-w-2xl text-sm leading-6 text-default-500 md:text-base">
-                                    {activeTabConfig?.description}
-                                </p>
                             </div>
                         </div>
 
@@ -66,8 +74,6 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
 
                 <div className="px-5 py-5 md:px-6 md:py-6">
                     <ClientOnly>
-                        {state.activeTab === 'overview' && <OverviewSettings />}
-
                         {state.activeTab === 'profile' && (
                             <ProfileSettings
                                 user={state.user!}
@@ -89,8 +95,9 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                             />
                         )}
 
-                        {state.activeTab === 'data' && (
+                        {['sources', 'processing', 'retention', 'export'].includes(state.activeTab) && (
                             <DataSettings
+                                mode={state.activeTab as 'sources' | 'processing' | 'retention' | 'export'}
                                 userProfile={state.userProfile}
                                 settings={state.dataState}
                                 onSettingsChange={state.updateDataState}
