@@ -4,7 +4,7 @@ import React, { Suspense } from 'react';
 import { useUser } from '@/lib/firebase/provider';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useRouter, usePathname } from 'next/navigation';
-import { Spinner, Card } from '@/components/ui-primitives';
+import { Card } from '@/components/ui-primitives';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { Button, Chip } from '@heroui/react';
+import { AdminLoadingState } from '@/components/loading-shells';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -38,12 +39,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col h-[calc(100vh-8rem)] items-center justify-center gap-4">
-        <Spinner size="lg" color="current" className="text-primary" />
-        <p className="text-default-500 font-medium">Loading Admin Section...</p>
-      </div>
-    );
+    return <AdminLoadingState />;
   }
 
   // If user is logged in and is an admin, show the content with Layout.

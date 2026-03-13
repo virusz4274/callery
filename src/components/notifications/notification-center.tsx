@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Chip, Popover } from '@heroui/react';
+import { Badge, Button, Chip, Popover } from '@heroui/react';
 import { Bell, CheckCheck, Plus, Trash2 } from 'lucide-react';
 import {
     clearAllNotifications,
@@ -112,14 +112,16 @@ export function NotificationCenter() {
     return (
         <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
             <Popover.Trigger>
-                <Button variant="ghost" isIconOnly className="relative rounded-full" aria-label="Notifications">
-                    <Bell className="size-5 text-default-500" />
-                    {unreadCount > 0 && (
-                        <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground ring-2 ring-background">
-                            {Math.min(unreadCount, 9)}
-                        </span>
-                    )}
-                </Button>
+                <Badge.Anchor>
+                    <Button variant="ghost" isIconOnly className="rounded-full" aria-label="Notifications">
+                        <Bell className="size-5 text-default-500" />
+                    </Button>
+                    {unreadCount > 0 ? (
+                        <Badge color="danger" size="sm" className="border-2 border-background">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </Badge>
+                    ) : null}
+                </Badge.Anchor>
             </Popover.Trigger>
             <Popover.Content className="w-[380px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[1.6rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom end">
                 <Popover.Dialog className="flex max-h-[560px] flex-col">

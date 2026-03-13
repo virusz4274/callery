@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { getUsers, getCurrentAdmin } from '@/app/actions/admin';
 import { getPlans } from '@/app/actions/admin-plans';
 import { UserManagementTable } from '@/components/admin/user-management-table';
-import { Spinner } from '@/components/ui-primitives';
 import { redirect } from 'next/navigation';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
+import { AdminLoadingState } from '@/components/loading-shells';
 
 export default async function UsersPage({
     searchParams,
@@ -52,7 +52,7 @@ export default async function UsersPage({
                 },
             ]}
         >
-            <Suspense fallback={<div className="flex justify-center p-8"><Spinner size="lg" /></div>}>
+            <Suspense fallback={<AdminLoadingState />}>
                 <UserManagementTable
                     initialUsers={data.users}
                     totalUsers={data.total}
