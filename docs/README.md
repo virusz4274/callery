@@ -4,22 +4,24 @@ This folder contains the maintained project documentation for Call Memo.
 
 ## Start Here
 
-- [Setup Guide](setup-guide.md): Full handoff setup guide (Google Cloud, Firebase, R2, Stripe, webhooks, cron).
-- [User Guide](user-guide.md): Product usage for end users.
-- [Admin Guide](admin-guide.md): Admin dashboard and operations.
+- [Setup Guide](setup-guide.md): Local setup, required services, environment variables, webhooks, and production cron configuration.
+- [User Guide](user-guide.md): How end users work with recordings, contacts, files, sharing, settings, and support.
+- [Admin Guide](admin-guide.md): Admin routes, health checks, plans, announcements, audit logs, and maintenance tasks.
+- [Full Application Test Plan](full-application-test-plan.md): Manual QA handoff for staging/prod-like validation across the whole product.
 
 ## Developer Reference
 
-- [Architecture](architecture.md): System design and repository layout.
-- [Data Model](data-model.md): MongoDB collections and relationships.
-- [API Reference](api-reference.md): Server Actions and API routes.
-- [Billing](billing.md): Stripe setup, plan logic, and billing validation checks.
-- [Android App](android-app.md): Capacitor Android sync workflow.
+- [Architecture](architecture.md): System design, request flow, repository layout, and integration boundaries.
+- [API Reference](api-reference.md): Main Server Actions, API routes, and webhook behavior.
+- [Data Model](data-model.md): MongoDB collections, core document fields, and lifecycle notes.
+- [Billing](billing.md): Seeded plans, Stripe setup, usage reporting, and validation checks.
+- [Android App](android-app.md): Capacitor wrapper workflow and Android-specific development notes.
 
-## Notes
+## Current Product Shape
 
-- Historical migration notes and one-off reports were removed.
-- Setup steps were consolidated into `setup-guide.md` and `billing.md` for simpler handoff.
-- Uploads use direct client-to-R2 flow with presigned PUT URLs.
-- Upload limit is 5 GiB per recording and transcription limit is 2 GiB per recording.
-- Cloudflare CORS setup for direct uploads is documented in `setup-guide.md` section `4. Cloudflare R2 Setup`.
+- Next.js 16 App Router app with React 19 and Tailwind v4.
+- Direct client-to-R2 uploads with presigned PUT URLs.
+- Firebase authentication with email/password and Google sign-in.
+- Optional Google Contacts sync through Google People API.
+- Optional billing, web push, SMTP support, Soniox, ElevenLabs, and Gemini integrations.
+- Capacitor Android wrapper that loads the hosted web app.

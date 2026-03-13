@@ -7,6 +7,13 @@ import { reportUsage } from '@/lib/stripe/usage';
 
 type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
 
+function getBaseSubscriptionItem(subscription: Stripe.Subscription): Stripe.SubscriptionItem | undefined {
+    return (
+        subscription.items.data.find((item) => item.price.recurring?.usage_type !== 'metered') ??
+        subscription.items.data[0]
+    );
+}
+
 function getCustomerIdFromSubscription(subscription: Stripe.Subscription): string | null {
     if (typeof subscription.customer === 'string') {
         return subscription.customer;
@@ -24,20 +31,42 @@ function getCustomerIdFromCheckoutSession(session: Stripe.Checkout.Session): str
 }
 
 function mapSubscriptionStatus(subscription: Stripe.Subscription): SubscriptionStatus {
-    if (subscription.status === 'active' && subscription.cancel_at_period_end) {
-        return 'canceled';
-    }
-
     return subscription.status as SubscriptionStatus;
 }
 
 function getBasePlanPriceId(subscription: Stripe.Subscription): string | null {
-    const baseItem =
-        subscription.items.data.find(
-            (item) => item.price.recurring?.usage_type !== 'metered'
-        ) ?? subscription.items.data[0];
+    const baseItem = getBaseSubscriptionItem(subscription);
 
     return baseItem?.price?.id ?? null;
+}
+
+function getSubscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
+    const baseItem = getBaseSubscriptionItem(subscription);
+    if (typeof baseItem?.current_period_end === 'number') {
+        return baseItem.current_period_end;
+    }
+
+    const itemPeriodEnds = subscription.items.data
+        .map((item) => item.current_period_end)
+        .filter((periodEnd): periodEnd is number => typeof periodEnd === 'number');
+
+    if (itemPeriodEnds.length > 0) {
+        return Math.min(...itemPeriodEnds);
+    }
+
+    if (typeof subscription.ended_at === 'number') {
+        return subscription.ended_at;
+    }
+
+    if (typeof subscription.cancel_at === 'number') {
+        return subscription.cancel_at;
+    }
+
+    if (typeof subscription.canceled_at === 'number') {
+        return subscription.canceled_at;
+    }
+
+    return null;
 }
 
 async function resolveCheckoutPriceId(session: Stripe.Checkout.Session): Promise<string | null> {
@@ -134,7 +163,7 @@ export async function syncSubscription(subscriptionId: string) {
     // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
     // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
-    const currentPeriodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+    const currentPeriodEnd = getSubscriptionCurrentPeriodEnd(subscription);
 
     const updateData: Record<string, unknown> = {
         stripeSubscriptionId: subscription.id,
@@ -188,7 +217,9 @@ export async function syncSubscription(subscriptionId: string) {
 
     // If a new billing period started, report the current stored bytes so Stripe has a baseline for this period.
     if (periodChanged) {
-        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0);
+        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0, {
+            identifier: `storage:${user.firebaseUid}:period-start:${newPeriodEnd?.toISOString() ?? 'unknown'}:${user.storageUsed || 0}`,
+        });
     }
 }
 
@@ -272,7 +303,9 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
 
     // Seed current storage as baseline meter value for usage-only plans.
     if (plan.name === 'Lifetime') {
-        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0);
+        await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0, {
+            identifier: `storage:${user.firebaseUid}:checkout:${session.id}:${user.storageUsed || 0}`,
+        });
     }
 
     console.log(`[Sync] Applied one-time checkout session ${session.id} to user ${user.firebaseUid} (${plan.name})`);

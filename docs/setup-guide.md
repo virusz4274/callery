@@ -1,16 +1,14 @@
 # Setup Guide
 
-This is the complete setup guide for handing this project to a new developer or operator.
+This guide is for getting Call Memo running locally or handing it to a new operator without reverse-engineering the current codebase.
 
 ## What This Covers
 
-- Local app setup
-- Firebase + Google Cloud + People API setup
-- Cloudflare R2 setup
-- Direct browser uploads to R2 (presigned URL flow)
-- AI/transcription setup (Gemini, Soniox, ElevenLabs)
-- Stripe basics needed by the app
-- Webhooks, cron jobs, and verification checklist
+- Local development setup
+- Required and optional environment variables
+- Firebase, Google Contacts OAuth, Cloudflare R2, Gemini, Soniox, ElevenLabs, Stripe, push, and SMTP setup
+- Webhook and cron configuration
+- Verification steps for a healthy install
 
 ## 1. Prerequisites
 
@@ -18,19 +16,20 @@ Install locally:
 
 - Node.js 20+
 - npm
-- MongoDB 6+ (or MongoDB Atlas)
+- MongoDB 6+ or MongoDB Atlas
 - Git
 
-Accounts you may need (depending on enabled features):
+Accounts and services used by the app:
 
-- Firebase / Google Cloud
-- Cloudflare (R2)
-- Stripe
-- Soniox
-- ElevenLabs
-- SMTP provider
+- Firebase and Google Cloud for authentication and Google Contacts sync
+- Cloudflare R2 for audio storage and exports
+- Gemini for summaries, transliteration, and embeddings
+- Soniox and/or ElevenLabs for transcription
+- Stripe for subscriptions and metered usage
+- Web Push VAPID keys for in-app/browser notifications
+- SMTP provider for support email delivery
 
-## 2. Install Project
+## 2. Install The Project
 
 ```bash
 git clone <repo-url>
@@ -38,81 +37,161 @@ cd call-memo
 npm install
 ```
 
-## 3. Firebase + Google Cloud Setup (Step-by-Step)
+## 3. Required App Configuration
 
-These steps are required for authentication and Google Contacts sync.
+There is no committed `.env.example`, so create `.env` manually in the repo root.
 
-### 3.1 Create Firebase project
+### Minimum variables for the app to boot
 
-1. Go to [Firebase Console](https://console.firebase.google.com/).
-2. Click `Add project`.
-3. Create project (example name: `call-memo-app`).
+```env
+NEXT_PUBLIC_APP_URL=http://localhost:9000
+MONGODB_URI=mongodb://localhost:27017/call-memo
 
-### 3.2 Enable Google sign-in
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 
-1. Firebase Console -> `Build` -> `Authentication`.
-2. Click `Get started`.
-3. Open `Sign-in method`.
-4. Enable `Google` provider.
-5. Save.
+# Choose one Firebase Admin approach:
+# 1) service-account.json in repo root
+# 2) full JSON string below
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 
-### 3.3 Enable Google People API
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=...
+
+UPLOAD_SESSION_SECRET=...
+SHARE_LINK_SECRET=...
+```
+
+Notes:
+
+- `UPLOAD_SESSION_SECRET` secures upload finalization tokens.
+- `SHARE_LINK_SECRET` secures public share links.
+- `NEXTAUTH_SECRET` is only a legacy fallback in parts of the codebase and should not be your primary setting.
+
+### Strongly recommended optional variables
+
+```env
+# AI
+GOOGLE_GENERATIVE_AI_API_KEY=...
+GEMINI_API_KEY=... # legacy fallback, optional
+GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
+GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
+
+# Webhooks / cron / retention
+CRON_SECRET=...
+EXPORT_JOB_STALE_MINUTES=90
+EXPORT_INLINE_PROCESSING=false
+SOFT_DELETE_RESTORE_DAYS=30
+
+# UI toggles
+NEXT_PUBLIC_ENABLE_BILLING=true
+NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+```
+
+### Optional integration variables
+
+```env
+# Google Contacts OAuth
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_ID=... # optional alternative source
+GOOGLE_CLIENT_SECRET=...
+NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
+
+# Soniox
+SONIOX_API_KEY=...
+SONIOX_API_BASE_URL=https://api.soniox.com
+SONIOX_MODEL_ID=stt-async-v3
+SONIOX_WEBHOOK_SECRET=...
+
+# ElevenLabs
+ELEVENLABS_API_KEY=...
+ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
+ELEVENLABS_MODEL_ID=scribe_v2
+ELEVENLABS_WEBHOOK_SECRET=...
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Web Push
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_CONTACT_EMAIL=admin@example.com
+
+# Email / support
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM="Call Memo <no-reply@example.com>"
+SUPPORT_EMAIL=support@example.com
+
+# Atlas DNS fallback, only if needed
+MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
+```
+
+## 4. Firebase Setup
+
+Firebase is used for client auth, session verification, and user identity.
+
+### 4.1 Create the Firebase project
+
+1. Open [Firebase Console](https://console.firebase.google.com/).
+2. Create a project.
+3. Add a web app and copy the web config values into `.env`.
+
+### 4.2 Enable sign-in methods
+
+In Firebase Console:
+
+1. Go to `Authentication`.
+2. Enable `Email/Password`.
+3. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
+
+### 4.3 Create a Firebase Admin service account
+
+1. Open `Project settings` -> `Service accounts`.
+2. Generate a private key.
+3. Either:
+   - store it as `service-account.json` in the repo root for local development, or
+   - paste the JSON into `FIREBASE_SERVICE_ACCOUNT`.
+
+Do not commit real secrets.
+
+## 5. Google Contacts OAuth Setup
+
+Google Contacts sync is separate from Firebase sign-in. It uses Google People API and the callback route `/api/auth/google/callback`.
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) for the same project.
-2. Go to `APIs & Services` -> `Library`.
-3. Search `Google People API`.
-4. Click `Enable`.
-
-### 3.4 Configure OAuth consent screen
-
-1. `APIs & Services` -> `OAuth consent screen`.
-2. Choose `External` (unless using Workspace internal-only).
-3. Fill app name and support email.
-4. Add scope:
+2. Enable `Google People API`.
+3. Configure the OAuth consent screen.
+4. Add the scope:
    - `https://www.googleapis.com/auth/contacts.readonly`
-5. Add test users while app is in testing mode.
-
-### 3.5 Create OAuth client credentials
-
-1. `APIs & Services` -> `Credentials` -> `Create Credentials` -> `OAuth client ID`.
-2. App type: `Web application`.
-3. Add redirect URIs:
+5. Create an OAuth client ID for a web application.
+6. Add redirect URIs:
    - Local: `http://localhost:9000/api/auth/google/callback`
-   - Prod: `https://<your-domain>/api/auth/google/callback`
-4. Save and copy `Client ID` and `Client Secret`.
+   - Production: `https://<your-domain>/api/auth/google/callback`
+7. Copy the client ID and secret into `.env`.
 
-### 3.6 Create Firebase web app and copy client config
+## 6. Cloudflare R2 Setup
 
-1. Firebase Console -> `Project settings` -> `General`.
-2. Under `Your apps`, add `Web app`.
-3. Copy firebase config values for `.env`.
+R2 stores uploaded recordings and generated export archives.
 
-### 3.7 Generate service account key
-
-1. Firebase Console -> `Project settings` -> `Service accounts`.
-2. Click `Generate new private key`.
-3. Use one of:
-   - Save as `service-account.json` in repo root
-   - Put full JSON into `FIREBASE_SERVICE_ACCOUNT` env var
-
-## 4. Cloudflare R2 Setup
-
-1. In Cloudflare dashboard, create/select an R2 bucket.
-2. Create R2 API credentials with read/write access.
-3. Copy endpoint, access key, secret key, bucket name.
-4. Recommended lifecycle rule:
+1. Create an R2 bucket.
+2. Create API credentials with read/write access.
+3. Copy endpoint, access key, secret key, and bucket name into `.env`.
+4. Add a lifecycle rule for export archives if you want automatic cleanup:
    - Prefix: `exports/`
-   - Action: Delete object
-   - Age: 7 days
-5. Configure bucket CORS for browser direct uploads:
-   - Dashboard path: `R2` -> `Bucket` -> `Settings` -> `CORS policy`.
-   - Allowed origin: your app URL(s), for example `http://localhost:9000` and production domain.
-   - Allowed methods: `PUT`, `GET`, `HEAD`.
-   - Allowed headers: `Content-Type`.
-   - Expose headers: `ETag`.
-   - Max age: `86400`.
+   - Action: delete objects after 7 days
 
-Example CORS policy:
+### Required R2 CORS policy
+
+The upload flow sends file bytes directly from the client to R2. Add a CORS policy like this:
 
 ```json
 [
@@ -137,189 +216,118 @@ Example CORS policy:
 ]
 ```
 
-6. Understand the upload flow used by the app:
-   - `initializeDirectUpload` (server action): validates auth + storage limits, signs a short-lived R2 PUT URL, returns upload token.
-   - Browser/mobile client uploads bytes directly to R2 with PUT.
-   - `completeDirectUpload` (server action): verifies uploaded object in R2, creates DB record, updates storage billing, and triggers auto-transcription.
+### Upload limits enforced by the app
 
-## 5. AI and Transcription Providers
+- Upload limit: `5 GiB` per file
+- Transcription limit: `2 GiB` per file
 
-Configure the providers you use:
+Files larger than `2 GiB` still upload and remain playable, but transcription is skipped or blocked.
 
-- Gemini (`GOOGLE_GENERATIVE_AI_API_KEY`)
-- Soniox (`SONIOX_API_KEY`, optional model/base URL override)
-- ElevenLabs (`ELEVENLABS_API_KEY`, optional model/base URL override)
+## 7. AI And Transcription Providers
 
-Webhook security for async transcription now requires both:
+### Gemini
 
-- `SONIOX_WEBHOOK_SECRET` (required)
-- `ELEVENLABS_WEBHOOK_SECRET` (required)
+Gemini is used for:
 
-Transcription file-size limit:
+- English call summaries
+- Transliteration output
+- Embeddings for semantic search
 
-- Upload limit: 5 GiB per recording.
-- Transcription processing limit: 2 GiB per recording.
-- Files larger than 2 GiB can be stored but transcription is blocked/skipped with a user-facing message.
+Preferred env var:
 
-## 6. Stripe Setup (Minimum)
+- `GOOGLE_GENERATIVE_AI_API_KEY`
 
-Stripe detailed instructions live in [billing.md](billing.md). At minimum:
+Legacy fallback still supported:
 
-1. Create base prices for plans.
-2. Create meters:
-   - `storage_usage_bytes`
-   - `transcription_usage_seconds`
-3. Create metered prices for storage and transcription.
-4. Set plan Stripe IDs in `/admin/plans`.
-5. Configure webhook endpoint `/api/stripe/webhook`.
-6. Enable all app-required Stripe webhook events (see Section 9).
+- `GEMINI_API_KEY`
 
-## 7. Create `.env`
+### Soniox and ElevenLabs
 
-Create `.env` in repo root:
+The app can use either provider as the default transcription engine. Users can pick a default provider in Settings -> Data.
+
+Set whichever providers you plan to use:
+
+- `SONIOX_*`
+- `ELEVENLABS_*`
+
+Each async provider also requires a webhook secret for callback verification.
+
+## 8. Stripe Setup
+
+Billing is optional. If you are not setting up Stripe yet, use:
 
 ```env
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:9000
-
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/call-memo
-
-# Firebase (client)
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-
-# Firebase (admin): choose one approach
-# 1) service-account.json file in repo root
-# 2) full JSON string below
-FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
-
-# Google Contacts OAuth
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_ID=...            # optional alt source
-GOOGLE_CLIENT_SECRET=...
-NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
-
-# R2
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=...
-UPLOAD_SESSION_SECRET=...
-
-# Sharing
-SHARE_LINK_SECRET=...
-
-# AI
-GOOGLE_GENERATIVE_AI_API_KEY=...
-GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
-GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
-
-# Soniox
-SONIOX_API_KEY=...
-SONIOX_API_BASE_URL=https://api.soniox.com
-SONIOX_MODEL_ID=stt-async-v3
-SONIOX_WEBHOOK_SECRET=...
-
-# ElevenLabs
-ELEVENLABS_API_KEY=...
-ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
-ELEVENLABS_MODEL_ID=scribe_v2
-ELEVENLABS_WEBHOOK_SECRET=...
-
-# Transcription constraints
-# Recordings can upload up to 5 GiB.
-# Transcription services process up to 2 GiB per recording.
-
-# Billing
-NEXT_PUBLIC_ENABLE_BILLING=true
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# Cron/export worker
-CRON_SECRET=...
-EXPORT_JOB_STALE_MINUTES=90
-EXPORT_INLINE_PROCESSING=false
-SOFT_DELETE_RESTORE_DAYS=30
-
-# Push notifications
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
-VAPID_PRIVATE_KEY=...
-VAPID_CONTACT_EMAIL=admin@example.com
-
-# Email/support
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=...
-SMTP_PASS=...
-SMTP_FROM="Call Memo <no-reply@example.com>"
-SUPPORT_EMAIL=support@example.com
-
-# UI toggle
-NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+NEXT_PUBLIC_ENABLE_BILLING=false
 ```
 
-Generate `UPLOAD_SESSION_SECRET` with OpenSSL:
+If billing is enabled:
 
-```bash
-openssl rand -base64 48
-```
+1. Create the base plan prices you want to sell.
+2. Create two meters in Stripe:
+   - `storage_usage_bytes`
+   - `transcription_usage_seconds`
+3. Create usage-based prices tied to those meters.
+4. Configure the Stripe webhook endpoint:
+   - `POST /api/stripe/webhook`
+5. In `/admin/plans`, assign Stripe IDs to each plan document.
 
-## 8. Initialize Database and Run
+Full billing details live in [billing.md](billing.md).
+
+## 9. Web Push Setup
+
+Web push enables the in-app/browser notification opt-in flow.
+
+Generate VAPID keys and set:
+
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_CONTACT_EMAIL`
+
+If these are missing, the notification UI still renders, but push subscription and delivery will not work.
+
+## 10. Support Email Setup
+
+`POST /api/support` always saves messages to MongoDB. If `SUPPORT_EMAIL` is configured, the route also forwards support requests by email using the SMTP credentials in `.env`.
+
+## 11. Initialize MongoDB And Run The App
+
+Initialize collections, indexes, and seeded defaults:
 
 ```bash
 npx tsx src/lib/db/init.ts
+```
+
+Then start development:
+
+```bash
 npm run dev
 ```
 
-App URL: `http://localhost:9000`
+Local URL: `http://localhost:9000`
 
-Notes:
+Re-run `npx tsx src/lib/db/init.ts` after backend or index changes, especially when new collections or webhook idempotency indexes are added.
 
-- Run `npx tsx src/lib/db/init.ts` once during initial setup.
-- Re-run it after pulling backend/index updates so new collections/indexes are applied (including webhook idempotency indexes).
-
-## 9. Configure Webhooks for Local Testing
+## 12. Local Webhook Testing
 
 ### Soniox
 
 - Endpoint: `POST /api/webhooks/soniox`
-- Authentication header: `X-Soniox-Secret` (must match `SONIOX_WEBHOOK_SECRET`).
-- The app sends webhook URL + auth header per request when async transcription is started.
+- Required header: `X-Soniox-Secret`
 
 ### ElevenLabs
 
 - Endpoint: `POST /api/webhooks/elevenlabs`
-- Configure this endpoint in ElevenLabs dashboard.
-- Configure ElevenLabs webhook signing and set local `ELEVENLABS_WEBHOOK_SECRET` to the same signing secret.
-- The app verifies `ElevenLabs-Signature` and rejects unsigned/invalid requests.
-- For local testing, expose localhost via ngrok or similar.
-
-### Generate webhook secrets
-
-Use OpenSSL to generate strong secrets:
-
-```bash
-openssl rand -base64 48
-```
-
-Set output values in:
-
-- `SONIOX_WEBHOOK_SECRET`
-- `ELEVENLABS_WEBHOOK_SECRET`
+- Required signature: `ElevenLabs-Signature`
 
 ### Stripe
 
-Use Stripe CLI while testing locally:
+Use the Stripe CLI locally:
 
 ```bash
 stripe listen --forward-to localhost:9000/api/stripe/webhook
 ```
 
-Register these event types for your Stripe webhook endpoint:
+Register these Stripe event types:
 
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`
@@ -341,52 +349,47 @@ Register these event types for your Stripe webhook endpoint:
 - `invoice.marked_uncollectible`
 - `customer.deleted`
 
-Notes:
+## 13. Production Cron Configuration
 
-- Stripe events are processed idempotently by event ID (`stripe_webhook_events` collection).
-- Transcription webhooks (Soniox/ElevenLabs) are processed idempotently via `transcription_webhook_events`.
-- Settings billing tab fetches customer invoice history from `GET /api/stripe/invoices`.
-
-## 10. Configure Scheduled Jobs (Production)
-
-Protected endpoints:
+The app exposes two protected cron routes:
 
 - `GET /api/cron/process-exports`
 - `GET /api/cron/cleanup-recordings`
 
-Both require:
+They require:
 
 ```http
 Authorization: Bearer <CRON_SECRET>
 ```
 
-`vercel.json` already schedules:
+`vercel.json` currently schedules:
 
-- every 5 minutes: export processor
-- daily at 03:00 UTC: cleanup job
+- `/api/cron/process-exports` every 5 minutes
+- `/api/cron/cleanup-recordings` daily at `03:00 UTC`
 
-## 11. Handover Verification Checklist
+## 14. Verification Checklist
 
-A new owner should verify these before going live:
+Confirm these before calling the setup healthy:
 
-1. Can log in via Firebase auth.
-2. Can sync Google contacts.
-3. Can upload and play a recording.
-4. Files upload directly to R2 from browser/mobile (no request body size failures in app server).
-5. Soniox/ElevenLabs webhook completes transcription for files <= 2 GiB.
-6. Transcription is blocked/skipped for files > 2 GiB with clear error/notification.
-7. Gemini summary appears.
-8. Export job runs and downloadable archive is produced.
-9. Stripe checkout + webhook + plan sync works.
-10. Cron jobs run with valid `CRON_SECRET`.
-11. Support email endpoint works.
-12. Backup owner has access to Firebase, GCP, Cloudflare, Stripe, and SMTP.
+1. Sign up works with email/password.
+2. Google sign-in works if enabled.
+3. Google Contacts sync completes if OAuth is configured.
+4. Uploading a recording stores the file in R2.
+5. Playback works from the recordings workspace.
+6. Transcription completes through the configured provider for files up to `2 GiB`.
+7. Gemini summaries and semantic search work when Gemini is configured.
+8. Sharing generates a public signed link.
+9. Export jobs complete and produce a downloadable archive.
+10. Notifications appear in the notification center.
+11. Billing checkout and invoice history work if Stripe is enabled.
+12. Support form submissions appear in MongoDB and forward by email if SMTP is configured.
 
-## 12. Useful Commands
+## 15. Useful Commands
 
 ```bash
-npm run typecheck
+npm run dev
 npm run lint
+npm run typecheck
 npm run build
 npm run cap:sync
 ```

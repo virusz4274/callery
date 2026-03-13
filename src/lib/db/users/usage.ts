@@ -1,5 +1,4 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
-import { logger } from '@/lib/logger';
 import type { User } from '../types';
 
 /**
@@ -151,12 +150,11 @@ export async function checkAndResetUsageCycle(user: User): Promise<User> {
         return user;
     }
 
-    const now = new Date();
     const subscriptionStatus = user.stripeSubscriptionStatus;
     const currentPeriodEnd = user.stripeCurrentPeriodEnd ? new Date(user.stripeCurrentPeriodEnd) : null;
 
-    // Never perform local cycle resets for delinquent/canceled subscriptions.
-    // Stripe webhooks should be the source of truth for those states.
+    // Never perform local cycle resets for paid plans.
+    // Stripe webhooks are the source of truth for renewals, delinquency, and period boundaries.
     if (
         subscriptionStatus &&
         subscriptionStatus !== 'active' &&
@@ -165,36 +163,9 @@ export async function checkAndResetUsageCycle(user: User): Promise<User> {
         return user;
     }
 
-    // For Stripe-managed active/trialing subscriptions, wait for a known billing period.
-    // If missing, avoid fabricating a period because that can accidentally re-enable access.
-    if (subscriptionStatus && !currentPeriodEnd) {
+    // If the app lacks a Stripe-managed period boundary, do not fabricate one locally.
+    if (!currentPeriodEnd) {
         return user;
-    }
-
-    if (!currentPeriodEnd || now > currentPeriodEnd) {
-        logger.info(`[checkAndResetUsageCycle] Resetting usage for user ${user._id}`);
-
-        const nextPeriodEnd = new Date();
-        nextPeriodEnd.setDate(nextPeriodEnd.getDate() + 30);
-
-        const db = await getMongoDb();
-        const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
-            { _id: user._id },
-            {
-                $set: {
-                    transcriptionUsed: 0,
-                    stripeCurrentPeriodEnd: nextPeriodEnd,
-                    storagePeakUsed: user.storageUsed,
-                    storagePeakPeriodEnd: nextPeriodEnd,
-                    updatedAt: new Date(),
-                },
-            },
-            { returnDocument: 'after' }
-        );
-
-        if (result) {
-            return result as User;
-        }
     }
 
     return user;

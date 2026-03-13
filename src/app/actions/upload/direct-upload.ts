@@ -62,14 +62,18 @@ async function updateStorageUsageForUpload(firebaseUid: string, fileSize: number
 
     if (periodMismatch) {
         await setStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
-        await reportUsage(firebaseUid, 'storage', currentStorage);
+        await reportUsage(firebaseUid, 'storage', currentStorage, {
+            identifier: `storage:${firebaseUid}:peak:${periodEnd?.toISOString() ?? 'none'}:${currentStorage}`,
+        });
         return;
     }
 
     if (currentStorage > currentPeak) {
         const updated = await bumpStoragePeakUsed(firebaseUid, currentStorage, periodEnd);
         if (updated) {
-            await reportUsage(firebaseUid, 'storage', currentStorage);
+            await reportUsage(firebaseUid, 'storage', currentStorage, {
+                identifier: `storage:${firebaseUid}:peak:${periodEnd?.toISOString() ?? 'none'}:${currentStorage}`,
+            });
         }
     }
 }

@@ -50,19 +50,20 @@ export function FileBrowserTable({
                         return (
                             <React.Fragment key={index}>
                                 {index > 0 && <ChevronRight className="h-4 w-4" />}
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onPress={() => onBreadcrumbClick(item.newPath)}
-                                    isDisabled={isLast}
-                                    className={`min-w-0 px-2 h-7 ${
-                                        isLast
-                                            ? 'font-semibold text-foreground opacity-100'
-                                            : 'text-default-500 hover:text-primary'
-                                    }`}
-                                >
-                                    {item.name}
-                                </Button>
+                                {isLast ? (
+                                    <span className="flex h-7 items-center px-2 font-semibold text-foreground">
+                                        {item.name}
+                                    </span>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onPress={() => onBreadcrumbClick(item.newPath)}
+                                        className="h-7 min-w-0 px-2 text-default-500 hover:text-primary"
+                                    >
+                                        {item.name}
+                                    </Button>
+                                )}
                             </React.Fragment>
                         );
                     })}

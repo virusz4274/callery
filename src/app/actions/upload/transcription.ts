@@ -154,7 +154,10 @@ export async function triggerAutoTranscription(
         const billedCostDuration = billedDuration * multiplier;
 
         await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
-        await reportUsage(firebaseUid, 'transcription', billedDuration, { multiplier });
+        await reportUsage(firebaseUid, 'transcription', billedDuration, {
+            multiplier,
+            identifier: `transcription:${firebaseUid}:recording:${recordingId}:auto`,
+        });
 
         // Cleanup
         await transcriptionService.deleteTranscript(result.transcriptionId);

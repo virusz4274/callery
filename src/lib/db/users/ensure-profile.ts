@@ -2,6 +2,7 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
 import type { User } from '../types';
 import { createUser, findUserByFirebaseUid, getPlanById, getSystemSettings } from './lookup';
+import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 
 /**
  * Ensure a user has a Stripe Customer ID.
@@ -16,28 +17,13 @@ async function ensureStripeCustomer(user: User): Promise<User> {
     }
 
     try {
-        const { stripe } = await import('@/lib/stripe');
-        const db = await getMongoDb();
-
         logger.info(`[ensureStripeCustomer] Creating Stripe Customer for ${user._id}`);
+        const stripeCustomerId = await ensureStripeCustomerId(user);
+        const db = await getMongoDb();
+        const result = await db.collection<User>(Collections.USERS).findOne({ _id: user._id });
 
-        const customer = await stripe.customers.create({
-            email: user.email,
-            name: `${user.firstName} ${user.lastName}`.trim() || user.name,
-            metadata: {
-                firebaseUid: user.firebaseUid,
-                userId: user._id.toString(),
-            },
-        });
-
-        const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
-            { _id: user._id },
-            { $set: { stripeCustomerId: customer.id, updatedAt: new Date() } },
-            { returnDocument: 'after' }
-        );
-
-        if (result) {
-            logger.info(`[ensureStripeCustomer] Created Stripe Customer ID: ${customer.id}`);
+        if (result?.stripeCustomerId === stripeCustomerId) {
+            logger.info(`[ensureStripeCustomer] Created Stripe Customer ID: ${stripeCustomerId}`);
             return result as User;
         }
     } catch (error) {

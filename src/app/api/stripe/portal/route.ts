@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { findUserByFirebaseUid } from '@/lib/db/users';
+import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 
 function resolveSafeReturnUrl(candidateUrl: string | undefined, origin: string): string {
     const fallback = new URL('/settings', origin).toString();
@@ -49,16 +50,7 @@ export async function POST(req: NextRequest) {
 
         let stripeCustomerId = user.stripeCustomerId;
         if (!stripeCustomerId) {
-            const customer = await stripe.customers.create({
-                email: user.email,
-                name: `${user.firstName} ${user.lastName}`.trim() || user.name,
-                metadata: {
-                    firebaseUid: user.firebaseUid,
-                    userId: user._id.toString(),
-                },
-            });
-            stripeCustomerId = customer.id;
-            await updateUser(uid, { stripeCustomerId });
+            stripeCustomerId = await ensureStripeCustomerId(user);
         }
 
         // 3. Create Portal Session

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button, Chip, Spinner, Surface } from '@heroui/react';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import { DeleteConfirmationModal } from '@/components/recordings-table/delete-confirmation-modal';
@@ -16,6 +16,7 @@ type FileBrowserPageProps = {
 };
 
 export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
+    const router = useRouter();
     const {
         breadcrumbItems,
         isDeleteModalOpen,
@@ -74,17 +75,17 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <Link href="/recordings">
-                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
-                                View recordings
-                            </Button>
-                        </Link>
-                        <Link href="/upload">
-                            <Button className="w-full rounded-full px-6 font-semibold">
-                                Upload more calls
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="secondary"
+                            className="w-full rounded-full px-6 font-semibold"
+                            onPress={() => router.push('/recordings')}
+                        >
+                            View recordings
+                        </Button>
+                        <Button className="w-full rounded-full px-6 font-semibold" onPress={() => router.push('/upload')}>
+                            Upload more calls
+                            <ArrowRight className="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
 
@@ -141,13 +142,15 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                 />
             )}
 
-            <DeleteConfirmationModal
-                isOpen={isDeleteModalOpen}
-                onOpenChange={setIsDeleteModalOpen}
-                onConfirm={confirmDelete}
-                isDeleting={isDeleting}
-                count={1}
-            />
+            {isDeleteModalOpen && (
+                <DeleteConfirmationModal
+                    isOpen={isDeleteModalOpen}
+                    onOpenChange={setIsDeleteModalOpen}
+                    onConfirm={confirmDelete}
+                    isDeleting={isDeleting}
+                    count={1}
+                />
+            )}
 
             {isLoadingDetails && (
                 <div className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[200] flex items-center justify-center">

@@ -1,9 +1,10 @@
-'use client';
-
 import { PricingSection } from "@/components/pricing-section";
 import { Chip } from "@heroui/react";
+import { getPublishedPlans } from "@/app/actions/plans";
 
-export default function PricingPage() {
+export default async function PricingPage() {
+    const publishedPlans = await getPublishedPlans();
+
     return (
         <div className="relative overflow-hidden">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top,rgba(38,132,255,0.16),transparent_42%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_30%)]" />
@@ -23,7 +24,7 @@ export default function PricingPage() {
             </section>
 
             <section className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
-                <PricingSection />
+                <PricingSection availablePlans={publishedPlans} />
             </section>
         </div>
     );

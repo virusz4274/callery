@@ -2,10 +2,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { findUserByFirebaseUid } from '@/lib/db/users';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Plan } from '@/lib/db/types';
 import Stripe from 'stripe';
+import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 
 type CheckoutRequestBody = {
     priceId?: string;
@@ -104,16 +105,7 @@ export async function POST(req: NextRequest) {
         // Ensure stripeCustomerId exists. Create on-demand if missing.
         let stripeCustomerId = user.stripeCustomerId;
         if (!stripeCustomerId) {
-            const customer = await stripe.customers.create({
-                email: user.email,
-                name: `${user.firstName} ${user.lastName}`.trim() || user.name,
-                metadata: {
-                    firebaseUid: user.firebaseUid,
-                    userId: user._id.toString(),
-                },
-            });
-            stripeCustomerId = customer.id;
-            await updateUser(uid, { stripeCustomerId });
+            stripeCustomerId = await ensureStripeCustomerId(user);
         }
 
         // 3. Determine Mode (Subscription vs Payment) from Stripe Price.
@@ -172,6 +164,10 @@ export async function POST(req: NextRequest) {
                     selectedPriceId: selectedPlan.stripePriceId,
                     selectedPlanName: selectedPlan.name,
                 },
+            };
+        } else {
+            sessionParams.invoice_creation = {
+                enabled: true,
             };
         }
 
