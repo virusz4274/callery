@@ -30,22 +30,22 @@ export function SemanticSearchRow({
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
                             <Sparkles className="h-3.5 w-3.5" />
-                            Ask AI
+                            Semantic search
                         </div>
                         <div>
                             <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">
                                 Search by meaning, not just by exact words.
                             </h3>
                             <p className="mt-1 text-sm leading-6 text-default-600">
-                                Use this when you want themes like pricing concerns, onboarding
-                                blockers, or renewal risk across the archive.
+                                Use this when you want themes like invoice disputes, payment
+                                confirmations, or older calls that you do not remember by date.
                             </p>
                         </div>
                     </div>
 
                     {semanticResultsCount !== undefined && (
                         <Chip variant="soft" color="accent" className="self-start rounded-full">
-                            {semanticResultsCount} AI match{semanticResultsCount === 1 ? '' : 'es'}
+                            {semanticResultsCount} semantic match{semanticResultsCount === 1 ? '' : 'es'}
                         </Chip>
                     )}
                 </div>
@@ -68,7 +68,7 @@ export function SemanticSearchRow({
                             <SearchField.SearchIcon className="text-default-400 mr-2" />
                             <SearchField.Input
                                 className="bg-transparent border-none focus:ring-0 text-small w-full p-0 placeholder:text-default-400"
-                                placeholder="Ask AI: 'calls about pricing', 'meetings with John'..."
+                                placeholder="Search by meaning: 'payment confirmation calls', 'calls with John'..."
                             />
                             <SearchField.ClearButton />
                         </SearchField.Group>
@@ -86,7 +86,7 @@ export function SemanticSearchRow({
                             onPress={onClearSemanticSearch}
                             className="h-12 rounded-full text-danger"
                         >
-                            <X className="w-4 h-4 mr-1" /> Clear AI view
+                            <X className="w-4 h-4 mr-1" /> Clear search view
                         </Button>
                     )}
                 </form>

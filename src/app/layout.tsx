@@ -16,7 +16,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'VoSift',
-  description: 'VoSift - Search deeper than words.',
+  description: 'Organize call recordings with transcripts, summaries, speaker labels, timestamps, and semantic search.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

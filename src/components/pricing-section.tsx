@@ -12,17 +12,19 @@ import type { PublicPlan } from '@/app/actions/plans';
 const addOns = [
     {
         title: 'Advanced AI transcription',
-        detail: 'High-accuracy transcription when you need deeper analysis or a higher review volume.',
+        detail: 'Higher-accuracy transcription for larger archives or recordings that need closer review.',
         price: '$0.05',
         cadence: '/minute',
     },
     {
         title: 'Additional storage',
-        detail: 'Expand your archive as you centralize more calls and historical recordings.',
+        detail: 'Expand your archive as more phone recordings and historical calls move into one library.',
         price: '$2',
         cadence: '/GB / month',
     },
 ];
+
+const SELF_HOST_EMAIL = 'sales@vosift.com';
 
 type PricingSectionProps = {
     availablePlans?: PublicPlan[];
@@ -60,7 +62,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
                 '100 MB storage',
                 'Basic transcription',
                 'Search across your transcript library',
-                'A clean starting point for personal call review',
+                'A clean starting point for personal or occasional call archives',
             ],
             icon: Rocket,
             accentClass: 'bg-default-100 text-foreground',
@@ -71,16 +73,16 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
             cadence: featuredPaidPlan ? formatCadence(featuredPaidPlan.interval) : '/month',
             description:
                 featuredPaidPlan?.description ||
-                'For operators, consultants, and teams that need the full review surface.',
+                'For individuals and small teams that keep recordings as important records.',
             highlights:
                 featuredPaidPlan?.features?.length
                     ? featuredPaidPlan.features
                     : [
                           '10 GB storage',
                           'Advanced AI transcription',
+                          'Summary, speaker labels, and semantic search',
                           'Priority email support',
-                          'Export and richer analytics',
-                          'Best fit for active review queues',
+                          'Best fit for active business archives',
                       ],
             icon: Sparkles,
             accentClass: 'bg-primary/10 text-primary',
@@ -90,11 +92,11 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
             name: 'Enterprise',
             price: 'Custom',
             cadence: '',
-            description: 'For larger teams that need custom storage, controls, and procurement support.',
+            description: 'For firms and teams that need custom storage, controls, or rollout support.',
             highlights: [
                 `Everything in ${featuredPlanName}`,
                 'Large or unlimited storage options',
-                'Team collaboration and rollout support',
+                'Support for shared business archives',
                 'Dedicated account coverage',
                 'Custom integrations and controls',
             ],
@@ -149,11 +151,11 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
                     Pricing
                 </Chip>
                 <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-foreground md:text-5xl">
-                    Plans that scale from a small test library to a full team review queue.
+                    Plans that scale from a personal archive to a shared business call library.
                 </h2>
                 <p className="mt-4 text-lg leading-8 text-default-600">
-                    Start by proving the workflow on a smaller archive. Upgrade when transcript volume,
-                    storage, and review depth become part of the daily operation.
+                    Start small, then grow when storage, transcript volume, and shared access become
+                    part of how you keep important recordings.
                 </p>
             </div>
 
@@ -261,9 +263,10 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
                         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
                             Billing notes
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">Start small, then grow when the archive becomes active.</h3>
+                        <h3 className="text-xl font-bold text-foreground">Start small, then grow when the archive becomes essential.</h3>
                         <p className="text-sm leading-6 text-default-600">
-                            The pricing model is set up so teams can validate the workflow before they commit to larger storage or transcription usage.
+                            The pricing model is set up so people can validate organization,
+                            transcript quality, and search before they commit to larger storage or transcription usage.
                         </p>
                         <p className="text-sm leading-6 text-default-600">
                             No credit card is required to start on the free plan. Upgrades route through Stripe checkout when you are ready.
@@ -286,6 +289,37 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
                     </Card>
                 ))}
             </div>
+
+            <Surface
+                variant="secondary"
+                className="rounded-[1.9rem] border border-default-200/80 p-6 md:p-7"
+            >
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                    <div className="space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                            Own your own data
+                        </div>
+                        <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                            Keep VoSift on your own private server.
+                        </h3>
+                        <p className="max-w-3xl text-sm leading-6 text-default-600">
+                            Individuals can purchase a self-hosted license for <span className="font-semibold text-foreground">$300</span> and keep full control of their own recordings, transcripts, and deployment.
+                            Teams that want private hosting can email us to discuss custom pricing, setup, and deployment expectations.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                        <a href={`mailto:${SELF_HOST_EMAIL}`} className="w-full">
+                            <Button className="w-full rounded-full font-semibold">
+                                Email about private hosting
+                            </Button>
+                        </a>
+                        <div className="text-sm text-default-500 lg:text-right">
+                            {SELF_HOST_EMAIL}
+                        </div>
+                    </div>
+                </div>
+            </Surface>
         </div>
     );
 }

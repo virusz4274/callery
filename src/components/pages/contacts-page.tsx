@@ -113,12 +113,12 @@ export function ContactsPage({
     const totalRecordings = allContacts.reduce((sum, contact) => sum + (contact.totalRecordings || 0), 0);
 
     return (
-        <div className="relative space-y-8">
+        <div className="relative min-w-0 overflow-x-clip space-y-8">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
-                    <div className="space-y-4">
+                <div className="grid min-w-0 gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
+                    <div className="min-w-0 space-y-4">
                         <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
                             Contact directory
                         </Chip>
@@ -145,12 +145,12 @@ export function ContactsPage({
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <Link href="/recordings">
+                        <Link href="/recordings" className="w-full sm:w-auto xl:w-full">
                             <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
                                 View recordings
                             </Button>
                         </Link>
-                        <Link href="/upload">
+                        <Link href="/upload" className="w-full sm:w-auto xl:w-full">
                             <Button className="w-full rounded-full px-6 font-semibold">
                                 Upload more calls
                                 <ArrowRight className="h-4 w-4" />
@@ -159,8 +159,8 @@ export function ContactsPage({
                     </div>
                 </div>
 
-                <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 xl:grid-cols-4 md:px-8">
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                <div className="grid min-w-0 gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 md:px-8 xl:grid-cols-4">
+                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 <Users className="h-3.5 w-3.5" />
@@ -172,7 +172,7 @@ export function ContactsPage({
                             </div>
                         </div>
                     </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 <Search className="h-3.5 w-3.5" />
@@ -184,7 +184,7 @@ export function ContactsPage({
                             </div>
                         </div>
                     </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 <Building2 className="h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ export function ContactsPage({
                             </div>
                         </div>
                     </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
+                    <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 <ArrowRight className="h-3.5 w-3.5" />
@@ -213,7 +213,7 @@ export function ContactsPage({
 
             <Surface
                 variant="default"
-                className="rounded-[1.75rem] border border-default-200/80 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
+                className="min-w-0 rounded-[1.75rem] border border-default-200/80 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
             >
                 <div className="space-y-4">
                     <div className="space-y-1">

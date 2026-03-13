@@ -30,7 +30,7 @@ export function PublicHeader() {
                 VoSift
               </div>
               <div className="hidden text-sm text-default-600 sm:block">
-                Call intelligence workspace
+                Call archive and search
               </div>
             </div>
           </Link>

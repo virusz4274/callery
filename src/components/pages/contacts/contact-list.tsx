@@ -25,34 +25,34 @@ export function ContactList({
     onContactClick,
 }: ContactListProps) {
     return (
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-default-200/80 bg-background/95 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
             {Object.keys(groupedContacts).length > 0 ? (
                 Object.entries(groupedContacts).map(([letter, contacts]) => (
                     <div key={letter} id={`letter-group-${letter}`} className="pt-0">
-                        <h3 className="sticky top-0 z-10 w-full border-y border-default-100/50 bg-default-50/90 px-6 py-3 text-sm font-bold uppercase tracking-widest text-primary backdrop-blur-sm">
+                        <h3 className="sticky top-0 z-10 w-full border-y border-default-100/50 bg-default-50/90 px-4 py-3 text-sm font-bold uppercase tracking-widest text-primary backdrop-blur-sm sm:px-6">
                             {letter}
                         </h3>
 
                         {contacts.map((contact, index) => (
                             <React.Fragment key={contact.id || contact.phoneNumbers?.[0] || index}>
                                 <div
-                                    className="group flex items-center justify-between gap-4 px-6 py-5 transition-colors hover:bg-primary/5 cursor-pointer"
+                                    className="group flex min-w-0 cursor-pointer items-start justify-between gap-3 px-4 py-5 transition-colors hover:bg-primary/5 sm:items-center sm:gap-4 sm:px-6"
                                     onClick={() => onContactClick(contact.id)}
                                 >
-                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                         <Avatar className="h-11 w-11 ring-2 ring-transparent shadow-sm transition-all group-hover:ring-primary/20 md:h-12 md:w-12">
                                             <Avatar.Fallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground">
                                                 {contact.name.charAt(0)}
                                             </Avatar.Fallback>
                                         </Avatar>
 
-                                        <div className="min-w-0">
-                                            <p className="truncate text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-base font-semibold text-foreground transition-colors group-hover:text-primary sm:text-lg">
                                                 {contact.name}
                                             </p>
 
                                             {(contact.jobTitle || contact.company) && (
-                                                <div className="mt-0.5 flex items-center gap-2 text-small text-default-500">
+                                                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-small text-default-500">
                                                     {contact.jobTitle && <span>{contact.jobTitle}</span>}
                                                     {contact.jobTitle && contact.company && (
                                                         <span className="text-default-300">•</span>
@@ -77,8 +77,8 @@ export function ContactList({
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-shrink-0 items-center gap-4">
-                                        <div onClick={(event) => event.stopPropagation()}>
+                                    <div className="flex flex-shrink-0 items-center gap-2 sm:gap-4">
+                                        <div className="hidden sm:block" onClick={(event) => event.stopPropagation()}>
                                             <Dropdown>
                                                 <Dropdown.Trigger className="rounded-md p-1.5 text-default-400 transition-opacity hover:bg-default-100 hover:text-foreground cursor-pointer md:opacity-0 md:group-hover:opacity-100">
                                                     <MoreVertical className="h-4 w-4" />
@@ -104,7 +104,7 @@ export function ContactList({
                                 </div>
 
                                 {index < contacts.length - 1 && (
-                                    <Separator className="ml-20 w-[calc(100%-5rem)] bg-default-100/50" />
+                                    <Separator className="mx-4 bg-default-100/50 sm:mx-6" />
                                 )}
                             </React.Fragment>
                         ))}

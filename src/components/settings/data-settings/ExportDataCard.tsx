@@ -13,6 +13,10 @@ export function ExportDataCard({
     isExportStarting,
     onStartExport
 }: ExportDataProps) {
+    const isQueued = exportJob?.status === 'pending';
+    const isProcessing = exportJob?.status === 'processing';
+    const isBusy = isExportStarting || isQueued || isProcessing;
+
     return (
         <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
             <Card.Content className="space-y-5 p-5 sm:p-6">
@@ -36,7 +40,7 @@ export function ExportDataCard({
 
                     <Button
                         onPress={onStartExport}
-                        isDisabled={isExportStarting || exportJob?.status === 'pending' || exportJob?.status === 'processing'}
+                        isDisabled={isBusy}
                         variant="primary"
                         className="w-full gap-2 rounded-full sm:w-auto"
                     >
@@ -45,7 +49,9 @@ export function ExportDataCard({
                                 <Spinner size="sm" color="current" />
                                 Starting...
                             </>
-                        ) : exportJob?.status === 'processing' ? (
+                        ) : isQueued ? (
+                            'Queued for export'
+                        ) : isProcessing ? (
                             'Export running'
                         ) : (
                             'Start export'
@@ -89,6 +95,12 @@ export function ExportDataCard({
                                 {exportJob.status}
                             </Chip>
                         </div>
+
+                        {exportJob.status === 'pending' && (
+                            <div className="mt-4 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning-700">
+                                Your export is queued and will begin processing shortly.
+                            </div>
+                        )}
 
                         {exportJob.status === 'processing' && (
                             <div className="mt-4 space-y-2">

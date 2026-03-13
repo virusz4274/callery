@@ -14,10 +14,10 @@ export default async function PricingPage() {
                         Pricing
                     </span>
                     <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.05em] text-foreground md:text-6xl">
-                        Plans for personal archives, active review teams, and larger deployments.
+                        Plans for personal archives, important business calls, and growing small teams.
                     </h1>
                     <p className="mt-4 max-w-2xl text-lg leading-8 text-default-600">
-                        Keep the entry cost low, then scale when storage, transcription volume, and collaboration become part of the daily workflow.
+                        Keep the entry cost low, then scale when storage, transcription volume, and shared access become part of how you keep recordings.
                     </p>
                 </div>
             </section>
