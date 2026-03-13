@@ -43,7 +43,7 @@ The core product value is simple:
 npm install
 ```
 
-2. Create `.env` from the variables listed in [docs/setup-guide.md](docs/setup-guide.md).
+2. Copy `.env.example` to `.env`, then fill in the values described in [docs/setup-guide.md](docs/setup-guide.md).
 
 3. Initialize MongoDB collections, indexes, and seeded defaults:
 

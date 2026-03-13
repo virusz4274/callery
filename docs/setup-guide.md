@@ -39,7 +39,13 @@ npm install
 
 ## 3. Required App Configuration
 
-There is no committed `.env.example`, so create `.env` manually in the repo root.
+Copy the tracked example file and then fill in the values for your environment:
+
+```bash
+cp .env.example .env
+```
+
+`.env.example` is the canonical list of app-level environment variables used by the codebase. Keep local secrets in `.env`, and keep `service-account.json` local-only if you use the file-based Firebase Admin path.
 
 ### Minimum variables for the app to boot
 
@@ -135,6 +141,12 @@ SUPPORT_EMAIL=support@example.com
 # Atlas DNS fallback, only if needed
 MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```
+
+Important notes from the code audit:
+
+- Use `ELEVENLABS_API_BASE_URL`. `ELEVENLABS_API_ENDPOINT` is not read by the current app code.
+- `NEXT_PUBLIC_APP_URL` should be set for any non-localhost deployment so generated share URLs, Google OAuth flows, and webhook metadata use the correct origin.
+- `FIREBASE_SERVICE_ACCOUNT` is only required if you are not using a local `service-account.json` file.
 
 ## 4. Firebase Setup
 
