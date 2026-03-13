@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Button, Chip } from '@heroui/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Chip } from '@heroui/react';
+import { CustomPagination } from '@/components/recordings/pagination';
 
 type AuditLogsPaginationProps = {
     currentPage: number;
@@ -20,30 +20,11 @@ export function AuditLogsPagination({ currentPage, totalPages, onPageChange }: A
             <p className="text-sm text-default-500">
                 Review adjacent pages to verify who changed what and when.
             </p>
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    isDisabled={currentPage <= 1}
-                    onPress={() => onPageChange(currentPage - 1)}
-                    className="gap-2"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
                 <Chip variant="soft" color="default" className="rounded-full px-3 py-1 text-xs font-semibold">
                     Page {currentPage} of {totalPages}
                 </Chip>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    isDisabled={currentPage >= totalPages}
-                    onPress={() => onPageChange(currentPage + 1)}
-                    className="gap-2"
-                >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
+                <CustomPagination page={currentPage} total={totalPages} onChange={onPageChange} />
             </div>
         </div>
     );

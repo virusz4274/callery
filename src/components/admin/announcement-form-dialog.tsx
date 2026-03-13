@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import {
     Button,
+    Calendar,
     Chip,
+    DateField,
+    DatePicker,
     Input,
     Label,
     ListBox,
@@ -11,7 +14,10 @@ import {
     Select,
     Switch,
     TextArea,
+    TimeField,
+    type TimeValue,
 } from '@heroui/react';
+import { getLocalTimeZone, parseAbsoluteToLocal, type DateValue } from '@internationalized/date';
 import { CalendarClock, Megaphone, ShieldAlert, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createAnnouncement, updateAnnouncement } from '@/app/actions/admin-announcements';
@@ -31,11 +37,126 @@ const TYPES = [
     { value: 'success', label: 'Success', description: 'Positive rollout or feature completion notice.' },
 ] as const;
 
-function formatForInput(date: Date | string | undefined | null) {
-    if (!date) return '';
-    const d = new Date(date);
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+type AnnouncementDateValue = DateValue | null;
+
+function toDateValue(date: Date | string | undefined | null): AnnouncementDateValue {
+    if (!date) {
+        return null;
+    }
+
+    return parseAbsoluteToLocal(new Date(date).toISOString());
+}
+
+function toJsDate(value: AnnouncementDateValue): Date | null {
+    if (!value) {
+        return null;
+    }
+
+    return value.toDate(getLocalTimeZone());
+}
+
+function formatPreviewDate(value: AnnouncementDateValue) {
+    return toJsDate(value)?.toLocaleString() ?? '';
+}
+
+type AnnouncementDateTimeFieldProps = {
+    ariaLabel: string;
+    label: string;
+    onChange: (value: AnnouncementDateValue) => void;
+    onClear?: () => void;
+    value: AnnouncementDateValue;
+};
+
+function AnnouncementDateTimeField({
+    ariaLabel,
+    label,
+    onChange,
+    onClear,
+    value,
+}: AnnouncementDateTimeFieldProps) {
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm font-medium">{label}</Label>
+                {onClear && value ? (
+                    <Button size="sm" variant="ghost" onPress={onClear}>
+                        Clear
+                    </Button>
+                ) : null}
+            </div>
+
+            <DatePicker
+                aria-label={ariaLabel}
+                className="w-full"
+                granularity="minute"
+                hideTimeZone
+                shouldForceLeadingZeros
+                value={value}
+                onChange={onChange}
+            >
+                {({ state }) => (
+                    <>
+                        <DateField.Group fullWidth variant="secondary">
+                            <DateField.InputContainer>
+                                <DateField.Input>
+                                    {(segment) => <DateField.Segment segment={segment} />}
+                                </DateField.Input>
+                            </DateField.InputContainer>
+                            <DateField.Suffix>
+                                <DatePicker.Trigger>
+                                    <DatePicker.TriggerIndicator />
+                                </DatePicker.Trigger>
+                            </DateField.Suffix>
+                        </DateField.Group>
+
+                        <DatePicker.Popover className="flex w-full min-w-[18rem] flex-col gap-3">
+                            <Calendar aria-label={ariaLabel}>
+                                <Calendar.Header>
+                                    <Calendar.YearPickerTrigger>
+                                        <Calendar.YearPickerTriggerHeading />
+                                        <Calendar.YearPickerTriggerIndicator />
+                                    </Calendar.YearPickerTrigger>
+                                    <Calendar.NavButton slot="previous" />
+                                    <Calendar.NavButton slot="next" />
+                                </Calendar.Header>
+                                <Calendar.Grid>
+                                    <Calendar.GridHeader>
+                                        {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                                    </Calendar.GridHeader>
+                                    <Calendar.GridBody>
+                                        {(date) => <Calendar.Cell date={date} />}
+                                    </Calendar.GridBody>
+                                </Calendar.Grid>
+                                <Calendar.YearPickerGrid>
+                                    <Calendar.YearPickerGridBody>
+                                        {({ year }) => <Calendar.YearPickerCell year={year} />}
+                                    </Calendar.YearPickerGridBody>
+                                </Calendar.YearPickerGrid>
+                            </Calendar>
+
+                            <div className="flex items-center justify-between gap-3 border-t border-default-100 pt-3">
+                                <Label className="text-sm font-medium">Time</Label>
+                                <TimeField
+                                    aria-label={`${ariaLabel} time`}
+                                    granularity="minute"
+                                    hideTimeZone
+                                    shouldForceLeadingZeros
+                                    value={state.timeValue}
+                                    onChange={(nextValue) => state.setTimeValue(nextValue as TimeValue)}
+                                >
+                                    <TimeField.Group variant="secondary">
+                                        <TimeField.Input>
+                                            {(segment) => <TimeField.Segment segment={segment} />}
+                                        </TimeField.Input>
+                                    </TimeField.Group>
+                                </TimeField>
+                            </div>
+                        </DatePicker.Popover>
+                    </>
+                )}
+            </DatePicker>
+        </div>
+    );
 }
 
 function getTypePresentation(type: 'info' | 'warning' | 'alert' | 'success') {
@@ -76,8 +197,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
     const [message, setMessage] = useState('');
     const [type, setType] = useState<'info' | 'warning' | 'alert' | 'success'>('info');
     const [isActive, setIsActive] = useState(true);
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState<AnnouncementDateValue>(null);
+    const [endDate, setEndDate] = useState<AnnouncementDateValue>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -87,8 +208,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
         setMessage(announcementToEdit?.message || '');
         setType((announcementToEdit?.type as 'info' | 'warning' | 'alert' | 'success') || 'info');
         setIsActive(announcementToEdit ? announcementToEdit.isActive : true);
-        setStartDate(formatForInput(announcementToEdit?.startDate || new Date()));
-        setEndDate(formatForInput(announcementToEdit?.endDate));
+        setStartDate(toDateValue(announcementToEdit?.startDate || new Date()));
+        setEndDate(toDateValue(announcementToEdit?.endDate));
     }, [announcementToEdit, isOpen]);
 
     const selectedType = TYPES.find((item) => item.value === type) ?? TYPES[0];
@@ -96,6 +217,27 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
     const TypeIcon = typePresentation.icon;
 
     const handleSave = async () => {
+        const startDateAsDate = toJsDate(startDate);
+        const endDateAsDate = toJsDate(endDate);
+
+        if (!startDateAsDate) {
+            toast({
+                title: 'Start date required',
+                description: 'Choose when this announcement should become visible.',
+                status: 'warning',
+            });
+            return;
+        }
+
+        if (endDateAsDate && endDateAsDate < startDateAsDate) {
+            toast({
+                title: 'Invalid schedule',
+                description: 'The end date must be later than the start date.',
+                status: 'warning',
+            });
+            return;
+        }
+
         setLoading(true);
         try {
             const payload = {
@@ -103,8 +245,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                 message,
                 type,
                 isActive,
-                startDate: new Date(startDate),
-                endDate: endDate ? new Date(endDate) : undefined,
+                startDate: startDateAsDate,
+                endDate: endDateAsDate || undefined,
             };
 
             if (isEditing && announcementToEdit) {
@@ -178,11 +320,11 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                                         <div className="flex flex-col gap-2 text-sm text-default-500">
                                             <div className="flex items-center gap-2">
                                                 <CalendarClock className="h-4 w-4" />
-                                                <span>{startDate ? `Starts ${new Date(startDate).toLocaleString()}` : 'Start time not set'}</span>
+                                                <span>{startDate ? `Starts ${formatPreviewDate(startDate)}` : 'Start time not set'}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <CalendarClock className="h-4 w-4" />
-                                                <span>{endDate ? `Ends ${new Date(endDate).toLocaleString()}` : 'No automatic end date'}</span>
+                                                <span>{endDate ? `Ends ${formatPreviewDate(endDate)}` : 'No automatic end date'}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -255,28 +397,20 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col gap-2">
-                                            <Label className="text-sm font-medium">Start date & time</Label>
-                                            <Input
-                                                aria-label="Announcement start date and time"
-                                                type="datetime-local"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                className="w-full"
-                                            />
-                                        </div>
+                                        <AnnouncementDateTimeField
+                                            ariaLabel="Announcement start date and time"
+                                            label="Start date & time"
+                                            value={startDate}
+                                            onChange={setStartDate}
+                                        />
 
-                                        <div className="flex flex-col gap-2">
-                                            <Label className="text-sm font-medium">End date & time</Label>
-                                            <Input
-                                                aria-label="Announcement end date and time"
-                                                type="datetime-local"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                className="w-full"
-                                                placeholder="Optional"
-                                            />
-                                        </div>
+                                        <AnnouncementDateTimeField
+                                            ariaLabel="Announcement end date and time"
+                                            label="End date & time"
+                                            value={endDate}
+                                            onChange={setEndDate}
+                                            onClear={() => setEndDate(null)}
+                                        />
                                     </div>
                                 </div>
                             </div>

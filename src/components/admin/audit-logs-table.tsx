@@ -41,6 +41,15 @@ export function AuditLogsTable({
         });
     };
 
+    const getDateBoundaryIso = (value: string, boundary: 'start' | 'end') => {
+        const [year, month, day] = value.split('-').map(Number);
+        const date = boundary === 'start'
+            ? new Date(year, month - 1, day, 0, 0, 0, 0)
+            : new Date(year, month - 1, day, 23, 59, 59, 999);
+
+        return date.toISOString();
+    };
+
     const handlePageChange = (page: number) => {
         navigateWithParams((params) => {
             params.set('page', page.toString());
@@ -61,7 +70,7 @@ export function AuditLogsTable({
     const handleDateChange = (type: 'startDate' | 'endDate', value: string) => {
         navigateWithParams((params) => {
             if (value) {
-                params.set(type, new Date(value).toISOString());
+                params.set(type, getDateBoundaryIso(value, type === 'startDate' ? 'start' : 'end'));
             } else {
                 params.delete(type);
             }

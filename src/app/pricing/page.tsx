@@ -1,3 +1,5 @@
+'use client';
+
 import { PricingSection } from "@/components/pricing-section";
 import { Chip } from "@heroui/react";
 
