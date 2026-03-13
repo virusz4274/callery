@@ -1,5 +1,4 @@
 import { PricingSection } from "@/components/pricing-section";
-import { Chip } from "@heroui/react";
 import { getPublishedPlans } from "@/app/actions/plans";
 
 export default async function PricingPage() {
@@ -11,9 +10,9 @@ export default async function PricingPage() {
 
             <section className="border-b border-default-100/80">
                 <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
-                    <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                    <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
                         Pricing
-                    </Chip>
+                    </span>
                     <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.05em] text-foreground md:text-6xl">
                         Plans for personal archives, active review teams, and larger deployments.
                     </h1>
