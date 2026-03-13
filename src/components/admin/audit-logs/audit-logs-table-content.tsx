@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Chip } from '@heroui/react';
+import { Chip, Table } from '@heroui/react';
 import type { AdminLogResponse } from '@/lib/db/types';
 
 function formatDetails(details: AdminLogResponse['details']) {
@@ -58,47 +58,53 @@ export function AuditLogsTableContent({ logs }: { logs: AdminLogResponse[] }) {
             </div>
 
             <div className="hidden overflow-hidden rounded-[1.5rem] border border-default-200/80 lg:block">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-default-200" aria-label="Audit Logs Table">
-                        <thead className="bg-default-50">
-                            <tr>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-default-500">Date</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-default-500">Admin</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-default-500">Action</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-default-500">Target</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-default-500">Details</th>
-                            </tr>
-                        </thead>
+                <Table variant="secondary">
+                    <Table.ScrollContainer className="overflow-x-auto">
+                        <Table.Content aria-label="Audit Logs Table" className="min-w-[960px]">
+                            <Table.Header>
+                                <Table.Column id="date" isRowHeader>
+                                    Date
+                                </Table.Column>
+                                <Table.Column id="admin">Admin</Table.Column>
+                                <Table.Column id="action">Action</Table.Column>
+                                <Table.Column id="target">Target</Table.Column>
+                                <Table.Column id="details">Details</Table.Column>
+                            </Table.Header>
 
-                        <tbody className="divide-y divide-default-100 bg-background">
-                            {logs.map((log) => (
-                                <tr key={log.id} className="align-top">
-                                    <td className="px-5 py-4 whitespace-nowrap text-sm text-foreground">
-                                        {new Date(log.createdAt).toLocaleString()}
-                                    </td>
-                                    <td className="px-5 py-4 whitespace-nowrap">
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-foreground">{log.adminEmail}</span>
-                                            <span className="text-xs text-default-400">{log.adminId}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4 whitespace-nowrap">{renderActionChip(log.action)}</td>
-                                    <td className="px-5 py-4 whitespace-nowrap">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-default-400">{log.targetType}</span>
-                                            <span className="text-sm text-foreground">{log.targetId}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <pre className="max-w-xl overflow-x-auto rounded-xl bg-default-50 p-3 text-xs leading-5 text-default-600">
-                                            {formatDetails(log.details)}
-                                        </pre>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            <Table.Body>
+                                {logs.map((log) => (
+                                    <Table.Row key={log.id} id={log.id}>
+                                        <Table.Cell className="whitespace-nowrap text-sm text-foreground">
+                                            {new Date(log.createdAt).toLocaleString()}
+                                        </Table.Cell>
+                                        <Table.Cell className="whitespace-nowrap">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-foreground">{log.adminEmail}</span>
+                                                <span className="text-xs text-default-400">{log.adminId}</span>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell className="whitespace-nowrap">
+                                            {renderActionChip(log.action)}
+                                        </Table.Cell>
+                                        <Table.Cell className="whitespace-nowrap">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-default-400">
+                                                    {log.targetType}
+                                                </span>
+                                                <span className="text-sm text-foreground">{log.targetId}</span>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                            <pre className="max-w-xl overflow-x-auto rounded-xl bg-default-50 p-3 text-xs leading-5 text-default-600">
+                                                {formatDetails(log.details)}
+                                            </pre>
+                                        </Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        </Table.Content>
+                    </Table.ScrollContainer>
+                </Table>
             </div>
         </>
     );
