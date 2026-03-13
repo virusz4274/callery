@@ -74,6 +74,17 @@ Prepare these before handoff:
 - one user with no Stripe customer yet
 - one user near usage limits if limit enforcement is being tested
 
+### Dedicated Staging Tester Account
+
+Use this account for general staged QA unless a scenario requires a brand-new user:
+
+- email: `qa.tester.20260313@example.com`
+- password: `TestPass123!`
+- role: non-admin
+- intended use: general authenticated testing on staging/test environments only
+
+Do not reuse this account for production.
+
 If possible, keep a simple credential sheet for the tester with:
 
 - account label
