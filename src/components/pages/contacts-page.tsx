@@ -117,7 +117,7 @@ export function ContactsPage({
     const totalRecordings = allContacts.reduce((sum, contact) => sum + (contact.totalRecordings || 0), 0);
 
     return (
-        <div className="relative min-w-0 overflow-x-clip space-y-8">
+        <div className="relative min-w-0 overflow-x-clip space-y-6 md:space-y-8">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
@@ -261,7 +261,7 @@ export function ContactsPage({
 
             <Surface
                 variant="default"
-                className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:top-4"
+                className="-mt-6 sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:-mt-8 md:top-4"
             >
                 <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">

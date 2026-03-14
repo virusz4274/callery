@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Chip, Input, Popover } from '@heroui/react';
 import { ContextHelp } from '@/components/context-help';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Bookmark, BookmarkPlus, Sparkles, Trash2 } from 'lucide-react';
 import type { SavedRecordingsView, SmartCollection } from './types';
 
@@ -25,6 +26,7 @@ export function SavedViewsRow({
     onSaveCurrentView,
     onApplySmartCollection,
 }: SavedViewsRowProps) {
+    const isMobile = useIsMobile();
     const [draftName, setDraftName] = React.useState('');
     const activeView = savedViews.find((view) => view.id === activeViewId);
     const activeCollection = smartCollections.find((collection) => collection.id === activeSmartCollectionId);
@@ -35,7 +37,7 @@ export function SavedViewsRow({
                 <Popover.Trigger>
                     <Button size="sm" variant="ghost" className="rounded-full">
                         <Bookmark className="h-4 w-4" />
-                        Views & collections
+                        {isMobile ? 'Views' : 'Views & collections'}
                     </Button>
                 </Popover.Trigger>
                 <Popover.Content placement="bottom start" offset={10} className="w-[min(94vw,24rem)] p-3">
@@ -138,21 +140,21 @@ export function SavedViewsRow({
                 </Popover.Content>
             </Popover>
 
-            {activeCollection && (
+            {!isMobile && activeCollection && (
                 <Chip variant="soft" color="accent" size="sm">
                     <Sparkles className="mr-1 h-3.5 w-3.5" />
                     {activeCollection.name}
                 </Chip>
             )}
 
-            {activeView && (
+            {!isMobile && activeView && (
                 <Chip variant="soft" color="default" size="sm">
                     <Bookmark className="mr-1 h-3.5 w-3.5" />
                     {activeView.name}
                 </Chip>
             )}
 
-            {!activeView && !activeCollection && savedViews.length > 0 && (
+            {!isMobile && !activeView && !activeCollection && savedViews.length > 0 && (
                 <Chip variant="soft" color="default" size="sm">
                     {savedViews.length} saved view{savedViews.length === 1 ? '' : 's'}
                 </Chip>

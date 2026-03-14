@@ -22,15 +22,17 @@ export function SettingsPage() {
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.14),transparent_32%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <div className="mx-auto max-w-[1600px] space-y-6 sm:space-y-8">
-                <SettingsHeader
-                    activeTab={state.activeTab}
-                    isMobile={isMobile}
-                    tabs={state.tabs}
-                    view={state.view}
-                    onBack={state.handleBack}
-                />
+                {isMobile && (
+                    <SettingsHeader
+                        activeTab={state.activeTab}
+                        isMobile={isMobile}
+                        tabs={state.tabs}
+                        view={state.view}
+                        onBack={state.handleBack}
+                    />
+                )}
 
-                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+                <div className="grid gap-6 lg:min-h-[calc(100dvh-10rem)] lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start xl:grid-cols-[320px_minmax(0,1fr)]">
                     <SettingsSidebar
                         activeTab={state.activeTab}
                         tabs={state.tabs}

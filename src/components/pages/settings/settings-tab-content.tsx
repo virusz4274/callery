@@ -31,11 +31,11 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
     return (
         <div
             className={cn(
-                'min-h-[400px] w-full min-w-0 flex-1 transition-all duration-300 lg:min-h-[600px]',
-                isMobileDetailView ? 'block' : 'hidden xl:block'
+                'min-h-[400px] w-full min-w-0 flex-1 transition-all duration-300 lg:sticky lg:top-4 lg:min-h-0',
+                isMobileDetailView ? 'block' : 'hidden lg:block'
             )}
         >
-            <div className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <div className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col">
                 <div className="border-b border-default-100/70 px-5 py-5 md:px-6">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="flex items-start gap-4">
@@ -72,7 +72,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                     </div>
                 </div>
 
-                <div className="px-5 py-5 md:px-6 md:py-6">
+                <div className="px-5 py-5 md:px-6 md:py-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                     <ClientOnly>
                         {state.activeTab === 'profile' && (
                             <ProfileSettings
