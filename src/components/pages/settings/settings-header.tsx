@@ -1,7 +1,6 @@
 import React from 'react';
 import { Button, Chip } from '@heroui/react';
 import { ContextHelp } from '@/components/context-help';
-import { QuickStartPopover } from '@/components/quick-start-popover';
 import { ChevronLeft, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SettingsTab } from '@/hooks/use-settings-page';
@@ -25,13 +24,44 @@ export function SettingsHeader({ activeTab, isMobile, tabs, view, onBack }: Sett
             : 'Open account, data, notifications, billing, and workspace preferences from one place.';
 
     return (
-        <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-            <div className="grid gap-6 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.1fr)_auto] xl:items-start">
-                <div className="space-y-4">
+        <section className="overflow-hidden rounded-[1.5rem] border border-default-200/80 bg-background/92 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+            <div className="flex items-center justify-between gap-3 px-4 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Button
+                        isIconOnly
+                        variant="secondary"
+                        onPress={onBack}
+                        className={cn('rounded-full', view === 'list' && 'hidden')}
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[1rem] bg-accent/10 text-accent shadow-[inset_0_0_0_1px_rgba(38,132,255,0.12)]">
+                        <ActiveTabIcon className="h-4.5 w-4.5" />
+                    </div>
+
+                    <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                            <div className="truncate text-lg font-bold tracking-[-0.03em] text-foreground">
+                                {title}
+                            </div>
+                            <Chip variant="soft" color="default" size="sm">
+                                {tabs.length}
+                            </Chip>
+                        </div>
+                        {view === 'detail' && activeTabConfig && (
+                            <div className="text-sm text-default-500">
+                                {activeTabConfig.description}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Chip variant="soft" color="accent" size="sm" className="rounded-full">
+                        Controls
+                    </Chip>
                     <div className="flex items-center gap-2">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                            Workspace controls
-                        </Chip>
                         <ContextHelp
                             title={helpTitle}
                             description={helpDescription}
@@ -42,70 +72,6 @@ export function SettingsHeader({ activeTab, isMobile, tabs, view, onBack }: Sett
                             ]}
                         />
                     </div>
-
-                    <div className="flex items-start gap-4">
-                        <Button
-                            isIconOnly
-                            variant="secondary"
-                            onPress={onBack}
-                            className={cn('mt-1 rounded-full lg:hidden', view === 'list' && 'hidden')}
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </Button>
-
-                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[1.25rem] bg-accent/10 text-accent shadow-[inset_0_0_0_1px_rgba(38,132,255,0.12)]">
-                            <ActiveTabIcon className="h-6 w-6" />
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="space-y-2">
-                                <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                                    {title}
-                                </h1>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Chip variant="soft" color="default">
-                                    {tabs.length} sections
-                                </Chip>
-                                <Chip variant="soft" color="success">
-                                    Secure account controls
-                                </Chip>
-                                {activeTabConfig && view === 'detail' && (
-                                    <Chip variant="soft" color="warning">
-                                        Active: {activeTabConfig.label}
-                                    </Chip>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                    <QuickStartPopover
-                        title="Use settings faster"
-                        description="These are the main paths most people need after the first setup."
-                        steps={[
-                            {
-                                title: 'Open the section you need',
-                                description: 'Use the settings map to jump straight to profile, data, billing, or notifications.',
-                            },
-                            {
-                                title: 'Change one task at a time',
-                                description: 'Each panel groups related controls so you can finish an update without scanning the rest.',
-                            },
-                            {
-                                title: 'Return to the app',
-                                description: 'Once a setting is saved, jump back to recordings or contacts and continue working.',
-                                href: '/recordings',
-                            },
-                        ]}
-                    />
-                    {view === 'detail' && activeTabConfig && (
-                        <Chip variant="soft" color="warning" className="self-start rounded-full px-3 py-1 text-xs font-medium">
-                            Active: {activeTabConfig.label}
-                        </Chip>
-                    )}
                 </div>
             </div>
         </section>

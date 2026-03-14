@@ -1,8 +1,8 @@
 import React from 'react';
 import { Card, Chip } from '@heroui/react';
-import { ContextHelp } from '@/components/context-help';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { SettingsTab } from '@/hooks/use-settings-page';
 
 type SettingsSidebarProps = {
@@ -13,36 +13,17 @@ type SettingsSidebarProps = {
 };
 
 export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: SettingsSidebarProps) {
+    const isMobile = useIsMobile();
+
     return (
         <div
             className={cn(
-                'w-full xl:w-[320px] flex-shrink-0 transition-all',
-                view === 'detail' ? 'hidden xl:block' : 'block'
+                'w-full lg:w-[300px] xl:w-[320px] flex-shrink-0 transition-all',
+                view === 'detail' ? 'hidden lg:block' : 'block'
             )}
         >
-            <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)] xl:sticky xl:top-6">
-                <Card.Header className="flex items-start justify-between gap-3 border-b border-default-100/70 px-5 py-5">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                            Sections
-                            <ContextHelp
-                                title="Settings map"
-                                description="Pick a section from here to swap the active settings panel on the right."
-                                points={[
-                                    'The active section is highlighted.',
-                                    'Each section groups related controls together.',
-                                ]}
-                                placement="right"
-                            />
-                        </div>
-                        <div className="text-xl font-bold tracking-[-0.03em] text-foreground">Settings map</div>
-                    </div>
-                    <Chip variant="soft" color="default" className="rounded-full">
-                        {tabs.length}
-                    </Chip>
-                </Card.Header>
-
-                <Card.Content className="space-y-2 p-3">
+            <Card className="overflow-hidden rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)] lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col xl:rounded-[1.9rem]">
+                <Card.Content className="space-y-2 p-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto xl:p-3">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -52,7 +33,7 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                 key={tab.id}
                                 onClick={() => onSelectTab(tab.id)}
                                 className={cn(
-                                    'w-full rounded-[1.35rem] border px-4 py-4 text-left transition-all duration-200',
+                                    'w-full rounded-[1.15rem] border px-3 py-3 text-left transition-all duration-200 xl:rounded-[1.35rem] xl:px-4 xl:py-4',
                                     isActive
                                         ? 'border-accent/20 bg-accent/8 shadow-[0_20px_44px_-36px_rgba(38,132,255,0.45)]'
                                         : 'border-transparent hover:border-default-200 hover:bg-default-50/80'
@@ -61,7 +42,7 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                 <div className="flex items-start gap-3">
                                     <div
                                         className={cn(
-                                            'mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl',
+                                            'mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl xl:h-11 xl:w-11 xl:rounded-2xl',
                                             isActive ? 'bg-accent text-accent-foreground' : 'bg-default-100 text-default-500'
                                         )}
                                     >
@@ -78,13 +59,15 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                             >
                                                 {tab.label}
                                             </span>
-                                            {isActive && (
+                                            {isActive && !isMobile && (
                                                 <Chip size="sm" variant="soft" color="accent">
                                                     Open
                                                 </Chip>
                                             )}
                                         </div>
-                                        <p className="mt-1 text-sm leading-6 text-default-500">{tab.description}</p>
+                                        {!isMobile && (
+                                            <p className="mt-1 text-sm leading-6 text-default-500">{tab.description}</p>
+                                        )}
                                     </div>
 
                                     <ChevronRight

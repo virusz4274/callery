@@ -2,9 +2,11 @@ import React from 'react';
 import { parseDate, type DateValue } from '@internationalized/date';
 import { Button, Chip, DateField, DateRangePicker, FieldError, ListBox, Popover, RangeCalendar, SearchField, Select } from '@heroui/react';
 import { ContextHelp } from '@/components/context-help';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CalendarRange, ChevronDown, Filter, LayoutGrid, Rows3, SlidersHorizontal, Sparkles, User, X } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
+import type { ReactNode } from 'react';
 
 type SearchSortRowProps = {
     searchMode: 'text' | 'semantic';
@@ -31,6 +33,7 @@ type SearchSortRowProps = {
     density: 'comfortable' | 'dense';
     onDensityChange: (density: 'comfortable' | 'dense') => void;
     onResetAll: () => void;
+    supplementalActions?: ReactNode;
 };
 
 type DateRangeValue = {
@@ -94,7 +97,9 @@ export function SearchSortRow({
     density,
     onDensityChange,
     onResetAll,
+    supplementalActions,
 }: SearchSortRowProps) {
+    const isMobile = useIsMobile();
     const selectedContact = contacts.find((contact) => contact.id === contactId);
     const dateRangeValue = getDateRangeValue(startDate, endDate);
     const hasTextSearch = Boolean(search);
@@ -123,21 +128,17 @@ export function SearchSortRow({
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    {activeFilterCount > 0 ? (
+                    {activeFilterCount > 0 && (
                         <Chip variant="soft" color="warning" size="sm">
                             {activeFilterCount} active
                         </Chip>
-                    ) : (
-                        <Chip variant="soft" color="default" size="sm">
-                            Filters ready
-                        </Chip>
                     )}
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Search tools
+                    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+                        {!isMobile && <Sparkles className="h-3.5 w-3.5" />}
+                        {!isMobile && 'Search tools'}
                         <ContextHelp
                             title="Unified search"
                             description="Use one search surface for both exact text filtering and AI search."
@@ -154,7 +155,7 @@ export function SearchSortRow({
                     <Button
                         size="sm"
                         variant={searchMode === 'text' ? 'secondary' : 'ghost'}
-                        className="rounded-full"
+                        className="rounded-full px-3"
                         onPress={() => onSearchModeChange('text')}
                     >
                         Text
@@ -162,7 +163,7 @@ export function SearchSortRow({
                     <Button
                         size="sm"
                         variant={searchMode === 'semantic' ? 'secondary' : 'ghost'}
-                        className="rounded-full"
+                        className="rounded-full px-3"
                         onPress={() => onSearchModeChange('semantic')}
                     >
                         AI search
@@ -177,7 +178,7 @@ export function SearchSortRow({
                             event.preventDefault();
                             onSemanticSearch();
                         }}
-                        className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
+                        className="grid gap-2 md:gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
                     >
                         <SearchField
                             aria-label="Search recordings with AI search"
@@ -186,7 +187,7 @@ export function SearchSortRow({
                             className="w-full"
                             variant="secondary"
                         >
-                            <SearchField.Group className="flex h-12 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                            <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
                                 <SearchField.SearchIcon className="mr-2 text-default-400" />
                                 <SearchField.Input
                                     className="w-full border-none bg-transparent p-0 text-small placeholder:text-default-400 focus:ring-0"
@@ -198,7 +199,7 @@ export function SearchSortRow({
                         <Button
                             type="submit"
                             isDisabled={isSemanticSearching || !semanticQuery.trim()}
-                            className="h-12 rounded-full px-6 font-medium"
+                            className="h-10 rounded-full px-5 font-medium md:h-12 md:px-6"
                         >
                             {isSemanticSearching ? 'Searching...' : 'Search'}
                         </Button>
@@ -206,10 +207,10 @@ export function SearchSortRow({
                             <Button
                                 variant="ghost"
                                 onPress={onClearSemanticSearch}
-                                className="h-12 rounded-full text-danger"
+                                className="h-10 rounded-full px-4 text-danger md:h-12"
                             >
                                 <X className="mr-1 h-4 w-4" />
-                                Clear search
+                                {isMobile ? 'Clear' : 'Clear search'}
                             </Button>
                         ) : (
                             <div className="hidden lg:block" />
@@ -225,7 +226,7 @@ export function SearchSortRow({
                     )}
                 </>
             ) : (
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="grid gap-2 md:gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                     <SearchField
                         aria-label="Filter recordings"
                         value={search}
@@ -233,7 +234,7 @@ export function SearchSortRow({
                         className="w-full"
                         variant="secondary"
                     >
-                        <SearchField.Group className="flex h-12 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                        <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
                             <Filter className="mr-2 h-4 w-4 text-default-400" />
                             <SearchField.Input
                                 className="w-full border-none bg-transparent p-0 text-small placeholder:text-default-400 focus:ring-0"
@@ -242,7 +243,7 @@ export function SearchSortRow({
                             <SearchField.ClearButton />
                         </SearchField.Group>
                     </SearchField>
-                    {hasTextSearch ? (
+                    {!isMobile && hasTextSearch ? (
                         <Button
                             variant="ghost"
                             className="h-12 rounded-full text-danger"
@@ -257,12 +258,13 @@ export function SearchSortRow({
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                 <Popover>
                     <Popover.Trigger>
                         <Button
                             variant={hasContact || hasDateRange || hasNonDefaultSort ? 'secondary' : 'ghost'}
                             className="rounded-full"
+                            size={isMobile ? 'sm' : 'md'}
                         >
                             <SlidersHorizontal className="h-4 w-4" />
                             More filters
@@ -433,7 +435,7 @@ export function SearchSortRow({
                         onPress={() => onDensityChange('comfortable')}
                     >
                         <LayoutGrid className="h-3.5 w-3.5" />
-                        Comfortable
+                        {!isMobile && 'Comfortable'}
                     </Button>
                     <Button
                         size="sm"
@@ -442,14 +444,15 @@ export function SearchSortRow({
                         onPress={() => onDensityChange('dense')}
                     >
                         <Rows3 className="h-3.5 w-3.5" />
-                        Dense
+                        {!isMobile && 'Dense'}
                     </Button>
                 </div>
+                {supplementalActions}
             </div>
 
             {(summaryParts.length > 0 || density === 'comfortable') && (
                 <details className="group rounded-[1rem] border border-default-200/80 bg-background/70">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                 <SlidersHorizontal className="h-4 w-4 text-default-500" />
