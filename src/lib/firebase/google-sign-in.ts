@@ -12,8 +12,6 @@ import {
     type UserCredential,
 } from 'firebase/auth';
 
-const GOOGLE_SCOPES = ['email', 'profile'];
-
 let initializePromise: Promise<void> | null = null;
 
 function getGoogleWebClientId(): string {
@@ -85,9 +83,9 @@ export async function signInWithGoogle(auth: Auth): Promise<UserCredential> {
 
     const response = await SocialLogin.login({
         provider: 'google',
-        options: {
-            scopes: GOOGLE_SCOPES,
-        },
+        // The Android plugin already adds the default Google profile/email scopes.
+        // Passing custom scopes requires a modified MainActivity and rejects login otherwise.
+        options: {},
     });
 
     if (response.result.responseType !== 'online' || !response.result.idToken) {

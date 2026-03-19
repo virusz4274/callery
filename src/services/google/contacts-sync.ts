@@ -18,7 +18,7 @@ function errorLog(userId: string, message: string, error?: any) {
  * @param userId - The Firebase UID of the user.
  * @param authClient - The authenticated OAuth2Client.
  */
-export async function syncContactsBackground(userId: string, authClient: any) {
+export async function syncContactsBackground(userId: string, authClient: any): Promise<number> {
     try {
         const peopleService = google.people({ version: 'v1', auth: authClient });
 
@@ -67,8 +67,10 @@ export async function syncContactsBackground(userId: string, authClient: any) {
 
         } while (nextPageToken);
 
+        return totalSynced;
+
     } catch (error) {
         errorLog(userId, 'Sync failed.', error);
-        // In a real production app, we might want to update a "sync_status" logic in DB here
+        throw error;
     }
 }

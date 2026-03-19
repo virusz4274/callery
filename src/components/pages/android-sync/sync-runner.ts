@@ -1,7 +1,9 @@
 import { markAsSynced } from '@/lib/sync-store';
 import type { Folder } from '@/lib/capacitor';
-import { uploadFileDirectToR2 } from '@/lib/r2-direct-upload-client';
+import { uploadFileDirectToR2, uploadNativeFileDirectToR2 } from '@/lib/r2-direct-upload-client';
 import type { SyncableFile } from './types';
+
+const MAX_CONCURRENT_SYNC_UPLOADS = 3;
 
 type SyncRunnerParams = {
     selectedFolder: Folder;
@@ -20,21 +22,35 @@ export async function syncAndroidFiles({
     onSynced,
     onError,
 }: SyncRunnerParams): Promise<{ successCount: number; failCount: number }> {
-    const { readFileAsBlob } = await import('@/lib/capacitor');
+    const { getFileUri, readFileAsBlob } = await import('@/lib/capacitor');
 
     let successCount = 0;
     let failCount = 0;
+    let completedCount = 0;
+    let nextFileIndex = 0;
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
+    const reportProgress = (currentFileName: string) => {
+        onProgress(completedCount, selectedFiles.length, currentFileName);
+    };
 
-        onProgress(i + 1, selectedFiles.length, file.name);
+    const syncSingleFile = async (file: SyncableFile) => {
+        reportProgress(file.name);
         onUploading(file.path);
 
         try {
-            const blob = await readFileAsBlob(selectedFolder, file.path);
-            const fileObj = new File([blob], file.name, { type: file.mimeType });
-            const result = await uploadFileDirectToR2(fileObj);
+            const fileUri = await getFileUri(selectedFolder, file.path);
+            const result = fileUri
+                ? await uploadNativeFileDirectToR2({
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileUri,
+                    mimeType: file.mimeType,
+                })
+                : await (async () => {
+                    const blob = await readFileAsBlob(selectedFolder, file.path);
+                    const fileObj = new File([blob], file.name, { type: file.mimeType });
+                    return uploadFileDirectToR2(fileObj);
+                })();
 
             if (result.success && result.recordingId) {
                 successCount++;
@@ -56,7 +72,31 @@ export async function syncAndroidFiles({
         } catch (error) {
             failCount++;
             onError(file.path, error instanceof Error ? error.message : 'Upload failed');
+        } finally {
+            completedCount++;
+            reportProgress(file.name);
         }
+    };
+
+    const workerCount = Math.min(MAX_CONCURRENT_SYNC_UPLOADS, selectedFiles.length);
+
+    await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+            while (nextFileIndex < selectedFiles.length) {
+                const file = selectedFiles[nextFileIndex];
+                nextFileIndex++;
+
+                if (!file) {
+                    return;
+                }
+
+                await syncSingleFile(file);
+            }
+        })
+    );
+
+    if (selectedFiles.length > 0) {
+        reportProgress(selectedFiles[selectedFiles.length - 1]?.name || '');
     }
 
     return { successCount, failCount };

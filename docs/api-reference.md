@@ -147,6 +147,7 @@ Location: `src/app/api`
 | `POST` | `/api/support` | Create a support request |
 | `GET` | `/api/cron/process-exports` | Process pending export jobs |
 | `GET` | `/api/cron/cleanup-recordings` | Enforce cleanup and retention rules |
+| `GET` | `/api/cron/process-async-jobs` | Process queued transcription and Google sync jobs |
 
 ## Public Pages With Signed Access
 
@@ -161,7 +162,7 @@ The production upload path is:
 1. `initializeDirectUpload`
 2. direct client `PUT` to R2
 3. `completeDirectUpload`
-4. optional `triggerAutoTranscription`
+4. optional `async_jobs` enqueue for auto transcription
 
 Constraints:
 
@@ -218,7 +219,7 @@ Stripe event processing is idempotent through the `stripe_webhook_events` collec
 
 ## Cron Authentication
 
-Both cron routes require:
+All cron routes require:
 
 ```http
 Authorization: Bearer <CRON_SECRET>

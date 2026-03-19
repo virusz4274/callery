@@ -1,5 +1,9 @@
 import type { SortDirection, SortField, SyncableFile } from './types';
 
+function isSelectablePendingState(state: SyncableFile['status']): boolean {
+    return state === 'pending' || state === 'error' || state === 'retrying';
+}
+
 export function filterAndSortFiles(
     files: SyncableFile[],
     activeTab: 'new' | 'synced',
@@ -50,9 +54,9 @@ export function getSelectionMetrics(
     filteredFiles: SyncableFile[],
     searchQuery: string
 ) {
-    const pendingFiles = files.filter((file) => file.status === 'pending' || file.status === 'error');
+    const pendingFiles = files.filter((file) => isSelectablePendingState(file.status));
     const relevantFiles = searchQuery
-        ? filteredFiles.filter((file) => file.status === 'pending' || file.status === 'error')
+        ? filteredFiles.filter((file) => isSelectablePendingState(file.status))
         : pendingFiles;
     const selectedRelevantCount = relevantFiles.filter((file) => file.selected).length;
     const totalRelevantCount = relevantFiles.length;
@@ -86,7 +90,7 @@ export function toggleFileSelection(files: SyncableFile[], fingerprint: string):
 
 export function selectAllPendingFiles(files: SyncableFile[]): SyncableFile[] {
     return files.map((file) =>
-        file.status === 'pending' || file.status === 'error' ? { ...file, selected: true } : file
+        isSelectablePendingState(file.status) ? { ...file, selected: true } : file
     );
 }
 

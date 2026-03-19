@@ -15,6 +15,13 @@ interface UseUserProfileResult {
     refetch: () => Promise<void>;
 }
 
+export interface EnsureUserProfileResult {
+    success: boolean;
+    wasCreated: boolean;
+    status?: number;
+    error?: string;
+}
+
 /**
  * Hook to fetch the user profile from MongoDB via API.
  * @param user The Firebase Auth user object.
@@ -42,15 +49,15 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
             // Handle 404 (User not found in MongoDB) by attempting to create it
             if (response.status === 404) {
                 console.log('User profile not found in MongoDB. Attempting to ensure profile...');
-                const created = await ensureUserProfile(user);
+                const ensured = await ensureUserProfile(user);
 
-                if (created) {
+                if (ensured.success) {
                     // Small delay to ensure DB write propagation
                     await new Promise(resolve => setTimeout(resolve, 500));
                     // Retry fetching the profile
                     response = await authFetch('/api/user/profile');
                 } else {
-                    throw new Error('Failed to create user profile');
+                    throw new Error(ensured.error || 'Failed to create user profile');
                 }
             }
 
@@ -126,7 +133,7 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
 export async function ensureUserProfile(
     user: { uid: string; email: string | null; displayName: string | null },
     additionalData?: { firstName?: string; lastName?: string }
-): Promise<boolean> {
+): Promise<EnsureUserProfileResult> {
     try {
         const response = await authFetch('/api/user/ensure-profile', {
             method: 'POST',
@@ -143,13 +150,25 @@ export async function ensureUserProfile(
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error('Failed to ensure user profile:', errorData.details || errorData.error || response.statusText);
-            return false;
+            return {
+                success: false,
+                wasCreated: false,
+                status: response.status,
+                error: errorData.details || errorData.error || response.statusText,
+            };
         }
 
         const data = await response.json();
-        return data.wasCreated;
+        return {
+            success: true,
+            wasCreated: Boolean(data.wasCreated),
+        };
     } catch (error) {
         console.error('Error ensuring user profile:', error);
-        return false;
+        return {
+            success: false,
+            wasCreated: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
     }
 }

@@ -4,6 +4,27 @@
  * Client-side utilities for Web Push subscription management.
  */
 
+const PUSH_SERVICE_WORKER_URL = '/push-sw.js';
+
+function getRegistrationScriptUrl(registration: ServiceWorkerRegistration): string | null {
+    return registration.active?.scriptURL
+        || registration.waiting?.scriptURL
+        || registration.installing?.scriptURL
+        || null;
+}
+
+function isPushServiceWorkerScript(scriptUrl: string | null): boolean {
+    if (!scriptUrl) {
+        return false;
+    }
+
+    try {
+        return new URL(scriptUrl, window.location.origin).pathname === PUSH_SERVICE_WORKER_URL;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Check if the browser supports Web Push notifications.
  */
@@ -14,6 +35,34 @@ export function isPushSupported(): boolean {
         'PushManager' in window &&
         'Notification' in window
     );
+}
+
+export async function ensurePushServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+        throw new Error('Service workers are not supported');
+    }
+
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const existingPushRegistration = registrations.find((registration) =>
+        isPushServiceWorkerScript(getRegistrationScriptUrl(registration))
+    );
+
+    await Promise.all(
+        registrations
+            .filter((registration) => !isPushServiceWorkerScript(getRegistrationScriptUrl(registration)))
+            .map((registration) => registration.unregister())
+    );
+
+    if (existingPushRegistration) {
+        if (existingPushRegistration.active) {
+            return existingPushRegistration;
+        }
+
+        return navigator.serviceWorker.ready;
+    }
+
+    await navigator.serviceWorker.register(PUSH_SERVICE_WORKER_URL, { scope: '/' });
+    return navigator.serviceWorker.ready;
 }
 
 /**
@@ -49,7 +98,7 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubsc
     }
 
     console.log('[Push] Waiting for service worker...');
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await ensurePushServiceWorkerRegistration();
     console.log('[Push] Service worker ready:', registration);
 
     // Check if already subscribed
@@ -78,7 +127,7 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubsc
 export async function unsubscribeFromPush(): Promise<boolean> {
     if (!isPushSupported()) return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await ensurePushServiceWorkerRegistration();
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
@@ -94,7 +143,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
     if (!isPushSupported()) return null;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await ensurePushServiceWorkerRegistration();
     return await registration.pushManager.getSubscription();
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getPublishedPlans, type PublicPlan } from '@/app/actions/plans';
+import { getUpgradeablePlans, type PublicPlan } from '@/app/actions/plans';
 import { authFetch } from '@/lib/api-client';
 import type { Toast } from '@/components/toast-provider';
 
@@ -18,7 +18,7 @@ export function useBillingActions(toast: ToastFn) {
             const response = await authFetch('/api/stripe/portal', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ returnUrl: window.location.href }),
+                body: JSON.stringify({ returnUrl: '/settings?tab=billing' }),
             });
 
             if (!response.ok) {
@@ -43,7 +43,7 @@ export function useBillingActions(toast: ToastFn) {
     const handleUpgradeModal = async () => {
         setIsLoadingPlans(true);
         try {
-            const plans = await getPublishedPlans();
+            const plans = await getUpgradeablePlans();
             setAvailablePlans(plans);
         } catch (error) {
             console.error('Failed to fetch plans:', error);
@@ -61,7 +61,9 @@ export function useBillingActions(toast: ToastFn) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     priceId,
-                    returnUrl: window.location.href,
+                    returnUrl: '/settings?tab=billing',
+                    successUrl: '/settings?tab=billing&success=true',
+                    cancelUrl: '/settings?tab=billing&canceled=true',
                 }),
             });
 

@@ -55,32 +55,33 @@ export async function GET(request: NextRequest) {
         for (const { firebaseUid, recordings } of expiredByUser) {
             logger.info(`[cleanup-recordings] Processing ${recordings.length} expired recordings for user ${firebaseUid}`);
 
-            const recordingIds = recordings.map(r => r._id.toString());
-
-            // Delete from MongoDB
-            const deletedRecordings = await deleteRecordingsFromDb(recordingIds, firebaseUid);
-
-            if (deletedRecordings.length === 0) {
-                continue;
-            }
-
-            // Delete from R2 in parallel
             let r2Errors = 0;
-            let totalSizeDeleted = 0;
+            const successfulDeleteIds: string[] = [];
 
-            const deletePromises = deletedRecordings.map(async (recording) => {
+            const deletePromises = recordings.map(async (recording) => {
                 try {
                     await deleteFromR2(recording.r2Key);
-                    return { size: recording.fileSize, error: false };
+                    successfulDeleteIds.push(recording._id.toString());
                 } catch (error) {
                     logger.error(`[cleanup-recordings] Failed to delete R2 key ${recording.r2Key}:`, error);
                     r2Errors++;
-                    return { size: 0, error: true };
                 }
             });
 
-            const results = await Promise.all(deletePromises);
-            totalSizeDeleted = results.reduce((acc, curr) => acc + curr.size, 0);
+            await Promise.all(deletePromises);
+
+            if (successfulDeleteIds.length === 0) {
+                totalR2Errors += r2Errors;
+                userResults.push({
+                    firebaseUid,
+                    deleted: 0,
+                    errors: r2Errors,
+                });
+                continue;
+            }
+
+            const deletedRecordings = await deleteRecordingsFromDb(successfulDeleteIds, firebaseUid);
+            const totalSizeDeleted = deletedRecordings.reduce((acc, curr) => acc + curr.fileSize, 0);
 
             // Update user's storage usage
             if (totalSizeDeleted > 0) {

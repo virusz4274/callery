@@ -10,6 +10,7 @@ import { classifyExternalServiceError, type IncidentClassification } from '@/lib
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
 import { createNotification } from '@/lib/notifications';
+import { sendEmail } from '@/lib/email';
 
 const DEFAULT_INCIDENT_COOLDOWN_MS = 30 * 60 * 1000;
 const STALE_INCIDENT_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -39,6 +40,15 @@ export type ResolveExternalServiceIncidentInput = {
     provider: string;
     operation: string;
 };
+
+function escapeHtml(input: string): string {
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 function normalizeLabel(value: string): string {
     return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -129,7 +139,7 @@ async function notifyAdminsAboutIncident(incident: ExternalServiceIncident): Pro
     const db = await getMongoDb();
     const admins = await db
         .collection<User>(Collections.USERS)
-        .find({ role: 'admin' }, { projection: { _id: 1 } })
+        .find({ role: 'admin' }, { projection: { _id: 1, email: 1, firstName: 1, name: 1 } })
         .toArray();
 
     if (admins.length === 0) {
@@ -139,18 +149,50 @@ async function notifyAdminsAboutIncident(incident: ExternalServiceIncident): Pro
     const severityLabel = incident.severity === 'down' ? 'down' : 'degraded';
     const title = `${incident.service} ${severityLabel}`;
     const message = `${incident.operation.replace(/_/g, ' ')} is failing (${incident.errorKind}). ${incident.message.slice(0, 180)}`;
+    const escapedService = escapeHtml(incident.service);
+    const escapedOperation = escapeHtml(incident.operation.replace(/_/g, ' '));
+    const escapedErrorKind = escapeHtml(incident.errorKind);
+    const escapedMessage = escapeHtml(incident.message);
+    const sampleContext = incident.sampleContext ? escapeHtml(JSON.stringify(incident.sampleContext, null, 2)) : '';
 
-    await Promise.allSettled(
-        admins.map((admin) =>
-            createNotification(
-                admin._id,
-                incident.severity === 'down' ? 'error' : 'warning',
-                title,
-                message,
-                '/admin'
-            )
+    const notificationJobs = admins.map((admin) =>
+        createNotification(
+            admin._id,
+            incident.severity === 'down' ? 'error' : 'warning',
+            title,
+            message,
+            '/admin'
         )
     );
+
+    const emailJobs = admins
+        .filter((admin) => Boolean(admin.email))
+        .map((admin) =>
+            sendEmail({
+                to: admin.email,
+                subject: `[Call Memo] Service incident: ${incident.service} ${severityLabel}`,
+                html: `
+                    <h2>Service incident detected</h2>
+                    <p>Hello ${escapeHtml(admin.firstName || admin.name || 'Admin')},</p>
+                    <p>An external service incident was recorded in Call Memo.</p>
+                    <ul>
+                        <li><strong>Service:</strong> ${escapedService}</li>
+                        <li><strong>Operation:</strong> ${escapedOperation}</li>
+                        <li><strong>Severity:</strong> ${escapeHtml(severityLabel)}</li>
+                        <li><strong>Error kind:</strong> ${escapedErrorKind}</li>
+                        <li><strong>First seen:</strong> ${incident.firstSeenAt.toISOString()}</li>
+                        <li><strong>Last seen:</strong> ${incident.lastSeenAt.toISOString()}</li>
+                        <li><strong>Occurrences:</strong> ${incident.occurrenceCount}</li>
+                    </ul>
+                    <p><strong>Message:</strong> ${escapedMessage}</p>
+                    ${sampleContext ? `<p><strong>Context:</strong></p><pre>${sampleContext}</pre>` : ''}
+                    <p>Open the admin dashboard to monitor or clear the incident.</p>
+                `,
+            })
+        );
+
+    await Promise.allSettled(notificationJobs);
+    await Promise.allSettled(emailJobs);
 }
 
 function shouldEscalateSeverity(
@@ -286,6 +328,53 @@ export async function resolveExternalServiceIncident(
             },
         }
     );
+}
+
+export async function resolveExternalServiceIncidentById(incidentId: string): Promise<boolean> {
+    if (!ObjectId.isValid(incidentId)) {
+        return false;
+    }
+
+    const now = new Date();
+    const db = await getMongoDb();
+    const result = await db.collection<ExternalServiceIncident>(Collections.EXTERNAL_SERVICE_INCIDENTS).updateOne(
+        {
+            _id: new ObjectId(incidentId),
+            status: 'open',
+        },
+        {
+            $set: {
+                status: 'resolved',
+                resolvedAt: now,
+                updatedAt: now,
+            },
+            $unset: {
+                staleAt: '',
+            },
+        }
+    );
+
+    return result.modifiedCount > 0;
+}
+
+export async function resolveAllOpenExternalServiceIncidents(): Promise<number> {
+    const now = new Date();
+    const db = await getMongoDb();
+    const result = await db.collection<ExternalServiceIncident>(Collections.EXTERNAL_SERVICE_INCIDENTS).updateMany(
+        { status: 'open' },
+        {
+            $set: {
+                status: 'resolved',
+                resolvedAt: now,
+                updatedAt: now,
+            },
+            $unset: {
+                staleAt: '',
+            },
+        }
+    );
+
+    return result.modifiedCount;
 }
 
 export async function markStaleExternalServiceIncidents(): Promise<void> {

@@ -78,6 +78,21 @@ export interface User {
     // Push Notification Subscriptions
     pushSubscriptions?: PushSubscriptionEntry[];
 
+    // Google Contacts integration state
+    googleSync?: {
+        status: 'not_connected' | 'syncing' | 'completed' | 'failed';
+        connectedAt?: Date;
+        lastAttemptAt?: Date;
+        lastSyncedAt?: Date;
+        lastError?: string | null;
+        lastImportedCount?: number;
+        refreshToken?: string; // Legacy plaintext token kept only for migration.
+        refreshTokenCiphertext?: string;
+        refreshTokenKeyVersion?: string;
+        scopes?: string[];
+        tokenExpiresAt?: Date;
+    };
+
     // Soft deletion lifecycle
     softDelete?: {
         isDeleted: boolean;
@@ -138,5 +153,16 @@ export interface UserResponse {
         restoreUntil: string;
         previousDisabled: boolean;
         deletedByAdminId?: string;
+    };
+    googleSync?: {
+        status: 'not_connected' | 'syncing' | 'completed' | 'failed';
+        connectedAt?: string;
+        lastAttemptAt?: string;
+        lastSyncedAt?: string;
+        lastError?: string | null;
+        lastImportedCount?: number;
+        hasRefreshToken: boolean;
+        scopes?: string[];
+        tokenExpiresAt?: string;
     };
 }

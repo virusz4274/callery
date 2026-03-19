@@ -1,7 +1,21 @@
+import { registerPlugin } from '@capacitor/core';
 import { ScopedStorage, type FolderRef } from '@daniele-rolli/capacitor-scoped-storage';
 import { getAudioMimeType, isSupportedAudioFile, type AudioFileInfo } from './capacitor-audio';
 
 export type Folder = FolderRef;
+
+type NativeFolderScan = {
+    scannedAt: number;
+    fileCount: number;
+    files: AudioFileInfo[];
+};
+
+type FolderScanPlugin = {
+    getCachedScan(options: { folderId: string }): Promise<{ scan: NativeFolderScan | null }>;
+    refreshScan(options: { folderId: string }): Promise<{ scan: NativeFolderScan }>;
+};
+
+const FolderScan = registerPlugin<FolderScanPlugin>('FolderScan');
 
 export async function pickSyncFolder(): Promise<Folder | null> {
     try {
@@ -46,6 +60,31 @@ export async function listAudioFiles(folder: Folder, subPath?: string): Promise<
     return audioFiles.sort((a, b) => b.mtime - a.mtime);
 }
 
+export async function getCachedAudioFiles(folder: Folder): Promise<{ scannedAt: number; files: AudioFileInfo[] } | null> {
+    try {
+        const result = await FolderScan.getCachedScan({ folderId: folder.id });
+        if (!result.scan) {
+            return null;
+        }
+
+        return {
+            scannedAt: result.scan.scannedAt,
+            files: result.scan.files || [],
+        };
+    } catch (error) {
+        console.error('[Capacitor] Error loading cached folder scan:', error);
+        return null;
+    }
+}
+
+export async function refreshCachedAudioFiles(folder: Folder): Promise<{ scannedAt: number; files: AudioFileInfo[] }> {
+    const result = await FolderScan.refreshScan({ folderId: folder.id });
+    return {
+        scannedAt: result.scan.scannedAt,
+        files: result.scan.files || [],
+    };
+}
+
 export async function listDirectories(folder: Folder, subPath?: string): Promise<string[]> {
     try {
         const options: { folder: Folder; path?: string } = { folder };
@@ -58,6 +97,20 @@ export async function listDirectories(folder: Folder, subPath?: string): Promise
     } catch (error) {
         console.error('[Capacitor] Error listing directories:', error);
         throw error;
+    }
+}
+
+export async function getFileUri(folder: Folder, filePath: string): Promise<string | null> {
+    try {
+        const result = await ScopedStorage.getUriForPath({
+            folder,
+            path: filePath,
+        });
+
+        return result.uri || null;
+    } catch (error) {
+        console.error('[Capacitor] Error resolving file URI:', error);
+        return null;
     }
 }
 

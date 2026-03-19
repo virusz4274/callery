@@ -53,6 +53,8 @@ export interface Recording {
     transcriptionModel?: string;
     transcriptionCostMultiplier?: number;
     externalTranscriptionId?: string; // For webhook correlation with external providers
+    transcriptionUsageReportId?: string;
+    transcriptionUsageReportedAt?: Date;
 
 
     // Future-proof fields for translations/transliterations

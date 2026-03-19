@@ -1,6 +1,6 @@
-import { STORE_NAME } from './constants';
+import { METADATA_STORE_NAME, STORE_NAME } from './constants';
 import { getDB } from './db';
-import type { SyncedFile } from './types';
+import type { FolderSyncMetadata, SyncedFile } from './types';
 
 /**
  * Check if a file has already been synced.
@@ -56,22 +56,36 @@ export async function getSyncedFingerprints(fingerprints: string[]): Promise<Set
     return synced;
 }
 
+async function getFolderMetadata(folderUri: string): Promise<FolderSyncMetadata | null> {
+    try {
+        const db = await getDB();
+
+        return await new Promise((resolve, reject) => {
+            const transaction = db.transaction(METADATA_STORE_NAME, 'readonly');
+            const store = transaction.objectStore(METADATA_STORE_NAME);
+            const request = store.get(folderUri);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve((request.result as FolderSyncMetadata | undefined) ?? null);
+        });
+    } catch (error) {
+        console.error('[SyncStore] Error getting folder metadata:', error);
+        return null;
+    }
+}
+
 /**
  * Get count of synced files for a folder.
  */
 export async function getSyncedCount(folderUri: string): Promise<number> {
     try {
-        const db = await getDB();
+        const metadata = await getFolderMetadata(folderUri);
+        if (metadata) {
+            return metadata.syncedCount;
+        }
 
-        return await new Promise((resolve, reject) => {
-            const transaction = db.transaction(STORE_NAME, 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const index = store.index('folderUri');
-            const request = index.count(IDBKeyRange.only(folderUri));
-
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
-        });
+        const files = await getSyncedFiles(folderUri);
+        return files.length;
     } catch (error) {
         console.error('[SyncStore] Error getting synced count:', error);
         return 0;
@@ -101,10 +115,23 @@ export async function getSyncedFiles(folderUri: string): Promise<SyncedFile[]> {
 }
 
 /**
+ * Get all synced files for a folder keyed by file path.
+ */
+export async function getSyncedFilesMap(folderUri: string): Promise<Map<string, SyncedFile>> {
+    const files = await getSyncedFiles(folderUri);
+    return new Map(files.map((file) => [file.filePath, file]));
+}
+
+/**
  * Get the most recent sync timestamp for a folder.
  */
 export async function getLastSyncTime(folderUri: string): Promise<number | null> {
     try {
+        const metadata = await getFolderMetadata(folderUri);
+        if (metadata) {
+            return metadata.lastSyncTime;
+        }
+
         const files = await getSyncedFiles(folderUri);
         if (files.length === 0) {
             return null;

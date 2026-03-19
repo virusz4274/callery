@@ -10,7 +10,7 @@ type FileListTabsProps = {
 
 export function FileListTabs({ activeTab, pendingCount, syncedCount, onTabChange }: FileListTabsProps) {
     return (
-        <div className="flex flex-wrap gap-4 border-b border-default-100/70 bg-background/90 px-5 pt-4">
+        <div className="flex min-w-0 flex-wrap gap-4 overflow-x-auto border-b border-default-100/70 bg-background/90 px-5 pt-4">
             <button
                 onClick={() => onTabChange('new')}
                 className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors focus:outline-none ${

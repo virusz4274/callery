@@ -16,9 +16,13 @@ export type LogActionType =
     | 'PLAN_UPDATE'
     | 'PLAN_DELETE'
     | 'SETTINGS_UPDATE'
+    | 'INCIDENT_CLEAR'
+    | 'INCIDENT_CLEAR_ALL'
+    | 'ASYNC_JOB_RETRY'
     | 'ANNOUNCEMENT_CREATE'
     | 'ANNOUNCEMENT_UPDATE'
-    | 'ANNOUNCEMENT_DELETE';
+    | 'ANNOUNCEMENT_DELETE'
+    | 'TEST_EMAIL_SEND';
 
 export async function logAdminAction(
     adminId: string,

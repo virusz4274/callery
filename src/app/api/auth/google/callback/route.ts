@@ -1,6 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { buildAppUrl } from '@/lib/public-url';
+import { startGoogleContactsSync } from '@/services/google/start-contacts-sync';
 
 /**
  * This is the callback route that Google redirects to after the user has
@@ -20,33 +22,38 @@ export async function GET(request: NextRequest) {
   // Check for an error query parameter
   const error = searchParams.get('error');
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/settings?error=${encodeURIComponent(error)}&tab=data`, request.url)
-    );
+    const redirectUrl = buildAppUrl('/settings?tab=sources', request);
+    redirectUrl.searchParams.set('error', error);
+    return NextResponse.redirect(redirectUrl);
   }
 
   if (!state || !expectedState || state !== expectedState) {
-    return NextResponse.redirect(
-      new URL('/settings?error=Invalid+OAuth+state&tab=data', request.url)
-    );
+    const redirectUrl = buildAppUrl('/settings?tab=sources', request);
+    redirectUrl.searchParams.set('error', 'Invalid OAuth state');
+    return NextResponse.redirect(redirectUrl);
   }
 
   if (code) {
     try {
-      // Redirect back to settings page with code for server action processing
-      const redirectUrl = new URL('/settings', request.url);
-      redirectUrl.searchParams.set('g_code', code);
-      redirectUrl.searchParams.set('tab', 'data');
+      const result = await startGoogleContactsSync(code);
+      const redirectUrl = buildAppUrl('/settings?tab=sources', request);
+
+      if (result.success) {
+        redirectUrl.searchParams.set('google_sync', 'started');
+      } else {
+        redirectUrl.searchParams.set('error', result.error || 'Authentication failed');
+      }
+
       return NextResponse.redirect(redirectUrl);
     } catch (error) {
       console.error('Error exchanging code for tokens:', error);
-      return NextResponse.redirect(
-        new URL('/settings?error=Authentication+failed&tab=data', request.url)
-      );
+      const redirectUrl = buildAppUrl('/settings?tab=sources', request);
+      redirectUrl.searchParams.set('error', 'Authentication failed');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
-  return NextResponse.redirect(
-    new URL('/settings?error=Missing+authorization+code&tab=data', request.url)
-  );
+  const redirectUrl = buildAppUrl('/settings?tab=sources', request);
+  redirectUrl.searchParams.set('error', 'Missing authorization code');
+  return NextResponse.redirect(redirectUrl);
 }

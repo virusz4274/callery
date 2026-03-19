@@ -1,5 +1,4 @@
 import { ObjectId } from 'mongodb';
-import { after } from 'next/server';
 import {
     uploadToR2WithMetadata,
     generateRecordingKey,
@@ -13,7 +12,8 @@ import {
 import { reportUsage } from '@/lib/stripe/usage';
 import { logger } from '@/lib/logger';
 import { validateAndHydrateFile } from './validation';
-import { triggerAutoTranscription } from './transcription';
+import { enqueueAutoTranscriptionJob } from '@/lib/async-job-queue';
+import { findUserByFirebaseUid } from '@/lib/db/users';
 
 type UploadSingleFileResult =
     | { success: true }
@@ -107,17 +107,18 @@ export async function uploadSingleFile(file: File, firebaseUid: string): Promise
             }
         }
 
-        after(async () => {
-            await triggerAutoTranscription(
+        const user = await findUserByFirebaseUid(firebaseUid);
+        if (user?.transcriptionSettings?.autoTranscribe) {
+            await enqueueAutoTranscriptionJob({
                 firebaseUid,
-                createdRecording._id.toString(),
+                recordingId: createdRecording._id.toString(),
                 r2Key,
                 duration,
-                buffer.length,
-                file.name,
-                displayName
-            );
-        });
+                fileSize: buffer.length,
+                fileName: file.name,
+                standardizedDisplayName: displayName,
+            });
+        }
 
         return { success: true };
     } catch (error) {

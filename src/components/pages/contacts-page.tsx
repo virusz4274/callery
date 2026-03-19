@@ -8,10 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/firebase/provider';
 import { ContactList } from './contacts/contact-list';
 import { useContactGroups } from './contacts/use-contact-groups';
-import { ContextHelp } from '@/components/context-help';
-import { QuickStartPopover } from '@/components/quick-start-popover';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { ArrowRight, Building2, ChevronDown, Search, Users } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 type ContactsPageProps = {
     allContacts: Contact[];
@@ -59,13 +57,12 @@ export function ContactsPage({
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('q') || '';
     const { user, isUserLoading } = useUser();
-    const isMobile = useIsMobile();
 
     const { groupedContacts, sortedAndFilteredContacts } = useContactGroups(allContacts, searchQuery);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
-            router.replace('/login');
+            router.replace(buildLoginRedirectHref('/contacts'));
         }
     }, [isUserLoading, router, user]);
 
@@ -109,38 +106,26 @@ export function ContactsPage({
     }
 
     const displayedCount = searchQuery ? sortedAndFilteredContacts.length : totalCount || sortedAndFilteredContacts.length;
-    const uniqueCompanies = new Set(
-        allContacts
-            .map((contact) => contact.company?.trim())
-            .filter((company): company is string => Boolean(company))
-    ).size;
-    const totalRecordings = allContacts.reduce((sum, contact) => sum + (contact.totalRecordings || 0), 0);
 
     return (
         <div className="relative min-w-0 overflow-x-clip space-y-6 md:space-y-8">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid min-w-0 gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
+                <div className="grid min-w-0 gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="min-w-0 space-y-4">
+                        <Chip variant="soft" color="accent" className="w-fit rounded-full px-3 py-1 text-xs font-medium">
+                            Contact directory
+                        </Chip>
                         <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                            <h1 className="text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
                                 Contacts
                             </h1>
-                            <ContextHelp
-                                title="Contacts workspace"
-                                description="Use this page to find people fast and jump straight into their linked call history."
-                                points={[
-                                    'Search by name, company, role, or phone number.',
-                                    'Open a contact to review recent conversations.',
-                                    'Upload or sync more calls to grow the directory.',
-                                ]}
-                            />
                         </div>
+                        <p className="max-w-2xl text-sm leading-6 text-default-500">
+                            Search people, companies, and phone numbers, then jump straight into the call history tied to that contact.
+                        </p>
                         <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                                Contact directory
-                            </Chip>
                             <Chip variant="soft" color="default">
                                 {displayedCount} visible
                             </Chip>
@@ -153,27 +138,6 @@ export function ContactsPage({
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        {!isMobile && (
-                            <QuickStartPopover
-                                title="Get value from contacts quickly"
-                                description="These are the fastest first-time actions for making the directory useful."
-                                steps={[
-                                    {
-                                        title: 'Search for a person or company',
-                                        description: 'Start with the directory search box to find existing matches fast.',
-                                    },
-                                    {
-                                        title: 'Open a contact workspace',
-                                        description: 'Use a contact page to review linked calls and recent activity.',
-                                    },
-                                    {
-                                        title: 'Add more matches',
-                                        description: 'Upload more calls or sync data so future recordings connect to real people.',
-                                        href: '/upload',
-                                    },
-                                ]}
-                            />
-                        )}
                         <Link href="/upload" className="w-full sm:w-auto xl:w-full">
                             <Button className="w-full rounded-full px-6 font-semibold">
                                 Upload more calls
@@ -187,76 +151,6 @@ export function ContactsPage({
                         </Link>
                     </div>
                 </div>
-
-                <details className="group border-t border-default-100/80 bg-default-50/50">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 md:px-8 [&::-webkit-details-marker]:hidden">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color="default">
-                                Total: {totalCount || allContacts.length}
-                            </Chip>
-                            <Chip variant="soft" color="success">
-                                Showing: {displayedCount}
-                            </Chip>
-                            <Chip variant="soft" color="default">
-                                Companies: {uniqueCompanies}
-                            </Chip>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-default-500">
-                            Directory details
-                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                        </div>
-                    </summary>
-                    <div className="grid min-w-0 gap-3 border-t border-default-100/80 px-5 py-4 md:grid-cols-2 md:px-8 xl:grid-cols-4">
-                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    <Users className="h-3.5 w-3.5" />
-                                    Total contacts
-                                </div>
-                                <div className="text-2xl font-bold text-foreground">{totalCount || allContacts.length}</div>
-                                <div className="text-sm text-default-500">
-                                    Everyone currently linked to your recordings
-                                </div>
-                            </div>
-                        </Surface>
-                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    <Search className="h-3.5 w-3.5" />
-                                    Showing now
-                                </div>
-                                <div className="text-2xl font-bold text-foreground">{displayedCount}</div>
-                                <div className="text-sm text-default-500">
-                                    Current result set after local directory search
-                                </div>
-                            </div>
-                        </Surface>
-                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    <Building2 className="h-3.5 w-3.5" />
-                                    Companies
-                                </div>
-                                <div className="text-2xl font-bold text-foreground">{uniqueCompanies}</div>
-                                <div className="text-sm text-default-500">
-                                    Distinct companies represented in the directory
-                                </div>
-                            </div>
-                        </Surface>
-                        <Surface variant="secondary" className="min-w-0 rounded-[1.5rem] border border-default-200/80 p-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    <ArrowRight className="h-3.5 w-3.5" />
-                                    Linked calls
-                                </div>
-                                <div className="text-2xl font-bold text-foreground">{totalRecordings}</div>
-                                <div className="text-sm text-default-500">
-                                    Total recordings connected to known contacts
-                                </div>
-                            </div>
-                        </Surface>
-                    </div>
-                </details>
             </section>
 
             <Surface
@@ -265,17 +159,8 @@ export function ContactsPage({
             >
                 <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             Search directory
-                            <ContextHelp
-                                title="Directory search"
-                                description="This search runs locally against the contacts already loaded into the directory."
-                                points={[
-                                    'Matches name, phone number, company, and role.',
-                                    'Open a result to inspect the linked calls for that person.',
-                                ]}
-                                placement="right"
-                            />
                         </div>
                         {searchQuery ? (
                             <Chip variant="soft" color="warning" size="sm">

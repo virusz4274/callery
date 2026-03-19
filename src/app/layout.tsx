@@ -8,6 +8,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AppLayout } from '@/components/app-layout';
 import { ToastProvider } from '@/components/toast-provider';
+import { PushServiceWorkerRegister } from '@/components/push-service-worker-register';
 import { ServiceWorkerUnregister } from '@/components/service-worker-unregister';
 
 import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
@@ -55,6 +56,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {process.env.NODE_ENV === 'development' && <ServiceWorkerUnregister />}
+          {process.env.NODE_ENV === 'production' && <PushServiceWorkerRegister />}
 
 
           <FirebaseClientProvider>

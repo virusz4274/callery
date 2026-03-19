@@ -1,6 +1,6 @@
 import type { AudioFileInfo } from '@/lib/capacitor';
 
-export type SyncStatus = 'pending' | 'synced' | 'uploading' | 'error';
+export type SyncStatus = 'pending' | 'queued' | 'retrying' | 'uploading' | 'finalizing' | 'synced' | 'error';
 
 export interface SyncableFile extends AudioFileInfo {
     fingerprint: string;
@@ -13,6 +13,7 @@ export interface SyncProgress {
     current: number;
     total: number;
     currentFileName: string;
+    state?: 'queued' | 'running' | 'retrying' | 'completed' | 'completed_with_errors' | 'cancelled' | 'failed';
 }
 
 export type SortField = 'mtime' | 'size' | 'name';

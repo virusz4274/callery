@@ -8,3 +8,9 @@ export interface SyncedFile {
     recordingId: string;
     folderUri: string;
 }
+
+export interface FolderSyncMetadata {
+    folderUri: string;
+    syncedCount: number;
+    lastSyncTime: number | null;
+}

@@ -4,7 +4,7 @@ import { ObjectId } from 'mongodb';
 import { logger } from '@/lib/logger';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Recording } from '@/lib/db/types';
-import { updateRecording } from '@/lib/db/recordings';
+import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
 import { reportUsage } from '@/lib/stripe/usage';
 import { findUserByFirebaseUid, incrementTranscriptionUsed } from '@/lib/db/users';
 import { GeminiService } from '@/services/ai/gemini-service';
@@ -247,16 +247,22 @@ export async function POST(request: Request) {
                 transcriptionStatus: 'failed',
             });
 
-            const user = await findUserByFirebaseUid(firebaseUid);
-            if (user) {
-                await createNotification(
-                    user._id,
-                    'error',
-                    'Transcription Failed',
-                    `Processing failed for \"${recording.standardizedDisplayName || recording.fileName}\".`,
-                );
-            }
             await markTranscriptionWebhookProcessed(eventId);
+
+            try {
+                const user = await findUserByFirebaseUid(firebaseUid);
+                if (user) {
+                    await createNotification(
+                        user._id,
+                        'error',
+                        'Transcription Failed',
+                        `Processing failed for \"${recording.standardizedDisplayName || recording.fileName}\".`,
+                    );
+                }
+            } catch (notificationError) {
+                logger.error('[ElevenLabs Webhook] Failure notification delivery failed after processing:', notificationError);
+            }
+
             return NextResponse.json({ success: true, status: 'failed_recorded' });
         }
 
@@ -296,33 +302,39 @@ export async function POST(request: Request) {
             });
         }
 
-        // Report usage
-        // Note: reportUsage applies the multiplier internally (quantity * multiplier)
-        // We pass the base duration (rounded up) and the multiplier.
-        const multiplier = recording.transcriptionCostMultiplier || 1;
-        const baseDuration = calculateBilledDuration(recording.duration);
-        const billedCostDuration = baseDuration * multiplier;
-        await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
-        await reportUsage(firebaseUid, 'transcription', baseDuration, {
-            multiplier,
-            identifier: `transcription:${firebaseUid}:recording:${recordingId}:elevenlabs:${recording.externalTranscriptionId}`,
-        });
+        const usageReportId = `elevenlabs:${recording.externalTranscriptionId}`;
+        const shouldReportUsage = await markTranscriptionUsageReported(recordingId, firebaseUid, usageReportId);
+        if (shouldReportUsage) {
+            const multiplier = recording.transcriptionCostMultiplier || 1;
+            const baseDuration = calculateBilledDuration(recording.duration);
+            const billedCostDuration = baseDuration * multiplier;
+            await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
+            await reportUsage(firebaseUid, 'transcription', baseDuration, {
+                multiplier,
+                identifier: `transcription:${firebaseUid}:recording:${recordingId}:elevenlabs:${recording.externalTranscriptionId}`,
+            });
 
-        const totalBilled = Math.ceil(baseDuration * multiplier);
-        logger.info(`[ElevenLabs Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
-
-        const user = await findUserByFirebaseUid(firebaseUid);
-        if (user) {
-            await createNotification(
-                user._id,
-                'success',
-                'Transcription Ready',
-                `Your recording \"${recording.standardizedDisplayName || recording.fileName}\" has been processed.`,
-                `/?id=${recordingId}`
-            );
+            const totalBilled = Math.ceil(baseDuration * multiplier);
+            logger.info(`[ElevenLabs Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
         }
 
         await markTranscriptionWebhookProcessed(eventId);
+
+        try {
+            const user = await findUserByFirebaseUid(firebaseUid);
+            if (user) {
+                await createNotification(
+                    user._id,
+                    'success',
+                    'Transcription Ready',
+                    `Your recording \"${recording.standardizedDisplayName || recording.fileName}\" has been processed.`,
+                    `/?id=${recordingId}`
+                );
+            }
+        } catch (notificationError) {
+            logger.error('[ElevenLabs Webhook] Notification delivery failed after processing:', notificationError);
+        }
+
         return NextResponse.json({ success: true, status: 'completed' });
 
     } catch (error) {

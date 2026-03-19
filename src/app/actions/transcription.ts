@@ -1,10 +1,13 @@
 'use server';
 
+import { z } from 'zod';
 import { after } from 'next/server';
-import { getRecordingById, updateRecording } from '@/lib/db/recordings';
+import { getRecordingById, markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { SonioxService } from '@/services/transcription/soniox-service';
+import { ElevenLabsService } from '@/services/transcription/elevenlabs-service';
+import { TranscriptionFactory, type TranscriptionProviderId } from '@/services/transcription/factory';
 import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
@@ -13,15 +16,133 @@ import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createNotification } from '@/lib/notifications';
 import { buildTranscriptionFileSizeError, isTranscriptionFileSizeAllowed } from '@/lib/transcription-limits';
+import { RecordingIdSchema } from '@/lib/schemas';
+import { getProviderMultiplier } from '@/app/actions/transcription-providers';
 
 const aiService = new GeminiService();
-const transcriptionService = new SonioxService();
 
-import { RecordingIdSchema } from '@/lib/schemas';
+const ManualTranscriptionOptionsSchema = z.object({
+    provider: z.enum(['soniox', 'elevenlabs']).optional(),
+    model: z.string().trim().min(1).max(120).optional(),
+});
 
-// ... imports
+type ManualTranscriptionOptions = z.infer<typeof ManualTranscriptionOptionsSchema>;
 
-export async function transcribeRecordingAction(recordingId: string) {
+async function runManualTranscriptionJob({
+    recordingId,
+    firebaseUid,
+    userId,
+    fileName,
+    displayName,
+    r2Key,
+    duration,
+    providerId,
+    model,
+    multiplier,
+}: {
+    recordingId: string;
+    firebaseUid: string;
+    userId: Parameters<typeof createNotification>[0];
+    fileName: string;
+    displayName: string;
+    r2Key: string;
+    duration: number;
+    providerId: TranscriptionProviderId;
+    model?: string;
+    multiplier: number;
+}) {
+    const fileUrl = await getSignedR2Url(r2Key, 1800);
+    const transcriptionService = TranscriptionFactory.getService(providerId);
+
+    if (providerId === 'elevenlabs' && duration > 300 && transcriptionService instanceof ElevenLabsService) {
+        const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
+            durationSeconds: duration,
+            model,
+            webhookMetadata: { recordingId, firebaseUid },
+        });
+
+        await updateRecording(recordingId, firebaseUid, {
+            externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
+            transcriptionProvider: providerId,
+            transcriptionModel: model,
+            transcriptionCostMultiplier: multiplier,
+        });
+        return;
+    }
+
+    if (providerId === 'soniox' && duration > 300 && transcriptionService instanceof SonioxService) {
+        const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
+            durationSeconds: duration,
+            model,
+            webhookMetadata: { recordingId, firebaseUid },
+        });
+
+        await updateRecording(recordingId, firebaseUid, {
+            externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId,
+            transcriptionProvider: providerId,
+            transcriptionModel: model,
+            transcriptionCostMultiplier: multiplier,
+        });
+        return;
+    }
+
+    const result = await transcriptionService.transcribe(fileUrl, {
+        durationSeconds: duration,
+        model,
+    });
+
+    let summary = '';
+    let transliteratedSegments = result.segments;
+    let summaryEmbedding: number[] = [];
+
+    if (result.text && result.text.trim()) {
+        [summary, transliteratedSegments] = await Promise.all([
+            aiService.generateSummary(result.text, result.languageCode),
+            aiService.generateTransliteration(result.segments, result.languageCode),
+        ]);
+
+        summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
+    }
+
+    await updateRecording(recordingId, firebaseUid, {
+        transcriptionStatus: 'completed',
+        fullTranscript: transliteratedSegments,
+        languageCode: result.languageCode,
+        summary,
+        summaryEmbedding,
+        transcriptionProvider: providerId,
+        transcriptionModel: result.model,
+        transcriptionCostMultiplier: multiplier,
+    });
+
+    const usageReportId = `${providerId}:${result.transcriptionId}`;
+    const shouldReportUsage = await markTranscriptionUsageReported(recordingId, firebaseUid, usageReportId);
+    if (shouldReportUsage) {
+        const billedDuration = calculateBilledDuration(duration);
+        const billedCostDuration = billedDuration * multiplier;
+        await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
+        await reportUsage(firebaseUid, 'transcription', billedDuration, {
+            multiplier,
+            identifier: `transcription:${firebaseUid}:recording:${recordingId}:manual:${providerId}:${result.transcriptionId}`,
+        });
+    }
+
+    try {
+        await transcriptionService.deleteTranscript(result.transcriptionId);
+    } catch (deleteError) {
+        logger.error('Failed to delete transcript from provider:', deleteError);
+    }
+
+    await createNotification(
+        userId,
+        'success',
+        'Transcription Ready',
+        `Your recording "${displayName || fileName}" is ready.`,
+        `/?id=${recordingId}`
+    );
+}
+
+export async function transcribeRecordingAction(recordingId: string, options?: ManualTranscriptionOptions) {
     try {
         const parseResult = RecordingIdSchema.safeParse(recordingId);
         if (!parseResult.success) {
@@ -29,7 +150,14 @@ export async function transcribeRecordingAction(recordingId: string) {
         }
         const validatedRecordingId = parseResult.data;
 
-        // 1. Authenticate
+        const optionsResult = ManualTranscriptionOptionsSchema.safeParse(options || {});
+        if (!optionsResult.success) {
+            return { error: 'Invalid transcription options' };
+        }
+
+        const providerId = optionsResult.data.provider || 'soniox';
+        const model = optionsResult.data.model;
+
         const uid = await getFirebaseUidFromSession();
         if (!uid) {
             return { error: 'Unauthorized' };
@@ -45,89 +173,54 @@ export async function transcribeRecordingAction(recordingId: string) {
             return { error: access.reason };
         }
 
-        // 2a. Check Usage Cycle
+        if (!TranscriptionFactory.isProviderAvailable(providerId)) {
+            return { error: 'Selected transcription provider is not configured' };
+        }
+
         const currentUser = await checkAndResetUsageCycle(user);
-
-        // validated via schema
-        // if (!recordingId) { ... }
-
-        // 2. Get Recording
         const recording = await getRecordingById(validatedRecordingId, uid);
         if (!recording) {
             return { error: 'Recording not found' };
+        }
+
+        if (recording.transcriptionStatus === 'processing') {
+            return { error: 'This recording is already being transcribed' };
         }
 
         if (!isTranscriptionFileSizeAllowed(recording.fileSize)) {
             return { error: buildTranscriptionFileSizeError(recording.fileSize) };
         }
 
-        // 3. Check Transcription Access
-        const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
+        const multiplier = await getProviderMultiplier(providerId);
+        const costDuration = recording.duration * multiplier;
+        const transcriptionAccess = checkTranscriptionAccess(currentUser, costDuration);
         if (!transcriptionAccess.allowed) {
             return { error: transcriptionAccess.reason || 'Transcription limit exceeded' };
         }
 
-        // Set status to processing immediately for UI feedback
-        await updateRecording(validatedRecordingId, uid, { transcriptionStatus: 'processing' });
-        logger.info(`[Action/Transcribe] Starting background job for ${validatedRecordingId}`);
+        await updateRecording(validatedRecordingId, uid, {
+            transcriptionStatus: 'processing',
+            transcriptionProvider: providerId,
+            transcriptionModel: model,
+            transcriptionCostMultiplier: multiplier,
+        });
+        logger.info(`[Action/Transcribe] Starting ${providerId} background job for ${validatedRecordingId}`);
 
-        // 5. Trigger Background Transcription
         after(async () => {
             try {
-                const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
-                logger.info(`[Action/Transcribe] Processing ${validatedRecordingId}...`);
-                const result = await transcriptionService.transcribe(fileUrl, { durationSeconds: recording.duration });
-                logger.info(`[Action/Transcribe] Transcription received for ${validatedRecordingId}`);
-
-                // Parallelize LLM operations ONLY if text exists
-                let summary = '';
-                let transliteratedSegments = result.segments;
-                let summaryEmbedding: number[] = [];
-
-                if (result.text && result.text.trim()) {
-                    logger.info(`[Action/Transcribe] Running AI summary and transliteration for ${validatedRecordingId}`);
-                    [summary, transliteratedSegments] = await Promise.all([
-                        aiService.generateSummary(result.text, result.languageCode),
-                        aiService.generateTransliteration(result.segments, result.languageCode)
-                    ]);
-
-                    // Generate embedding from summary
-                    summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
-                }
-
-                // Save Result
-                logger.info(`[Action/Transcribe] Saving results for ${validatedRecordingId}`);
-                await updateRecording(validatedRecordingId, uid, {
-                    transcriptionStatus: 'completed',
-                    fullTranscript: transliteratedSegments, // This now includes transliteratedText
-                    languageCode: result.languageCode,
-                    summary,
-                    summaryEmbedding,
-                });
-
-                // Calculate and record billed usage
-                const billedDuration = calculateBilledDuration(recording.duration);
-                await incrementTranscriptionUsed(uid, billedDuration);
-                await reportUsage(uid, 'transcription', billedDuration, {
-                    identifier: `transcription:${uid}:recording:${validatedRecordingId}:manual`,
+                await runManualTranscriptionJob({
+                    recordingId: validatedRecordingId,
+                    firebaseUid: uid,
+                    userId: user._id,
+                    fileName: recording.fileName,
+                    displayName: recording.standardizedDisplayName || recording.fileName,
+                    r2Key: recording.r2Key,
+                    duration: recording.duration,
+                    providerId,
+                    model,
+                    multiplier,
                 });
                 logger.info(`[Action/Transcribe] Job completed for ${validatedRecordingId}`);
-
-                // Delete from Soniox
-                try {
-                    await transcriptionService.deleteTranscript(result.transcriptionId);
-                } catch (deleteError) {
-                    logger.error('Failed to delete transcript from Soniox:', deleteError);
-                }
-
-                await createNotification(
-                    user._id,
-                    'success',
-                    'Transcription Ready',
-                    `Your recording "${recording.standardizedDisplayName || recording.fileName}" is ready.`,
-                    `/?id=${validatedRecordingId}`
-                );
-
             } catch (error) {
                 logger.error('[Action/Transcribe] Background job failed:', error);
                 await updateRecording(validatedRecordingId, uid, {
@@ -143,9 +236,7 @@ export async function transcribeRecordingAction(recordingId: string) {
             }
         });
 
-        // Return success immediately
         return { success: true };
-
     } catch (error) {
         logger.error('Transcription start error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';

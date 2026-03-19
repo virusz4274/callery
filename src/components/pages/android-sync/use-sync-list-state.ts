@@ -71,7 +71,9 @@ export function useSyncListState({ files, setFiles }: UseSyncListStateOptions) {
 
     const selectAllVisible = () => {
         const visibleFingerprints = new Set(
-            paginatedFiles.filter((file) => file.status === 'pending').map((file) => file.fingerprint)
+            paginatedFiles
+                .filter((file) => file.status === 'pending' || file.status === 'error' || file.status === 'retrying')
+                .map((file) => file.fingerprint)
         );
         setFiles((prev) => setSelectionByFingerprints(prev, visibleFingerprints, true));
     };

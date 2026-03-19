@@ -14,10 +14,11 @@ export default async function PricingPage() {
                         Pricing
                     </span>
                     <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.05em] text-foreground md:text-6xl">
-                        Plans for personal archives, important business calls, and growing small teams.
+                        Compare the free, standard, pro, and custom lanes in one place.
                     </h1>
                     <p className="mt-4 max-w-2xl text-lg leading-8 text-default-600">
-                        Keep the entry cost low, then scale when storage, transcription volume, and shared access become part of how you keep recordings.
+                        Start with a lighter archive, then move into the lane that matches your storage,
+                        transcription, and rollout needs.
                     </p>
                 </div>
             </section>

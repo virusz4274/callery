@@ -12,6 +12,7 @@ export type PublicPlan = {
     interval: 'monthly' | 'yearly' | 'lifetime';
     features: string[];
     stripePriceId: string;
+    isPurchasable?: boolean;
 };
 
 export async function getPublishedPlans(): Promise<PublicPlan[]> {
@@ -34,5 +35,29 @@ export async function getPublishedPlans(): Promise<PublicPlan[]> {
             interval: p.interval,
             features: p.features,
             stripePriceId: p.stripePriceId, // Needed for checkout
+            isPurchasable: true,
+        }));
+}
+
+export async function getUpgradeablePlans(): Promise<PublicPlan[]> {
+    const db = await getMongoDb();
+    const plans = await db.collection<Plan>(Collections.PLANS)
+        .find({
+            isActive: true,
+            name: { $nin: ['Free', 'Free Trial', 'Internal'] },
+        })
+        .sort({ price: 1, name: 1 })
+        .toArray();
+
+    return plans.map((plan) => ({
+        id: plan._id.toString(),
+        name: plan.name,
+        description: plan.description || '',
+        price: plan.price,
+        currency: plan.currency,
+        interval: plan.interval,
+        features: plan.features,
+        stripePriceId: plan.stripePriceId,
+        isPurchasable: Boolean(plan.stripePriceId?.trim()),
         }));
 }

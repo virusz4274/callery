@@ -4,6 +4,7 @@ import React, { useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
 import { initializeFirebase } from './client';
 import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
+import { syncFirebaseSession } from './session-sync';
 
 interface FirebaseClientProviderProps {
     children: ReactNode;
@@ -73,15 +74,17 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
             if (firebaseUser) {
                 // User is signed in or token refreshed
                 try {
-                    const idToken = await firebaseUser.getIdToken();
-                    const response = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken }),
+                    const result = await syncFirebaseSession(firebaseUser, {
+                        auth,
+                        signOutOnFailure: true,
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`Session sync failed: ${response.status}`);
+                    if (!result.ok) {
+                        throw new Error(result.message);
+                    }
+
+                    if (result.profileEnsureFailed) {
+                        console.warn('Session synced, but user profile refresh did not complete cleanly.');
                     }
 
                     // Success - reset circuit breaker

@@ -52,11 +52,11 @@ export function FolderSelectionCard({
                 <Card.Content className="space-y-5 p-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-4">
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
                                 <Chip variant="soft" color="accent">
                                     Selected folder
                                 </Chip>
-                                <Chip variant="soft" color="default">
+                                <Chip variant="soft" color="default" className="max-w-full">
                                     {selectedFolder.name}
                                 </Chip>
                             </div>
@@ -64,8 +64,8 @@ export function FolderSelectionCard({
                                 <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-accent/10 text-accent">
                                     <FolderOpen className="h-5 w-5" />
                                 </div>
-                                <div>
-                                    <div className="text-xl font-bold tracking-[-0.03em] text-foreground">{selectedFolder.name}</div>
+                                <div className="min-w-0">
+                                    <div className="text-xl font-bold tracking-[-0.03em] text-foreground [overflow-wrap:anywhere]">{selectedFolder.name}</div>
                                     <p className="text-sm leading-6 text-default-500">
                                         Review unsynced files, refresh the scan, or change the source if needed.
                                     </p>

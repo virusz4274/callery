@@ -1,37 +1,5 @@
-import { Collections, getMongoDb } from '@/lib/mongodb';
-import { logger } from '@/lib/logger';
 import type { User } from '../types';
 import { createUser, findUserByFirebaseUid, getPlanById, getSystemSettings } from './lookup';
-import { ensureStripeCustomerId } from '@/lib/stripe/customer';
-
-/**
- * Ensure a user has a Stripe Customer ID.
- */
-async function ensureStripeCustomer(user: User): Promise<User> {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
-        return user;
-    }
-
-    if (user.stripeCustomerId) {
-        return user;
-    }
-
-    try {
-        logger.info(`[ensureStripeCustomer] Creating Stripe Customer for ${user._id}`);
-        const stripeCustomerId = await ensureStripeCustomerId(user);
-        const db = await getMongoDb();
-        const result = await db.collection<User>(Collections.USERS).findOne({ _id: user._id });
-
-        if (result?.stripeCustomerId === stripeCustomerId) {
-            logger.info(`[ensureStripeCustomer] Created Stripe Customer ID: ${stripeCustomerId}`);
-            return result as User;
-        }
-    } catch (error) {
-        logger.error(`[ensureStripeCustomer] Failed to create Stripe ID for ${user._id}:`, error);
-    }
-
-    return user;
-}
 
 /**
  * Ensure a user profile exists, creating one if necessary.
@@ -46,8 +14,7 @@ export async function ensureUserProfile(
     const existingUser = await findUserByFirebaseUid(firebaseUid);
 
     if (existingUser) {
-        const updatedUser = await ensureStripeCustomer(existingUser);
-        return { user: updatedUser, wasCreated: false };
+        return { user: existingUser, wasCreated: false };
     }
 
     const settings = await getSystemSettings();
@@ -74,7 +41,7 @@ export async function ensureUserProfile(
     const lastName = nameParts.slice(1).join(' ') || '';
 
     try {
-        let newUser = await createUser({
+        const newUser = await createUser({
             firebaseUid,
             email,
             firstName,
@@ -109,9 +76,11 @@ export async function ensureUserProfile(
             totalDuration: 0,
             trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             lastLoginAt: new Date(),
+            googleSync: {
+                status: 'not_connected',
+                lastError: null,
+            },
         });
-
-        newUser = await ensureStripeCustomer(newUser);
 
         return { user: newUser, wasCreated: true };
     } catch (error: unknown) {
@@ -119,8 +88,7 @@ export async function ensureUserProfile(
         if (err.code === 11000 || err.message?.includes('E11000') || err.message?.includes('duplicate key')) {
             const user = await findUserByFirebaseUid(firebaseUid);
             if (user) {
-                const updatedUser = await ensureStripeCustomer(user);
-                return { user: updatedUser, wasCreated: false };
+                return { user, wasCreated: false };
             }
         }
 

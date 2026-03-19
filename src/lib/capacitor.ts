@@ -11,5 +11,13 @@ export function getPlatform(): string {
 export type { AudioFileInfo } from './capacitor-audio';
 export { isSupportedAudioFile } from './capacitor-audio';
 export type { Folder } from './capacitor-folder-ops';
-export { listAudioFiles, listDirectories, pickSyncFolder, readFileAsBlob } from './capacitor-folder-ops';
+export {
+    getCachedAudioFiles,
+    getFileUri,
+    listAudioFiles,
+    listDirectories,
+    pickSyncFolder,
+    readFileAsBlob,
+    refreshCachedAudioFiles,
+} from './capacitor-folder-ops';
 export { clearSyncFolder, loadSyncFolder, saveSyncFolder } from './capacitor-sync-storage';

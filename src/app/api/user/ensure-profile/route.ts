@@ -59,10 +59,22 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error('Error ensuring user profile:', error);
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (message.includes('New signups are currently disabled')) {
+            return NextResponse.json(
+                {
+                    error: message,
+                    details: message,
+                },
+                { status: 403 }
+            );
+        }
+
         return NextResponse.json(
             {
                 error: 'Failed to ensure user profile',
-                details: error instanceof Error ? error.message : String(error)
+                details: message
             },
             { status: 500 }
         );

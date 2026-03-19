@@ -2,7 +2,7 @@
 "use client";
 import { useToast } from '@/components/toast-provider';
 import React, { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
 import { MobileNav } from './mobile-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -17,6 +17,7 @@ import { ProductSidebar } from '@/components/navigation/product-sidebar';
 import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
 import { signOutNativeGoogle } from '@/lib/firebase/google-sign-in';
+import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -33,12 +34,14 @@ const MARKETING_LAYOUT_PATHS = new Set([
   '/privacy-policy',
   '/terms-of-service',
 ]);
+const PROTECTED_PATH_PREFIXES = ['/recordings', '/upload', '/contacts', '/files', '/settings'];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { toast } = useToast();
 
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
 
   // Data fetching and auth logic is now in the layout container
@@ -56,6 +59,16 @@ export function AppLayout({ children }: AppLayoutProps) {
       router.replace('/recordings');
     }
   }, [isUserLoading, pathname, router, user]);
+
+  useEffect(() => {
+    const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
+
+    if (!isUserLoading && !user && isProtectedProductRoute) {
+      router.replace(buildLoginRedirectHref(buildCurrentPath(pathname, searchParams.toString())));
+    }
+  }, [isUserLoading, pathname, router, searchParams, user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,9 +133,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
   const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
   const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
+  const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
   const showProductChrome = Boolean(user) && !isMinimalLayoutRoute;
-  const showPublicHeader = !user && isMarketingLayoutRoute;
-  const showAppHeader = !isMinimalLayoutRoute && !showPublicHeader;
+  const showPublicHeader = !user && !isMinimalLayoutRoute;
+  const showAppHeader = Boolean(user) && !isMinimalLayoutRoute;
   const showDesktopSidebar = showProductChrome && !pathname.startsWith('/admin');
   const showBottomNav = showProductChrome && isMobile && !showHamburger && !pathname.startsWith('/admin');
   const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
@@ -175,6 +191,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Spinner size="lg" color="current" className="text-primary" />
+      </div>
+    );
+  }
+
+  if (!isUserLoading && !user && isProtectedProductRoute) {
+    return (
+      <div className="flex min-h-dvh w-full flex-col bg-background">
+        <PublicHeader />
+        <main className="flex flex-1 items-center justify-center px-4 py-12">
+          <Spinner size="lg" color="current" className="text-primary" />
+        </main>
       </div>
     );
   }

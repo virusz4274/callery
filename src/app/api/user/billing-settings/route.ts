@@ -5,6 +5,7 @@ import { findUserByFirebaseUid, setStoragePeakUsed } from '@/lib/db/users'; // u
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
 import { reportUsage } from '@/lib/stripe/usage';
+import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
@@ -33,6 +34,18 @@ export async function PATCH(req: NextRequest) {
         // Trial users cannot enable overage
         if (user.plan === 'Free Trial' || user.plan === 'Free') {
             return NextResponse.json({ error: 'Pay Per Usage cannot be enabled on Free Trial.' }, { status: 403 });
+        }
+
+        if (allowOverage && !user.stripeCustomerId) {
+            try {
+                await ensureStripeCustomerId(user);
+            } catch (error) {
+                console.error('Error creating Stripe customer before enabling overage:', error);
+                return NextResponse.json(
+                    { error: 'Unable to enable Pay Per Usage right now. Please try again in a moment.' },
+                    { status: 503 }
+                );
+            }
         }
 
         // Use direct update since our generic `updateUser` might not deep merge 'billingSettings' if it's new
