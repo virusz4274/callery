@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Label, Spinner, TextField } from '@heroui/react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuth, useUser } from '@/lib/firebase/provider';
 import { useToast } from '@/components/toast-provider';
+import { buildAuthPageHref, resolvePostAuthRedirect } from '@/lib/auth-redirect';
 
 export function ForgotPasswordPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  const loginHref = buildAuthPageHref('/login', redirectParam);
+  const postAuthPath = resolvePostAuthRedirect(redirectParam);
 
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,9 +26,9 @@ export function ForgotPasswordPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/recordings');
+      router.push(postAuthPath);
     }
-  }, [router, user]);
+  }, [postAuthPath, router, user]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -64,7 +69,7 @@ export function ForgotPasswordPage() {
       footer={
         <p className="text-sm text-default-500">
           Remembered it?{' '}
-          <Link href="/login" className="font-semibold text-primary transition-colors hover:text-primary/80">
+          <Link href={loginHref} className="font-semibold text-primary transition-colors hover:text-primary/80">
             Back to sign in
           </Link>
         </p>
@@ -82,7 +87,7 @@ export function ForgotPasswordPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link href="/login" className="block">
+            <Link href={loginHref} className="block">
               <Button variant="primary" className="h-12 w-full rounded-full font-semibold">
                 Back to Sign In
               </Button>

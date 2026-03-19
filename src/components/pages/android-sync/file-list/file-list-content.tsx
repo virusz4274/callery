@@ -18,7 +18,7 @@ export function FileListContent({
     onToggleFileSelection,
 }: FileListContentProps) {
     return (
-        <div className="flex-1 min-h-0 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-3">
             {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                     <Spinner />
@@ -32,7 +32,7 @@ export function FileListContent({
                     <p className="mt-1 text-sm text-default-500">Try a different search term or switch tabs.</p>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                     {paginatedFiles.map((file) => (
                         <FileItem key={file.fingerprint} file={file} onToggle={onToggleFileSelection} />
                     ))}

@@ -57,6 +57,35 @@ export async function updateRecording(
 }
 
 /**
+ * Mark transcription usage as reported for a specific processing run.
+ * Returns true only on the first successful mark for a given report ID.
+ */
+export async function markTranscriptionUsageReported(
+    recordingId: string,
+    firebaseUid: string,
+    reportId: string
+): Promise<boolean> {
+    const db = await getMongoDb();
+
+    const result = await db.collection<Recording>(Collections.RECORDINGS).updateOne(
+        {
+            _id: new ObjectId(recordingId),
+            firebaseUid,
+            transcriptionUsageReportId: { $ne: reportId },
+        },
+        {
+            $set: {
+                transcriptionUsageReportId: reportId,
+                transcriptionUsageReportedAt: new Date(),
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    return result.modifiedCount > 0;
+}
+
+/**
  * Delete a recording by ID.
  * Note: This only deletes from MongoDB. R2 deletion should be handled separately.
  */

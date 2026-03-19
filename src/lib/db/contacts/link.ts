@@ -2,6 +2,49 @@ import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { Contact } from '../types';
 
+export async function recalculateContactStats(
+    contactId: string | ObjectId,
+    firebaseUid: string
+): Promise<{ totalRecordings: number; lastRecordingAt: Date | null }> {
+    const db = await getMongoDb();
+    const cId = new ObjectId(contactId);
+
+    const stats = await db
+        .collection(Collections.RECORDINGS)
+        .aggregate([
+            {
+                $match: {
+                    firebaseUid,
+                    contactId: cId,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    lastRecording: { $max: '$recordedAt' },
+                },
+            },
+        ])
+        .toArray();
+
+    const count = stats[0]?.count || 0;
+    const lastRecording = stats[0]?.lastRecording || null;
+
+    await db.collection<Contact>(Collections.CONTACTS).updateOne(
+        { _id: cId, firebaseUid },
+        {
+            $set: {
+                totalRecordings: count,
+                lastRecordingAt: lastRecording,
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    return { totalRecordings: count, lastRecordingAt: lastRecording };
+}
+
 /**
  * Increment the recording count for a contact.
  */
@@ -28,6 +71,10 @@ export async function incrementContactRecordings(
         { _id: new ObjectId(contactId), firebaseUid },
         update
     );
+
+    if (amount < 0) {
+        await recalculateContactStats(contactId, firebaseUid);
+    }
 }
 
 /**
@@ -60,38 +107,5 @@ export async function linkRecordingsToContact(
         }
     );
 
-    const stats = await db
-        .collection(Collections.RECORDINGS)
-        .aggregate([
-            {
-                $match: {
-                    firebaseUid,
-                    contactId: cId,
-                },
-            },
-            {
-                $group: {
-                    _id: null,
-                    count: { $sum: 1 },
-                    lastRecording: { $max: '$recordedAt' },
-                },
-            },
-        ])
-        .toArray();
-
-    const count = stats[0]?.count || 0;
-    const lastRecording = stats[0]?.lastRecording || null;
-
-    await db.collection<Contact>(Collections.CONTACTS).updateOne(
-        { _id: cId },
-        {
-            $set: {
-                totalRecordings: count,
-                lastRecordingAt: lastRecording,
-                updatedAt: new Date(),
-            },
-        }
-    );
-
-    return { totalRecordings: count, lastRecordingAt: lastRecording };
+    return recalculateContactStats(cId, firebaseUid);
 }

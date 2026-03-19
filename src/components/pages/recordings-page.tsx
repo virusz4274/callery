@@ -12,12 +12,11 @@ import { useStats } from '@/hooks/use-stats';
 import { useContacts } from '@/hooks/use-contacts';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
 import { useToast } from '@/components/toast-provider';
-import { ContextHelp } from '@/components/context-help';
-import { QuickStartPopover } from '@/components/quick-start-popover';
 import type { Recording } from '@/lib/types';
 import type { SavedRecordingsView, SmartCollection } from '@/components/recordings/toolbar/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
-import { ArrowRight, CalendarRange, CheckCircle2, ChevronDown, Sparkles, Users, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 const SAVED_VIEWS_STORAGE_KEY = 'vosift:recordings:saved-views';
 const CHECKLIST_DISMISSED_STORAGE_KEY = 'vosift:recordings:checklist-dismissed';
@@ -40,21 +39,6 @@ const SMART_COLLECTIONS: SmartCollection[] = [
         description: 'Show items where transcription has not completed yet.',
     },
 ];
-
-function formatAverageDuration(seconds: number | undefined) {
-    if (!seconds) {
-        return '0m';
-    }
-
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.round(seconds % 60);
-
-    if (mins === 0) {
-        return `${secs}s`;
-    }
-
-    return `${mins}m`;
-}
 
 export function RecordingsPage() {
     const router = useRouter();
@@ -96,6 +80,7 @@ export function RecordingsPage() {
     const contactId = searchParams.get('contact') || undefined;
     const activeViewId = searchParams.get('view') || undefined;
     const activeSmartCollectionId = searchParams.get('collection') || undefined;
+    const redirectPath = buildCurrentPath(pathname, searchParams.toString());
 
     // -- Data Fetching --
     const queryOptions = useMemo(() => ({
@@ -369,7 +354,6 @@ export function RecordingsPage() {
     const activeViewName = activeViewId
         ? savedViews.find((item) => item.id === activeViewId)?.name || 'Saved'
         : null;
-    const shouldShowHeaderStats = !hasRecordings || isShowingSemanticResults || Boolean(activeCollectionName) || Boolean(filteredContactName);
     const checklistItems = [
         {
             id: 'upload',
@@ -392,14 +376,23 @@ export function RecordingsPage() {
     ];
     const completedChecklistCount = checklistItems.filter((item) => item.done).length;
     const shouldShowChecklist = !isChecklistDismissed && (!hasRecordings || !hasContacts);
-    const shouldShowQuickStart = !hasRecordings;
 
     // -- Handlers --
     const handlePageChange = (newPage: number) => updateUrl({ page: newPage.toString() });
 
     // -- Render --
+    useEffect(() => {
+        if (!user) {
+            router.replace(buildLoginRedirectHref(redirectPath));
+        }
+    }, [redirectPath, router, user]);
+
     if (!user) {
-        return <div className="p-8 text-center">Please log in to view recordings.</div>;
+        return (
+            <div className="flex min-h-[40vh] items-center justify-center">
+                <Spinner size="lg" color="current" className="text-primary" />
+            </div>
+        );
     }
 
     return (
@@ -407,10 +400,13 @@ export function RecordingsPage() {
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className={`grid gap-4 px-5 md:px-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center ${
+                <div className={`grid gap-5 px-5 md:px-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center ${
                     hasRecordings ? 'py-4 md:py-5' : 'py-5 md:py-6'
                 }`}>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                        <Chip variant="soft" color="accent" className="w-fit">
+                            Call library
+                        </Chip>
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="mr-1 text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
                                 Recordings
@@ -433,45 +429,29 @@ export function RecordingsPage() {
                                     {activeViewName}
                                 </Chip>
                             )}
-                            <ContextHelp
-                                title="Recordings workspace"
-                                description="This is the main operating surface for finding, filtering, and opening calls."
-                                points={[
-                                    'Use the unified search bar for exact text or AI search.',
-                                    'Open More filters only when you need contact, date, or sort controls.',
-                                    'Save views when you repeat the same workflow often.',
-                                ]}
-                            />
                         </div>
-                        {!hasRecordings && (
-                            <p className="max-w-2xl text-sm text-default-500">
-                                Bring audio into the workspace, then search, filter, and review everything from one library.
-                            </p>
+                        <p className="max-w-2xl text-sm leading-6 text-default-500">
+                            {hasRecordings
+                                ? 'Search, filter, and open calls without leaving the main library.'
+                                : 'Bring audio into the workspace, then search, filter, and review everything from one library.'}
+                        </p>
+                        {(filteredContactName || activeCollectionName) && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                {filteredContactName && (
+                                    <Chip variant="soft" color="default">
+                                        Contact: {filteredContactName}
+                                    </Chip>
+                                )}
+                                {activeCollectionName && (
+                                    <Chip variant="soft" color="warning">
+                                        Collection: {activeCollectionName}
+                                    </Chip>
+                                )}
+                            </div>
                         )}
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
-                        {shouldShowQuickStart && (
-                            <QuickStartPopover
-                                title="Fastest way to start using the library"
-                                description="These are the core actions most new users need on day one."
-                                steps={[
-                                    {
-                                        title: 'Upload at least one call',
-                                        description: 'Bring audio into the workspace so the library has something to search.',
-                                        href: '/upload',
-                                    },
-                                    {
-                                        title: 'Filter or search the list',
-                                        description: 'Use text, date, contact, or saved views to narrow the archive.',
-                                    },
-                                    {
-                                        title: 'Try AI search',
-                                        description: 'Search by intent when you only remember the topic of a conversation.',
-                                    },
-                                ]}
-                            />
-                        )}
                         <Link href="/upload">
                             <Button className="w-full rounded-full px-5 font-semibold">
                                 Upload recordings
@@ -487,47 +467,6 @@ export function RecordingsPage() {
                         )}
                     </div>
                 </div>
-
-                {shouldShowHeaderStats ? (
-                    <details className="group border-t border-default-100/80 bg-default-50/50">
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 md:px-8 [&::-webkit-details-marker]:hidden">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Chip variant="soft" color="default">
-                                    Total: {isLoadingStats ? '...' : stats?.totalRecordings ?? totalCount}
-                                </Chip>
-                                <Chip variant="soft" color="success">
-                                    Showing: {displayTotalCount}
-                                </Chip>
-                                <Chip variant="soft" color={isShowingSemanticResults ? 'accent' : 'default'}>
-                                    {isShowingSemanticResults ? <Sparkles className="mr-1 h-3.5 w-3.5" /> : <Users className="mr-1 h-3.5 w-3.5" />}
-                                    {isShowingSemanticResults
-                                        ? 'AI search'
-                                        : filteredContactName || 'Entire workspace'}
-                                </Chip>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-default-500">
-                                Library stats
-                                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                            </div>
-                        </summary>
-                        <div className="flex flex-wrap items-center gap-2 border-t border-default-100/80 px-5 py-3 md:px-8">
-                            <Chip variant="soft" color="default">
-                                <CalendarRange className="mr-1 h-3.5 w-3.5" />
-                                Avg: {isLoadingStats ? '...' : formatAverageDuration(stats?.avgDuration)}
-                            </Chip>
-                            {activeCollectionName && (
-                                <Chip variant="soft" color="warning">
-                                    Collection: {activeCollectionName}
-                                </Chip>
-                            )}
-                            {activeViewName && (
-                                <Chip variant="soft" color="default">
-                                    View: {activeViewName}
-                                </Chip>
-                            )}
-                        </div>
-                    </details>
-                ) : null}
             </section>
 
             {shouldShowChecklist && (

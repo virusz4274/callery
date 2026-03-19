@@ -16,6 +16,7 @@ export function AndroidSyncPage() {
         selectedFolder,
         isLoading,
         isSyncing,
+        syncMode,
         syncProgress,
         syncedCount,
         lastSyncTime,
@@ -45,6 +46,7 @@ export function AndroidSyncPage() {
         loadFiles,
         toggleFileSelection,
         syncSelectedFiles,
+        cancelSync,
         handleClearSyncHistory
     } = useAndroidSync();
 
@@ -108,7 +110,7 @@ export function AndroidSyncPage() {
     }
 
     return (
-        <div className="relative mx-auto flex h-full max-w-7xl flex-col gap-8">
+        <div className="relative mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-8 overflow-x-clip">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <SyncHeader lastSyncTime={lastSyncTime} />
@@ -194,6 +196,7 @@ export function AndroidSyncPage() {
                     onPageChange={setPage}
                     onToggleFileSelection={toggleFileSelection}
                     syncProgress={syncProgress}
+                    onCancelSync={syncMode === 'background' ? cancelSync : undefined}
                 />
             )}
         </div>

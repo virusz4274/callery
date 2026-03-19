@@ -2,17 +2,22 @@
 
 import { useToast } from '@/components/toast-provider';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { GoogleIcon } from '@/components/icons/google-icon';
-import { AppleIcon } from '@/components/icons/apple-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuth, useUser } from '@/lib/firebase/provider';
 import { isGoogleSignInCancelledError, signInWithGoogle } from '@/lib/firebase/google-sign-in';
+import { syncFirebaseSession } from '@/lib/firebase/session-sync';
 import { useIsCapacitor } from '@/hooks/use-is-capacitor';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  buildAuthPageHref,
+  getAuthRedirectCopy,
+  resolvePostAuthRedirect,
+} from '@/lib/auth-redirect';
 
 export function LoginPage() {
   const { toast } = useToast();
@@ -20,44 +25,100 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleLoading] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isCompletingSignIn, setIsCompletingSignIn] = useState(false);
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isCapacitor = useIsCapacitor();
   const isMobile = useIsMobile();
   const preferCompactLogin = isCapacitor || isMobile;
+  const redirectParam = searchParams.get('redirect');
+  const authCopy = getAuthRedirectCopy(redirectParam);
+  const postAuthPath = resolvePostAuthRedirect(redirectParam);
+  const signupHref = buildAuthPageHref('/signup', redirectParam);
+  const forgotPasswordHref = buildAuthPageHref('/forgot-password', redirectParam);
 
   useEffect(() => {
-    if (user) {
-      router.replace('/recordings');
+    if (user && !isCompletingSignIn) {
+      router.replace(postAuthPath);
     }
-  }, [user, router]);
+  }, [isCompletingSignIn, postAuthPath, user, router]);
 
   const handleSignIn = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
+    setIsCompletingSignIn(true);
+    setAuthMessage(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace('/recordings');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const sessionResult = await syncFirebaseSession(userCredential.user, {
+        auth,
+        signOutOnFailure: true,
+      });
+
+      if (!sessionResult.ok) {
+        setAuthMessage(sessionResult.message);
+        toast({ title: 'Sign In Failed', description: sessionResult.message, status: 'danger' });
+        return;
+      }
+
+      if (sessionResult.profileEnsureFailed) {
+        toast({
+          title: 'Workspace sync issue',
+          description: 'Your session is active, but some account setup details will retry in the background.',
+          status: 'warning',
+        });
+      }
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setAuthMessage(errorMessage);
       toast({ title: 'Sign In Failed', description: errorMessage, status: 'danger' });
     } finally {
       setIsLoading(false);
+      setIsCompletingSignIn(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    setIsCompletingSignIn(true);
+    setAuthMessage(null);
 
     try {
-      await signInWithGoogle(auth);
-      router.replace('/recordings');
+      const result = await signInWithGoogle(auth);
+      const sessionResult = await syncFirebaseSession(result.user, {
+        auth,
+        signOutOnFailure: true,
+      });
+
+      if (!sessionResult.ok) {
+        setAuthMessage(sessionResult.message);
+        toast({
+          title: 'Google Sign-In Failed',
+          description: sessionResult.message,
+          status: 'danger',
+        });
+        return;
+      }
+
+      if (sessionResult.profileEnsureFailed) {
+        toast({
+          title: 'Workspace sync issue',
+          description: 'Your session is active, but some account setup details will retry in the background.',
+          status: 'warning',
+        });
+      }
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
       const firebaseError = error as { message?: string };
       if (!isGoogleSignInCancelledError(error)) {
+        setAuthMessage(firebaseError.message || 'Could not sign in with Google.');
         toast({
           title: 'Google Sign-In Failed',
           description: firebaseError.message || 'Could not sign in with Google.',
@@ -66,6 +127,7 @@ export function LoginPage() {
       }
     } finally {
       setGoogleLoading(false);
+      setIsCompletingSignIn(false);
     }
   };
 
@@ -81,20 +143,24 @@ export function LoginPage() {
     <AuthShell
       badge="Sign In"
       title="Welcome back"
-      description={preferCompactLogin
-        ? 'Use the fastest sign-in option for this device, then jump straight back into your workspace.'
-        : 'Sign in to open your recordings workspace, search transcripts, and continue review without losing context.'}
+      description={authCopy.loginDescription}
       compactOnMobile
       footer={
         <p className="text-sm text-default-500">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-semibold text-primary transition-colors hover:text-primary/80">
+          <Link href={signupHref} className="font-semibold text-primary transition-colors hover:text-primary/80">
             Create one
           </Link>
         </p>
       }
     >
       <form onSubmit={handleSignIn} className="space-y-5">
+        {authMessage && (
+          <div className="rounded-[1.25rem] border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
+            {authMessage}
+          </div>
+        )}
+
         {preferCompactLogin && (
           <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-default-600">
             {isCapacitor
@@ -113,7 +179,7 @@ export function LoginPage() {
                 : 'h-12 border border-default-200 bg-background/70 text-foreground hover:border-primary/20 hover:bg-primary/5'
             }`}
             onPress={handleGoogleSignIn}
-            isDisabled={isGoogleLoading || isLoading}
+            isDisabled={isGoogleLoading || isLoading || isCompletingSignIn}
           >
             {isGoogleLoading ? (
               <Spinner color="current" size="sm" />
@@ -123,83 +189,64 @@ export function LoginPage() {
             {isCapacitor ? 'Continue with Google' : 'Sign in with Google'}
           </Button>
 
-          {!preferCompactLogin && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-12 justify-center rounded-2xl border border-dashed border-default-200 bg-background/50 text-default-500"
-              isDisabled
-            >
-              <AppleIcon className="mr-2 h-5 w-5" />
-              Apple sign in coming soon
-            </Button>
-          )}
         </div>
 
         {preferCompactLogin ? (
           <div className="space-y-4 rounded-[1.25rem] border border-default-200/80 bg-default-50/60 p-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-default-400">
+                Or use email
+              </div>
               <div>
                 <div className="text-sm font-semibold text-foreground">Email and password</div>
                 <p className="text-sm text-default-500">Use this when Google is not the right account.</p>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant={showEmailForm ? 'secondary' : 'ghost'}
-                className="rounded-full"
-                onPress={() => setShowEmailForm((current) => !current)}
-              >
-                {showEmailForm ? 'Hide' : 'Use email'}
-              </Button>
             </div>
 
-            {showEmailForm && (
-              <div className="space-y-4">
-                <TextField value={email} onChange={setEmail} isRequired className="gap-2">
-                  <Label className="text-sm font-medium text-default-600">Email</Label>
+            <div className="space-y-4">
+              <TextField value={email} onChange={setEmail} isRequired className="gap-2">
+                <Label className="text-sm font-medium text-default-600">Email</Label>
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder="you@company.com"
+                  className="bg-background"
+                />
+              </TextField>
+
+              <div className="grid gap-2">
+                <TextField value={password} onChange={setPassword} isRequired className="gap-2">
+                  <Label className="text-sm font-medium text-default-600">Password</Label>
                   <Input
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    placeholder="you@company.com"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
                     className="bg-background"
                   />
                 </TextField>
 
-                <div className="grid gap-2">
-                  <TextField value={password} onChange={setPassword} isRequired className="gap-2">
-                    <Label className="text-sm font-medium text-default-600">Password</Label>
-                    <Input
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="Enter your password"
-                      className="bg-background"
-                    />
-                  </TextField>
-
-                  <div className="flex justify-end">
-                    <Link
-                      href="/forgot-password"
-                      className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
+                <div className="flex justify-end">
+                  <Link
+                    href={forgotPasswordHref}
+                    className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
-
-                <Button
-                  className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
-                  variant="primary"
-                  size="lg"
-                  type="submit"
-                  isPending={isLoading}
-                  isDisabled={isLoading || isGoogleLoading}
-                >
-                  {isLoading ? <Spinner color="current" size="sm" /> : 'Sign In with email'}
-                </Button>
               </div>
-            )}
+
+              <Button
+                className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+                variant="primary"
+                size="lg"
+                type="submit"
+                isPending={isLoading}
+                isDisabled={isLoading || isGoogleLoading || isCompletingSignIn}
+              >
+                {isLoading ? <Spinner color="current" size="sm" /> : 'Sign In with email'}
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -236,7 +283,7 @@ export function LoginPage() {
 
                 <div className="flex justify-end">
                   <Link
-                    href="/forgot-password"
+                    href={forgotPasswordHref}
                     className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
                   >
                     Forgot password?
@@ -251,7 +298,7 @@ export function LoginPage() {
               size="lg"
               type="submit"
               isPending={isLoading}
-              isDisabled={isLoading || isGoogleLoading}
+              isDisabled={isLoading || isGoogleLoading || isCompletingSignIn}
             >
               {isLoading ? <Spinner color="current" size="sm" /> : 'Sign In'}
             </Button>

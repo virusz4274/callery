@@ -8,6 +8,7 @@ if (!process.env.MONGODB_URI) {
 const uri = process.env.MONGODB_URI;
 const isDevelopment = process.env.NODE_ENV === 'development';
 const DEFAULT_FALLBACK_DNS_SERVERS = ['8.8.8.8', '1.1.1.1'];
+type MongoConnectionMode = 'default' | 'fallback-first';
 
 // Standard options for Next.js/Serverless environments (Vercel/Docker)
 const options: any = {
@@ -42,6 +43,12 @@ function getFallbackDnsServers(): string[] {
     }
 
     return DEFAULT_FALLBACK_DNS_SERVERS;
+}
+
+function getMongoConnectionMode(): MongoConnectionMode {
+    return process.env.MONGODB_CONNECTION_MODE === 'fallback-first'
+        ? 'fallback-first'
+        : 'default';
 }
 
 function decodeMaybeEncoded(value: string): string {
@@ -150,6 +157,22 @@ async function connectClient(connectionUri: string, label: 'primary' | 'fallback
 }
 
 async function createClient(): Promise<MongoClient> {
+    if (uri.startsWith('mongodb+srv://') && getMongoConnectionMode() === 'fallback-first') {
+        try {
+            if (!cache.fallbackUri) {
+                cache.fallbackUri = await buildFallbackSrvUri(uri);
+            }
+
+            if (isDevelopment) {
+                console.warn('[MongoDB] Using fallback-first connection mode.');
+            }
+
+            return await connectClient(cache.fallbackUri, 'fallback');
+        } catch (fallbackFirstError) {
+            console.error('[MongoDB] fallback-first connection failed, retrying primary URI:', fallbackFirstError);
+        }
+    }
+
     try {
         if (isDevelopment) {
             console.log('Creating new MongoDB client (dev)...');
@@ -218,12 +241,14 @@ export const Collections = {
     CONTACTS: 'contacts',
     PLANS: 'plans',
     EXPORT_JOBS: 'export_jobs',
+    ASYNC_JOBS: 'async_jobs',
     SYSTEM_SETTINGS: 'system_settings',
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',
     NOTIFICATIONS: 'notifications',
     EXTERNAL_SERVICE_INCIDENTS: 'external_service_incidents',
     SUPPORT_MESSAGES: 'support_messages',
+    RATE_LIMIT_BUCKETS: 'rate_limit_buckets',
     STRIPE_WEBHOOK_EVENTS: 'stripe_webhook_events',
     TRANSCRIPTION_WEBHOOK_EVENTS: 'transcription_webhook_events',
 } as const;

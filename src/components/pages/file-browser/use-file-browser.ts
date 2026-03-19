@@ -7,6 +7,7 @@ import type { FileSystemNode, Recording } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
 import { deleteRecordings } from '@/app/actions/delete-recordings';
 import { useToast } from '@/components/toast-provider';
+import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 type BreadcrumbItem = {
     name: string;
@@ -57,7 +58,7 @@ export function useFileBrowser({ rootNode, onRefresh }: UseFileBrowserOptions) {
 
     useEffect(() => {
         if (!isUserLoading && !user) {
-            router.replace('/login');
+            router.replace(buildLoginRedirectHref('/files'));
         }
     }, [isUserLoading, router, user]);
 

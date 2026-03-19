@@ -5,6 +5,7 @@ import type { Recording } from '@/lib/types';
 import { Button, ScrollShadow, Avatar, Accordion } from '@heroui/react';
 import { Loader2, Wand2, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { TranscriptionProviderId } from '@/services/transcription/factory';
 
 type RecordingContentProps = {
   recording: Recording;
@@ -12,8 +13,10 @@ type RecordingContentProps = {
   isLoadingUrl?: boolean;
   onTranscribe?: () => void;
   isProcessing?: boolean;
+  activeTranscriptionProvider?: TranscriptionProviderId | null;
   clipStartSeconds?: number;
   clipEndSeconds?: number;
+  isClipAudioRestricted?: boolean;
 };
 
 export function RecordingContent({
@@ -22,8 +25,10 @@ export function RecordingContent({
   isLoadingUrl = false,
   onTranscribe,
   isProcessing = false,
+  activeTranscriptionProvider = null,
   clipStartSeconds,
-  clipEndSeconds
+  clipEndSeconds,
+  isClipAudioRestricted = false
 }: RecordingContentProps) {
   const [showTransliteration, setShowTransliteration] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -52,8 +57,10 @@ export function RecordingContent({
       return segmentEnd >= startBoundary && segmentStart <= endBoundary;
     });
 
-    return filtered.length > 0 ? filtered : recording.fullTranscript;
+    return filtered;
   }, [clipEndSeconds, clipStartSeconds, recording.fullTranscript]);
+  const hasTranscript = Boolean(visibleTranscript && visibleTranscript.length > 0);
+  const transcribeButtonLabel = hasTranscript ? 'Transcribe again' : 'Transcribe';
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -110,7 +117,9 @@ export function RecordingContent({
             Your browser does not support the audio element.
           </audio>
         ) : (
-          <div className="text-sm text-danger">Audio unavailable</div>
+          <div className="text-sm text-danger">
+            {isClipAudioRestricted ? 'Audio playback is disabled for clipped shares.' : 'Audio unavailable'}
+          </div>
         )}
       </div>
 
@@ -189,16 +198,23 @@ export function RecordingContent({
               </div>
             )}
 
-            {onTranscribe && recording.transcriptionStatus !== 'completed' && (
+            {onTranscribe && (
               <Button
                 size="sm"
                 variant="ghost"
                 isPending={isProcessing}
                 onPress={onTranscribe}
+                isDisabled={isProcessing}
                 className="h-7 sm:h-8"
               >
-                {!isProcessing && <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />}
-                {isProcessing ? 'Transcribing...' : 'Transcribe'}
+                {!isProcessing && (
+                  <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+                )}
+                {isProcessing
+                  ? activeTranscriptionProvider === 'elevenlabs'
+                    ? 'Transcribing Premium...'
+                    : 'Transcribing...'
+                  : transcribeButtonLabel}
               </Button>
             )}
           </div>

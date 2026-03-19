@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 // import { getAdminAuth } from '@/lib/firebase/admin';
 import { cookies } from 'next/headers';
+import { findUserByFirebaseUid } from '@/lib/db/users';
+import { resolveProfileEnsureFailurePolicy } from './profile-ensure-policy';
 
 export async function POST(request: NextRequest) {
     try {
@@ -35,18 +37,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        // Keep sign-up policy enforcement, but do not hard-fail session sync for transient DB outages.
+        const existingUser = await findUserByFirebaseUid(uid);
         let profileEnsureFailed = false;
         try {
             const { ensureUserProfile } = await import('@/lib/db/users');
             await ensureUserProfile(uid, email, name, picture);
         } catch (dbError) {
             const message = dbError instanceof Error ? dbError.message : String(dbError);
-            if (message.includes('New signups are currently disabled')) {
-                return NextResponse.json({ error: message }, { status: 403 });
+            const failurePolicy = resolveProfileEnsureFailurePolicy({
+                hasExistingUser: Boolean(existingUser),
+                errorMessage: message,
+            });
+
+            if (failurePolicy.kind === 'reject') {
+                if (failurePolicy.status === 503) {
+                    console.error('Failed to provision user profile during first login:', dbError);
+                }
+
+                return NextResponse.json(
+                    { error: failurePolicy.error },
+                    { status: failurePolicy.status }
+                );
             }
 
-            profileEnsureFailed = true;
+            profileEnsureFailed = failurePolicy.profileEnsureFailed;
             console.error('Failed to ensure user profile during login (session will still be created):', dbError);
         }
 

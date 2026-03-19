@@ -2,15 +2,13 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Chip, Spinner, Surface } from '@heroui/react';
-import { ContextHelp } from '@/components/context-help';
-import { QuickStartPopover } from '@/components/quick-start-popover';
+import { Button, Chip, Spinner } from '@heroui/react';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import { DeleteConfirmationModal } from '@/components/recordings-table/delete-confirmation-modal';
 import type { FileSystemNode } from '@/lib/types';
 import { FileBrowserTable } from './file-browser/file-browser-table';
 import { useFileBrowser } from './file-browser/use-file-browser';
-import { ArrowRight, FileAudio2, FolderTree, HardDrive } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 type FileBrowserPageProps = {
     rootNode: FileSystemNode;
@@ -53,27 +51,19 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
-                    <div className="space-y-4">
+                <div className="grid gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                    <div className="space-y-3">
+                        <Chip variant="soft" color="accent" className="w-fit rounded-full px-3 py-1 text-xs font-medium">
+                            File library
+                        </Chip>
                         <div className="flex items-center gap-2">
-                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                                File library
-                            </Chip>
-                            <ContextHelp
-                                title="File browser"
-                                description="Use this view to inspect stored files, move through folders, and open recording details."
-                                points={[
-                                    'Follow the breadcrumb to move up the tree.',
-                                    'Open a file to inspect recording details.',
-                                    'Delete deliberately from the current folder view.',
-                                ]}
-                            />
-                        </div>
-                        <div className="space-y-3">
-                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                            <h1 className="text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
                                 File browser
                             </h1>
                         </div>
+                        <p className="max-w-2xl text-sm leading-6 text-default-500">
+                            Inspect what is stored, move through folders, and open recording details when you need to check or clean up the archive.
+                        </p>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
                                 Current location: {currentLocation}
@@ -81,29 +71,16 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                             <Chip variant="soft" color="success">
                                 {items.length} item{items.length === 1 ? '' : 's'} in view
                             </Chip>
+                            <Chip variant="soft" color="default">
+                                {folderCount} folder{folderCount === 1 ? '' : 's'}
+                            </Chip>
+                            <Chip variant="soft" color="default">
+                                {fileCount} file{fileCount === 1 ? '' : 's'}
+                            </Chip>
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <QuickStartPopover
-                            title="Use the file browser quickly"
-                            description="This view is best for storage cleanup and inspection."
-                            steps={[
-                                {
-                                    title: 'Open the folder you need',
-                                    description: 'Use the current table and breadcrumb trail to move through the library.',
-                                },
-                                {
-                                    title: 'Inspect a recording',
-                                    description: 'Select a file when you need detail before deleting or cross-checking it.',
-                                },
-                                {
-                                    title: 'Return to recordings',
-                                    description: 'Use the recordings workspace for search and day-to-day review.',
-                                    href: '/recordings',
-                                },
-                            ]}
-                        />
                         <Button
                             variant="secondary"
                             className="w-full rounded-full px-6 font-semibold"
@@ -116,39 +93,6 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                             <ArrowRight className="h-4 w-4" />
                         </Button>
                     </div>
-                </div>
-
-                <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-3 md:px-8">
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <FolderTree className="h-3.5 w-3.5" />
-                                Folders
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">{folderCount}</div>
-                            <div className="text-sm text-default-500">Subfolders available in this location</div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <FileAudio2 className="h-3.5 w-3.5" />
-                                Files
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">{fileCount}</div>
-                            <div className="text-sm text-default-500">Recordings or assets visible right now</div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <HardDrive className="h-3.5 w-3.5" />
-                                Browse mode
-                            </div>
-                            <div className="text-2xl font-bold text-foreground">Manual</div>
-                            <div className="text-sm text-default-500">Open folders, inspect details, and delete files deliberately</div>
-                        </div>
-                    </Surface>
                 </div>
             </section>
 

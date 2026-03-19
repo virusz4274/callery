@@ -13,19 +13,10 @@ interface SharedPageProps {
     params: Promise<{
         token: string;
     }>;
-    searchParams: Promise<{
-        clipStart?: string;
-        clipEnd?: string;
-    }>;
 }
 
-export default async function SharedRecordingPage({ params, searchParams }: SharedPageProps) {
+export default async function SharedRecordingPage({ params }: SharedPageProps) {
     const { token } = await params;
-    const query = await searchParams;
-    const clipStartSeconds = query.clipStart ? Number(query.clipStart) : undefined;
-    const clipEndSeconds = query.clipEnd ? Number(query.clipEnd) : undefined;
-    const sanitizedClipStart = Number.isFinite(clipStartSeconds) ? clipStartSeconds : undefined;
-    const sanitizedClipEnd = Number.isFinite(clipEndSeconds) ? clipEndSeconds : undefined;
 
     // 1. Verify Token
     const payload = await verifyShareToken(token);
@@ -57,7 +48,9 @@ export default async function SharedRecordingPage({ params, searchParams }: Shar
     // 3. Generate Signed URL for Playback
     let playbackUrl: string | null = null;
     try {
-        playbackUrl = await getSignedR2Url(recording.r2Key, 3600); // 1 hour validity for the signed URL
+        if (typeof payload.clipStartSeconds !== 'number' && typeof payload.clipEndSeconds !== 'number') {
+            playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+        }
     } catch (e) {
         console.error('Failed to generate playback URL for shared page', e);
     }
@@ -108,8 +101,12 @@ export default async function SharedRecordingPage({ params, searchParams }: Shar
                         <RecordingContent 
                             recording={recordingResponse} 
                             playbackUrl={playbackUrl}
-                            clipStartSeconds={sanitizedClipStart}
-                            clipEndSeconds={sanitizedClipEnd}
+                            clipStartSeconds={payload.clipStartSeconds}
+                            clipEndSeconds={payload.clipEndSeconds}
+                            isClipAudioRestricted={
+                                typeof payload.clipStartSeconds === 'number' ||
+                                typeof payload.clipEndSeconds === 'number'
+                            }
                             // Hide transcribe button for public view
                             onTranscribe={undefined} 
                         />

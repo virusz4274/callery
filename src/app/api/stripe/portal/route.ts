@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { ensureStripeCustomerId } from '@/lib/stripe/customer';
+import { getPublicAppOrigin } from '@/lib/public-url';
 
 function resolveSafeReturnUrl(candidateUrl: string | undefined, origin: string): string {
     const fallback = new URL('/settings', origin).toString();
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
         // 3. Create Portal Session
         const session = await stripe.billingPortal.sessions.create({
             customer: stripeCustomerId,
-            return_url: resolveSafeReturnUrl(returnUrl, req.nextUrl.origin),
+            return_url: resolveSafeReturnUrl(returnUrl, getPublicAppOrigin(req)),
         });
 
         return NextResponse.json({ url: session.url });

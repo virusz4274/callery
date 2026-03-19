@@ -87,6 +87,25 @@ export async function getRecordingByR2Key(firebaseUid: string, r2Key: string): P
 }
 
 /**
+ * Get multiple recordings by ID for a specific user.
+ */
+export async function getRecordingsByIds(recordingIds: string[], firebaseUid: string): Promise<Recording[]> {
+    const objectIds = recordingIds
+        .filter((recordingId) => ObjectId.isValid(recordingId))
+        .map((recordingId) => new ObjectId(recordingId));
+
+    if (objectIds.length === 0) {
+        return [];
+    }
+
+    const db = await getMongoDb();
+    return db.collection<Recording>(Collections.RECORDINGS).find({
+        _id: { $in: objectIds },
+        firebaseUid,
+    }).toArray();
+}
+
+/**
  * Get recordings for API response (without signed URLs).
  */
 export async function getRecordingsForApi(

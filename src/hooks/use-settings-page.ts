@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { useToast } from '@/components/toast-provider';
@@ -12,6 +12,7 @@ import { usePreferenceSettings } from '@/hooks/settings/use-preference-settings'
 import { useProfileSettings } from '@/hooks/settings/use-profile-settings';
 import { useExportJob } from '@/hooks/settings/use-export-job';
 import { buildSettingsPath, buildSettingsTabs, passwordFormSchema, type SettingsTab } from '@/hooks/settings/use-settings-page-utils';
+import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { useAuth, useUser } from '@/lib/firebase/provider';
 
 export type { SettingsTab } from '@/hooks/settings/use-settings-page-utils';
@@ -31,7 +32,7 @@ export function useSettingsPage() {
             : requestedTab;
 
     const { user, isUserLoading } = useUser();
-    const { userProfile, isProfileLoading } = useUserProfile(user);
+    const { userProfile, isProfileLoading, refetch: refetchUserProfile } = useUserProfile(user);
 
     const { profileForm, isSavingProfile, handleUpdateProfile } = useProfileSettings(user, userProfile);
 
@@ -57,6 +58,7 @@ export function useSettingsPage() {
     } = usePreferenceSettings(user, userProfile);
 
     const [isSavingPassword, setSavingPassword] = useState(false);
+    const handledBillingStateRef = useRef<string | null>(null);
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
         defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
@@ -71,15 +73,15 @@ export function useSettingsPage() {
         setShowConnectDialog,
         handleConnectGoogle,
         onDialogConfirm,
-    } = useGoogleSync({ searchParams, router, toast });
+    } = useGoogleSync({ googleSync: userProfile?.googleSync, refetchProfile: refetchUserProfile, searchParams, router, toast });
 
     const { exportJob, isExportStarting, handleStartExport } = useExportJob(toast);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
-            router.replace('/login');
+            router.replace(buildLoginRedirectHref(buildCurrentPath('/settings', searchParams.toString())));
         }
-    }, [isUserLoading, router, user]);
+    }, [isUserLoading, router, searchParams, user]);
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -88,6 +90,50 @@ export function useSettingsPage() {
             setView('detail');
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        const success = searchParams.get('success');
+        const canceled = searchParams.get('canceled');
+
+        if (!success && !canceled) {
+            handledBillingStateRef.current = null;
+            return;
+        }
+
+        const flashKey = `${success || ''}|${canceled || ''}`;
+        if (handledBillingStateRef.current === flashKey) {
+            return;
+        }
+        handledBillingStateRef.current = flashKey;
+
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete('success');
+        newParams.delete('canceled');
+
+        if (showBilling) {
+            newParams.set('tab', 'billing');
+            setActiveTab('billing');
+            setView('detail');
+        }
+
+        if (success) {
+            toast({
+                title: 'Payment Successful',
+                description: 'Your billing details have been updated.',
+                status: 'success',
+            });
+        }
+
+        if (canceled) {
+            toast({
+                title: 'Checkout Canceled',
+                description: 'No changes were made to your subscription.',
+                status: 'warning',
+            });
+        }
+
+        router.replace(buildSettingsPath(newParams));
+    }, [router, searchParams, showBilling, toast]);
 
     const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
         if (!user || !user.email) {

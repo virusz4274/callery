@@ -1,6 +1,6 @@
 'use server';
 
-import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
+import { deleteRecordings as deleteRecordingsFromDb, getRecordingsByIds } from '@/lib/db/recordings';
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 import { cookies } from 'next/headers';
@@ -43,45 +43,44 @@ export async function deleteRecordings(
   }
 
   try {
-    // Delete from MongoDB and get the deleted recordings (for R2 keys and file sizes)
-    const deletedRecordings = await deleteRecordingsFromDb(recordingIds, firebaseUid);
+    const candidateRecordings = await getRecordingsByIds(recordingIds, firebaseUid);
 
-    if (deletedRecordings.length === 0) {
+    if (candidateRecordings.length === 0) {
       return { success: false, message: 'No recordings found to delete' };
     }
 
-    // Delete from R2
     const r2Errors: string[] = [];
-    let totalSizeDeleted = 0;
-
-    // Delete from R2 in parallel
-
-
-    const deletePromises = deletedRecordings.map(async (recording) => {
+    const successfulDeleteIds: string[] = [];
+    const deletePromises = candidateRecordings.map(async (recording) => {
       try {
         await deleteFromR2(recording.r2Key);
-        return { size: recording.fileSize, error: null };
+        successfulDeleteIds.push(recording._id.toString());
       } catch (r2Error) {
         console.error(`Error deleting ${recording.r2Key} from R2:`, r2Error);
         r2Errors.push(recording.r2Key);
-        return { size: 0, error: r2Error };
       }
     });
 
-    const results = await Promise.all(deletePromises);
-    totalSizeDeleted = results.reduce((acc, curr) => acc + curr.size, 0);
+    await Promise.all(deletePromises);
 
-    // Update user's storage usage
+    if (successfulDeleteIds.length === 0) {
+      return {
+        success: false,
+        message: `Unable to delete ${candidateRecordings.length} recording(s) from storage. No database records were removed.`,
+      };
+    }
+
+    const deletedRecordings = await deleteRecordingsFromDb(successfulDeleteIds, firebaseUid);
+    const totalSizeDeleted = deletedRecordings.reduce((acc, curr) => acc + curr.fileSize, 0);
+
     if (totalSizeDeleted > 0) {
       await decrementStorageUsed(firebaseUid, totalSizeDeleted);
-      // Note: We bill storage based on ingress bytes to prevent upload/delete abuse.
-      // Deletions reduce in-app usage but do not decrement Stripe usage.
     }
 
     if (r2Errors.length > 0) {
       return {
         success: true,
-        message: `Deleted ${deletedRecordings.length} recording(s) from database. ${r2Errors.length} file(s) could not be deleted from storage.`,
+        message: `Deleted ${deletedRecordings.length} recording(s). ${r2Errors.length} file(s) could not be removed from storage, so their database records were kept for retry.`,
       };
     }
 

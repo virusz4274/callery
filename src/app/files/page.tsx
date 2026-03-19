@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
 import { Button, Card, Skeleton, Surface } from '@heroui/react';
 import { useUser } from '@/lib/firebase/provider';
-import { LandingPage } from '@/components/pages/landing-page';
 import { authFetch } from '@/lib/api-client';
 import type { User } from 'firebase/auth';
 import { ArrowRight, FolderTree, TriangleAlert } from 'lucide-react';
+import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 const AUTH_PENDING_ERROR = 'Authentication pending';
 
@@ -150,6 +150,14 @@ function FilesBrowserContent({ user }: { user: User }) {
 
 export default function FilesPage() {
   const { user, isUserLoading } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace(buildLoginRedirectHref(pathname));
+    }
+  }, [isUserLoading, pathname, router, user]);
 
   // Show loading state while checking auth
   if (isUserLoading) {
@@ -161,9 +169,13 @@ export default function FilesPage() {
     );
   }
 
-  // Show landing page for unauthenticated users
   if (!user) {
-    return <LandingPage />;
+    return (
+      <div className="mx-auto max-w-7xl space-y-8">
+        <Skeleton className="h-14 w-72 rounded-[1.5rem]" />
+        <Skeleton className="h-[420px] rounded-[1.9rem]" />
+      </div>
+    );
   }
 
   return <FilesBrowserContent user={user} />;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Recording } from '@/lib/types';
-import { Modal, Button } from '@heroui/react';
+import { Modal, Button, Card, Chip } from '@heroui/react';
 import { X } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { RecordingContent } from './recording-view/recording-content';
@@ -10,6 +10,10 @@ import { SharePopover } from './sharing/share-popover';
 import { getPlaybackUrlAction, getRecordingDetailsAction } from '@/app/actions/recordings';
 import { transcribeRecordingAction } from '@/app/actions/transcription';
 import { useToast } from './toast-provider';
+import { getAvailableProviders } from '@/app/actions/transcription-providers';
+import type { TranscriptionProviderId } from '@/services/transcription/factory';
+import { useUser } from '@/lib/firebase/provider';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
@@ -23,10 +27,15 @@ function sleep(ms: number) {
 
 export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
   const { toast } = useToast();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user);
   const [currentRecording, setCurrentRecording] = useState<Recording>(recording);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [activeTranscriptionProvider, setActiveTranscriptionProvider] = useState<TranscriptionProviderId | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
+  const [availableProviders, setAvailableProviders] = useState<TranscriptionProviderId[]>([]);
+  const [isProviderPickerOpen, setIsProviderPickerOpen] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -41,6 +50,32 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
     setPlaybackUrl(recording.playbackUrl || null);
     setIsLoadingUrl(!recording.playbackUrl);
   }, [recording]);
+
+  useEffect(() => {
+    if (currentRecording.transcriptionStatus !== 'processing') {
+      setActiveTranscriptionProvider(null);
+    }
+  }, [currentRecording.transcriptionStatus]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAvailableProviders()
+      .then((providers) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAvailableProviders(providers.map((provider) => provider.id));
+      })
+      .catch((error) => {
+        console.error('Failed to load transcription providers:', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -95,17 +130,20 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
     return updatedRecording;
   };
 
-  const handleTranscribe = async () => {
+  const handleTranscribe = async (provider: TranscriptionProviderId) => {
     setIsTranscribing(true);
+    setActiveTranscriptionProvider(provider);
+    setIsProviderPickerOpen(false);
     const previousRecording = currentRecording;
     try {
       const optimisticRecording: Recording = {
         ...currentRecording,
         transcriptionStatus: 'processing',
+        transcriptionProvider: provider,
       };
       await pushRecordingUpdate(optimisticRecording);
 
-      const result = await transcribeRecordingAction(currentRecording.id);
+      const result = await transcribeRecordingAction(currentRecording.id, { provider });
 
       if ('error' in result) {
         throw new Error(result.error);
@@ -144,6 +182,46 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
   };
 
   const isProcessing = currentRecording.transcriptionStatus === 'processing' || isTranscribing;
+  const hasStandardProvider = availableProviders.includes('soniox');
+  const hasPremiumProvider = availableProviders.includes('elevenlabs');
+  const defaultProvider = userProfile?.transcriptionSettings?.defaultProvider || 'soniox';
+  const preferredProvider = availableProviders.includes(defaultProvider)
+    ? defaultProvider
+    : (availableProviders[0] || 'soniox');
+
+  const handleRequestTranscribe = () => {
+    if (isProcessing) {
+      return;
+    }
+
+    if (availableProviders.length <= 1) {
+      handleTranscribe(preferredProvider);
+      return;
+    }
+
+    setIsProviderPickerOpen(true);
+  };
+
+  const providerCardDefinitions: Array<{
+    id: TranscriptionProviderId;
+    title: string;
+    description: string;
+    note: string;
+  }> = [
+      {
+        id: 'soniox',
+        title: 'Standard',
+        description: 'Fast manual transcription with the regular provider.',
+        note: 'Uses the standard model and lower quota cost.',
+      },
+      {
+        id: 'elevenlabs',
+        title: 'Premium',
+        description: 'Higher-accuracy transcription for tougher audio.',
+        note: 'Uses the premium model and higher quota cost.',
+      },
+    ];
+  const providerCards = providerCardDefinitions.filter((provider) => availableProviders.includes(provider.id));
 
   return (
     <Modal isOpen={true} onOpenChange={onOpenChange}>
@@ -182,13 +260,65 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
                 recording={currentRecording}
                 playbackUrl={playbackUrl}
                 isLoadingUrl={isLoadingUrl}
-                onTranscribe={handleTranscribe}
+                onTranscribe={hasStandardProvider || hasPremiumProvider ? handleRequestTranscribe : undefined}
                 isProcessing={isProcessing}
+                activeTranscriptionProvider={activeTranscriptionProvider}
               />
             </div>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
+
+      <Modal isOpen={isProviderPickerOpen} onOpenChange={setIsProviderPickerOpen}>
+        <Modal.Backdrop className="bg-black/30 backdrop-blur-sm z-[109]" />
+        <Modal.Container className="z-[110] flex items-center justify-center p-4">
+          <Modal.Dialog className="w-full max-w-xl rounded-2xl border border-default-200 bg-background shadow-2xl">
+            <Modal.Header>
+              <div>
+                <Modal.Heading>Choose transcription model</Modal.Heading>
+                <p className="mt-1 text-sm text-default-500">
+                  Pick the provider for this manual transcription run.
+                </p>
+              </div>
+            </Modal.Header>
+            <Modal.Body className="space-y-4">
+              {providerCards.map((provider) => {
+                const isDefault = provider.id === preferredProvider;
+
+                return (
+                  <Card key={provider.id} className="rounded-2xl border border-default-200/80 bg-background/95">
+                    <Card.Content className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-base font-semibold text-foreground">{provider.title}</h4>
+                            {isDefault && <Chip size="sm" variant="soft" color="accent">Default</Chip>}
+                          </div>
+                          <p className="text-sm text-default-600">{provider.description}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs leading-5 text-default-500">{provider.note}</p>
+                      <Button
+                        className="w-full rounded-full"
+                        variant={provider.id === 'elevenlabs' ? 'primary' : 'secondary'}
+                        onPress={() => handleTranscribe(provider.id)}
+                        isDisabled={isProcessing}
+                      >
+                        Use {provider.title}
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                );
+              })}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="ghost" className="rounded-full" onPress={() => setIsProviderPickerOpen(false)}>
+                Cancel
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal>
     </Modal>
   );
 }

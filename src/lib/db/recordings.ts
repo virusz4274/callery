@@ -4,6 +4,7 @@ export {
     countRecordingsByUser,
     countRecordingsForExport,
     getRecordingById,
+    getRecordingsByIds,
     getRecordingByR2Key,
     getRecordingsByUser,
     getRecordingsForApi,
@@ -11,7 +12,7 @@ export {
     getTotalDurationByUser,
 } from './recordings/read';
 
-export { createRecording, deleteRecording, deleteRecordings, updateRecording } from './recordings/write';
+export { createRecording, deleteRecording, deleteRecordings, markTranscriptionUsageReported, updateRecording } from './recordings/write';
 
 export { getDashboardStats } from './recordings/stats';
 

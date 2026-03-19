@@ -64,7 +64,7 @@ export function DataSettings({
             <div className="space-y-6">
                 {mode === 'sources' && (
                 <SettingsPage title="Sources" description="Connect or review the services that supply contacts and incoming data.">
-                    <GoogleConnectCard isSyncing={isSyncing} onConnect={onConnectGoogle} />
+                    <GoogleConnectCard googleSync={userProfile?.googleSync} isSyncing={isSyncing} onConnect={onConnectGoogle} />
                 </SettingsPage>
                 )}
 

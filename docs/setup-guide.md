@@ -52,12 +52,14 @@ cp .env.example .env
 ```env
 NEXT_PUBLIC_APP_URL=http://localhost:9000
 MONGODB_URI=mongodb://localhost:27017/call-memo
+# MONGODB_CONNECTION_MODE=default
 
 NEXT_PUBLIC_FIREBASE_API_KEY=...
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
+# FIREBASE_AUTH_HELPER_ORIGIN=https://your-project.firebaseapp.com
 
 # Choose one Firebase Admin approach:
 # 1) service-account.json in repo root
@@ -71,12 +73,14 @@ R2_BUCKET_NAME=...
 
 UPLOAD_SESSION_SECRET=...
 SHARE_LINK_SECRET=...
+GOOGLE_TOKEN_ENCRYPTION_KEY=...
 ```
 
 Notes:
 
 - `UPLOAD_SESSION_SECRET` secures upload finalization tokens.
 - `SHARE_LINK_SECRET` secures public share links.
+- `GOOGLE_TOKEN_ENCRYPTION_KEY` is required for Google Contacts refresh-token encryption at rest. Generate a high-entropy value such as `openssl rand -base64 32`.
 - `NEXTAUTH_SECRET` is only a legacy fallback in parts of the codebase and should not be your primary setting.
 
 ### Strongly recommended optional variables
@@ -138,7 +142,12 @@ SMTP_PASS=...
 SMTP_FROM="Call Memo <no-reply@example.com>"
 SUPPORT_EMAIL=support@example.com
 
+# Security policy rollout
+# Set to true in staging/preview if you want CSP violations reported without enforcing the policy yet.
+CSP_REPORT_ONLY=false
+
 # Atlas DNS fallback, only if needed
+MONGODB_CONNECTION_MODE=default
 MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```
 
@@ -146,7 +155,10 @@ Important notes from the code audit:
 
 - Use `ELEVENLABS_API_BASE_URL`. `ELEVENLABS_API_ENDPOINT` is not read by the current app code.
 - `NEXT_PUBLIC_APP_URL` should be set for any non-localhost deployment so generated share URLs, Google OAuth flows, and webhook metadata use the correct origin.
+- `FIREBASE_AUTH_HELPER_ORIGIN` is optional. If it is unset, the app falls back to `https://${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}` for the Firebase auth helper rewrite. If neither value is present, the rewrite is disabled entirely.
 - `FIREBASE_SERVICE_ACCOUNT` is only required if you are not using a local `service-account.json` file.
+- `MONGODB_CONNECTION_MODE=fallback-first` skips the slow SRV-first connection attempt and is useful on hosts with unstable Atlas DNS resolution.
+- Set `CSP_REPORT_ONLY=true` in staging or preview deployments while validating the Content Security Policy before turning on full enforcement.
 
 ## 4. Firebase Setup
 
@@ -302,7 +314,7 @@ If these are missing, the notification UI still renders, but push subscription a
 
 ## 10. Support Email Setup
 
-`POST /api/support` always saves messages to MongoDB. If `SUPPORT_EMAIL` is configured, the route also forwards support requests by email using the SMTP credentials in `.env`.
+`POST /api/support` always saves messages to MongoDB. If `SUPPORT_EMAIL` is configured, the route enqueues a durable background job that forwards support requests by email using the SMTP credentials in `.env`.
 
 ## 11. Initialize MongoDB And Run The App
 
@@ -366,10 +378,11 @@ Register these Stripe event types:
 
 ## 13. Production Cron Configuration
 
-The app exposes two protected cron routes:
+The app exposes three protected cron routes:
 
 - `GET /api/cron/process-exports`
 - `GET /api/cron/cleanup-recordings`
+- `GET /api/cron/process-async-jobs`
 
 They require:
 
@@ -382,6 +395,10 @@ Authorization: Bearer <CRON_SECRET>
 - `/api/cron/process-exports` every 5 minutes
 - `/api/cron/cleanup-recordings` daily at `03:00 UTC`
 
+Recommended addition:
+
+- `/api/cron/process-async-jobs` every minute
+
 ## 14. Verification Checklist
 
 Confirm these before calling the setup healthy:
@@ -391,13 +408,14 @@ Confirm these before calling the setup healthy:
 3. Google Contacts sync completes if OAuth is configured.
 4. Uploading a recording stores the file in R2.
 5. Playback works from the recordings workspace.
-6. Transcription completes through the configured provider for files up to `2 GiB`.
+6. Uploading a recording queues transcription work and the async processor advances it through `pending`, `processing`, and `completed` or `failed`.
 7. Gemini summaries and semantic search work when Gemini is configured.
 8. Sharing generates a public signed link.
 9. Export jobs complete and produce a downloadable archive.
 10. Notifications appear in the notification center.
 11. Billing checkout and invoice history work if Stripe is enabled.
 12. Support form submissions appear in MongoDB and forward by email if SMTP is configured.
+13. `npm run audit:prod` reports no unexpected production dependency regressions before release. If the only remaining findings are the accepted low-severity `firebase-admin` transitive items, review [docs/dependency-review.md](/Users/virusz4274/development/call-memo/docs/dependency-review.md) before upgrading.
 
 ## 15. Useful Commands
 

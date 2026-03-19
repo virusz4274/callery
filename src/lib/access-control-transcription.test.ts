@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ObjectId } from 'mongodb';
+
+import { checkTranscriptionAccess } from '@/lib/access-control-transcription';
+import type { User } from '@/lib/db/types';
+
+function createUser(overrides: Partial<User> = {}): User {
+    return {
+        _id: new ObjectId(),
+        firebaseUid: 'user-1',
+        email: 'user@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        name: 'Test User',
+        phoneNumber: '',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        role: 'user',
+        plan: 'Pro',
+        timezone: 'UTC',
+        notificationSettings: {
+            activityDigest: 'weekly',
+            ingestSuccess: true,
+            ingestFail: true,
+        },
+        transcriptionSettings: {
+            autoTranscribe: true,
+        },
+        storageSettings: {
+            deletionPolicy: 'never',
+        },
+        storageUsed: 0,
+        storageAllocation: 1_000,
+        transcriptionUsed: 3500,
+        transcriptionAllocation: 3600,
+        totalContacts: 0,
+        totalRecordings: 0,
+        totalDuration: 0,
+        billingSettings: {
+            allowOverage: false,
+        },
+        ...overrides,
+    };
+}
+
+test('blocks paid users from exceeding transcription allocation when overage is disabled', () => {
+    const result = checkTranscriptionAccess(createUser(), 200);
+
+    assert.equal(result.allowed, false);
+    assert.match(result.reason || '', /Transcription limit exceeded/);
+});
+
+test('allows paid users to exceed transcription allocation when overage is enabled', () => {
+    const result = checkTranscriptionAccess(createUser({
+        billingSettings: {
+            allowOverage: true,
+        },
+    }), 200);
+
+    assert.deepEqual(result, { allowed: true });
+});
+
+test('keeps free-tier transcription limits strict', () => {
+    const result = checkTranscriptionAccess(createUser({
+        plan: 'Free',
+        transcriptionUsed: 3600,
+        transcriptionAllocation: 3600,
+    }), 1);
+
+    assert.equal(result.allowed, false);
+    assert.match(result.reason || '', /Free Trial/);
+});

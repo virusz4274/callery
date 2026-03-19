@@ -65,7 +65,7 @@ export function AuthShell({
             href="/"
             className={`rounded-full border border-default-200/70 bg-background/70 text-sm font-medium text-default-600 transition-colors hover:border-primary/25 hover:text-primary ${useCompactLayout ? 'px-3 py-1.5' : 'px-4 py-2'}`}
           >
-            {useCompactLayout ? 'Back' : 'Back to site'}
+            Back to site
           </Link>
         </div>
 

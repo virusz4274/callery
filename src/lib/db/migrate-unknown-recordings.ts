@@ -40,28 +40,8 @@ export async function migrateUnknownRecordingsToContact(
         // Let's rely on manual update or a separate helper.
         
         // Dynamic import to break potential cycles if this function is called from contacts.ts
-        const { incrementContactRecordings } = await import('@/lib/db/contacts');
-        
-        // We don't know the exact date distribution of the migrated recordings easily 
-        // without another query. For simplicity, we just increment the count 
-        // and set the lastRecordingAt to now (or we could find the latest).
-        
-        // Let's find the latest recording date among the migrated ones
-        const latestRecording = await db.collection<Recording>(Collections.RECORDINGS)
-            .find({ 
-                firebaseUid, 
-                contactId: new ObjectId(contactId) 
-            })
-            .sort({ recordedAt: -1 })
-            .limit(1)
-            .next();
-
-        await incrementContactRecordings(
-            contactId, 
-            firebaseUid, 
-            latestRecording?.recordedAt || new Date(), 
-            result.modifiedCount
-        );
+        const { recalculateContactStats } = await import('@/lib/db/contacts');
+        await recalculateContactStats(contactId, firebaseUid);
     }
 
     return result.modifiedCount;

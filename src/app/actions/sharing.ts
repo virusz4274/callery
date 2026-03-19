@@ -4,6 +4,15 @@ import { generateShareToken } from '@/lib/sharing';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { getRecordingById } from '@/lib/db/recordings';
+import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
+
+function sanitizeClipSeconds(value: number | undefined): number | undefined {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return undefined;
+    }
+
+    return Math.floor(value);
+}
 
 /**
  * Create a shareable link for a recording.
@@ -21,11 +30,11 @@ export async function createShareLink(recordingId: string, expiresIn: string) {
     if (!recording) throw new Error('Recording not found or access denied');
 
     // 3. Generate Token
-    const token = await generateShareToken(recordingId, expiresIn);
+    const token = await generateShareToken({ recordingId }, expiresIn);
 
     // 4. Return Full URL
     // Use NEXT_PUBLIC_APP_URL if available, otherwise assume local/vercel defaults
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
+    const baseUrl = getConfiguredPublicAppOrigin();
     return `${baseUrl}/s/${token}`;
 }
 
@@ -35,16 +44,35 @@ export async function createShareLinkForClip(
     clipStartSeconds?: number,
     clipEndSeconds?: number
 ) {
-    const baseUrl = await createShareLink(recordingId, expiresIn);
-    const url = new URL(baseUrl);
+    const firebaseUid = await getFirebaseUidFromSession();
+    if (!firebaseUid) throw new Error('Unauthorized');
 
-    if (typeof clipStartSeconds === 'number' && Number.isFinite(clipStartSeconds) && clipStartSeconds >= 0) {
-        url.searchParams.set('clipStart', Math.floor(clipStartSeconds).toString());
+    const recording = await getRecordingById(recordingId, firebaseUid);
+    if (!recording) throw new Error('Recording not found or access denied');
+
+    const clipStart = sanitizeClipSeconds(clipStartSeconds);
+    const clipEnd = sanitizeClipSeconds(clipEndSeconds);
+
+    if (typeof clipEnd === 'number' && typeof clipStart === 'number' && clipEnd <= clipStart) {
+        throw new Error('Clip end must be greater than clip start');
     }
 
-    if (typeof clipEndSeconds === 'number' && Number.isFinite(clipEndSeconds) && clipEndSeconds >= 0) {
-        url.searchParams.set('clipEnd', Math.floor(clipEndSeconds).toString());
+    if (typeof clipStart === 'number' && clipStart >= recording.duration) {
+        throw new Error('Clip start must be within the recording duration');
     }
 
-    return url.toString();
+    if (typeof clipEnd === 'number' && clipEnd > recording.duration) {
+        throw new Error('Clip end must be within the recording duration');
+    }
+
+    const token = await generateShareToken(
+        {
+            recordingId,
+            clipStartSeconds: clipStart,
+            clipEndSeconds: clipEnd,
+        },
+        expiresIn
+    );
+
+    return `${getConfiguredPublicAppOrigin()}/s/${token}`;
 }

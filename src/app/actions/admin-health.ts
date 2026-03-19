@@ -1,13 +1,29 @@
 'use server';
 
+import { z } from 'zod';
 import { getMongoDb } from '@/lib/mongodb';
 import {
     getOpenExternalServiceIncidentCount,
     getOpenExternalServiceIncidents,
+    resolveAllOpenExternalServiceIncidents,
+    resolveExternalServiceIncidentById,
 } from '@/lib/external-service-incidents';
+import {
+    getAsyncJobById,
+    getAsyncJobStats,
+    retryAsyncJobNow,
+} from '@/lib/db/async-jobs';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { requireCurrentAdmin } from '@/lib/admin-auth';
-import type { ExternalServiceIncidentResponse } from '@/lib/db/types';
+import type {
+    AsyncJobResponse,
+    ExternalServiceIncidentResponse,
+} from '@/lib/db/types';
+import { logAdminAction } from '@/app/actions/audit-log';
+import { sendEmail } from '@/lib/email';
+import { updateRecording } from '@/lib/db/recordings';
+import { updateGoogleSyncState } from '@/services/google/start-contacts-sync';
+import { markSupportMessageQueued } from '@/lib/db/support-messages';
 
 type ServiceStatus = {
     name: string;
@@ -22,7 +38,17 @@ export type SystemHealthResponse = {
         openCount: number;
         recent: ExternalServiceIncidentResponse[];
     };
+    asyncJobs: {
+        queuedCount: number;
+        runningCount: number;
+        failedCount: number;
+        recentFailed: AsyncJobResponse[];
+    };
 };
+
+const IncidentIdSchema = z.string().trim().min(1);
+const JobIdSchema = z.string().trim().min(1);
+const TestEmailSchema = z.string().trim().email();
 
 export async function checkSystemHealth(): Promise<SystemHealthResponse> {
     await requireCurrentAdmin();
@@ -142,9 +168,10 @@ export async function checkSystemHealth(): Promise<SystemHealthResponse> {
         });
     }
 
-    const [openCount, recentIncidents] = await Promise.all([
+    const [openCount, recentIncidents, asyncJobs] = await Promise.all([
         getOpenExternalServiceIncidentCount(),
         getOpenExternalServiceIncidents(),
+        getAsyncJobStats(),
     ]);
 
     return {
@@ -153,5 +180,148 @@ export async function checkSystemHealth(): Promise<SystemHealthResponse> {
             openCount,
             recent: recentIncidents,
         },
+        asyncJobs,
+    };
+}
+
+export async function clearServiceIncident(incidentId: string) {
+    const admin = await requireCurrentAdmin();
+    const parsed = IncidentIdSchema.safeParse(incidentId);
+
+    if (!parsed.success) {
+        return { success: false, error: 'Invalid incident ID' };
+    }
+
+    const cleared = await resolveExternalServiceIncidentById(parsed.data);
+    if (!cleared) {
+        return { success: false, error: 'Incident not found or already cleared' };
+    }
+
+    await logAdminAction(
+        admin._id.toString(),
+        'INCIDENT_CLEAR',
+        { incidentId: parsed.data },
+        parsed.data,
+        'SYSTEM'
+    );
+
+    return { success: true };
+}
+
+export async function clearAllServiceIncidents() {
+    const admin = await requireCurrentAdmin();
+    const clearedCount = await resolveAllOpenExternalServiceIncidents();
+
+    await logAdminAction(
+        admin._id.toString(),
+        'INCIDENT_CLEAR_ALL',
+        { clearedCount },
+        undefined,
+        'SYSTEM'
+    );
+
+    return { success: true, clearedCount };
+}
+
+export async function retryFailedAsyncJob(jobId: string) {
+    const admin = await requireCurrentAdmin();
+    const parsed = JobIdSchema.safeParse(jobId);
+
+    if (!parsed.success) {
+        return { success: false, error: 'Invalid async job ID' };
+    }
+
+    const job = await getAsyncJobById(parsed.data);
+    if (!job) {
+        return { success: false, error: 'Async job not found' };
+    }
+
+    if (job.status !== 'failed') {
+        return { success: false, error: 'Only failed jobs can be retried' };
+    }
+
+    const retried = await retryAsyncJobNow(parsed.data);
+    if (!retried) {
+        return { success: false, error: 'Failed to requeue async job' };
+    }
+
+    if (job.type === 'auto_transcription' && 'recordingId' in job.payload) {
+        await updateRecording(job.payload.recordingId, job.payload.firebaseUid, {
+            transcriptionStatus: 'pending',
+        });
+    } else if (job.type === 'google_contacts_sync') {
+        await updateGoogleSyncState(job.payload.firebaseUid, {
+            status: 'syncing',
+            lastAttemptAt: new Date(),
+            lastError: null,
+        });
+    } else if ('supportMessageId' in job.payload) {
+        await markSupportMessageQueued(job.payload.supportMessageId, {
+            deliveryAttempts: 0,
+            lastDeliveryError: null,
+        });
+    }
+
+    await logAdminAction(
+        admin._id.toString(),
+        'ASYNC_JOB_RETRY',
+        {
+            jobId: parsed.data,
+            jobType: job.type,
+        },
+        parsed.data,
+        'SYSTEM'
+    );
+
+    return { success: true };
+}
+
+export async function sendAdminTestEmail(recipient?: string) {
+    const admin = await requireCurrentAdmin();
+    const targetEmail = recipient?.trim() || admin.email;
+    const parsed = TestEmailSchema.safeParse(targetEmail);
+
+    if (!parsed.success) {
+        return { success: false, error: 'Enter a valid email address' };
+    }
+
+    const sentAt = new Date();
+    const response = await sendEmail({
+        to: parsed.data,
+        subject: '[Call Memo] Admin test email',
+        html: `
+            <h2>Admin test email</h2>
+            <p>This email confirms SMTP notifications are working from the Call Memo admin console.</p>
+            <ul>
+                <li><strong>Triggered by:</strong> ${admin.email}</li>
+                <li><strong>Sent to:</strong> ${parsed.data}</li>
+                <li><strong>Sent at:</strong> ${sentAt.toISOString()}</li>
+            </ul>
+            <p>If you received this, admin email delivery is configured correctly.</p>
+        `,
+    });
+
+    if (!response.success) {
+        const errorMessage = response.error instanceof Error
+            ? response.error.message
+            : typeof response.error === 'string'
+                ? response.error
+                : 'Failed to send test email';
+
+        return { success: false, error: errorMessage };
+    }
+
+    await logAdminAction(
+        admin._id.toString(),
+        'TEST_EMAIL_SEND',
+        { recipient: parsed.data, messageId: response.messageId },
+        undefined,
+        'SYSTEM'
+    );
+
+    return {
+        success: true,
+        recipient: parsed.data,
+        messageId: response.messageId,
     };
 }

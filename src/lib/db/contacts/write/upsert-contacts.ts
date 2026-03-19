@@ -40,6 +40,8 @@ export async function upsertContacts(
 
     const batchProcessedPhones = new Map<string, ObjectId>();
     const batchProcessedGoogleIds = new Map<string, ObjectId>();
+    const mergePhoneNumbers = (...phoneGroups: Array<string[] | undefined>): string[] =>
+        [...new Set(phoneGroups.flatMap((phoneGroup) => phoneGroup || []).filter(Boolean))];
 
     for (const contact of contacts) {
         const [firstName, ...lastNameParts] = contact.name.split(' ');
@@ -91,11 +93,24 @@ export async function upsertContacts(
 
         let targetId: ObjectId | undefined;
 
+        let finalPhoneNumbers = contact.phoneNumbers || [];
+
         if (googleMatchId && phoneMatchId && !googleMatchId.equals(phoneMatchId)) {
             if (phoneMatchDoc) {
+                finalPhoneNumbers = mergePhoneNumbers(
+                    finalPhoneNumbers,
+                    googleMatchDoc?.phoneNumbers,
+                    phoneMatchDoc.phoneNumbers
+                );
+
                 await recordingsCollection.updateMany(
                     { contactId: phoneMatchDoc._id },
-                    { $set: { contactId: googleMatchId } }
+                    {
+                        $set: {
+                            contactId: googleMatchId,
+                            contactName: contact.name,
+                        },
+                    }
                 );
 
                 await collection.deleteOne({ _id: phoneMatchDoc._id });
@@ -115,9 +130,13 @@ export async function upsertContacts(
             targetId = phoneMatchId;
         }
 
-        const finalPhoneNumbers = contact.phoneNumbers || [];
-
         if (targetId) {
+            finalPhoneNumbers = mergePhoneNumbers(
+                finalPhoneNumbers,
+                googleMatchDoc?.phoneNumbers,
+                phoneMatchDoc?.phoneNumbers
+            );
+
             await collection.updateOne(
                 { _id: targetId },
                 {

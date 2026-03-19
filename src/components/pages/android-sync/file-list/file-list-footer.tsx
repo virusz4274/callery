@@ -15,7 +15,7 @@ export function FileListFooter({ filteredCount, page, totalPages, onPageChange }
     const end = Math.min(filteredCount, page * ROWS_PER_PAGE);
 
     return (
-        <div className="flex shrink-0 items-center justify-between border-t border-default-100/70 bg-background/90 p-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-default-100/70 bg-background/90 p-4">
             <div className="text-sm text-muted-foreground">
                 Showing {start} - {end} of {filteredCount}
             </div>

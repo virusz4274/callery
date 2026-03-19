@@ -8,6 +8,7 @@
  */
 
 import type { Recording, RecordingResponse, Contact, ContactResponse, User, UserResponse } from './types';
+import { hasStoredGoogleRefreshToken } from '@/services/google/refresh-token-crypto';
 
 // ============================================================================
 // Recording Converters
@@ -49,6 +50,9 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         transcriptionStatus: recording.transcriptionStatus,
         fullTranscript: recording.fullTranscript,
         languageCode: recording.languageCode,
+        transcriptionProvider: recording.transcriptionProvider,
+        transcriptionModel: recording.transcriptionModel,
+        transcriptionCostMultiplier: recording.transcriptionCostMultiplier,
         summary: recording.summary,
         tags: recording.tags,
         isStarred: recording.isStarred,
@@ -116,7 +120,25 @@ export function toUserResponse(user: User): UserResponse {
         transcriptionAllocation: user.transcriptionAllocation,
         transcriptionSettings: user.transcriptionSettings,
         billingSettings: user.billingSettings || { allowOverage: false },
+        stripeSubscriptionStatus: user.stripeSubscriptionStatus,
+        trialEndsAt: user.trialEndsAt?.toISOString(),
         totalRecordings: user.totalRecordings,
         lastLoginAt: user.lastLoginAt?.toISOString(),
+        googleSync: user.googleSync
+            ? {
+                status: user.googleSync.status,
+                connectedAt: user.googleSync.connectedAt?.toISOString(),
+                lastAttemptAt: user.googleSync.lastAttemptAt?.toISOString(),
+                lastSyncedAt: user.googleSync.lastSyncedAt?.toISOString(),
+                lastError: user.googleSync.lastError || null,
+                lastImportedCount: user.googleSync.lastImportedCount,
+                hasRefreshToken: hasStoredGoogleRefreshToken(user.googleSync),
+                scopes: user.googleSync.scopes,
+                tokenExpiresAt: user.googleSync.tokenExpiresAt?.toISOString(),
+            }
+            : {
+                status: 'not_connected',
+                hasRefreshToken: false,
+            },
     };
 }

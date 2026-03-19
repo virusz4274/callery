@@ -69,16 +69,21 @@ export async function deleteRecordingAction(id: string) {
     }
 
     try {
-        const deletedRecording = await deleteRecording(parseResult.data, firebaseUid);
-
-        if (!deletedRecording) {
+        const recording = await getRecordingById(parseResult.data, firebaseUid);
+        if (!recording) {
             return { success: false, error: 'Recording not found' };
         }
 
         try {
-            await deleteFromR2(deletedRecording.r2Key);
+            await deleteFromR2(recording.r2Key);
         } catch (r2Error) {
-            console.error('Error deleting from R2 (continuing anyway):', r2Error);
+            console.error('Error deleting from R2:', r2Error);
+            return { success: false, error: 'Failed to delete audio from storage. Recording was not removed.' };
+        }
+
+        const deletedRecording = await deleteRecording(parseResult.data, firebaseUid);
+        if (!deletedRecording) {
+            return { success: false, error: 'Recording could not be removed after deleting audio from storage' };
         }
 
         await decrementStorageUsed(firebaseUid, deletedRecording.fileSize);

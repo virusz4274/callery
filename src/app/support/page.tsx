@@ -11,6 +11,7 @@ export default function SupportPage() {
     const [email, setEmail] = useState('');
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
+    const [companyWebsite, setCompanyWebsite] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -30,11 +31,20 @@ export default function SupportPage() {
                     email,
                     subject,
                     message,
+                    companyWebsite,
                 }),
             });
 
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
+                if (response.status === 429) {
+                    throw new Error(data.error || 'Too many messages from this network. Please wait a bit and try again.');
+                }
+
+                if (response.status === 403) {
+                    throw new Error(data.error || 'This request did not come from the current app origin. Please reload and try again.');
+                }
+
                 throw new Error(data.error || 'Failed to send message');
             }
 
@@ -44,6 +54,7 @@ export default function SupportPage() {
             });
             setSubject('');
             setMessage('');
+            setCompanyWebsite('');
         } catch (error) {
             setSubmitStatus({
                 type: 'error',
@@ -204,6 +215,18 @@ export default function SupportPage() {
                         </div>
 
                         <form className="mt-6 space-y-4" onSubmit={handleSubmit} id="support-form">
+                            <div className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                                <label htmlFor="support-company-website">Company website</label>
+                                <input
+                                    id="support-company-website"
+                                    type="text"
+                                    value={companyWebsite}
+                                    onChange={(event) => setCompanyWebsite(event.target.value)}
+                                    autoComplete="off"
+                                    tabIndex={-1}
+                                />
+                            </div>
+
                             <div className="grid gap-4 md:grid-cols-2">
                                 <TextField value={name} onChange={setName} isRequired>
                                     <Label>Name</Label>

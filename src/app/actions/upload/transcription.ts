@@ -1,5 +1,5 @@
 import { findUserByFirebaseUid } from '@/lib/db/users';
-import { updateRecording } from '@/lib/db/recordings';
+import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
 import { logger } from '@/lib/logger';
 import { checkTranscriptionAccess } from '@/lib/access-control';
 import { getProviderMultiplier } from '@/app/actions/transcription-providers';
@@ -20,6 +20,30 @@ import {
 
 const aiService = new GeminiService();
 
+export type AutoTranscriptionResult = {
+    outcome: 'skipped' | 'started_async' | 'completed';
+};
+
+export async function markAutoTranscriptionJobFailed(
+    firebaseUid: string,
+    recordingId: string,
+    fileName: string,
+    errorMessage?: string
+) {
+    await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
+
+    const user = await findUserByFirebaseUid(firebaseUid);
+    if (user) {
+        const suffix = errorMessage ? ` ${errorMessage}` : '';
+        await createNotification(
+            user._id,
+            'error',
+            'Transcription Failed',
+            `Processing failed for "${fileName}".${suffix}`,
+        );
+    }
+}
+
 export async function triggerAutoTranscription(
     firebaseUid: string,
     recordingId: string,
@@ -28,105 +52,104 @@ export async function triggerAutoTranscription(
     fileSize: number,
     fileName: string,
     standardizedDisplayName: string
-) {
-    try {
-        const user = await findUserByFirebaseUid(firebaseUid);
-        if (!user?.transcriptionSettings?.autoTranscribe) return;
+) : Promise<AutoTranscriptionResult> {
+    const user = await findUserByFirebaseUid(firebaseUid);
+    if (!user?.transcriptionSettings?.autoTranscribe) {
+        return { outcome: 'skipped' };
+    }
 
-        if (!isTranscriptionFileSizeAllowed(fileSize)) {
-            const reason = buildTranscriptionFileSizeError(fileSize);
-            logger.warn(`[triggerAutoTranscription] Skipped for ${recordingId}: ${reason}`);
-            await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
-            await createNotification(
-                user._id,
-                'warning',
-                'Transcription Skipped',
-                `Skipped "${standardizedDisplayName || fileName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
-                `/?id=${recordingId}`
-            );
-            return;
-        }
+    if (!isTranscriptionFileSizeAllowed(fileSize)) {
+        const reason = buildTranscriptionFileSizeError(fileSize);
+        logger.warn(`[triggerAutoTranscription] Skipped for ${recordingId}: ${reason}`);
+        await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
+        await createNotification(
+            user._id,
+            'warning',
+            'Transcription Skipped',
+            `Skipped "${standardizedDisplayName || fileName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
+            `/?id=${recordingId}`
+        );
+        return { outcome: 'skipped' };
+    }
 
-        // Determine Provider and Model
-        let providerId: TranscriptionProviderId = user.transcriptionSettings?.defaultProvider || 'soniox';
-        const modelId = user.transcriptionSettings?.defaultModel;
+    let providerId: TranscriptionProviderId = user.transcriptionSettings?.defaultProvider || 'soniox';
+    const modelId = user.transcriptionSettings?.defaultModel;
+    if (!['soniox', 'elevenlabs'].includes(providerId)) {
+        providerId = 'soniox';
+    }
 
-        // Validation
-        if (!['soniox', 'elevenlabs'].includes(providerId)) {
-            providerId = 'soniox';
-        }
+    const multiplier = await getProviderMultiplier(providerId);
+    const costDuration = duration * multiplier;
+    const transcriptionAccess = await checkTranscriptionAccess(user, costDuration);
+    if (!transcriptionAccess.allowed) {
+        logger.warn(`[triggerAutoTranscription] Skipped: ${transcriptionAccess.reason}`);
+        await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
+        await createNotification(
+            user._id,
+            'warning',
+            'Transcription Skipped',
+            transcriptionAccess.reason || `Skipped "${standardizedDisplayName || fileName}".`,
+            `/?id=${recordingId}`
+        );
+        return { outcome: 'skipped' };
+    }
 
-        // Check Access
-        const multiplier = await getProviderMultiplier(providerId);
-        const costDuration = duration * multiplier;
+    logger.info(`[triggerAutoTranscription] Starting ${providerId} for ${recordingId}`);
 
-        const transcriptionAccess = await checkTranscriptionAccess(user, costDuration);
-        if (!transcriptionAccess.allowed) {
-            logger.warn(`[triggerAutoTranscription] Skipped: ${transcriptionAccess.reason}`);
-            await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
-            return;
-        }
+    await updateRecording(recordingId, firebaseUid, {
+        transcriptionStatus: 'processing',
+        transcriptionProvider: providerId,
+        transcriptionModel: modelId,
+        transcriptionCostMultiplier: multiplier,
+    });
 
-        logger.info(`[triggerAutoTranscription] Starting ${providerId} for ${recordingId}`);
+    const fileUrl = await getSignedR2Url(r2Key, 1800);
+    const transcriptionService = TranscriptionFactory.getService(providerId);
 
-        await updateRecording(recordingId, firebaseUid, {
-            transcriptionStatus: 'processing',
-            transcriptionProvider: providerId,
-            transcriptionModel: modelId,
-            transcriptionCostMultiplier: multiplier,
-        });
-
-        const fileUrl = await getSignedR2Url(r2Key, 1800);
-        const transcriptionService = TranscriptionFactory.getService(providerId);
-
-        // ASYNC PATH: ElevenLabs > 300s
-        if (providerId === 'elevenlabs' && duration > 300 && transcriptionService instanceof ElevenLabsService) {
-            const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
-                durationSeconds: duration,
-                model: modelId,
-                webhookMetadata: { recordingId, firebaseUid }
-            });
-
-            await updateRecording(recordingId, firebaseUid, {
-                externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId
-            });
-            return;
-        }
-
-        // ASYNC PATH: Soniox > 300s
-        if (providerId === 'soniox' && duration > 300 && transcriptionService instanceof SonioxService) {
-            const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
-                durationSeconds: duration,
-                model: modelId,
-                webhookMetadata: { recordingId, firebaseUid }
-            });
-
-            await updateRecording(recordingId, firebaseUid, {
-                externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId
-            });
-            return;
-        }
-
-        // SYNC PATH
-        const result = await transcriptionService.transcribe(fileUrl, {
+    if (providerId === 'elevenlabs' && duration > 300 && transcriptionService instanceof ElevenLabsService) {
+        const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
             durationSeconds: duration,
-            model: modelId
+            model: modelId,
+            webhookMetadata: { recordingId, firebaseUid }
         });
 
-        // Save Raw Transcript
         await updateRecording(recordingId, firebaseUid, {
-            fullTranscript: result.segments,
-            languageCode: result.languageCode,
-            transcriptionStatus: 'processing',
-            transcriptionModel: result.model,
+            externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId
+        });
+        return { outcome: 'started_async' };
+    }
+
+    if (providerId === 'soniox' && duration > 300 && transcriptionService instanceof SonioxService) {
+        const asyncResult = await transcriptionService.transcribeAsync(fileUrl, {
+            durationSeconds: duration,
+            model: modelId,
+            webhookMetadata: { recordingId, firebaseUid }
         });
 
-        // AI Processing
-        let summary = '';
-        let transliteratedSegments = result.segments;
-        let summaryEmbedding: number[] = [];
+        await updateRecording(recordingId, firebaseUid, {
+            externalTranscriptionId: asyncResult.transcriptionId || asyncResult.requestId
+        });
+        return { outcome: 'started_async' };
+    }
 
-        if (result.text && result.text.trim()) {
+    const result = await transcriptionService.transcribe(fileUrl, {
+        durationSeconds: duration,
+        model: modelId
+    });
+
+    await updateRecording(recordingId, firebaseUid, {
+        fullTranscript: result.segments,
+        languageCode: result.languageCode,
+        transcriptionStatus: 'processing',
+        transcriptionModel: result.model,
+    });
+
+    let summary = '';
+    let transliteratedSegments = result.segments;
+    let summaryEmbedding: number[] = [];
+
+    if (result.text && result.text.trim()) {
+        try {
             const [summaryResult, translitResult] = await Promise.all([
                 aiService.generateSummary(result.text, result.languageCode),
                 aiService.generateTransliteration(result.segments, result.languageCode)
@@ -138,31 +161,39 @@ export async function triggerAutoTranscription(
             if (summary) {
                 summaryEmbedding = await aiService.generateEmbedding(summary);
             }
+        } catch (aiError) {
+            logger.error(`[triggerAutoTranscription] AI processing failed for ${recordingId}:`, aiError);
         }
+    }
 
-        // Finalize
-        await updateRecording(recordingId, firebaseUid, {
-            transcriptionStatus: 'completed',
-            fullTranscript: transliteratedSegments,
-            languageCode: result.languageCode,
-            summary,
-            summaryEmbedding,
-        });
+    await updateRecording(recordingId, firebaseUid, {
+        transcriptionStatus: 'completed',
+        fullTranscript: transliteratedSegments,
+        languageCode: result.languageCode,
+        summary,
+        summaryEmbedding,
+    });
 
-        // Billing
+    const usageReportId = `${providerId}:${result.transcriptionId}`;
+    const shouldReportUsage = await markTranscriptionUsageReported(recordingId, firebaseUid, usageReportId);
+    if (shouldReportUsage) {
         const billedDuration = calculateBilledDuration(duration);
         const billedCostDuration = billedDuration * multiplier;
 
         await incrementTranscriptionUsed(firebaseUid, billedCostDuration);
         await reportUsage(firebaseUid, 'transcription', billedDuration, {
             multiplier,
-            identifier: `transcription:${firebaseUid}:recording:${recordingId}:auto`,
+            identifier: `transcription:${firebaseUid}:recording:${recordingId}:auto:${providerId}:${result.transcriptionId}`,
         });
+    }
 
-        // Cleanup
+    try {
         await transcriptionService.deleteTranscript(result.transcriptionId);
+    } catch (cleanupError) {
+        logger.warn(`[triggerAutoTranscription] Cleanup failed for ${recordingId}:`, cleanupError);
+    }
 
-        // Notify
+    try {
         await createNotification(
             user._id,
             'success',
@@ -170,30 +201,9 @@ export async function triggerAutoTranscription(
             `Your recording "${standardizedDisplayName || fileName}" has been processed successfully.`,
             `/?id=${recordingId}`
         );
-
-    } catch (error) {
-        logger.error(`[triggerAutoTranscription] Failed for ${recordingId}:`, error);
-        await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
-
-        // Notify Error
-        // Need user ID here, we fetched user at start.
-        // If user fetch failed we returned early anyway.
-        // However, user object might be stale if we relied on `user` var from top of try block
-        // inside strict scope.
-        // We can re-fetch or use what we had if valid.
-        /*
-           Wait, if `user` is undefined we return. 
-           If error happens after, `user` is defined.
-           The user._id is ObjectId.
-        */
-        const user = await findUserByFirebaseUid(firebaseUid);
-        if (user) {
-            await createNotification(
-                user._id,
-                'error',
-                'Transcription Failed',
-                `Processing failed for "${fileName}".`,
-            );
-        }
+    } catch (notificationError) {
+        logger.warn(`[triggerAutoTranscription] Notification failed for ${recordingId}:`, notificationError);
     }
+
+    return { outcome: 'completed' };
 }

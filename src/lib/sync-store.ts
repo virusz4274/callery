@@ -11,6 +11,7 @@ export {
     getLastSyncTime,
     getSyncedCount,
     getSyncedFiles,
+    getSyncedFilesMap,
     getSyncedFingerprints,
     isSynced,
 } from './sync-store/read';

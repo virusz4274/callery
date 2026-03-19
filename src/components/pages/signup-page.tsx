@@ -2,16 +2,21 @@
 
 import { useToast } from '@/components/toast-provider';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { GoogleIcon } from '@/components/icons/google-icon';
-import { AppleIcon } from '@/components/icons/apple-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { ensureUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useAuth, useUser } from '@/lib/firebase/provider';
 import { isGoogleSignInCancelledError, signInWithGoogle } from '@/lib/firebase/google-sign-in';
+import { syncFirebaseSession } from '@/lib/firebase/session-sync';
+import {
+  buildAuthPageHref,
+  getAuthRedirectCopy,
+  resolvePostAuthRedirect,
+} from '@/lib/auth-redirect';
 
 export function SignupPage() {
   const { toast } = useToast();
@@ -23,16 +28,23 @@ export function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isCompletingSignup, setIsCompletingSignup] = useState(false);
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  const authCopy = getAuthRedirectCopy(redirectParam);
+  const postAuthPath = resolvePostAuthRedirect(redirectParam);
+  const loginHref = buildAuthPageHref('/login', redirectParam);
 
   useEffect(() => {
-    if (user) {
-      router.replace('/recordings');
+    if (user && !isCompletingSignup) {
+      router.replace(postAuthPath);
     }
-  }, [user, router]);
+  }, [isCompletingSignup, postAuthPath, user, router]);
 
   useEffect(() => {
     if (confirmPassword && password !== confirmPassword) {
@@ -48,28 +60,83 @@ export function SignupPage() {
       return;
     }
     setIsLoading(true);
+    setIsCompletingSignup(true);
+    setAuthMessage(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await ensureUserProfile(userCredential.user, { firstName, lastName });
-      router.replace('/recordings');
+      const ensured = await ensureUserProfile(userCredential.user, { firstName, lastName });
+      if (!ensured.success) {
+        await signOut(auth);
+        const message = ensured.error || 'We could not finish setting up your account.';
+        setAuthMessage(message);
+        toast({ title: 'Sign Up Failed', description: message, status: 'danger' });
+        return;
+      }
+
+      const sessionResult = await syncFirebaseSession(userCredential.user, {
+        auth,
+        signOutOnFailure: true,
+      });
+      if (!sessionResult.ok) {
+        setAuthMessage(sessionResult.message);
+        toast({ title: 'Sign Up Failed', description: sessionResult.message, status: 'danger' });
+        return;
+      }
+
+      if (sessionResult.profileEnsureFailed) {
+        toast({
+          title: 'Workspace sync issue',
+          description: 'Your session is active, but some account setup details will retry in the background.',
+          status: 'warning',
+        });
+      }
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setAuthMessage(errorMessage);
       toast({ title: 'Sign Up Failed', description: errorMessage, status: 'danger' });
     } finally {
       setIsLoading(false);
+      setIsCompletingSignup(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    setIsCompletingSignup(true);
+    setAuthMessage(null);
 
     try {
       const result = await signInWithGoogle(auth);
-      await ensureUserProfile(result.user);
-      router.replace('/recordings');
+      const sessionResult = await syncFirebaseSession(result.user, {
+        auth,
+        signOutOnFailure: true,
+      });
+
+      if (!sessionResult.ok) {
+        setAuthMessage(sessionResult.message);
+        toast({
+          title: 'Google Sign-In Failed',
+          description: sessionResult.message,
+          status: 'danger',
+        });
+        return;
+      }
+
+      if (sessionResult.profileEnsureFailed) {
+        toast({
+          title: 'Workspace sync issue',
+          description: 'Your session is active, but some account setup details will retry in the background.',
+          status: 'warning',
+        });
+      }
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
       const firebaseError = error as { message?: string };
       if (!isGoogleSignInCancelledError(error)) {
+        setAuthMessage(firebaseError.message || 'Could not sign in with Google.');
         toast({
           title: 'Google Sign-In Failed',
           description: firebaseError.message || 'Could not sign in with Google.',
@@ -78,6 +145,7 @@ export function SignupPage() {
       }
     } finally {
       setGoogleLoading(false);
+      setIsCompletingSignup(false);
     }
   };
 
@@ -93,24 +161,30 @@ export function SignupPage() {
     <AuthShell
       badge="Create Workspace"
       title="Create your account"
-      description="Set up your workspace to upload recordings, organize contacts, and start searching conversations with structure."
+      description={authCopy.signupDescription}
       footer={
         <p className="text-sm text-default-500">
           Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-primary transition-colors hover:text-primary/80">
+          <Link href={loginHref} className="font-semibold text-primary transition-colors hover:text-primary/80">
             Sign in
           </Link>
         </p>
       }
     >
       <form onSubmit={handleSignUp} className="space-y-5">
+        {authMessage && (
+          <div className="rounded-[1.25rem] border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
+            {authMessage}
+          </div>
+        )}
+
         <div className="grid gap-3">
           <Button
             type="button"
             variant="ghost"
             className="h-12 justify-center rounded-2xl border border-default-200 bg-background/70 text-foreground transition-colors hover:border-primary/20 hover:bg-primary/5"
             onPress={handleGoogleSignIn}
-            isDisabled={isGoogleLoading || isLoading}
+            isDisabled={isGoogleLoading || isLoading || isCompletingSignup}
           >
             {isGoogleLoading ? (
               <Spinner color="current" size="sm" />
@@ -120,15 +194,6 @@ export function SignupPage() {
             Sign up with Google
           </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-12 justify-center rounded-2xl border border-dashed border-default-200 bg-background/50 text-default-500"
-            isDisabled
-          >
-            <AppleIcon className="mr-2 h-5 w-5" />
-            Apple sign up coming soon
-          </Button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -199,7 +264,7 @@ export function SignupPage() {
           size="lg"
           type="submit"
           isPending={isLoading}
-          isDisabled={isLoading || isGoogleLoading || !!passwordError}
+          isDisabled={isLoading || isGoogleLoading || isCompletingSignup || !!passwordError}
         >
           {isLoading ? <Spinner color="current" size="sm" /> : 'Create account'}
         </Button>

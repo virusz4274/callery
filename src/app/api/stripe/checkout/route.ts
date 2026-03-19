@@ -7,6 +7,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Plan } from '@/lib/db/types';
 import Stripe from 'stripe';
 import { ensureStripeCustomerId } from '@/lib/stripe/customer';
+import { getPublicAppOrigin } from '@/lib/public-url';
 
 type CheckoutRequestBody = {
     priceId?: string;
@@ -123,15 +124,16 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Create Checkout Session
+        const appOrigin = getPublicAppOrigin(req);
         const resolvedSuccessUrl = resolveSafeReturnUrl(
             successUrl || returnUrl,
-            req.nextUrl.origin,
-            '/settings?success=true'
+            appOrigin,
+            '/settings?tab=billing&success=true'
         );
         const resolvedCancelUrl = resolveSafeReturnUrl(
             cancelUrl || returnUrl,
-            req.nextUrl.origin,
-            '/settings?canceled=true'
+            appOrigin,
+            '/settings?tab=billing&canceled=true'
         );
 
         const sessionParams: Stripe.Checkout.SessionCreateParams = {

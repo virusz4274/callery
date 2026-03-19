@@ -5,6 +5,6 @@ export {
     getContactsByUser,
 } from './contacts/read';
 
-export { incrementContactRecordings, linkRecordingsToContact } from './contacts/link';
+export { incrementContactRecordings, linkRecordingsToContact, recalculateContactStats } from './contacts/link';
 
 export { createContact, updateContact, upsertContacts } from './contacts/write';

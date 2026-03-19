@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { toUserResponse } from '@/lib/db/converters';
 
 
 /**
@@ -33,35 +34,7 @@ export async function GET(request: NextRequest) {
             user.lastLoginAt = now;
         }
 
-        // Convert to response format
-        const profile = {
-            id: user._id.toString(),
-            firebaseUid: user.firebaseUid,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            name: user.name,
-            phoneNumber: user.phoneNumber,
-            createdAt: user.createdAt.toISOString(),
-            role: user.role,
-            plan: user.plan,
-            timezone: user.timezone,
-            // Settings
-            notificationSettings: user.notificationSettings,
-            storageSettings: user.storageSettings,
-            transcriptionSettings: user.transcriptionSettings,
-            billingSettings: user.billingSettings,
-            // Usage
-            storageUsed: user.storageUsed,
-            storageAllocation: user.storageAllocation,
-            transcriptionUsed: user.transcriptionUsed,
-            transcriptionAllocation: user.transcriptionAllocation,
-            totalRecordings: user.totalRecordings,
-            // Billing Status
-            stripeSubscriptionStatus: user.stripeSubscriptionStatus,
-            trialEndsAt: user.trialEndsAt?.toISOString(),
-            lastLoginAt: user.lastLoginAt?.toISOString(),
-        };
+        const profile = toUserResponse(user);
 
         return NextResponse.json({ profile });
     } catch (error) {

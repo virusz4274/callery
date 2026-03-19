@@ -40,7 +40,11 @@ export function UpgradePlanModal({
                                     {plans.map((plan) => (
                                         <div
                                             key={plan.id}
-                                            className="border border-default-200 rounded-lg p-4 hover:border-primary transition-colors"
+                                            className={`rounded-lg border p-4 transition-colors ${
+                                                plan.isPurchasable
+                                                    ? 'border-default-200 hover:border-primary'
+                                                    : 'border-default-200/80 bg-default-50/60'
+                                            }`}
                                         >
                                             <h3 className="font-bold text-xl">{plan.name}</h3>
                                             <div className="text-2xl font-bold my-2">
@@ -59,10 +63,21 @@ export function UpgradePlanModal({
                                                 className="w-full"
                                                 variant="primary"
                                                 onPress={() => onCheckout(plan.stripePriceId)}
-                                                isDisabled={isCheckingOut}
+                                                isDisabled={isCheckingOut || !plan.isPurchasable}
                                             >
-                                                {isCheckingOut ? <Spinner size="sm" /> : `Choose ${plan.name}`}
+                                                {isCheckingOut ? (
+                                                    <Spinner size="sm" />
+                                                ) : plan.isPurchasable ? (
+                                                    `Choose ${plan.name}`
+                                                ) : (
+                                                    'Checkout unavailable'
+                                                )}
                                             </Button>
+                                            {!plan.isPurchasable && (
+                                                <p className="mt-2 text-xs text-default-500">
+                                                    This plan is visible here, but checkout is not configured yet.
+                                                </p>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

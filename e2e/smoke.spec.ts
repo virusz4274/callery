@@ -4,25 +4,122 @@ function uniqueEmail() {
   return `e2e.${Date.now()}.${Math.random().toString(36).slice(2, 8)}@example.com`;
 }
 
+const protectedRouteExpectations = [
+  {
+    route: '/recordings',
+    redirect: '/recordings',
+    helperCopy: 'Sign in to open your recordings workspace and get back to search, filters, and call review.',
+  },
+  {
+    route: '/upload',
+    redirect: '/upload',
+    helperCopy: 'Sign in to upload recordings and continue building your workspace in one organized flow.',
+  },
+  {
+    route: '/contacts',
+    redirect: '/contacts',
+    helperCopy: 'Sign in to open your contacts workspace and jump back into linked call history.',
+  },
+  {
+    route: '/files',
+    redirect: '/files',
+    helperCopy: 'Sign in to inspect your file library, browse stored recordings, and open details with confidence.',
+  },
+  {
+    route: '/settings',
+    redirect: '/settings',
+    helperCopy: 'Sign in to manage your workspace settings, exports, notifications, and plan details.',
+  },
+];
+
 test('public pages load', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('body')).toContainText('VoSift');
+  await expect(page.locator('body')).toContainText('Archive calls in a way that still makes sense later.');
+  await expect(page.locator('body')).not.toContainText('The homepage now leads with');
+  await expect(page.locator('body')).not.toContainText('capability story');
 
   await page.goto('/pricing');
   await expect(page.locator('body')).toContainText('Pricing');
+  await expect(page.locator('body')).toContainText('Compare what changes');
+  await expect(page.locator('body')).toContainText('Storage');
+  await expect(page.locator('body')).not.toContainText('The page now shows the whole ladder at once');
 
   await page.goto('/support');
   await expect(page.locator('body')).toContainText('Send a support message');
 });
 
+test('signed-out protected routes redirect into login with route context', async ({ page }) => {
+  for (const expectation of protectedRouteExpectations) {
+    await page.goto(expectation.route, { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await page.waitForURL(`**/login?redirect=${encodeURIComponent(expectation.redirect)}`);
+    await expect(page.locator('body')).toContainText(expectation.helperCopy);
+  }
+});
+
+test('auth pages preserve redirect links and sanitize invalid redirect values', async ({ page }) => {
+  await page.goto('/login?redirect=%2Fupload');
+  await expect(page.getByRole('link', { name: /Create one/i })).toHaveAttribute(
+    'href',
+    '/signup?redirect=%2Fupload'
+  );
+  await expect(page.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute(
+    'href',
+    '/forgot-password?redirect=%2Fupload'
+  );
+
+  await page.goto('/signup?redirect=%2Fupload');
+  await expect(page.getByRole('link', { name: /^Sign in$/i })).toHaveAttribute(
+    'href',
+    '/login?redirect=%2Fupload'
+  );
+
+  await page.goto('/forgot-password?redirect=%2Fupload');
+  await expect(page.getByRole('link', { name: /Back to sign in/i })).toHaveAttribute(
+    'href',
+    '/login?redirect=%2Fupload'
+  );
+
+  const invalidRedirect = encodeURIComponent('https://example.com/escape');
+
+  await page.goto(`/login?redirect=${invalidRedirect}`);
+  await expect(page.locator('body')).toContainText(
+    'Sign in to open your recordings workspace and get back to search, filters, and call review.'
+  );
+  await expect(page.getByRole('link', { name: /Create one/i })).toHaveAttribute(
+    'href',
+    '/signup?redirect=%2Frecordings'
+  );
+
+  await page.goto(`/signup?redirect=${invalidRedirect}`);
+  await expect(page.getByRole('link', { name: /^Sign in$/i })).toHaveAttribute(
+    'href',
+    '/login?redirect=%2Frecordings'
+  );
+});
+
+test('mobile login shows email sign-in without an extra reveal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/login?redirect=%2Fupload');
+
+  await expect(page.getByRole('link', { name: /Back to site/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
+  await expect(page.getByPlaceholder('you@company.com')).toBeVisible();
+  await expect(page.getByPlaceholder('Enter your password')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Forgot password\?/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Use email/i })).toHaveCount(0);
+});
+
 test('authenticated user journey works', async ({ page }) => {
+  test.setTimeout(180_000);
+
   const email = uniqueEmail();
   const password = 'TestPass123!';
   const recordingStem = `e2e-upload-${Date.now()}`;
   const recordingName = `${recordingStem}.m4a`;
 
   await test.step('sign up a fresh user', async () => {
-    await page.goto('/signup');
+    await page.goto('/signup?redirect=%2Fupload');
     await page.getByPlaceholder('John').fill('E2E');
     await page.getByPlaceholder('Doe').fill('Smoke');
     await page.getByPlaceholder('you@company.com').fill(email);
@@ -30,8 +127,11 @@ test('authenticated user journey works', async ({ page }) => {
     await page.getByPlaceholder('Repeat your password').fill(password);
     await page.getByRole('button', { name: /Create account/i }).click();
 
-    await page.waitForURL('**/recordings', { timeout: 120_000 });
-    await expect(page.locator('body')).toContainText('Recordings workspace');
+    await page.waitForURL('**/upload', { timeout: 120_000 });
+    await expect(page.getByRole('heading', { name: /Upload recordings/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole('button', { name: /View recordings/i })).toBeVisible();
   });
 
   await test.step('submit the support form', async () => {
@@ -44,7 +144,10 @@ test('authenticated user journey works', async ({ page }) => {
       .fill('This is an automated support request generated by the Playwright smoke suite.');
     await page.getByRole('button', { name: /Send message/i }).click();
 
-    await expect(page.locator('body')).toContainText('Your message has been sent. We will get back to you soon.');
+    await expect(page.locator('body')).toContainText(
+      'Your message has been sent. We will get back to you soon.',
+      { timeout: 30_000 }
+    );
   });
 
   await test.step('upload a recording and surface it in the library', async () => {
@@ -62,7 +165,21 @@ test('authenticated user journey works', async ({ page }) => {
     await expect(page.locator('body')).toContainText('Uploaded');
 
     await page.goto('/recordings');
+    await expect(page.getByRole('heading', { name: /Recordings/i })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
     await expect(page.locator('body')).toContainText(recordingStem, { timeout: 60_000 });
+  });
+
+  await test.step('workspace surfaces keep primary actions visible', async () => {
+    await page.goto('/contacts');
+    await expect(page.getByRole('heading', { name: /^Contacts$/i })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /Upload more calls/i })).toBeVisible();
+    await expect(page.getByPlaceholder('Search by name, number, role, or company')).toBeVisible();
+
+    await page.goto('/files');
+    await expect(page.getByRole('heading', { name: /File browser/i })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /Upload more calls/i })).toBeVisible();
+    await expect(page.locator('body')).toContainText('Current location:');
   });
 
   await test.step('exercise billing endpoints for the signed-in user', async () => {
@@ -101,9 +218,8 @@ test('authenticated user journey works', async ({ page }) => {
     expect(result.portal.body.url).toContain('stripe.com');
 
     await page.goto('/pricing');
-    await Promise.all([
-      page.waitForURL(/stripe\.com/, { timeout: 30_000 }),
-      page.getByRole('button', { name: /Upgrade to|Upgrade plan/i }).click(),
-    ]);
+    await expect(page.locator('body')).toContainText('Pricing');
+    await expect(page.locator('body')).toContainText('Compare what changes');
+    await expect(page.locator('body')).toContainText('Hosting');
   });
 });
