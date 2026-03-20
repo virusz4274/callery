@@ -1,159 +1,165 @@
 # Architecture
 
-Call Memo is a Next.js 16 App Router application for ingesting, organizing, transcribing, searching, and sharing recorded conversations.
+Call Memo is a Next.js 16 App Router application for ingesting, organizing, transcribing, searching, exporting, and sharing recorded conversations.
 
 ## Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3 beta
-- Backend: Server Actions plus route handlers
-- Auth: Firebase Auth on the client, Firebase Admin verification on the server
+- Auth: Firebase Auth on the client, Firebase Admin-backed session verification on the server
 - Database: MongoDB
 - Storage: Cloudflare R2
 - AI: Gemini
 - Transcription: Soniox and ElevenLabs
-- Billing: Stripe subscriptions and metered usage
-- Notifications: MongoDB-backed in-app notifications, optional browser push, optional SMTP forwarding
-- Mobile wrapper: Capacitor Android
+- Billing: Stripe subscriptions, one-time checkout, and metered usage
+- Notifications: MongoDB-backed in-app notifications plus optional browser push
+- Mobile: Capacitor Android wrapper with native folder-sync helpers
 
 ## High-Level Flow
 
 ```mermaid
 graph TD
-    U["User"] --> UI["Next.js UI"]
+    User["User"] --> UI["Next.js UI"]
     UI --> SA["Server Actions"]
     UI --> API["Route Handlers"]
-    UI --> R2PUT["Presigned R2 PUT upload"]
+    UI --> R2PUT["Signed R2 PUT upload"]
+
+    SA --> Mongo["MongoDB"]
+    SA --> Gemini["Gemini"]
+    SA --> Stripe["Stripe"]
+    SA --> Providers["Transcription providers"]
+
+    API --> Webhooks["Webhook handlers"]
+    API --> Cron["Cron routes"]
+    API --> Mobile["Mobile sync routes"]
+
     R2PUT --> R2["Cloudflare R2"]
-
-    SA --> MDB["MongoDB"]
-    SA --> GEM["Gemini"]
-    SA --> STRIPE["Stripe"]
-    SA --> TR["Transcription Providers"]
-
-    API --> WH["Webhook handlers"]
-    WH --> MDB
-    WH --> STRIPE
-    WH --> TR
-
-    MDB --> NOTIFY["Notifications / exports / admin state"]
+    Webhooks --> Mongo
+    Cron --> Mongo
+    Mobile --> R2
 ```
 
-## Main Product Areas
+## Core Application Flows
 
-### Upload And Storage
+### Authentication
 
-- The primary upload path is a direct-to-R2 flow.
-- The client requests a signed PUT URL.
-- The client uploads bytes directly to R2.
-- The app finalizes the upload, verifies the object, writes recording metadata, and can trigger transcription.
+- Users authenticate through Firebase.
+- `/api/auth/login` converts the Firebase identity into a server-side session cookie.
+- Protected Server Actions and route handlers resolve the current user from that session.
+- Admin access is enforced through role checks against the MongoDB user record.
 
-Why it matters:
+### Direct Uploads
 
-- Large files bypass app-server request body limits.
-- The same storage path works for browser and Android upload workflows.
+The primary media path is direct-to-R2:
 
-### Recordings Workspace
+1. The client asks for upload context and a signed `PUT` URL.
+2. The client uploads bytes directly to Cloudflare R2.
+3. The app verifies the object through `HeadObject` and checks the uploaded byte size.
+4. The app creates the recording document and updates storage usage.
+5. If auto-transcription is enabled, the app queues an async job.
 
-The recordings area combines:
-
-- paginated listing
-- filters and sorting
-- semantic search
-- saved views in local storage
-- smart collections
-- playback
-- transcript review
-- sharing
-
-It is the main operational surface for end users.
-
-### Contacts
-
-Contacts are stored in MongoDB and can be synced from Google People API. The app keeps aggregate stats such as total recordings and last recording date so the contacts view can act like a relationship-centric index into the recording library.
-
-### AI And Search
-
-Gemini is used for:
-
-- short English summaries
-- transliteration output
-- embeddings for semantic search
-
-Semantic search relies on stored embeddings and an Atlas vector index. If Gemini is not configured, the app still works, but AI-dependent features degrade gracefully.
+This keeps large files off the Next.js request body path and works for both web uploads and Android sync.
 
 ### Transcription
 
-The transcription subsystem is provider-based:
+The app supports two providers:
 
 - Soniox
 - ElevenLabs
 
-Core design points:
+Important design points:
 
 - upload and transcription are separate steps
-- provider callbacks arrive asynchronously through webhooks
-- callbacks are matched against `externalTranscriptionId`
-- webhook processing is idempotent
+- shorter manual and auto-transcription jobs can complete inline
+- recordings longer than `300 seconds` are handed off asynchronously through provider callbacks
+- webhook processing is idempotent through `transcription_webhook_events`
+- weighted transcription usage is reported only once per processing run
 
-### Billing
+### Search And Retrieval
 
-Billing is feature-flagged with `NEXT_PUBLIC_ENABLE_BILLING`.
+The archive supports:
 
-When enabled, the app supports:
+- standard listing and filtering
+- contact-linked browsing
+- transcript and summary review
+- semantic search backed by Gemini-generated embeddings
 
-- plan documents stored in MongoDB
-- Stripe Checkout for upgrades
-- Stripe Customer Portal
-- metered storage usage
-- metered transcription usage
-- overage toggles at the user level
+Embeddings live on the recording document. Atlas vector search support depends on the database indexes and deployment configuration, but the app also exposes fallback mode information in the search action response.
 
-### Notifications And Support
+### Exports
 
-Notifications are stored in MongoDB and surfaced in the UI. Optional browser push uses VAPID keys. Support requests are saved to MongoDB and optionally forwarded via SMTP.
+Exports are modeled as background jobs:
+
+- `startExport()` creates an `export_jobs` record
+- development can process inline with `after(...)`
+- production should use `GET /api/cron/process-exports`
+- generated parts are stored in R2 and exposed as signed downloads
+
+Each archive part contains audio, JSON metadata, transcript text files, `README.txt`, and `viewer.html`.
+
+### Async Job System
+
+The `async_jobs` collection powers queued background work for:
+
+- auto transcription
+- Google Contacts sync
+- support email delivery
+
+Jobs can be claimed, retried with exponential backoff, marked failed, and retried manually from the admin dashboard. Completed jobs are TTL-cleaned after `30 days`.
+
+### Android Folder Sync
+
+The Android app is a Capacitor wrapper that loads the hosted web app from `capacitor.config.ts`.
+
+Android-specific behavior includes:
+
+- `/android-sync` UI
+- a `24h` mobile sync session token route
+- mobile direct-upload init and complete routes
+- native background sync and folder scan plugins
+- local sync state persisted in the device sync store
+
+The web browser version does not expose device-folder scanning.
 
 ## Repository Layout
 
 ```text
 src/
   app/
-    actions/            # Server Actions for product and admin flows
-    api/                # Auth, billing, webhooks, support, cron, filesystem
-    admin/              # Admin routes
-  components/           # UI components and page-level surfaces
-  hooks/                # Client-side data and settings hooks
+    actions/            Server Actions
+    api/                Auth, billing, cron, filesystem, mobile, support, webhook routes
+    admin/              Admin pages
+  components/           UI and page components
+  hooks/                Client-side hooks
   lib/
-    db/                 # Mongo data access, types, init, indexes
-    stripe/             # Billing sync and usage reporting
-    firebase/           # Firebase client and admin helpers
-    export-processor/   # Export job lifecycle
+    db/                 Collections, types, indexes, init, query helpers
+    export-processor/   Export packaging and lifecycle
+    firebase/           Client/admin Firebase helpers
+    stripe/             Customer, sync, and usage reporting logic
+    sync-store/         Android sync persistence helpers
   services/
-    ai/                 # Gemini integration
-    google/             # Contacts sync + OAuth helpers
-    transcription/      # Provider abstraction and adapters
-docs/                   # Maintained docs
-scripts/                # Operational helper scripts
-src/scripts/            # Data-fix and backfill scripts
-android/                # Capacitor Android project
+    ai/                 Gemini integration
+    google/             Google Contacts sync and OAuth helpers
+    transcription/      Provider abstraction and adapters
+android/                Capacitor Android project and native plugins
+docs/                   Maintained docs
+scripts/                Operational helper scripts
+src/scripts/            Backfill and repair scripts
 ```
 
-## Security Model
+## Security Boundaries
 
-- Auth decisions are made server-side per request or action.
-- Upload finalization is protected by signed upload session tokens.
-- Public share links are signed and time-limited.
-- Provider webhooks require shared-secret or signature verification.
-- Stripe webhooks are verified and processed idempotently.
-- Admin capabilities are role-gated.
+- Upload completion is protected with signed upload session tokens.
+- Android background sync uses a separate signed mobile-sync token that can outlive a Firebase ID token.
+- Public share pages use signed, time-limited tokens.
+- Stripe return URLs are forced to same-origin values.
+- Provider webhooks require secrets or signature validation.
+- Cron routes require `Authorization: Bearer <CRON_SECRET>`.
+- Support submissions enforce origin checks, a honeypot field, and IP-based rate limiting.
+- Next.js responses include security headers and optional CSP report-only mode.
 
-## Async Workflows
+## Deployment Notes
 
-Important background-style flows in the app:
-
-- transcription provider callbacks
-- export processing
-- retention cleanup
-- Stripe webhook synchronization
-- notification delivery
-
-These flows are why MongoDB indexes, cron routes, and webhook configuration are part of normal setup rather than optional polish.
+- The build uses `output: 'standalone'`.
+- Server Actions are configured with a `20mb` body limit, but audio uploads avoid that limit through direct R2 uploads.
+- Production adds HSTS headers.
+- Firebase helper rewrites are only enabled when the helper origin can be resolved from env.

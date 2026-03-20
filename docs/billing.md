@@ -1,64 +1,75 @@
 # Billing
 
-This document describes the billing model currently implemented in Call Memo and how to wire Stripe to it.
+This document describes the billing model implemented in the current codebase and how it connects to Stripe.
 
-## Billing Model
+## Feature Flag
 
-The app supports:
-
-- base plans stored in MongoDB
-- Stripe Checkout for paid upgrades
-- Stripe Customer Portal for self-serve management
-- metered storage overage
-- metered transcription overage
-- per-user overage opt-in through `billingSettings.allowOverage`
-
-Billing can be disabled entirely with:
+Billing is disabled unless:
 
 ```env
-NEXT_PUBLIC_ENABLE_BILLING=false
+NEXT_PUBLIC_ENABLE_BILLING=true
 ```
 
-When billing is disabled, the billing UI is hidden and Stripe operations are skipped.
+When billing is disabled:
+
+- the Billing tab is hidden from Settings
+- checkout, portal, and invoice routes return `403`
+- metered usage reporting exits early
 
 ## Seeded Plans
 
 Plan seeds live in `src/lib/db/init/seed.ts`.
 
-Current seeded plans:
-
-| Plan | Interval | Stored Price | Included Storage | Included Transcription | Notes |
+| Plan | Interval | Price | Included Storage | Included Transcription | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Free Trial | monthly | `0` | `100 MiB` | `10 min` | Default plan, 30-day trial language in description |
-| Standard | monthly | `10` | `2 GiB` | `60 min` | Main paid plan |
-| Pro | monthly | `20` | `5 GiB` | `120 min` | Higher paid tier |
-| Lifetime | lifetime | `299` | `0` | `0` | Fully metered after purchase |
-| Internal | lifetime | `0` | `1 TiB` | `99999 min` | Internal unrestricted seed |
-| Custom | yearly | `0` | `0` | `0` | Enterprise-style placeholder seed |
+| Free Trial | monthly | `0 USD` | `100 MiB` | `10 min` | default plan |
+| Standard | monthly | `10 USD` | `2 GiB` | `60 min` | paid recurring plan |
+| Pro | monthly | `20 USD` | `5 GiB` | `120 min` | paid recurring plan |
+| Lifetime | lifetime | `299 USD` | `0` | `0` | one-time purchase, overage-based usage |
+| Internal | lifetime | `0 USD` | `1 TiB` | `99999 min` | internal/unrestricted seed |
+| Custom | yearly | `0 USD` | `0` | `0` | placeholder enterprise-style seed |
 
-The app enforces the values stored in the plan document, not any older marketing text.
+The app enforces the plan document stored in MongoDB, not old marketing copy.
+
+Public pricing behavior is separate from the seed data:
+
+- the pricing page always renders a hardcoded free lane
+- paid cards come from `getPublishedPlans()`, which only returns active plans with a non-empty `stripePriceId`
+- when no published paid plans exist, the UI falls back to placeholder Standard/Pro marketing cards until Stripe-backed plans are mapped
 
 ## Core Rules
 
-1. Trial users start on `Free Trial`.
-2. Standard and Pro include bundled storage and transcription allowances.
-3. Lifetime has no included allowance in the current seed and relies on metered usage.
-4. Overages only apply when the user enables them.
-5. Storage billing is based on peak usage for the billing period.
-6. Transcription billing is based on seconds processed, multiplied by the provider multiplier.
+1. Users start on the default plan unless an admin changes them.
+2. Overage billing only applies when `billingSettings.allowOverage=true`.
+3. Metered billing also requires a Stripe customer on the user record.
+4. Storage usage is reported as the current peak for the billing period.
+5. Transcription usage is reported in seconds, multiplied by the provider multiplier.
+6. Manual and webhook-driven transcription both guard against duplicate usage reporting.
+7. Free and Free Trial users cannot enable pay-per-usage overage.
+8. Lifetime one-time checkout auto-enables overage and seeds the current storage baseline in Stripe.
 
-## Transcription Multipliers
+## Usage Accounting
 
-System settings seed these defaults:
+Storage:
+
+- the app tracks `storageUsed`
+- it also tracks `storagePeakUsed` and `storagePeakPeriodEnd`
+- when the peak changes for the active Stripe period, it reports `storage_usage_bytes`
+
+Transcription:
+
+- billed duration is rounded up to the nearest `15-second` block by the billing helper
+- the provider multiplier is applied before usage totals are stored
+- Stripe meter events are emitted as `transcription_usage_seconds`
+
+Default provider multipliers seeded by the app:
 
 - Soniox: `1.0x`
 - ElevenLabs: `6.0x`
 
-Reported transcription usage is:
+## Stripe Configuration
 
-`audio duration in seconds * provider multiplier`
-
-## Required Stripe Environment Variables
+Required env:
 
 ```env
 NEXT_PUBLIC_ENABLE_BILLING=true
@@ -66,101 +77,75 @@ STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-## Stripe Setup
+The Stripe client is pinned to API version:
 
-### 1. Create Stripe meters
+- `2026-01-28.clover`
 
-The app expects these exact meter event names:
+## Required Stripe Objects
+
+Create Stripe prices for the plans you want to sell and map them into the `plans` collection:
+
+- `stripePriceId`
+- `stripeStoragePriceId`
+- `stripeTranscriptionPriceId`
+
+Create two billing meters with these exact event names:
 
 - `storage_usage_bytes`
 - `transcription_usage_seconds`
 
-Recommended configuration:
+Recommended aggregation:
 
-- storage aggregation: `Last`
-- transcription aggregation: `Sum`
+- storage: `Last`
+- transcription: `Sum`
 
-### 2. Create base plan prices
+## Checkout And Portal
 
-Create Stripe prices for the plans you want to sell through the app, for example:
+Relevant code:
 
-- Standard monthly
-- Pro monthly
-- Lifetime one-time
+- `src/app/api/stripe/checkout/route.ts`
+- `src/app/api/stripe/portal/route.ts`
 
-These values map to `stripePriceId`.
+Current behavior:
 
-### 3. Create metered prices
+- the checkout route authenticates the user first
+- it looks up the plan by `priceId` or `planName`
+- it blocks duplicate active or trialing subscriptions before creating a new Checkout session
+- it retrieves the Stripe price to decide whether checkout should run in `subscription` or `payment` mode
+- lifetime plans must use a one-time Stripe price
+- success, cancel, and return URLs are forced back to the same origin
+- one-time purchases enable Checkout invoice creation so they show up in invoice history
+- the portal route creates a Stripe customer on demand if the user does not have one yet
 
-Create metered prices for:
+## Invoice History
 
-- storage overage
-- transcription overage
+Relevant route:
 
-These map to:
+- `GET /api/stripe/invoices`
 
-- `stripeStoragePriceId`
-- `stripeTranscriptionPriceId`
+Behavior:
 
-### 4. Map Stripe IDs in the admin UI
+- invoices are listed by `stripeCustomerId`
+- the route caps `limit` to `50`
+- responses include Stripe hosted invoice URLs when available
 
-Open:
-
-- `/admin/plans`
-
-Set the correct Stripe IDs on each plan document used in production.
-
-### 5. Configure the Stripe Customer Portal
-
-Recommended portal features:
-
-- payment method management
-- plan switching
-- cancellation
-- invoice history
-
-### 6. Configure the webhook endpoint
+## Webhook Events
 
 Endpoint:
 
 - `POST /api/stripe/webhook`
 
-Register these events:
+The current webhook processor handles:
 
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `checkout.session.async_payment_failed`
-- `checkout.session.expired`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `customer.subscription.paused`
-- `customer.subscription.resumed`
-- `customer.subscription.trial_will_end`
-- `customer.subscription.pending_update_applied`
-- `customer.subscription.pending_update_expired`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-- `invoice.payment_action_required`
-- `invoice.paid`
-- `invoice.voided`
-- `invoice.marked_uncollectible`
+- checkout completion and async payment outcomes
+- checkout expiration
+- subscription create, update, delete, pause, resume, trial lifecycle events, and pending-update events
+- invoice payment success and failure events
 - `customer.deleted`
 
-## What The App Reports To Stripe
+Webhook processing is idempotent through the `stripe_webhook_events` collection.
 
-Related code:
-
-- `src/lib/stripe/usage.ts`
-- `src/lib/stripe/sync.ts`
-- `src/app/api/stripe/webhook/route.ts`
-
-Usage events:
-
-- storage peak for the billing period -> `storage_usage_bytes`
-- weighted transcription seconds -> `transcription_usage_seconds`
-
-## Local Stripe Testing
+## Local Testing
 
 Forward events locally:
 
@@ -168,27 +153,29 @@ Forward events locally:
 stripe listen --forward-to localhost:9000/api/stripe/webhook
 ```
 
-Common test cards:
+Useful test cards:
 
-- Success: `4242 4242 4242 4242`
-- Generic decline: `4000 0000 0000 0002`
-- Payment failure scenario: `4000 0000 0000 0341`
+- success: `4242 4242 4242 4242`
+- generic decline: `4000 0000 0000 0002`
+- payment failure: `4000 0000 0000 0341`
 
 ## Validation Checklist
 
-1. New users land on the expected default plan.
-2. Checkout upgrades the user and syncs plan data back into MongoDB.
-3. Customer portal opens successfully for active paid users.
-4. Overage off blocks actions beyond plan limits.
-5. Overage on allows continued usage and creates meter events.
-6. ElevenLabs usage uses the configured multiplier.
-7. Invoice history appears in Settings -> Billing.
-8. Webhook retries do not duplicate billing side effects.
-9. Customer deletion in Stripe resets billing linkage in the app.
+1. The default plan is seeded and assigned as expected.
+2. Checkout upgrades the user and syncs subscription state back into MongoDB.
+3. Portal sessions open for users with valid Stripe customers.
+4. Invoice history appears in Settings for billed users.
+5. Overage off blocks over-limit behavior.
+6. Overage on allows usage and creates meter events.
+7. ElevenLabs usage reflects the configured multiplier.
+8. Webhook retries do not duplicate side effects.
+9. `customer.deleted` clears local Stripe linkage.
 
 ## Troubleshooting
 
-- `Billing disabled`: `NEXT_PUBLIC_ENABLE_BILLING` is false.
-- Webhook signature errors: `STRIPE_WEBHOOK_SECRET` is wrong.
-- Usage not appearing: Stripe meter names or mapped price IDs do not match the app expectations.
-- Portal failures: user is missing a valid `stripeCustomerId` or Stripe portal is not configured.
+- `Billing is disabled on this instance.`: `NEXT_PUBLIC_ENABLE_BILLING` is false.
+- Checkout says the plan is invalid: the plan is inactive or `stripePriceId` is empty.
+- Portal failures: the user is missing a valid Stripe customer.
+- `Pay Per Usage cannot be enabled on Free Trial.`: the current plan is `Free` or `Free Trial`.
+- Metered usage missing: meter names or aggregation settings do not match the app’s expectations.
+- Duplicate billing concerns: inspect `stripe_webhook_events` and the recording-level transcription usage report fields.

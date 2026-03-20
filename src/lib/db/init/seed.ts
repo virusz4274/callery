@@ -128,12 +128,19 @@ export async function seedPlans(db: Db, collections: CollectionsMap): Promise<vo
 
 export async function seedSystemSettings(db: Db, collections: CollectionsMap): Promise<void> {
     try {
+        const defaultPlan = await db.collection<Plan>(collections.PLANS).findOne({
+            isDefault: true,
+        }) ?? await db.collection<Plan>(collections.PLANS).findOne({
+            name: 'Free Trial',
+        });
+
         await db.collection(collections.SYSTEM_SETTINGS).updateOne(
             {},
             {
                 $setOnInsert: {
                     allowSignups: true,
                     maintenanceMode: false,
+                    ...(defaultPlan?._id ? { defaultPlanId: defaultPlan._id } : {}),
                     transcriptionMultipliers: {
                         soniox: 1.0,
                         elevenlabs: 6.0,
@@ -143,6 +150,24 @@ export async function seedSystemSettings(db: Db, collections: CollectionsMap): P
             },
             { upsert: true }
         );
+
+        if (defaultPlan?._id) {
+            await db.collection(collections.SYSTEM_SETTINGS).updateOne(
+                {
+                    $or: [
+                        { defaultPlanId: { $exists: false } },
+                        { defaultPlanId: null },
+                    ],
+                },
+                {
+                    $set: {
+                        defaultPlanId: defaultPlan._id,
+                        updatedAt: new Date(),
+                    },
+                }
+            );
+        }
+
         console.log('✅ System Settings seeded');
     } catch (error) {
         console.error('⚠️ System Settings seeding failed:', error);

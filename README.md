@@ -1,25 +1,14 @@
 # Call Memo (VoSift)
 
-Call Memo is a Next.js 16 application for turning messy call-recording folders into an organized archive. It helps individuals, business owners, and small teams store important recordings, generate transcripts and summaries, search by meaning, and find the right call again later without digging through unsorted files.
+Call Memo is a Next.js 16 application for turning scattered call recordings into a searchable archive. The app keeps the original audio, transcript, summary, speaker labels, timestamps, and search context together so users can find important conversations again without digging through folders.
 
-The core product value is simple:
+## Current Product Scope
 
-- move recordings out of scattered phone or desktop storage
-- keep the original audio together with transcript, speaker labels, timestamps, and summary
-- search old calls by text, semantic meaning, contact, or date
-- export the archive in an organized format with an included viewer instead of a flat unsorted dump
-- optionally run the product on your own private server if you want full control of hosting and data
-
-## What The App Does
-
-- Upload recordings directly from the browser or Android device to Cloudflare R2.
-- Process transcripts with Soniox or ElevenLabs.
-- Generate summaries, transliterations, and embeddings with Gemini.
-- Search recordings by text, semantic meaning, contact, date, and duration.
-- Organize a call library with contacts, tags, starring, archiving, and retention rules.
-- Export recordings, transcripts, and metadata in a structured archive with an offline viewer.
-- Share full recordings or clipped segments with signed public links.
-- Manage subscriptions, usage, overage, announcements, and users from an admin surface.
+- Direct browser uploads to Cloudflare R2 with signed upload sessions.
+- Capacitor Android wrapper with a folder-sync workflow under `/android-sync` that loads the hosted app remotely.
+- Soniox and ElevenLabs transcription, with Gemini-based summaries, transliteration, and embeddings.
+- Recordings, contacts, files, exports, signed share links, notifications, support intake, and admin tooling.
+- Optional Stripe billing, Google Contacts sync, browser push, and SMTP-backed support email delivery.
 
 ## Stack
 
@@ -32,7 +21,7 @@ The core product value is simple:
 - Cloudflare R2
 - Stripe
 - Gemini, Soniox, ElevenLabs
-- Capacitor Android wrapper
+- Capacitor Android
 - Web Push + optional SMTP support
 
 ## Quick Start
@@ -43,15 +32,21 @@ The core product value is simple:
 npm install
 ```
 
-2. Copy `.env.example` to `.env`, then fill in the values described in [docs/setup-guide.md](docs/setup-guide.md).
+2. Copy the tracked environment template:
 
-3. Initialize MongoDB collections, indexes, and seeded defaults:
+```bash
+cp .env.example .env
+```
+
+3. Fill in the values described in [docs/setup-guide.md](docs/setup-guide.md).
+
+4. Initialize MongoDB collections, indexes, plans, and default system settings:
 
 ```bash
 npx tsx src/lib/db/init.ts
 ```
 
-4. Start the app:
+5. Start the app:
 
 ```bash
 npm run dev
@@ -70,6 +65,9 @@ Local URL: [http://localhost:9000](http://localhost:9000)
 - [Data Model](docs/data-model.md)
 - [Billing](docs/billing.md)
 - [Android App](docs/android-app.md)
+- [Full Application Test Plan](docs/full-application-test-plan.md)
+- [Stripe Billing Verification](docs/stripe-billing-verification.md)
+- [Dependency Review Register](docs/dependency-review.md)
 - [Changelog](CHANGELOG.md)
 
 ## Common Commands
@@ -78,6 +76,7 @@ Local URL: [http://localhost:9000](http://localhost:9000)
 npm run dev
 npm run lint
 npm run typecheck
+npm test
 npm run build
 npm run cap:sync
 ```
@@ -85,7 +84,11 @@ npm run cap:sync
 ## Operational Notes
 
 - The web app runs on port `9000` by default.
-- Uploads support files up to `5 GiB`.
-- Transcription is limited to files up to `2 GiB`; larger files can still be stored and played back.
-- Exports are organized and include an offline viewer for browsing recordings and transcripts outside the app.
-- Billing, Google Contacts sync, push notifications, SMTP support, and transcription providers are all environment-driven and can be enabled independently.
+- The build uses Next.js standalone output.
+- Server Actions are configured with a `20mb` body limit, while large media uploads bypass the app server through direct R2 `PUT` uploads.
+- Supported upload formats are `mp3`, `wav`, `m4a`, `mp4`, and `webm`.
+- Upload limit is `5 GiB` per file.
+- Transcription limit is `2 GiB` per file, and longer recordings may be processed asynchronously by the provider.
+- Recordings longer than `5 minutes` are handed off to Soniox or ElevenLabs async flows plus webhooks; shorter jobs can finish inline.
+- Billing routes return `403` when `NEXT_PUBLIC_ENABLE_BILLING=false`.
+- Cron routes require `Authorization: Bearer <CRON_SECRET>`.
