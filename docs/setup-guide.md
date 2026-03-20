@@ -292,13 +292,27 @@ SONIOX_WEBHOOK_SECRET=your-soniox-webhook-secret
 **For ElevenLabs (Alternative to Soniox):**
 1. Sign up at [ElevenLabs](https://elevenlabs.io/).
 2. Grab your API Key from your profile settings.
-3. Update your `.env` file:
+3. **Configure Webhooks (Required for long recordings):**
+   - Navigate to your [webhooks settings](https://elevenlabs.io/app/settings/webhooks) in the ElevenLabs dashboard.
+   - Click **Create Webhook**.
+   - Configure your webhook with:
+     - **Name**: `Callery Webhook` (or any descriptive name).
+     - **Callback URL**: `https://your-public-domain.com/api/webhooks/elevenlabs`
+     - **Webhook Auth Method**: `HMAC`.
+   - Once created, navigate to the webhook events section and link your webhook to the following events:
+     - `speech_to_text.completed`
+     - `speech_to_text.failed`
+   - Copy the **Signing Secret** (HMAC secret) revealed by ElevenLabs.
+4. Update your `.env` file:
 ```env
 ELEVENLABS_API_KEY=your-elevenlabs-key
 ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
 ELEVENLABS_MODEL_ID=scribe_v2
-ELEVENLABS_WEBHOOK_SECRET=your-elevenlabs-webhook-secret
+ELEVENLABS_WEBHOOK_SECRET=your-elevenlabs-signing-secret
 ```
+
+> [!NOTE]
+> Callery automatically includes `webhook=true` and correlation metadata in its API requests to ElevenLabs. You only need to ensure the webhook is correctly configured in your dashboard as described above.
 
 If you are not using one of these transcription providers yet, leave its required keys in `.env` with placeholder values until you finish that integration.
 
