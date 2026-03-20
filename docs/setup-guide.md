@@ -43,6 +43,10 @@ In your `.env` file, there are three keys that just need a random, secure string
 
 You can use a password generator or run `openssl rand -hex 32` in your terminal to create random strings. Save a different random string for each of these values.
 
+> [!IMPORTANT]
+> **Store these secrets safely!** For security reasons, do not reuse the same value for all three. More importantly, **do not change these once you have live users**, as it will immediately log everyone out and break any existing share links or active uploads.
+
+
 ---
 
 ## Step 2: Database (MongoDB Atlas)
@@ -134,6 +138,23 @@ R2_SECRET_ACCESS_KEY=your-secret-access-key
 R2_BUCKET_NAME=vosift-audio
 ```
 
+**Set up Lifecycle Rules (Crucial for Storage Costs):**
+When users export their data from the app, it generates temporary `.zip` files in an `exports/` folder. To ensure these files don't consume your storage quota forever, you must add an auto-delete rule:
+1. In your R2 bucket settings, go to the **Settings** tab.
+2. Scroll down to **Object lifecycle rules** and click **Add rule**.
+3. Name it `Delete Expired Exports`.
+4. Under **Apply to specific prefix**, enter: `exports/`
+5. Under **Action**, select **Delete uploaded objects** and set it to **7 days** after upload.
+6. Click **Save**.
+
+**Abort Incomplete Multipart Uploads (Crucial for Storage Costs):**
+Large file transfers often use "Multipart Uploads". If an upload is interrupted, the partial parts stay in your bucket and cost you money until aborted.
+1. Click **Add rule** again.
+2. Name it `Abort Incomplete Uploads`.
+3. Under **Apply to all objects**, toggle the switch.
+4. Under **Action**, select **Abort incomplete multipart uploads** and set it to **7 days** after upload.
+5. Click **Save**.
+
 **Set up CORS (Cross-Origin Resource Sharing):**
 This allows the app to upload files directly from your browser.
 1. Go back to your bucket settings in Cloudflare R2.
@@ -215,6 +236,9 @@ You also need an encryption key so the app securely stores contact tokens. Gener
 GOOGLE_TOKEN_ENCRYPTION_KEY=your-random-encryption-key
 ```
 
+> [!IMPORTANT]
+> **Do not change this key once you have users!** This key is used to encrypt Google integration tokens. If you change it later, the application will no longer be able to decrypt the existing tokens in your database, and all users will have to disconnect and re-connect their Google accounts to use sync features.
+
 ### Step 7: AI and Transcription Providers
 
 Vosift uses AI for intelligent meeting summaries, audio transcription, and document transliteration.
@@ -275,11 +299,11 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Vosift has a built-in Next.js proxy to seamlessly hide it behind your own domain.
 
 1. Go to Firebase Console -> **Authentication** -> **Settings** -> **Authorized domains**.
-2. Click **Add domain** and type your live custom domain (e.g., `app.yourwebsite.com`).
+2. Click **Add domain** and type your live custom domain (e.g., `yourwebsite.com`).
 3. In your `.env` file, change `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` to your custom domain, and then set `FIREBASE_AUTH_HELPER_ORIGIN` to the original Firebase domain you replaced.
 ```env
 # Change this to your actual custom domain
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=app.yourwebsite.com
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=yourwebsite.com
 
 # Tell Next.js where to proxy the /__/auth/ requests under the hood
 FIREBASE_AUTH_HELPER_ORIGIN=https://your-project.firebaseapp.com
