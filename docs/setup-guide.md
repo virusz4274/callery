@@ -365,7 +365,27 @@ NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 CSP_REPORT_ONLY=false
 ```
 
-### Step 10: Custom Firebase Auth Domain (Optional Proxy)
+### Step 10: Error Tracking with Sentry (Optional)
+
+Sentry captures runtime errors and performance data so you can diagnose production issues. This integration is **completely optional** — the app works perfectly without it.
+
+1. Create a free account at [Sentry](https://sentry.io/) and create a new **Next.js** project.
+2. Sentry will show you a **DSN** (Data Source Name) — a URL that tells the SDK where to send events.
+3. Optionally, go to **Settings → Auth Tokens** and create an **Auth Token** — this lets the build process upload source maps for readable stack traces.
+
+**Update your `.env` file:**
+```env
+SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+NEXT_PUBLIC_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+SENTRY_AUTH_TOKEN=sntrys_your-auth-token
+```
+
+> [!NOTE]
+> Both `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` use the **same DSN value**. The `NEXT_PUBLIC_` variant is needed so the client-side SDK can report browser errors. DSNs are safe to expose publicly — they only identify where to send events, not grant admin access.
+>
+> If any of these variables are absent or left commented out, Sentry is silently disabled and the app runs normally.
+
+### Step 11: Custom Firebase Auth Domain (Optional Proxy)
 
 If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Callery has a built-in Next.js proxy to seamlessly hide it behind your own domain.
 
