@@ -1,6 +1,6 @@
 import type { Folder } from './capacitor-folder-ops';
 
-const SYNC_FOLDER_KEY = 'vosift_sync_folder';
+const SYNC_FOLDER_KEY = 'callery_sync_folder';
 
 export function saveSyncFolder(folder: Folder): void {
     try {

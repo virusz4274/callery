@@ -1,3 +1,4 @@
+import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 import { env } from '@/lib/env';
 
 const SECRET_KEY = env.SHARE_LINK_SECRET;

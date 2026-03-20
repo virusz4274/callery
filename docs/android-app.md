@@ -1,13 +1,13 @@
 # Android App
 
-Call Memo includes a Capacitor Android wrapper around the hosted web app. The Android experience adds folder sync and native helpers, but most application logic still runs in the Next.js server.
+Callery includes a Capacitor Android wrapper around the hosted web app. The Android experience adds folder sync and native helpers, but most application logic still runs in the Next.js server.
 
 ## Runtime Model
 
 The Android project does not bundle the full app for offline operation. Instead, `capacitor.config.ts` points the WebView at a remote server:
 
 - development URL: `http://10.0.0.169:9000`
-- production URL: `https://vosift.virusz4274.tech`
+- production URL: `https://callery.virusz4274.tech`
 
 Before local device testing, update the development URL to a LAN address the phone can reach.
 Before shipping a self-hosted APK, replace the production URL in `capacitor.config.ts` with your hosted app origin.
@@ -17,7 +17,7 @@ Because the WebView depends on the remote Next.js app, Server Actions, auth, and
 
 - Android Studio or Android SDK CLI
 - Node.js 20+
-- a running Call Memo web app reachable from the device
+- a running Callery web app reachable from the device
 - one Google Cloud project with Firebase enabled for the target environment
 - R2 configured for the target environment
 
@@ -115,7 +115,7 @@ For native Google sign-in and session sync, make sure you have:
 - one Google Cloud project with Firebase enabled for this environment
 - `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 - Firebase Auth configured for the target environment
-- the Android package `com.coarde.vosift`
+- the Android package `com.coarde.callery`
 - the correct Android SHA fingerprints in that same Firebase-enabled project
 - authorized domains that match the hosted app origin
 - a freshly downloaded `android/app/google-services.json` from that same Firebase project

@@ -1,5 +1,5 @@
 
-> vosift@0.1.0 build
+> Callery@0.1.0 build
 > NODE_ENV=production next build --webpack
 
 ▲ Next.js 16.1.1 (webpack, Cache Components)
@@ -9,7 +9,7 @@
  ✓ (pwa) Compiling for server...
  ✓ (pwa) Compiling for server...
  ✓ (pwa) Compiling for client (static)...
- ○ (pwa) Service worker: /home/virusz4274/call-memo/public/sw.js
+ ○ (pwa) Service worker: /home/virusz4274/callery/public/sw.js
  ○ (pwa)   URL: /sw.js
  ○ (pwa)   Scope: /
  ○ (pwa) Custom runtimeCaching array found, using it instead of the default one.

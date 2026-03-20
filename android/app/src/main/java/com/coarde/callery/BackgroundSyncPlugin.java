@@ -1,4 +1,4 @@
-package com.coarde.vosift;
+package com.coarde.callery;
 
 import android.Manifest;
 import android.os.Build;
@@ -32,7 +32,7 @@ import java.util.UUID;
     }
 )
 public class BackgroundSyncPlugin extends Plugin {
-    private static final String UNIQUE_WORK_NAME = "vosift-background-sync";
+    private static final String UNIQUE_WORK_NAME = "callery-background-sync";
 
     @PluginMethod
     public void startSync(PluginCall call) {

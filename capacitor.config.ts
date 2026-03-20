@@ -2,12 +2,12 @@ import type { CapacitorConfig } from '@capacitor/cli';
 import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const productionUrl = 'https://vosift.virusz4274.tech';
+const productionUrl = 'https://callery.virusz4274.tech';
 const devUrl = 'http://10.0.0.169:9000';
 
 const config: CapacitorConfig = {
-  appId: 'com.coarde.vosift',
-  appName: 'vosift',
+  appId: 'com.coarde.callery',
+  appName: 'Callery',
   webDir: 'public',
 
   // Load the app from remote server (keeps Server Actions working)

@@ -38,7 +38,7 @@ export function ProductSidebar({ userProfile }: ProductSidebarProps) {
                     </div>
                     <div>
                         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Workspace</div>
-                        <div className="text-base font-bold tracking-[-0.03em] text-foreground">vosift</div>
+                        <div className="text-base font-bold tracking-[-0.03em] text-foreground">Callery</div>
                     </div>
                 </div>
             </Link>

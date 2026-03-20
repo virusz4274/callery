@@ -34,8 +34,9 @@ const protectedRouteExpectations = [
 
 test('public pages load', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('body')).toContainText('vosift');
-  await expect(page.locator('body')).toContainText('Archive calls in a way that still makes sense later.');
+  await expect(page.locator('body')).toContainText('Callery: Call Archive & AI Search');
+  await expect(page.locator('body')).toContainText('The Professional Gallery for your Voice Recordings.');
+  await expect(page.locator('body')).toContainText('Samsung helps with recent calls; Callery helps with your call history.');
   await expect(page.locator('body')).not.toContainText('The homepage now leads with');
   await expect(page.locator('body')).not.toContainText('capability story');
 

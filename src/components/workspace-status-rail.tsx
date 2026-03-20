@@ -26,7 +26,7 @@ type StatusItem = {
     icon: typeof MailWarning;
 };
 
-const DISMISSED_KEY = 'vosift:workspace-status:dismissed';
+const DISMISSED_KEY = 'callery:workspace-status:dismissed';
 
 export function WorkspaceStatusRail({
     user,

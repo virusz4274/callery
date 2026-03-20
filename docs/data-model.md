@@ -1,6 +1,6 @@
 # Data Model
 
-This document describes the MongoDB collections currently used by Call Memo.
+This document describes the MongoDB collections currently used by Callery.
 
 Collection names are defined in `src/lib/mongodb.ts`.
 

@@ -27,12 +27,12 @@ self.addEventListener('push', (event) => {
         data = { body: event.data.text() };
     }
 
-    const title = data.title || 'vosift';
+    const title = data.title || 'Callery';
     const options = {
         body: data.body || data.message || 'New notification',
         icon: data.icon || '/icons/android-chrome-192x192.png',
         badge: '/icons/android-chrome-192x192.png',
-        tag: data.tag || 'vosift-notification',
+        tag: data.tag || 'callery-notification',
         data: {
             url: data.url || '/',
         },

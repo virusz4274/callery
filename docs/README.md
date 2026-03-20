@@ -1,6 +1,6 @@
 # Documentation Index
 
-This folder contains the maintained documentation for the current Call Memo codebase. These docs are meant to describe the app that exists in `src/`, not historical audits or one-off investigation output.
+This folder contains the maintained documentation for the current Callery codebase. These docs are meant to describe the app that exists in `src/`, not historical audits or one-off investigation output.
 
 ## Start Here
 

@@ -77,10 +77,10 @@ export default function SupportPage() {
                         </Chip>
                         <div className="space-y-3">
                             <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                                Get help without hunting through the product.
+                                Get help keeping your archive moving.
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                Reach the team, browse recent product updates, and send a detailed issue report from one place.
+                                Reach the Callery team, browse recent product updates, and send a detailed issue report from one place.
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -102,11 +102,11 @@ export default function SupportPage() {
                                 <div>
                                     <div className="font-semibold text-foreground">Fastest path</div>
                                     <p className="mt-1 text-sm leading-6 text-default-500">
-                                        Use email for account issues, upload problems, billing questions, or product feedback that needs follow-up.
+                                        Use email for archive imports, Samsung call-history workflows, billing questions, or product feedback that needs follow-up.
                                     </p>
                                 </div>
                             </div>
-                            <a href="mailto:support@vosift.com" className="block">
+                            <a href="mailto:support@callery.com" className="block">
                                 <Button className="w-full rounded-full font-semibold">
                                     Email support
                                     <ArrowRight className="h-4 w-4" />

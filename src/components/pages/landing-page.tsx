@@ -158,16 +158,18 @@ export function LandingPage() {
             <div className="mx-auto grid max-w-7xl gap-14 px-4 pb-20 pt-12 md:px-6 md:pb-24 md:pt-16 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:items-center">
               <div className="space-y-8">
                 <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                  Built for people who treat call recordings like records, not clutter
+                  The External Brain for Samsung Users
                 </Chip>
 
                 <div className="space-y-5">
                   <h1 className="max-w-4xl text-5xl font-black tracking-[-0.06em] text-foreground sm:text-6xl md:text-7xl">
-                    Keep every important call easy to find, review, and export.
+                    Callery: Call Archive & AI Search
                   </h1>
                   <p className="max-w-2xl text-lg leading-8 text-default-600 md:text-xl">
-                    vosift turns scattered recordings into a calmer archive where the original audio,
-                    transcript, summary, speaker labels, timestamps, and search context stay together.
+                    The Professional Gallery for your Voice Recordings.
+                  </p>
+                  <p className="max-w-2xl text-lg leading-8 text-default-600 md:text-xl">
+                    Archive, Transcribe, and AI-Search your call history in seconds.
                   </p>
                 </div>
 
@@ -273,7 +275,7 @@ export function LandingPage() {
                         <div className="space-y-1">
                           <Card.Title className="text-base">Find the right call in context</Card.Title>
                           <Card.Description>
-                            Search by phrase or intent, then open the transcript, summary, and timing that explain why the result matters.
+                            Search by phrase or intent, then open the transcript, summary, and timing that explain why the result matters on desktop, tablet, or phone.
                           </Card.Description>
                         </div>
                       </Card.Header>
@@ -351,8 +353,8 @@ export function LandingPage() {
             <div className="flex flex-col gap-10">
               <SectionHeading
                 eyebrow="Why It Works"
-                title="Archive calls in a way that still makes sense later."
-                description="vosift works best when the archive stays readable, searchable, and easy to take with you as it grows."
+                title="Samsung helps with recent calls; Callery helps with your call history."
+                description="Samsung's native tool is fine for the last 10 calls. Callery is built for the last 1,000, rescuing recordings from phone storage and turning them into a searchable archive on PC or tablet."
               />
 
               <div className="grid gap-5 lg:grid-cols-3">
@@ -398,6 +400,29 @@ export function LandingPage() {
             </div>
           </section>
 
+          <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
+            <Surface variant="secondary" className="rounded-[2rem] border border-default-200/80 p-6 md:p-8">
+              <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                <div className="space-y-3">
+                  <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                    Archive moat
+                  </Chip>
+                  <h2 className="text-3xl font-black tracking-[-0.04em] text-foreground md:text-4xl">
+                    Rescue the recordings your phone was never built to organize.
+                  </h2>
+                </div>
+                <div className="space-y-3 text-sm leading-7 text-default-600 md:text-base">
+                  <p>
+                    Callery acts like an external brain for Samsung users who need more than a recent-call list.
+                  </p>
+                  <p>
+                    Bring recordings out of internal storage, archive them safely, and make them usable again with transcripts, summaries, and AI search across your full history.
+                  </p>
+                </div>
+              </div>
+            </Surface>
+          </section>
+
           <section className="border-y border-default-100/80 bg-default-50/60">
             <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 md:grid-cols-3 md:px-6 md:py-8">
               {trustItems.map((item, index) => {
@@ -434,7 +459,7 @@ export function LandingPage() {
                 <SectionHeading
                   eyebrow="Pricing"
                   title="Choose the lane that matches your archive."
-                  description="Start small, then move into the plan that fits your storage, transcription, and rollout needs."
+                  description="Start small, then move into the plan that fits your storage, transcription, and rollout needs as your call history grows."
                 />
 
                 <PricingSection />
@@ -483,7 +508,7 @@ export function LandingPage() {
                       Ready when you are
                     </Chip>
                     <h2 className="max-w-3xl text-3xl font-black tracking-[-0.04em] text-foreground sm:text-4xl">
-                      Stop losing important calls in scattered folders.
+                      Turn scattered recordings into a professional archive.
                     </h2>
                     <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
                       Start with a small archive, prove retrieval works for your workflow, and grow from there.

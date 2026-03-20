@@ -18,7 +18,7 @@ import { useToast } from '@/components/toast-provider';
 import { authFetch } from '@/lib/api-client';
 import type { PublicPlan } from '@/app/actions/plans';
 
-const SELF_HOST_EMAIL = 'sales@vosift.com';
+const SELF_HOST_EMAIL = 'sales@callery.com';
 
 const addOns = [
   {
@@ -300,17 +300,17 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
           Pricing
         </Chip>
         <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-foreground md:text-5xl">
-          Pick the plan that matches how much archive you need to keep searchable.
+          Pick the plan that matches how much call history you need to rescue and search.
         </h2>
-            <p className="mt-4 text-lg leading-8 text-default-600">
-              Compare storage, transcription, search, support, and hosting before you move more recordings in.
-            </p>
-            {paidPlans.length === 0 ? (
-              <p className="mt-2 text-sm leading-6 text-warning-700">
-                Paid plans are not published on this instance yet. Run the pricing setup before enabling upgrades.
-              </p>
-            ) : null}
-          </div>
+        <p className="mt-4 text-lg leading-8 text-default-600">
+          Compare storage, transcription, AI search, support, and hosting before you move more recordings in.
+        </p>
+        {paidPlans.length === 0 ? (
+          <p className="mt-2 text-sm leading-6 text-warning-700">
+            Paid plans are not published on this instance yet. Run the pricing setup before enabling upgrades.
+          </p>
+        ) : null}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
@@ -479,10 +479,10 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
               Billing notes
             </div>
             <h3 className="text-xl font-bold text-foreground">
-              Start on free, then upgrade only when the archive needs more room.
+              Start on free, then upgrade only when your archive needs more room.
             </h3>
             <p className="text-sm leading-6 text-default-600">
-              You can begin without a credit card. Paid plans move through Stripe checkout when you are ready for more storage or stronger retrieval.
+              You can begin without a credit card. Paid plans move through Stripe checkout when you are ready for more storage, deeper history, or stronger retrieval.
             </p>
           </div>
         </Surface>
@@ -516,7 +516,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
               Own your own data
             </div>
             <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
-              Keep vosift on your own server when the archive needs private hosting.
+              Keep Callery on your own server when the archive needs private hosting.
             </h3>
             <p className="max-w-3xl text-sm leading-6 text-default-600">
               Individuals can purchase a self-hosted license for{' '}

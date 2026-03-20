@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    container_name: call-memo-app
+    container_name: callery-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,12 +14,12 @@ services:
       - .env
     environment:
       # Uncomment this to use the bundled MongoDB container below instead of an external MongoDB instance.
-      # MONGODB_URI: mongodb://mongo:27017/call-memo
+      # MONGODB_URI: mongodb://mongo:27017/callery
       # Docker-first self-hosting defaults to the bundled MinIO service below.
       R2_ENDPOINT: http://minio:9000
       R2_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       R2_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
-      R2_BUCKET_NAME: call-memo
+      R2_BUCKET_NAME: callery
       R2_REGION: us-east-1
       R2_FORCE_PATH_STYLE: "true"
     depends_on:
@@ -29,7 +29,7 @@ services:
         condition: service_completed_successfully
 
   mongo:
-    container_name: call-memo-mongo
+    container_name: callery-mongo
     image: mongo:7
     restart: always
     volumes:
@@ -41,7 +41,7 @@ services:
       retries: 10
 
   minio:
-    container_name: call-memo-minio
+    container_name: callery-minio
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     restart: always
@@ -60,7 +60,7 @@ services:
       retries: 10
 
   minio-init:
-    container_name: call-memo-minio-init
+    container_name: callery-minio-init
     image: minio/mc:latest
     depends_on:
       minio:
@@ -71,7 +71,7 @@ services:
         echo 'Waiting for MinIO...';
         sleep 2;
       done;
-      mc mb -p local/call-memo || true;
+      mc mb -p local/callery || true;
       exit 0;
       "
     restart: "no"

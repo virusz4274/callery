@@ -1,6 +1,6 @@
 # API Reference
 
-Call Memo uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
+Callery uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
 
 ## Server Actions
 

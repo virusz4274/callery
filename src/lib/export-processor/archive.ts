@@ -95,7 +95,7 @@ async function fetchRecordingStream(key: string): Promise<Readable | null> {
 }
 
 async function uploadArchivePart(key: string, chunk: Recording[]): Promise<number> {
-    const tempDir = await mkdtemp(path.join(tmpdir(), 'vosift-export-'));
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'callery-export-'));
     const archivePath = path.join(tempDir, 'part.zip');
 
     try {
