@@ -77,18 +77,21 @@ Vosift uses Firebase to handle user logins securely. You get this for free with 
 4. Firebase will show you a block of code with your **firebaseConfig**. Keep this window open.
 
 **Update your `.env` file:**
-Copy the values from the **firebaseConfig** block into your `.env` file:
+Copy the values from the **firebaseConfig** block into your `.env` file. Additionally, expand the **Web SDK configuration** dropdown to find your **Web client ID** and include it:
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 ```
 
-**Enable Email/Password Login:**
+**Enable Email/Password and Google Login:**
 1. In the Firebase console left menu, click **Authentication**, then **Get Started**.
 2. Go to the **Sign-in method** tab.
 3. Click **Email/Password**, toggle it to **Enable**, and click **Save**.
+4. Click **Add new provider** and select **Google**.
+5. Toggle it to **Enable**, select your project support email from the dropdown, and click **Save**.
 
 **Get the Admin Security Key:**
 For the app to verify users securely, it needs an "Admin" key.
