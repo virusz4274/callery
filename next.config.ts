@@ -61,13 +61,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https' as const,
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https' as const,
-        hostname: 'images.unsplash.com',
+        hostname: '*.googleusercontent.com',
         port: '',
         pathname: '/**',
       },
