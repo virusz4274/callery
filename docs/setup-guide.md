@@ -197,12 +197,76 @@ Before starting the app, make sure every required key in `.env` still exists and
    ```bash
    npm run db:init
    ```
-3. **Start the App!**
+
+3. **Create Atlas Search Indexes (Required for Search):**
+   After the database has been initialized, you must **manually** create two search indexes in the [MongoDB Atlas UI](https://cloud.mongodb.com/). These cannot be created automatically because Atlas Search indexes are managed by the Atlas control plane, not by the MongoDB driver.
+
+   > [!IMPORTANT]
+   > Without these indexes, keyword search and semantic/AI search will not function. The `db:init` script prints these same instructions in your terminal for reference.
+
+   **Atlas Search Index** (for keyword / full-text search):
+   - Go to your cluster in Atlas → **Atlas Search** tab → **Create Index**.
+   - Choose **JSON Editor** for the configuration method.
+   - **Index name:** `recordings_text_search`
+   - **Collection:** `recordings`
+   - Paste the following JSON configuration:
+   ```json
+   {
+     "mappings": {
+       "dynamic": false,
+       "fields": {
+         "firebaseUid": { "type": "string" },
+         "summary": { "type": "string" },
+         "contactName": { "type": "string" },
+         "fileName": { "type": "string" },
+         "fullTranscript": {
+           "type": "document",
+           "fields": {
+             "text": { "type": "string" }
+           }
+         },
+         "tags": { "type": "string" },
+         "standardizedDisplayName": { "type": "string" }
+       }
+     }
+   }
+   ```
+
+   **Atlas Vector Search Index** (for semantic / AI search):
+   - Still on the **Atlas Search** tab, click **Create Index** again.
+   - Choose **JSON Editor** for the configuration method.
+   - **Index name:** `recordings_vector_search`
+   - **Collection:** `recordings`
+   - Paste the following JSON configuration:
+   ```json
+   {
+     "fields": [
+       {
+         "numDimensions": 3072,
+         "path": "summaryEmbedding",
+         "similarity": "cosine",
+         "type": "vector"
+       },
+       {
+         "path": "firebaseUid",
+         "type": "filter"
+       },
+       {
+         "path": "isArchived",
+         "type": "filter"
+       }
+     ]
+   }
+   ```
+
+   > [!NOTE]
+   > Both indexes will take a minute or two to build. Their status will show as **Active** once ready.
+4. **Start the App!**
    Start the local development server:
    ```bash
    npm run dev
    ```
-4. **Login:**
+5. **Login:**
    Open your browser and navigate to [http://localhost:9000](http://localhost:9000). Click Sign up, and use the exact email address you put in `ADMIN_BOOTSTRAP_EMAILS`. You will now have administrative access.
 
 **Congratulations! Your Callery app is now successfully running.**
