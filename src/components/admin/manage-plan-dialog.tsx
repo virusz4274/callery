@@ -30,13 +30,13 @@ type ManagePlanDialogProps = {
 export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedPlan, setSelectedPlan] = useState(user.plan);
+  const [selectedPlanKey, setSelectedPlanKey] = useState(user.planKey);
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateContactPlan(user.id, selectedPlan);
+      await updateContactPlan(user.id, selectedPlanKey);
       // Refresh to show updated plan in table
       router.refresh();
       toast({ title: 'Success', description: 'Plan updated successfully', status: 'success' });
@@ -49,7 +49,7 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
   };
 
   // Find the selected plan object to display its limits
-  const selectedPlanDetails = plans.find(p => p.name === selectedPlan);
+  const selectedPlanDetails = plans.find((plan) => plan.key === selectedPlanKey);
 
   // Display values (default to user's current if plan not found/selected)
   // Convert bytes to GB and seconds to minutes for display
@@ -86,8 +86,8 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
               <div className="space-y-5">
                 <Select
                   placeholder="Select a plan"
-                  selectedKey={selectedPlan}
-                  onSelectionChange={(key) => setSelectedPlan(key as string)}
+                  selectedKey={selectedPlanKey}
+                  onSelectionChange={(key) => setSelectedPlanKey(key as string)}
                 >
                   <Label>Plan</Label>
                   <Select.Trigger>
@@ -97,7 +97,7 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
                   <Select.Popover>
                     <ListBox>
                       {plans.map((plan) => (
-                        <ListBox.Item key={plan.name} id={plan.name} textValue={plan.name}>
+                        <ListBox.Item key={plan.key} id={plan.key} textValue={plan.name}>
                           {plan.name} ({plan.price === 0 ? 'Free' : `$${plan.price}`})
                         </ListBox.Item>
                       ))}

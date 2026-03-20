@@ -16,7 +16,7 @@ export const TRANSCRIPTION_STATUS = {
 export type TranscriptionStatus = typeof TRANSCRIPTION_STATUS[keyof typeof TRANSCRIPTION_STATUS];
 
 // ============================================================================
-// User Roles & Plans
+// User Roles
 // ============================================================================
 
 export const USER_ROLE = {
@@ -26,14 +26,6 @@ export const USER_ROLE = {
 
 export type UserRole = typeof USER_ROLE[keyof typeof USER_ROLE];
 
-export const USER_PLAN = {
-    FREE: 'Free',
-    PRO: 'Pro',
-} as const;
-
-export type UserPlan = typeof USER_PLAN[keyof typeof USER_PLAN];
-
-// ============================================================================
 // Storage & Data Policies
 // ============================================================================
 

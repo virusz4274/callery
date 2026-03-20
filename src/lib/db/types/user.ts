@@ -30,7 +30,7 @@ export interface User {
     createdAt: Date;
     updatedAt: Date;
     role: 'user' | 'admin';
-    plan: string; // Dynamic plan name (e.g. "Free", "Pro", "Enterprise")
+    planKey: string;
     disabled?: boolean;
     timezone: string;
     notificationSettings: {
@@ -86,7 +86,6 @@ export interface User {
         lastSyncedAt?: Date;
         lastError?: string | null;
         lastImportedCount?: number;
-        refreshToken?: string; // Legacy plaintext token kept only for migration.
         refreshTokenCiphertext?: string;
         refreshTokenKeyVersion?: string;
         scopes?: string[];
@@ -119,7 +118,8 @@ export interface UserResponse {
     phoneNumber: string;
     photoURL?: string;
     role: 'user' | 'admin';
-    plan: string;
+    planKey: string;
+    planName: string;
     disabled?: boolean;
     timezone: string;
     createdAt: string;

@@ -7,12 +7,12 @@ This guide documents the environment and service setup the current codebase expe
 - Node.js 20+
 - npm
 - MongoDB 6+ or MongoDB Atlas
-- Firebase project
+- one Google Cloud project with Firebase enabled
 - Cloudflare R2 bucket
 
 Optional integrations:
 
-- Google Cloud OAuth + Google People API
+- Google People API and OAuth clients in the same Google Cloud project
 - Gemini
 - Soniox
 - ElevenLabs
@@ -32,8 +32,16 @@ cp .env.example .env
 The tracked [.env.example](../.env.example) file is the canonical starting point. Fill in `.env` for your local or hosted environment, then initialize MongoDB:
 
 ```bash
-npx tsx src/lib/db/init.ts
+npm run db:init
 ```
+
+Fresh-start workflow for a wiped environment:
+
+1. Wipe MongoDB data.
+2. Wipe R2 objects for the target bucket or prefix.
+3. Run `npm run db:init`.
+4. Start the app.
+5. Sign in with an email listed in `ADMIN_BOOTSTRAP_EMAILS` to create the first admin profile.
 
 ## Required Environment Variables
 
@@ -56,14 +64,18 @@ R2_BUCKET_NAME=...
 
 UPLOAD_SESSION_SECRET=...
 SHARE_LINK_SECRET=...
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+NEXT_PUBLIC_GOOGLE_REDIRECT_URI=...
+ADMIN_BOOTSTRAP_EMAILS=admin@example.com
 ```
 
 Notes:
 
-- `APP_URL` is an optional server-side alias for `NEXT_PUBLIC_APP_URL`. The public URL helpers will use `APP_URL` first when it is present.
+- This app is designed around one Google Cloud project with Firebase enabled, not separate Firebase and Google API projects.
 - Firebase Admin credentials can come from a local `service-account.json` file or `FIREBASE_SERVICE_ACCOUNT`.
 - `GOOGLE_TOKEN_ENCRYPTION_KEY` is only required when Google Contacts sync is enabled.
-- `NEXTAUTH_SECRET` is only a legacy fallback for some token helpers and should not be the primary secret.
+- `ADMIN_BOOTSTRAP_EMAILS` is optional, but it is the supported way to mint the first admin account on a fresh database.
 
 ## Recommended Variables
 
@@ -86,17 +98,20 @@ Useful optional settings read by the current code:
 - `MONGODB_CONNECTION_MODE=fallback-first`: skips the SRV-first attempt for Atlas DNS trouble
 - `MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1`: custom DNS resolvers for the Mongo fallback path
 - `MOBILE_SYNC_SESSION_SECRET`: optional dedicated signing secret for Android mobile sync tokens; if omitted, the app falls back to the upload/share secret chain
+- `ADMIN_BOOTSTRAP_EMAILS=owner@example.com,ops@example.com`: first-login admin bootstrap allowlist
 
 ## Firebase Setup
 
-Call Memo uses Firebase Auth on the client and Firebase Admin on the server.
+Call Memo uses Firebase Auth on the client and Firebase Admin on the server. The supported deployment model is one Google Cloud project with Firebase enabled, with both app sign-in and Google API integrations configured inside that same project.
 
-1. Create a Firebase project.
+1. Create a Google Cloud project and enable Firebase on it.
 2. Add a web app and copy the web config into `.env`.
 3. Enable `Email/Password`.
 4. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
 5. Add local and production origins to Firebase Auth authorized domains.
-6. Generate a Firebase Admin service account and either:
+6. Register the Android app in the same Firebase project if you ship the APK.
+7. Add the required Android SHA fingerprints in that same project.
+8. Generate a Firebase Admin service account and either:
    - keep it in `service-account.json` locally, or
    - store the JSON in `FIREBASE_SERVICE_ACCOUNT`
 
@@ -104,9 +119,9 @@ If `FIREBASE_AUTH_HELPER_ORIGIN` or `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is config
 
 ## Google Contacts Setup
 
-Google Contacts sync is separate from Firebase sign-in.
+Google Contacts sync is separate from Firebase sign-in, but it should be configured inside the same Google Cloud project.
 
-1. Enable `Google People API` in Google Cloud.
+1. Enable `Google People API` in the same Google Cloud project used for Firebase.
 2. Configure the OAuth consent screen.
 3. Create a web OAuth client.
 4. Add redirect URIs:
@@ -117,7 +132,6 @@ Google Contacts sync is separate from Firebase sign-in.
 
 ```env
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
-# GOOGLE_CLIENT_ID=...  # optional server-side alias
 GOOGLE_CLIENT_SECRET=...
 NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
 GOOGLE_TOKEN_ENCRYPTION_KEY=...
@@ -125,6 +139,25 @@ GOOGLE_TOKEN_ENCRYPTION_KEY=...
 ```
 
 The Google refresh token is encrypted before it is stored on the user document. Without `GOOGLE_TOKEN_ENCRYPTION_KEY`, the connect flow can authenticate but the sync state cannot be saved safely.
+
+## Fresh Firebase Cutover
+
+Use this sequence when replacing the old Firebase project entirely:
+
+1. Create the new Google Cloud project.
+2. Enable Firebase on that project.
+3. Create the Firebase web app and collect the new client config.
+4. Enable Firebase Auth with `Email/Password` and `Google`.
+5. Add the production domain to Firebase authorized domains.
+6. Register the Android package and add SHA fingerprints in that same project.
+7. Create the Firebase Admin service account for server verification.
+8. Enable Google People API in the same project.
+9. Configure the OAuth consent screen and create the Contacts-sync OAuth web client.
+10. Replace the local `.env` values with the new project config.
+11. Wipe MongoDB and R2.
+12. Run `npm run db:init`.
+13. Set `ADMIN_BOOTSTRAP_EMAILS`.
+14. Sign in with the bootstrap admin account and verify the first admin user is created.
 
 ## Cloudflare R2 Setup
 
@@ -204,6 +237,8 @@ See [billing.md](billing.md) for the full Stripe setup. At a minimum you need:
 - Stripe prices that map to the `plans` collection
 - Stripe meters named `storage_usage_bytes` and `transcription_usage_seconds`
 - a webhook endpoint pointed at `/api/stripe/webhook`
+
+If billing or admin pages fail with missing seed-data errors, rerun `npm run db:init` before debugging application code. The app now expects `plans` and `system_settings` to exist instead of inventing runtime defaults.
 
 ## Web Push And Support Email
 

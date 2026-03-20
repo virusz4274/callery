@@ -5,7 +5,7 @@ This guide reflects the current user-facing workflow in the app.
 ## Signing In
 
 - Email/password sign-in is supported through Firebase.
-- Google sign-in is supported when Firebase Google auth is enabled.
+- Google sign-in is supported when Firebase Google auth is enabled in the same Google Cloud project used by the app.
 - Successful sign-in creates a Firebase session and then syncs a server-side workspace session.
 
 Main authenticated areas:
@@ -91,7 +91,7 @@ Users can:
 - review linked recordings for a person or company
 - sync Google Contacts from Settings
 
-Contact records track aggregate information such as total recordings and last recording date so the app can use contacts as an index into the archive. Google Contacts sync is started from Settings and then continues as a background job.
+Contact records track aggregate information such as total recordings and last recording date so the app can use contacts as an index into the archive. Google Contacts sync is started from Settings and then continues as a background job. The sign-in identity and the Contacts-sync consent flow are separate, even when both are configured under the same Google Cloud project.
 
 ## Files
 
@@ -162,7 +162,7 @@ When billing is enabled, users can:
 - open the Stripe customer portal
 - review invoice history
 
-If billing is disabled for the deployment, these controls are not shown. Free and Free Trial users cannot enable pay-per-usage overage.
+If billing is disabled for the deployment, these controls are not shown. Free-trial users cannot enable pay-per-usage overage.
 
 ## Android Sync
 

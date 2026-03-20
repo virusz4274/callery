@@ -3,19 +3,17 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { getOAuth2Client } from '@/services/google/oauth';
+import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 
 // These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
 
 function getBaseUrl() {
-  // Use the reliable environment variable provided by App Hosting.
-  // Fall back to localhost for local development/Cloud Workstation.
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
+  return getConfiguredPublicAppOrigin();
 }
 
 
 export async function getGoogleAuthUrl() {
-  // Use the environment variable if set, otherwise construct it dynamically
   const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
   const state = crypto.randomUUID();
 

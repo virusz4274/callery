@@ -60,6 +60,7 @@ Plans are stored in MongoDB and managed through `/admin/plans`.
 
 Each plan document can define:
 
+- stable internal key and display name
 - name and description
 - price, currency, and interval
 - included storage and transcription limits
@@ -69,7 +70,7 @@ Each plan document can define:
 - active/default state
 
 The app does not create Stripe products for you. The admin UI is where you map existing Stripe prices to plan documents.
-The public pricing page only publishes plans that are active and have a non-empty `stripePriceId`, and it still excludes `Free` and `Free Trial`.
+The public pricing page only publishes plans that are active, non-default, and have a non-empty `stripePriceId`.
 
 ## Global Settings
 
@@ -81,6 +82,7 @@ The public pricing page only publishes plans that are active and have a non-empt
 - transcription multipliers for Soniox and ElevenLabs
 
 These settings apply to every workspace on the instance.
+If `system_settings` is missing on a fresh database, the page now fails with an initialization message instead of silently recreating defaults. Run `npm run db:init` to restore the required seed data.
 
 ## Announcements
 
@@ -133,6 +135,7 @@ Async jobs currently cover:
 Current helper scripts in the repo:
 
 ```bash
+npm run db:init
 npm run audit:prod
 npx tsx scripts/check-db.ts
 npx tsx scripts/check-user-stripe.ts

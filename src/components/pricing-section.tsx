@@ -35,41 +35,6 @@ const addOns = [
   },
 ];
 
-const fallbackPaidPlans: PublicPlan[] = [
-  {
-    id: 'fallback-standard',
-    name: 'Standard',
-    description: 'For people growing beyond the free archive and needing more room to search and store calls.',
-    price: 19,
-    currency: 'USD',
-    interval: 'monthly',
-    features: [
-      '3 GB storage',
-      'Searchable transcript library',
-      'Summary, timestamps, and speaker labels',
-      'Best for a growing personal archive',
-    ],
-    stripePriceId: '',
-    isPurchasable: false,
-  },
-  {
-    id: 'fallback-pro',
-    name: 'Pro',
-    description: 'For active business archives where recordings need to stay searchable and easy to export.',
-    price: 49,
-    currency: 'USD',
-    interval: 'monthly',
-    features: [
-      '10 GB storage',
-      'Advanced AI transcription',
-      'Semantic search across your archive',
-      'Priority support for working archives',
-    ],
-    stripePriceId: '',
-    isPurchasable: false,
-  },
-];
-
 type PricingSectionProps = {
   availablePlans?: PublicPlan[];
 };
@@ -171,19 +136,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const publishedPlans = availablePlans.length ? [...availablePlans] : [...fallbackPaidPlans];
-
-  if (availablePlans.length === 1) {
-    const onlyPlanName = availablePlans[0].name.toLowerCase();
-
-    if (onlyPlanName.includes('pro')) {
-      publishedPlans.unshift(fallbackPaidPlans[0]);
-    } else {
-      publishedPlans.push(fallbackPaidPlans[1]);
-    }
-  }
-
-  const paidPlans = publishedPlans.sort((a, b) => {
+  const paidPlans = [...availablePlans].sort((a, b) => {
     if (a.price !== b.price) {
       return a.price - b.price;
     }
@@ -244,8 +197,8 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
         accentClass: decor.accentClass,
         badge: isFeatured ? 'Most popular' : undefined,
         featured: isFeatured,
-        action: plan.isPurchasable ? 'checkout' : 'signup',
-        ctaLabel: plan.isPurchasable ? `Choose ${plan.name}` : `Start with ${plan.name}`,
+        action: plan.isPurchasable ? 'checkout' : 'contact',
+        ctaLabel: plan.isPurchasable ? `Choose ${plan.name}` : `Contact sales`,
         sourcePlan: plan,
       };
     }),
@@ -305,7 +258,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          planName: plan.name,
+          planKey: plan.key,
           successUrl: '/settings?tab=billing&success=true',
           cancelUrl: '/pricing?canceled=true',
         }),
@@ -349,10 +302,15 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
         <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-foreground md:text-5xl">
           Pick the plan that matches how much archive you need to keep searchable.
         </h2>
-        <p className="mt-4 text-lg leading-8 text-default-600">
-          Compare storage, transcription, search, support, and hosting before you move more recordings in.
-        </p>
-      </div>
+            <p className="mt-4 text-lg leading-8 text-default-600">
+              Compare storage, transcription, search, support, and hosting before you move more recordings in.
+            </p>
+            {paidPlans.length === 0 ? (
+              <p className="mt-2 text-sm leading-6 text-warning-700">
+                Paid plans are not published on this instance yet. Run the pricing setup before enabling upgrades.
+              </p>
+            ) : null}
+          </div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {

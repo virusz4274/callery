@@ -36,7 +36,7 @@ export interface Recording {
 
     // Additional file metadata (new)
 
-    standardizedDisplayName?: string; // Cached display name for UI
+    standardizedDisplayName: string;
 
     // Timestamps
     recordedAt: Date;
@@ -65,8 +65,6 @@ export interface Recording {
     // Summary & Embeddings
     summary?: string; // English summary for search
     summaryEmbedding?: number[]; // Vector embedding of the summary
-    transcriptEmbedding?: number[]; // Deprecated?
-
     // Metadata
     tags: string[];
     isStarred: boolean;
@@ -84,6 +82,7 @@ export interface RecordingResponse {
     phoneNumber: string;
     r2Key: string;
     fileName: string;
+    standardizedDisplayName: string;
     fileSize: number;
     mimeType: string;
     duration: number;

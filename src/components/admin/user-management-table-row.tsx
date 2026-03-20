@@ -66,7 +66,7 @@ export function UserManagementTableRow({
                     <p className="text-small text-default-500 truncate">{user.email}</p>
                     <div className="mt-2 flex flex-wrap gap-2 md:hidden">
                         <Chip size="sm" variant="soft" color="default">
-                            {user.plan}
+                            {user.planName}
                         </Chip>
                         <Chip size="sm" variant="soft" color="default">
                             {(user.storageUsed / (1024 * 1024 * 1024)).toFixed(1)} / {(user.storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB
@@ -82,7 +82,7 @@ export function UserManagementTableRow({
 
             <div className="hidden md:grid grid-cols-[80px_130px_130px_120px] gap-4 text-sm items-center flex-shrink-0 mr-4">
                 <div className="text-right">
-                    <p className="font-medium">{user.plan}</p>
+                    <p className="font-medium">{user.planName}</p>
                     <p className="text-xs text-default-400">Plan</p>
                 </div>
                 <div className="text-right">

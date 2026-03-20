@@ -27,7 +27,7 @@ export type AutoTranscriptionResult = {
 export async function markAutoTranscriptionJobFailed(
     firebaseUid: string,
     recordingId: string,
-    fileName: string,
+    standardizedDisplayName: string,
     errorMessage?: string
 ) {
     await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
@@ -39,7 +39,7 @@ export async function markAutoTranscriptionJobFailed(
             user._id,
             'error',
             'Transcription Failed',
-            `Processing failed for "${fileName}".${suffix}`,
+            `Processing failed for "${standardizedDisplayName}".${suffix}`,
         );
     }
 }
@@ -66,7 +66,7 @@ export async function triggerAutoTranscription(
             user._id,
             'warning',
             'Transcription Skipped',
-            `Skipped "${standardizedDisplayName || fileName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
+            `Skipped "${standardizedDisplayName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
             `/?id=${recordingId}`
         );
         return { outcome: 'skipped' };
@@ -88,7 +88,7 @@ export async function triggerAutoTranscription(
             user._id,
             'warning',
             'Transcription Skipped',
-            transcriptionAccess.reason || `Skipped "${standardizedDisplayName || fileName}".`,
+            transcriptionAccess.reason || `Skipped "${standardizedDisplayName}".`,
             `/?id=${recordingId}`
         );
         return { outcome: 'skipped' };
@@ -198,7 +198,7 @@ export async function triggerAutoTranscription(
             user._id,
             'success',
             'Transcription Ready',
-            `Your recording "${standardizedDisplayName || fileName}" has been processed successfully.`,
+            `Your recording "${standardizedDisplayName}" has been processed successfully.`,
             `/?id=${recordingId}`
         );
     } catch (notificationError) {

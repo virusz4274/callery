@@ -1,6 +1,7 @@
 import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
 import { hasBillingIssue, isTrialExpired, IS_BILLING_ENABLED } from './access-control-common';
+import { isFreeTrialPlanKey } from './plans';
 
 export function checkTranscriptionAccess(user: User, secondsToAdd: number): AccessResult {
     if (!IS_BILLING_ENABLED) {
@@ -27,7 +28,7 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
     const allocation = user.transcriptionAllocation || 0;
     const newUsage = currentUsage + secondsToAdd;
 
-    if (user.plan === 'Free Trial' || user.plan === 'Free') {
+    if (isFreeTrialPlanKey(user.planKey)) {
         if (newUsage > allocation) {
             const remaining = Math.max(0, allocation - currentUsage);
             return {

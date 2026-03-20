@@ -4,6 +4,7 @@ import React from 'react';
 import { UserResponse } from '@/lib/db/types';
 import { AlertCircle, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 interface BillingAlertProps {
     userProfile: UserResponse | null;
@@ -20,7 +21,7 @@ export function BillingAlert({ userProfile }: BillingAlertProps) {
     // Note: userProfile from API has string dates, but TypeScript expects Date.
     // We safely parse it here.
     const trialEndsAt = userProfile.trialEndsAt ? new Date(userProfile.trialEndsAt) : null;
-    const isTrialExpired = (userProfile.plan === 'Free Trial' || userProfile.plan === 'Free') &&
+    const isTrialExpired = isFreeTrialPlanKey(userProfile.planKey) &&
         trialEndsAt &&
         new Date() > trialEndsAt;
 

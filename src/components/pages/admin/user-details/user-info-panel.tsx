@@ -22,7 +22,7 @@ export function UserInfoPanel({ user }: UserInfoPanelProps) {
                     <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
                         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Current plan</div>
                         <div className="mt-2">
-                            <Chip>{user.plan}</Chip>
+                            <Chip>{user.planName}</Chip>
                         </div>
                     </Surface>
                     <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
@@ -35,7 +35,7 @@ export function UserInfoPanel({ user }: UserInfoPanelProps) {
                 <div className="flex justify-between items-center">
                     <span className="font-semibold">Current plan:</span>
                     <div>
-                        <Chip>{user.plan}</Chip>
+                        <Chip>{user.planName}</Chip>
                     </div>
                 </div>
                 <div>

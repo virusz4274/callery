@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function updateContactPlan(
     userId: string,
-    planName: string
+    planKey: string
 ): Promise<{ success: boolean; message?: string }> {
     const admin = await getCurrentAdmin();
     if (!admin) {
@@ -18,19 +18,11 @@ export async function updateContactPlan(
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');
 
-    const plan = await db.collection<Plan>(Collections.PLANS).findOne({ name: planName });
+    const plan = await db.collection<Plan>(Collections.PLANS).findOne({ key: planKey });
 
-    if (!plan && planName !== 'Custom') {
-        console.error(`Plan ${planName} not found`);
+    if (!plan) {
+        console.error(`Plan ${planKey} not found`);
         return { success: false, message: 'Plan not found' };
-    }
-
-    let storageAllocation = 5 * 1024 * 1024 * 1024;
-    let transcriptionAllocation = 60 * 60;
-
-    if (plan) {
-        storageAllocation = plan.limits.storage;
-        transcriptionAllocation = plan.limits.transcription;
     }
 
     const oldUser = await db.collection(Collections.USERS).findOne({ _id: userObjectId });
@@ -40,9 +32,9 @@ export async function updateContactPlan(
             { _id: userObjectId },
             {
                 $set: {
-                    plan: planName,
-                    storageAllocation,
-                    transcriptionAllocation,
+                    planKey: plan.key,
+                    storageAllocation: plan.limits.storage,
+                    transcriptionAllocation: plan.limits.transcription,
                     updatedAt: new Date(),
                 },
             }
@@ -53,9 +45,12 @@ export async function updateContactPlan(
             'USER_LIMITS_UPDATE',
             {
                 action: 'PLAN_ASSIGNMENT',
-                oldPlan: oldUser?.plan,
-                newPlan: planName,
-                newLimits: { storageAllocation, transcriptionAllocation },
+                oldPlanKey: oldUser?.planKey,
+                newPlanKey: plan.key,
+                newLimits: {
+                    storageAllocation: plan.limits.storage,
+                    transcriptionAllocation: plan.limits.transcription,
+                },
             },
             userId,
             'USER'

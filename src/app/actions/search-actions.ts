@@ -31,6 +31,7 @@ export async function searchRecordingsAction(query: string, page: number = 1, pa
             phoneNumber: rec.phoneNumber,
             r2Key: rec.r2Key,
             fileName: rec.fileName,
+            standardizedDisplayName: rec.standardizedDisplayName,
             fileSize: rec.fileSize,
             mimeType: rec.mimeType,
             duration: rec.duration,

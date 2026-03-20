@@ -7,6 +7,7 @@ import type { UserResponse, AnnouncementResponse } from '@/lib/db/types';
 import { Button, Spinner, Surface } from '@heroui/react';
 import { AlertCircle, Bell, CreditCard, MailWarning, X } from 'lucide-react';
 import { getActiveAnnouncements } from '@/app/actions/admin-announcements';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 type WorkspaceStatusRailProps = {
     user: User | null;
@@ -95,7 +96,7 @@ export function WorkspaceStatusRail({
             const status = userProfile.stripeSubscriptionStatus;
             const isPastDue = status === 'past_due' || status === 'unpaid';
             const trialEndsAt = userProfile.trialEndsAt ? new Date(userProfile.trialEndsAt) : null;
-            const isTrialExpired = (userProfile.plan === 'Free Trial' || userProfile.plan === 'Free') &&
+            const isTrialExpired = isFreeTrialPlanKey(userProfile.planKey) &&
                 trialEndsAt &&
                 new Date() > trialEndsAt;
 

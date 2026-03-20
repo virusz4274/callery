@@ -238,7 +238,7 @@ export function ContactDetailsPage() {
                                 <article key={recording.id} className="rounded-[1rem] border border-default-200 bg-background px-4 py-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div>
-                                            <div className="text-sm font-semibold text-foreground">{recording.fileName}</div>
+                                            <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
                                             <div className="text-xs text-default-500">{new Date(recording.recordedAt).toLocaleString()}</div>
                                         </div>
                                         <Chip size="sm" variant="soft" color="default">
@@ -266,7 +266,7 @@ export function ContactDetailsPage() {
                             <div className="space-y-3">
                                 {recentRecordings.map((recording) => (
                                     <div key={recording.id} className="rounded-[1rem] border border-default-200 bg-default-50/60 px-4 py-3">
-                                        <div className="text-sm font-semibold text-foreground">{recording.fileName}</div>
+                                        <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
                                         <div className="mt-1 text-xs text-default-500">
                                             {new Date(recording.recordedAt).toLocaleDateString()} · {formatDuration(recording.duration)}
                                         </div>

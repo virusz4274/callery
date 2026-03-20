@@ -3,8 +3,8 @@
 import { logAdminAction } from '@/app/actions/audit-log';
 import { SystemSettings, SystemSettingsResponse, UpdateSystemSettingsInput } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
+import { getRequiredSystemSettings } from '@/lib/db/users';
 import { Collections, getMongoDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
 import { revalidatePath } from 'next/cache';
 
 function mapSettings(settings: SystemSettings): SystemSettingsResponse {
@@ -19,28 +19,15 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse {
 }
 
 type UpdateSystemSettingsPayload =
-    Omit<UpdateSystemSettingsInput, 'defaultPlanId'> & { defaultPlanId?: string | ObjectId };
+    Omit<UpdateSystemSettingsInput, 'defaultPlanId'> & { defaultPlanId?: string };
 
 /**
  * Get the singleton system settings.
- * Creates default settings if none exist.
+ * Throws when required seed data is missing.
  */
 export async function getSystemSettings() {
-    const db = await getMongoDb();
-    let settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
-
-    if (!settings) {
-        const defaultSettings: SystemSettings = {
-            _id: new ObjectId(),
-            allowSignups: true,
-            maintenanceMode: false,
-            updatedAt: new Date(),
-        };
-
-        await db.collection(Collections.SYSTEM_SETTINGS).insertOne(defaultSettings);
-        settings = defaultSettings;
-    }
-
+    await requireCurrentAdmin();
+    const settings = await getRequiredSystemSettings();
     return mapSettings(settings);
 }
 

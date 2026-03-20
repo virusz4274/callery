@@ -3,12 +3,11 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 const TOKEN_SECRET =
     process.env.UPLOAD_SESSION_SECRET ||
     process.env.SHARE_LINK_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
     (process.env.NODE_ENV === 'development' ? 'dev-upload-token-secret-change-in-prod' : '');
 
 function getTokenSigningKey() {
     if (!TOKEN_SECRET) {
-        throw new Error('Missing UPLOAD_SESSION_SECRET (or SHARE_LINK_SECRET/NEXTAUTH_SECRET)');
+        throw new Error('Missing UPLOAD_SESSION_SECRET (or SHARE_LINK_SECRET)');
     }
 
     return new TextEncoder().encode(TOKEN_SECRET);

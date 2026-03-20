@@ -28,39 +28,28 @@ test('encrypts and decrypts Google refresh tokens with version metadata', () => 
 test('reads encrypted Google refresh tokens without requiring migration', () => {
     const encrypted = encryptGoogleRefreshToken('encrypted-token', TEST_ENV);
 
-    assert.deepEqual(
+    assert.equal(
         readStoredGoogleRefreshToken({
             refreshTokenCiphertext: encrypted.refreshTokenCiphertext,
             refreshTokenKeyVersion: encrypted.refreshTokenKeyVersion,
         }, TEST_ENV),
-        {
-            refreshToken: 'encrypted-token',
-            needsMigration: false,
-        }
+        'encrypted-token'
     );
 });
 
-test('treats legacy plaintext Google refresh tokens as needing migration', () => {
-    assert.deepEqual(
-        readStoredGoogleRefreshToken({
-            refreshToken: 'legacy-refresh-token',
-        }, TEST_ENV),
-        {
-            refreshToken: 'legacy-refresh-token',
-            needsMigration: true,
-        }
-    );
+test('returns null when no encrypted Google refresh token is stored', () => {
+    assert.equal(readStoredGoogleRefreshToken(undefined, TEST_ENV), null);
 });
 
-test('rejects plaintext token usage when the encryption key is missing', () => {
+test('rejects encrypted token usage when the encryption key is missing', () => {
+    const encrypted = encryptGoogleRefreshToken('refresh-token-123', TEST_ENV);
     assert.throws(
-        () => readStoredGoogleRefreshToken({ refreshToken: 'legacy-refresh-token' }, {}),
+        () => readStoredGoogleRefreshToken({ refreshTokenCiphertext: encrypted.refreshTokenCiphertext }, {}),
         new RegExp(getGoogleTokenEncryptionErrorMessage().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     );
 });
 
-test('detects stored refresh tokens in both encrypted and legacy form', () => {
+test('detects stored refresh tokens only in encrypted form', () => {
     assert.equal(hasStoredGoogleRefreshToken(undefined), false);
-    assert.equal(hasStoredGoogleRefreshToken({ refreshToken: 'legacy' }), true);
     assert.equal(hasStoredGoogleRefreshToken({ refreshTokenCiphertext: 'cipher' }), true);
 });

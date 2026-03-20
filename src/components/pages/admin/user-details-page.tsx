@@ -75,7 +75,7 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
             stats={[
                 {
                     label: 'Plan',
-                    value: user.plan,
+                    value: user.planName,
                     helper: 'Current assigned subscription tier',
                     icon: ShieldCheck,
                 },

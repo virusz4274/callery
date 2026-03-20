@@ -27,7 +27,7 @@ Source:
 What to verify:
 
 - billing-disabled deployments return `403`
-- the selected plan can be found by `priceId` or `planName`
+- the selected plan can be found by `priceId` or `planKey`
 - duplicate active subscriptions are blocked before Checkout starts
 - the route derives Checkout `mode` from the Stripe price type
 - lifetime plans only use one-time prices

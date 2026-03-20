@@ -33,7 +33,7 @@ export async function createShareLink(recordingId: string, expiresIn: string) {
     const token = await generateShareToken({ recordingId }, expiresIn);
 
     // 4. Return Full URL
-    // Use NEXT_PUBLIC_APP_URL if available, otherwise assume local/vercel defaults
+    // Public link generation requires an explicit configured origin.
     const baseUrl = getConfiguredPublicAppOrigin();
     return `${baseUrl}/s/${token}`;
 }

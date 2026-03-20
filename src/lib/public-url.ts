@@ -4,8 +4,6 @@ type RequestLike = {
     url?: string;
 };
 
-const DEFAULT_LOCAL_ORIGIN = 'http://localhost:9000';
-
 function normalizeOrigin(value: string | null | undefined): string | null {
     if (!value) {
         return null;
@@ -29,9 +27,7 @@ function getFirstHeaderValue(headers: Headers, name: string): string | null {
 }
 
 export function getPublicAppOrigin(request?: RequestLike): string {
-    const configuredOrigin =
-        normalizeOrigin(process.env.APP_URL) ||
-        normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+    const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
 
     if (configuredOrigin) {
         return configuredOrigin;
@@ -59,23 +55,17 @@ export function getPublicAppOrigin(request?: RequestLike): string {
         }
     }
 
-    return DEFAULT_LOCAL_ORIGIN;
+    throw new Error('Missing NEXT_PUBLIC_APP_URL or request origin for public URL generation');
 }
 
 export function getConfiguredPublicAppOrigin(): string {
-    const configuredOrigin =
-        normalizeOrigin(process.env.APP_URL) ||
-        normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+    const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
 
     if (configuredOrigin) {
         return configuredOrigin;
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-        return DEFAULT_LOCAL_ORIGIN;
-    }
-
-    throw new Error('Missing APP_URL or NEXT_PUBLIC_APP_URL for public link generation');
+    throw new Error('Missing NEXT_PUBLIC_APP_URL for public link generation');
 }
 
 export function buildAppUrl(pathname: string, request?: RequestLike): URL {

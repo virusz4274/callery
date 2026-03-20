@@ -12,10 +12,10 @@ export class GeminiService implements IAIService {
     private apiKey: string | undefined;
 
     constructor() {
-        this.apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+        this.apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
         if (!this.apiKey) {
-            logger.warn('GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY is not defined. AI features will be disabled.');
+            logger.warn('GOOGLE_GENERATIVE_AI_API_KEY is not defined. AI features will be disabled.');
         }
 
         // Initialize even if key is missing to avoid crash on constructor, but methods will check.
@@ -27,7 +27,7 @@ export class GeminiService implements IAIService {
         fallbackValue: T,
         options?: AIRequestOptions
     ): Promise<T> {
-        const error = new Error('GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY is not defined');
+        const error = new Error('GOOGLE_GENERATIVE_AI_API_KEY is not defined');
 
         if (options?.reportIncident !== false) {
             await safelyReportExternalServiceIncident({

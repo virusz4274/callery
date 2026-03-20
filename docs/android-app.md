@@ -17,7 +17,8 @@ Because the WebView depends on the remote Next.js app, Server Actions, auth, and
 - Android Studio or Android SDK CLI
 - Node.js 20+
 - a running Call Memo web app reachable from the device
-- Firebase and R2 configured for the target environment
+- one Google Cloud project with Firebase enabled for the target environment
+- R2 configured for the target environment
 
 ## Setup
 
@@ -110,13 +111,14 @@ Supported media formats match the web uploader: `mp3`, `wav`, `m4a`, `mp4`, and 
 
 For native Google sign-in and session sync, make sure you have:
 
+- one Google Cloud project with Firebase enabled for this environment
 - `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 - Firebase Auth configured for the target environment
 - the Android package `com.coarde.vosift`
-- the correct Android SHA fingerprints in Firebase/Google Cloud
+- the correct Android SHA fingerprints in that same Firebase-enabled project
 - authorized domains that match the hosted app origin
 
-The Capacitor Social Login plugin is currently configured only for Google.
+The Capacitor Social Login plugin is currently configured only for Google. Firebase Google sign-in is the app-auth flow; Google Contacts sync uses a separate OAuth web client in the same cloud project.
 
 ## Build APK
 
@@ -136,6 +138,6 @@ cd android
 - Device cannot reach dev server: fix the LAN IP, firewall, or network mismatch.
 - HTTP blocked on device: keep `cleartext` enabled only for development.
 - R2 upload failures: verify bucket CORS for the app origin and `PUT`, `GET`, `HEAD`.
-- Google sign-in issues: re-check SHA fingerprints and authorized domains.
+- Google sign-in issues: re-check the web client ID, SHA fingerprints, and authorized domains in the same Firebase-enabled project.
 - Folder scan or background sync issues: inspect the native plugin configuration and the Android app logs.
 - Stale build behavior: rerun `npm run cap:sync` and rebuild in Android Studio.

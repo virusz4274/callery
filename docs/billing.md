@@ -20,14 +20,14 @@ When billing is disabled:
 
 Plan seeds live in `src/lib/db/init/seed.ts`.
 
-| Plan | Interval | Price | Included Storage | Included Transcription | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Free Trial | monthly | `0 USD` | `100 MiB` | `10 min` | default plan |
-| Standard | monthly | `10 USD` | `2 GiB` | `60 min` | paid recurring plan |
-| Pro | monthly | `20 USD` | `5 GiB` | `120 min` | paid recurring plan |
-| Lifetime | lifetime | `299 USD` | `0` | `0` | one-time purchase, overage-based usage |
-| Internal | lifetime | `0 USD` | `1 TiB` | `99999 min` | internal/unrestricted seed |
-| Custom | yearly | `0 USD` | `0` | `0` | placeholder enterprise-style seed |
+| Key | Plan | Interval | Price | Included Storage | Included Transcription | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `free-trial` | Free Trial | monthly | `0 USD` | `100 MiB` | `10 min` | default plan |
+| `standard` | Standard | monthly | `10 USD` | `2 GiB` | `60 min` | paid recurring plan |
+| `pro` | Pro | monthly | `20 USD` | `5 GiB` | `120 min` | paid recurring plan |
+| `lifetime` | Lifetime | lifetime | `299 USD` | `0` | `0` | one-time purchase, overage-based usage |
+| `internal` | Internal | lifetime | `0 USD` | `1 TiB` | `99999 min` | internal/unrestricted seed |
+| `custom` | Custom | yearly | `0 USD` | `0` | `0` | custom enterprise-style seed |
 
 The app enforces the plan document stored in MongoDB, not old marketing copy.
 
@@ -35,7 +35,7 @@ Public pricing behavior is separate from the seed data:
 
 - the pricing page always renders a hardcoded free lane
 - paid cards come from `getPublishedPlans()`, which only returns active plans with a non-empty `stripePriceId`
-- when no published paid plans exist, the UI falls back to placeholder Standard/Pro marketing cards until Stripe-backed plans are mapped
+- when no published paid plans exist, the UI shows a configuration warning instead of inventing placeholder paid plans
 
 ## Core Rules
 
@@ -45,7 +45,7 @@ Public pricing behavior is separate from the seed data:
 4. Storage usage is reported as the current peak for the billing period.
 5. Transcription usage is reported in seconds, multiplied by the provider multiplier.
 6. Manual and webhook-driven transcription both guard against duplicate usage reporting.
-7. Free and Free Trial users cannot enable pay-per-usage overage.
+7. Free-trial users cannot enable pay-per-usage overage.
 8. Lifetime one-time checkout auto-enables overage and seeds the current storage baseline in Stripe.
 
 ## Usage Accounting
@@ -109,7 +109,7 @@ Relevant code:
 Current behavior:
 
 - the checkout route authenticates the user first
-- it looks up the plan by `priceId` or `planName`
+- it looks up the plan by `priceId` or `planKey`
 - it blocks duplicate active or trialing subscriptions before creating a new Checkout session
 - it retrieves the Stripe price to decide whether checkout should run in `subscription` or `payment` mode
 - lifetime plans must use a one-time Stripe price
@@ -176,6 +176,6 @@ Useful test cards:
 - `Billing is disabled on this instance.`: `NEXT_PUBLIC_ENABLE_BILLING` is false.
 - Checkout says the plan is invalid: the plan is inactive or `stripePriceId` is empty.
 - Portal failures: the user is missing a valid Stripe customer.
-- `Pay Per Usage cannot be enabled on Free Trial.`: the current plan is `Free` or `Free Trial`.
+- `Pay Per Usage cannot be enabled on Free Trial.`: the current plan key is `free-trial`.
 - Metered usage missing: meter names or aggregation settings do not match the app’s expectations.
 - Duplicate billing concerns: inspect `stripe_webhook_events` and the recording-level transcription usage report fields.

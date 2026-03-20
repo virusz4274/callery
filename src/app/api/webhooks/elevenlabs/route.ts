@@ -256,7 +256,7 @@ export async function POST(request: Request) {
                         user._id,
                         'error',
                         'Transcription Failed',
-                        `Processing failed for \"${recording.standardizedDisplayName || recording.fileName}\".`,
+                        `Processing failed for \"${recording.standardizedDisplayName}\".`,
                     );
                 }
             } catch (notificationError) {
@@ -327,7 +327,7 @@ export async function POST(request: Request) {
                     user._id,
                     'success',
                     'Transcription Ready',
-                    `Your recording \"${recording.standardizedDisplayName || recording.fileName}\" has been processed.`,
+                    `Your recording \"${recording.standardizedDisplayName}\" has been processed.`,
                     `/?id=${recordingId}`
                 );
             }

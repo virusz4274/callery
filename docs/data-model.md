@@ -15,7 +15,7 @@ Important fields:
 - `firebaseUid`
 - `email`, `firstName`, `lastName`, `name`, `phoneNumber`, `photoURL`
 - `role`
-- `plan`
+- `planKey`
 - `disabled`
 - `timezone`
 - `notificationSettings`
@@ -30,6 +30,19 @@ Important fields:
 - `pushSubscriptions`
 - `googleSync`
 - `softDelete`
+
+`googleSync` stores encrypted refresh-token material only:
+
+```ts
+googleSync: {
+  connectedAt?: Date;
+  lastSyncedAt?: Date;
+  refreshTokenCiphertext?: string;
+  refreshTokenKeyVersion?: string;
+  syncInProgress?: boolean;
+  syncError?: string;
+}
+```
 
 Key nested structures:
 
@@ -72,7 +85,7 @@ Important fields:
 - `externalTranscriptionId`
 - `transcriptionUsageReportId`, `transcriptionUsageReportedAt`
 - `transliteratedTranscript`, `translatedTranscript`, `additionalTranscriptions`
-- `summary`, `summaryEmbedding`, `transcriptEmbedding`
+- `summary`, `summaryEmbedding`
 - `tags`
 - `isStarred`, `isArchived`
 
@@ -117,6 +130,7 @@ Stores plan definitions used by pricing and billing logic.
 
 Important fields:
 
+- `key`
 - `name`, `description`
 - `price`, `currency`, `interval`
 - `limits.storage`, `limits.transcription`

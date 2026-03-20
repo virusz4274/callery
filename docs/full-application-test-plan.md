@@ -20,7 +20,8 @@ Avoid `npm run dev` for formal handoff unless a developer is actively debugging 
 Confirm:
 
 - the app builds successfully
-- Firebase auth is connected to the test environment
+- Firebase auth is connected to the intended single Google Cloud project for the environment
+- Google sign-in, Firebase authorized domains, and Android SHA fingerprints all point at that same project when those flows are in scope
 - MongoDB points to staging, not production
 - R2 uploads work from the staging origin
 - webhook endpoints are reachable if those flows are in scope
@@ -32,6 +33,7 @@ Confirm:
 Prepare:
 
 - one brand-new user
+- one bootstrap-admin email listed in `ADMIN_BOOTSTRAP_EMAILS`
 - one returning non-admin user
 - one admin user
 - one billing-enabled user with an existing Stripe customer
@@ -120,7 +122,7 @@ Verify:
 
 - signup creates a usable account
 - login works with email/password
-- Google sign-in works when enabled
+- Google sign-in works when enabled in the active Firebase project
 - logout clears access to protected routes
 - refresh preserves the session
 
