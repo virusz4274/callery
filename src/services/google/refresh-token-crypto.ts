@@ -84,6 +84,8 @@ export function decryptGoogleRefreshToken(
         throw new Error('Invalid Google refresh token ciphertext format');
     }
 
+    // TODO: Support multi-key rotation by looking up the key based on the stored version.
+    // Currently, this always uses GOOGLE_TOKEN_ENCRYPTION_KEY from the environment.
     const decipher = createDecipheriv(
         ENCRYPTION_ALGORITHM,
         getKeyMaterial(env),
@@ -106,6 +108,7 @@ export function readStoredGoogleRefreshToken(
     }
 
     if (googleSync.refreshTokenCiphertext) {
+        // TODO: Pass googleSync.refreshTokenKeyVersion here to support rotating keys
         return decryptGoogleRefreshToken(googleSync.refreshTokenCiphertext, env);
     }
 
