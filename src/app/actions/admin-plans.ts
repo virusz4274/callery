@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 function mapPlan(plan: Plan): PlanResponse {
     return {
         id: plan._id.toString(),
+        key: plan.key,
         name: plan.name,
         description: plan.description,
         stripePriceId: plan.stripePriceId,
@@ -75,7 +76,7 @@ export async function createPlan(data: CreatePlanInput) {
     await logAdminAction(
         admin._id.toString(),
         'PLAN_CREATE',
-        { planName: newPlan.name, planData: data },
+        { planKey: newPlan.key, planName: newPlan.name, planData: data },
         result.insertedId.toString(),
         'PLAN'
     );
@@ -124,7 +125,7 @@ export async function deletePlan(id: string) {
     await logAdminAction(
         admin._id.toString(),
         'PLAN_DELETE',
-        { planName: plan?.name, planId: id },
+        { planKey: plan?.key, planName: plan?.name, planId: id },
         id,
         'PLAN'
     );

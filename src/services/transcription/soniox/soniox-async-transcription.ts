@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
+import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import type { TranscribeAsyncOptions, TranscribeAsyncResult } from '../types';
 import type { SonioxConfig } from './soniox-api-types';
 
@@ -10,7 +11,7 @@ export async function startAsyncTranscription(
     model?: string
 ): Promise<TranscribeAsyncResult> {
     const modelToUse = options?.model || model;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
+    const appUrl = getConfiguredPublicAppOrigin();
     const webhookSecret = process.env.SONIOX_WEBHOOK_SECRET;
 
     if (!webhookSecret) {

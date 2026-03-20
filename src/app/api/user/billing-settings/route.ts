@@ -6,6 +6,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
 import { reportUsage } from '@/lib/stripe/usage';
 import { ensureStripeCustomerId } from '@/lib/stripe/customer';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest) {
         }
 
         // Trial users cannot enable overage
-        if (user.plan === 'Free Trial' || user.plan === 'Free') {
+        if (isFreeTrialPlanKey(user.planKey)) {
             return NextResponse.json({ error: 'Pay Per Usage cannot be enabled on Free Trial.' }, { status: 403 });
         }
 

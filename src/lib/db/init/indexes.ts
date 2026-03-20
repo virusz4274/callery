@@ -57,7 +57,10 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
         {
             label: 'Plans',
             collection: collections.PLANS,
-            indexes: [{ key: { name: 1 }, unique: true, name: 'name_unique' }],
+            indexes: [
+                { key: { key: 1 }, unique: true, name: 'key_unique' },
+                { key: { name: 1 }, unique: true, name: 'name_unique' },
+            ],
             errorMessage: '⚠️ Plans index creation failed:',
         },
         {

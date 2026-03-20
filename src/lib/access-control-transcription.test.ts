@@ -17,7 +17,7 @@ function createUser(overrides: Partial<User> = {}): User {
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         role: 'user',
-        plan: 'Pro',
+        planKey: 'pro',
         timezone: 'UTC',
         notificationSettings: {
             activityDigest: 'weekly',
@@ -63,11 +63,23 @@ test('allows paid users to exceed transcription allocation when overage is enabl
 
 test('keeps free-tier transcription limits strict', () => {
     const result = checkTranscriptionAccess(createUser({
-        plan: 'Free',
+        planKey: 'free-trial',
         transcriptionUsed: 3600,
         transcriptionAllocation: 3600,
     }), 1);
 
     assert.equal(result.allowed, false);
     assert.match(result.reason || '', /Free Trial/);
+});
+
+test('does not treat the legacy free alias as a canonical free-trial plan key', () => {
+    const result = checkTranscriptionAccess(createUser({
+        planKey: 'free',
+        transcriptionUsed: 3600,
+        transcriptionAllocation: 3600,
+    }), 1);
+
+    assert.equal(result.allowed, false);
+    assert.doesNotMatch(result.reason || '', /Free Trial/);
+    assert.match(result.reason || '', /Enable 'Pay Per Usage'/);
 });

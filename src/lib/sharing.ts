@@ -1,12 +1,11 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 
 const SECRET_KEY = process.env.SHARE_LINK_SECRET
-    || process.env.NEXTAUTH_SECRET
     || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-prod' : '');
 
 function getSigningKey() {
     if (!SECRET_KEY) {
-        throw new Error('Missing SHARE_LINK_SECRET (or NEXTAUTH_SECRET) for share links');
+        throw new Error('Missing SHARE_LINK_SECRET for share links');
     }
     return new TextEncoder().encode(SECRET_KEY);
 }

@@ -1,5 +1,6 @@
 import type { User } from '../types';
-import { createUser, findUserByFirebaseUid, getPlanById, getSystemSettings } from './lookup';
+import { isBootstrapAdminEmail } from '@/lib/admin-bootstrap';
+import { createUser, findUserByFirebaseUid, getRequiredDefaultPlan, getRequiredSystemSettings } from './lookup';
 
 /**
  * Ensure a user profile exists, creating one if necessary.
@@ -17,24 +18,13 @@ export async function ensureUserProfile(
         return { user: existingUser, wasCreated: false };
     }
 
-    const settings = await getSystemSettings();
+    const settings = await getRequiredSystemSettings();
 
     if (settings && !settings.allowSignups) {
         throw new Error('New signups are currently disabled.');
     }
 
-    let planName = 'Free Trial';
-    let storageAllocation = 100 * 1024 * 1024;
-    let transcriptionAllocation = 10 * 60;
-
-    if (settings?.defaultPlanId) {
-        const defaultPlan = await getPlanById(settings.defaultPlanId);
-        if (defaultPlan) {
-            planName = defaultPlan.name;
-            storageAllocation = defaultPlan.limits.storage;
-            transcriptionAllocation = defaultPlan.limits.transcription;
-        }
-    }
+    const defaultPlan = await getRequiredDefaultPlan();
 
     const nameParts = (displayName || '').split(' ');
     const firstName = nameParts[0] || '';
@@ -49,8 +39,8 @@ export async function ensureUserProfile(
             name: displayName || email.split('@')[0],
             phoneNumber: '',
             photoURL: photoURL || '',
-            role: 'user',
-            plan: planName,
+            role: isBootstrapAdminEmail(email) ? 'admin' : 'user',
+            planKey: defaultPlan.key,
             timezone: '',
             notificationSettings: {
                 activityDigest: 'weekly',
@@ -67,10 +57,10 @@ export async function ensureUserProfile(
                 allowOverage: false,
             },
             storageUsed: 0,
-            storageAllocation,
+            storageAllocation: defaultPlan.limits.storage,
             storagePeakUsed: 0,
             transcriptionUsed: 0,
-            transcriptionAllocation,
+            transcriptionAllocation: defaultPlan.limits.transcription,
             totalContacts: 0,
             totalRecordings: 0,
             totalDuration: 0,

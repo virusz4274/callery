@@ -11,7 +11,7 @@ import { getPublicAppOrigin } from '@/lib/public-url';
 
 type CheckoutRequestBody = {
     priceId?: string;
-    planName?: string;
+    planKey?: string;
     returnUrl?: string;
     successUrl?: string;
     cancelUrl?: string;
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json().catch(() => ({})) as CheckoutRequestBody;
-        const { priceId, planName, returnUrl, successUrl, cancelUrl } = body;
+        const { priceId, planKey, returnUrl, successUrl, cancelUrl } = body;
         const db = await getMongoDb();
 
         let selectedPlan: Plan | null = null;
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        if (!selectedPlan && planName?.trim()) {
+        if (!selectedPlan && planKey?.trim()) {
             selectedPlan = await db.collection<Plan>(Collections.PLANS).findOne({
                 isActive: true,
-                name: planName.trim(),
+                key: planKey.trim(),
                 stripePriceId: { $ne: '' },
             });
         }
@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
             metadata: {
                 firebaseUid: uid,
                 userId: user._id.toString(),
+                selectedPlanKey: selectedPlan.key,
                 selectedPriceId: selectedPlan.stripePriceId,
                 selectedPlanName: selectedPlan.name,
             },
@@ -163,6 +164,7 @@ export async function POST(req: NextRequest) {
                 metadata: {
                     firebaseUid: uid,
                     userId: user._id.toString(),
+                    selectedPlanKey: selectedPlan.key,
                     selectedPriceId: selectedPlan.stripePriceId,
                     selectedPlanName: selectedPlan.name,
                 },

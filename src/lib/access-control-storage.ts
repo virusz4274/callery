@@ -2,6 +2,7 @@ import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
 import { formatBytes } from './access-control-format';
 import { hasBillingIssue, isTrialExpired, IS_BILLING_ENABLED } from './access-control-common';
+import { isFreeTrialPlanKey } from './plans';
 
 export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult {
     if (!IS_BILLING_ENABLED) {
@@ -28,7 +29,7 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
     const allocation = user.storageAllocation || 0;
     const newUsage = currentUsage + bytesToAdd;
 
-    if (user.plan === 'Free Trial' || user.plan === 'Free') {
+    if (isFreeTrialPlanKey(user.planKey)) {
         if (newUsage > allocation) {
             return {
                 allowed: false,

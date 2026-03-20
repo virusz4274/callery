@@ -14,6 +14,7 @@ const SEARCH_RESULT_PROJECTION = {
     phoneNumber: 1,
     r2Key: 1,
     fileName: 1,
+    standardizedDisplayName: 1,
     fileSize: 1,
     mimeType: 1,
     duration: 1,

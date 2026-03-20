@@ -137,7 +137,7 @@ async function runManualTranscriptionJob({
         userId,
         'success',
         'Transcription Ready',
-        `Your recording "${displayName || fileName}" is ready.`,
+        `Your recording "${displayName}" is ready.`,
         `/?id=${recordingId}`
     );
 }
@@ -213,7 +213,7 @@ export async function transcribeRecordingAction(recordingId: string, options?: M
                     firebaseUid: uid,
                     userId: user._id,
                     fileName: recording.fileName,
-                    displayName: recording.standardizedDisplayName || recording.fileName,
+                    displayName: recording.standardizedDisplayName,
                     r2Key: recording.r2Key,
                     duration: recording.duration,
                     providerId,
@@ -231,7 +231,7 @@ export async function transcribeRecordingAction(recordingId: string, options?: M
                     user._id,
                     'error',
                     'Transcription Failed',
-                    `Processing failed for "${recording.fileName}".`,
+                    `Processing failed for "${recording.standardizedDisplayName}".`,
                 );
             }
         });

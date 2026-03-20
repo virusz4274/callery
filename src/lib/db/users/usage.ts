@@ -1,4 +1,5 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
+import { isFreeTrialPlanKey, isLifetimePlanKey } from '@/lib/plans';
 import type { User } from '../types';
 
 /**
@@ -146,7 +147,7 @@ export async function updateUserRecordingStats(
  * Check if the user's billing cycle has ended and reset usage if necessary.
  */
 export async function checkAndResetUsageCycle(user: User): Promise<User> {
-    if (user.plan === 'Free Trial' || user.plan === 'Free' || user.plan === 'Lifetime') {
+    if (isFreeTrialPlanKey(user.planKey) || isLifetimePlanKey(user.planKey)) {
         return user;
     }
 

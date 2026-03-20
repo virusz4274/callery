@@ -1,5 +1,6 @@
 import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
+import { isFreeTrialPlanKey } from './plans';
 
 export const IS_BILLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
 
@@ -8,7 +9,7 @@ export function isTrialExpired(user: User): boolean {
         return false;
     }
 
-    if (user.plan !== 'Free Trial' && user.plan !== 'Free') {
+    if (!isFreeTrialPlanKey(user.planKey)) {
         return false;
     }
 

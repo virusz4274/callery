@@ -1,6 +1,7 @@
 export type BillingInterval = 'monthly' | 'yearly' | 'lifetime';
 
 export type PlanFormValues = {
+    key: string;
     name: string;
     description: string;
     stripePriceId: string;

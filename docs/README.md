@@ -11,6 +11,7 @@ This folder contains the maintained documentation for the current Call Memo code
 ## Developer Reference
 
 - [Architecture](architecture.md): system shape, async flows, security boundaries, and repository layout
+- [Firebase Cutover Runbook](firebase-cutover.md): single-project Firebase replacement flow for fresh deployments
 - [API Reference](api-reference.md): Server Actions, route handlers, signed upload flow, webhooks, and cron endpoints
 - [Data Model](data-model.md): MongoDB collections, important document fields, and index/TTL notes
 - [Billing](billing.md): seeded plans, Stripe setup, overage accounting, and billing verification notes
@@ -29,7 +30,7 @@ This folder contains the maintained documentation for the current Call Memo code
 - Recording archive with transcripts, summaries, tags, star/archive state, and semantic search support
 - Google Contacts sync plus contact-linked recording history
 - Export jobs with downloadable archive parts and an offline viewer
-- Firebase authentication with email/password and Google sign-in
+- Firebase authentication with email/password and Google sign-in under one Firebase-enabled Google Cloud project
 - Optional Stripe billing, browser push, SMTP delivery, and transcription providers
 - Capacitor Android wrapper that loads the hosted app and exposes folder sync on-device
 - Admin health combines live checks for MongoDB and Gemini with lighter configuration checks for R2 and transcription providers

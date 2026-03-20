@@ -21,6 +21,17 @@ export function PlanFormBody({ values, setField }: PlanFormBodyProps) {
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium">Plan key</Label>
+                        <Input
+                            aria-label="Plan key"
+                            placeholder="free-trial, pro, team..."
+                            value={values.key}
+                            onChange={(event) => setField('key', event.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
                         <Label className="text-sm font-medium">Plan name</Label>
                         <Input
                             aria-label="Plan name"

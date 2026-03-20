@@ -5,7 +5,7 @@ Call Memo is a Next.js 16 App Router application for ingesting, organizing, tran
 ## Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3 beta
-- Auth: Firebase Auth on the client, Firebase Admin-backed session verification on the server
+- Auth: Firebase Auth on the client, Firebase Admin-backed session verification on the server, all under one Firebase-enabled Google Cloud project
 - Database: MongoDB
 - Storage: Cloudflare R2
 - AI: Gemini
@@ -43,6 +43,8 @@ graph TD
 ### Authentication
 
 - Users authenticate through Firebase.
+- The supported production model is one Google Cloud project with Firebase enabled.
+- Firebase Google sign-in handles app authentication, while Google Contacts sync uses a separate OAuth web client in that same project.
 - `/api/auth/login` converts the Firebase identity into a server-side session cookie.
 - Protected Server Actions and route handlers resolve the current user from that session.
 - Admin access is enforced through role checks against the MongoDB user record.
@@ -119,6 +121,8 @@ Android-specific behavior includes:
 - local sync state persisted in the device sync store
 
 The web browser version does not expose device-folder scanning.
+
+Native Google sign-in on Android depends on the same Firebase project used by web auth. The package registration, SHA fingerprints, web client ID, and authorized domains all need to come from that single project.
 
 ## Repository Layout
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { findUserByFirebaseUid, getPlanByKey, updateUser } from '@/lib/db/users';
 import { toUserResponse } from '@/lib/db/converters';
+import { getPlanDisplayName } from '@/lib/plans';
 
 
 /**
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest) {
             user.lastLoginAt = now;
         }
 
-        const profile = toUserResponse(user);
+        const plan = await getPlanByKey(user.planKey);
+        const profile = toUserResponse(user, plan?.name || getPlanDisplayName(user.planKey));
 
         return NextResponse.json({ profile });
     } catch (error) {

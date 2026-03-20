@@ -6,10 +6,11 @@ import { BillingHistoryCard } from './billing/billing-history-card';
 import { CurrentPlanCard } from './billing/current-plan-card';
 import type { BillingSettingsProps, Invoice } from './billing/types';
 import { useBillingActions } from './billing/use-billing-actions';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 export function BillingSettings({ userProfile }: BillingSettingsProps) {
     const { toast } = useToast();
-    const planName = userProfile?.plan || 'Free Plan';
+    const planName = userProfile?.planName || 'Free Trial';
     const allowOverage = userProfile?.billingSettings?.allowOverage ?? false;
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [isInvoicesLoading, setIsInvoicesLoading] = useState(true);
@@ -23,9 +24,8 @@ export function BillingSettings({ userProfile }: BillingSettingsProps) {
     const transcribeAlloc = userProfile?.transcriptionAllocation || 1;
     const transcribePercent = Math.min(100, (transcribeUsed / transcribeAlloc) * 100);
 
-    const isTrial = planName === 'Free Trial';
-    const isFree = planName === 'Free';
-    const canManageSubscription = !isTrial && !isFree;
+    const isTrial = userProfile ? isFreeTrialPlanKey(userProfile.planKey) : false;
+    const canManageSubscription = !isTrial;
 
     const {
         availablePlans,
@@ -80,7 +80,7 @@ export function BillingSettings({ userProfile }: BillingSettingsProps) {
             <div className="space-y-6">
                 <CurrentPlanCard
                     planName={planName}
-                    isFree={isFree}
+                    isFree={isTrial}
                     isTrial={isTrial}
                     canManageSubscription={canManageSubscription}
                     allowOverage={allowOverage}

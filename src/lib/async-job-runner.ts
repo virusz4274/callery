@@ -73,7 +73,7 @@ async function finalizeTerminalFailure(job: AsyncJob, errorMessage: string) {
             await markAutoTranscriptionJobFailed(
                 payload.firebaseUid,
                 payload.recordingId,
-                payload.fileName,
+                payload.standardizedDisplayName,
                 errorMessage
             );
         }

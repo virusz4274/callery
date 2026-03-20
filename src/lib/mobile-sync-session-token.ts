@@ -4,7 +4,6 @@ const TOKEN_SECRET =
     process.env.MOBILE_SYNC_SESSION_SECRET ||
     process.env.UPLOAD_SESSION_SECRET ||
     process.env.SHARE_LINK_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
     (process.env.NODE_ENV === 'development' ? 'dev-mobile-sync-session-secret-change-in-prod' : '');
 
 function getTokenSigningKey() {

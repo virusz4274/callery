@@ -3,7 +3,6 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 type EnvLike = Record<string, string | undefined>;
 
 type GoogleSyncLike = {
-    refreshToken?: string;
     refreshTokenCiphertext?: string;
     refreshTokenKeyVersion?: string;
 } | null | undefined;
@@ -40,7 +39,7 @@ function fromBase64Url(value: string): Buffer {
 }
 
 export function hasStoredGoogleRefreshToken(googleSync?: GoogleSyncLike): boolean {
-    return Boolean(googleSync?.refreshTokenCiphertext || googleSync?.refreshToken);
+    return Boolean(googleSync?.refreshTokenCiphertext);
 }
 
 export function encryptGoogleRefreshToken(
@@ -101,36 +100,16 @@ export function decryptGoogleRefreshToken(
 export function readStoredGoogleRefreshToken(
     googleSync?: GoogleSyncLike,
     env: EnvLike = process.env
-): {
-    refreshToken: string | null;
-    needsMigration: boolean;
-} {
+): string | null {
     if (!googleSync) {
-        return {
-            refreshToken: null,
-            needsMigration: false,
-        };
+        return null;
     }
 
     if (googleSync.refreshTokenCiphertext) {
-        return {
-            refreshToken: decryptGoogleRefreshToken(googleSync.refreshTokenCiphertext, env),
-            needsMigration: false,
-        };
+        return decryptGoogleRefreshToken(googleSync.refreshTokenCiphertext, env);
     }
 
-    if (googleSync.refreshToken) {
-        getKeyMaterial(env);
-        return {
-            refreshToken: googleSync.refreshToken,
-            needsMigration: true,
-        };
-    }
-
-    return {
-        refreshToken: null,
-        needsMigration: false,
-    };
+    return null;
 }
 
 export function getGoogleTokenEncryptionErrorMessage(): string {

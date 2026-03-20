@@ -3,6 +3,7 @@ import type { PlanResponse } from '@/lib/db/types';
 import type { PlanFormValues } from './types';
 
 export const DEFAULT_PLAN_FORM_VALUES: PlanFormValues = {
+    key: '',
     name: '',
     description: '',
     stripePriceId: '',
@@ -19,6 +20,7 @@ export const DEFAULT_PLAN_FORM_VALUES: PlanFormValues = {
 
 function toFormValues(plan: PlanResponse): PlanFormValues {
     return {
+        key: plan.key,
         name: plan.name,
         description: plan.description || '',
         stripePriceId: plan.stripePriceId || '',
@@ -57,6 +59,7 @@ export function usePlanFormState(initialValues: PlanFormValues) {
 
 export function buildPlanPayload(values: PlanFormValues) {
     return {
+        key: values.key.trim(),
         name: values.name,
         description: values.description,
         stripePriceId: values.stripePriceId,

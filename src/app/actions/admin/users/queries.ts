@@ -3,6 +3,7 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import { stripe } from '@/lib/stripe';
 import type { User } from '@/lib/db/types';
 import { buildUserSearchQuery, serializeUser, toInvoiceStatus } from './shared';
+import { getPlanNameMap } from '@/lib/db/users';
 
 export async function getUsersQuery(page: number = 1, limit: number = 10, search?: string) {
     await requireCurrentAdmin();
@@ -19,9 +20,10 @@ export async function getUsersQuery(page: number = 1, limit: number = 10, search
         .skip(skip)
         .limit(limit)
         .toArray();
+    const planNameMap = await getPlanNameMap(users.map((user) => user.planKey));
 
     return {
-        users: users.map(serializeUser),
+        users: users.map((user) => serializeUser(user, planNameMap.get(user.planKey))),
         total: totalUsers,
         page,
         limit,
@@ -43,7 +45,8 @@ export async function getUserByIdQuery(userId: string) {
             return null;
         }
 
-        return serializeUser(user);
+        const planNameMap = await getPlanNameMap([user.planKey]);
+        return serializeUser(user, planNameMap.get(user.planKey));
     } catch (error) {
         console.error('Error fetching user:', error);
         return null;

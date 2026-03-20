@@ -41,6 +41,7 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         phoneNumber: recording.phoneNumber,
         r2Key: recording.r2Key,
         fileName: recording.fileName,
+        standardizedDisplayName: recording.standardizedDisplayName,
         fileSize: recording.fileSize,
         mimeType: recording.mimeType,
         duration: recording.duration,
@@ -100,7 +101,7 @@ export function toContactResponse(contact: Contact): ContactResponse {
  * @param user - The MongoDB User document
  * @returns UserResponse suitable for JSON serialization
  */
-export function toUserResponse(user: User): UserResponse {
+export function toUserResponse(user: User, planName: string): UserResponse {
     return {
         id: user._id.toString(),
         email: user.email,
@@ -109,7 +110,8 @@ export function toUserResponse(user: User): UserResponse {
         name: user.name,
         phoneNumber: user.phoneNumber,
         role: user.role,
-        plan: user.plan,
+        planKey: user.planKey,
+        planName,
         timezone: user.timezone,
         createdAt: user.createdAt.toISOString(),
         notificationSettings: user.notificationSettings,

@@ -4,6 +4,7 @@ import { User, Plan } from '@/lib/db/types';
 import { updateUser } from '@/lib/db/users';
 import { stripe } from '@/lib/stripe';
 import { reportUsage } from '@/lib/stripe/usage';
+import { isLifetimePlanKey } from '@/lib/plans';
 
 type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
 
@@ -190,13 +191,13 @@ export async function syncSubscription(subscriptionId: string) {
     }
 
     if (plan && status === 'active') {
-        updateData.plan = plan.name;
+        updateData.planKey = plan.key;
         updateData.storageAllocation = plan.limits.storage;
         updateData.transcriptionAllocation = plan.limits.transcription;
 
         // Force enable overage for Lifetime plans (they are purely usage-based)
         // Only do this when switching TO Lifetime. If they are already on it, respect their current setting.
-        if (plan.name === 'Lifetime' && user.plan !== 'Lifetime') {
+        if (isLifetimePlanKey(plan.key) && user.planKey !== plan.key) {
             updateData['billingSettings.allowOverage'] = true;
         } else {
             // Do not force overwrite if already on Lifetime or other plans
@@ -274,7 +275,7 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
     }
 
     const setData: Record<string, unknown> = {
-        plan: plan.name,
+        planKey: plan.key,
         storageAllocation: plan.limits.storage,
         transcriptionAllocation: plan.limits.transcription,
         stripePriceId: selectedPriceId,
@@ -286,7 +287,7 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
         setData.stripeCustomerId = customerId;
     }
 
-    if (plan.name === 'Lifetime') {
+    if (isLifetimePlanKey(plan.key)) {
         setData['billingSettings.allowOverage'] = true;
     }
 
@@ -302,7 +303,7 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
     );
 
     // Seed current storage as baseline meter value for usage-only plans.
-    if (plan.name === 'Lifetime') {
+    if (isLifetimePlanKey(plan.key)) {
         await reportUsage(user.firebaseUid, 'storage', user.storageUsed || 0, {
             identifier: `storage:${user.firebaseUid}:checkout:${session.id}:${user.storageUsed || 0}`,
         });

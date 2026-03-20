@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import type { User } from '@/lib/db/types';
 import { hasStoredGoogleRefreshToken } from '@/services/google/refresh-token-crypto';
+import { getPlanDisplayName } from '@/lib/plans';
 
 export type InvoiceStatus = 'Paid' | 'Pending' | 'Failed';
 
@@ -38,7 +39,7 @@ export function buildUserSearchQuery(search?: string): Record<string, unknown> {
     };
 }
 
-export function serializeUser(user: User) {
+export function serializeUser(user: User, planName?: string) {
     return {
         ...user,
         id: user._id.toString(),
@@ -70,6 +71,7 @@ export function serializeUser(user: User) {
                 status: 'not_connected' as const,
                 hasRefreshToken: false,
             },
+        planName: planName || getPlanDisplayName(user.planKey),
         stripeSubscriptionStatus: user.stripeSubscriptionStatus,
     };
 }

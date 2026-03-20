@@ -103,14 +103,12 @@ export async function updateGoogleSyncState(
 
     if (patch.refreshToken !== undefined) {
         if (patch.refreshToken === null) {
-            unsetData['googleSync.refreshToken'] = '';
             unsetData['googleSync.refreshTokenCiphertext'] = '';
             unsetData['googleSync.refreshTokenKeyVersion'] = '';
         } else {
             const encryptedRefreshToken = encryptGoogleRefreshToken(patch.refreshToken);
             setData['googleSync.refreshTokenCiphertext'] = encryptedRefreshToken.refreshTokenCiphertext;
             setData['googleSync.refreshTokenKeyVersion'] = encryptedRefreshToken.refreshTokenKeyVersion;
-            unsetData['googleSync.refreshToken'] = '';
         }
     }
 
@@ -152,16 +150,9 @@ async function queueGoogleContactsSync(firebaseUid: string, credentials: GoogleC
 
 export async function runQueuedGoogleContactsSync(firebaseUid: string) {
     const user = await findUserByFirebaseUid(firebaseUid);
-    const tokenState = readStoredGoogleRefreshToken(user?.googleSync);
-    const refreshToken = tokenState.refreshToken;
+    const refreshToken = readStoredGoogleRefreshToken(user?.googleSync);
     if (!user || !refreshToken) {
         throw new Error('Google account is not connected. Please reconnect first.');
-    }
-
-    if (tokenState.needsMigration) {
-        await updateGoogleSyncState(firebaseUid, {
-            refreshToken,
-        });
     }
 
     const backgroundClient = getOAuth2Client();
@@ -207,14 +198,8 @@ export async function startGoogleContactsSync(code: string) {
             return { success: false, error: 'User profile not found' };
         }
 
-        const existingTokenState = readStoredGoogleRefreshToken(user.googleSync);
-        if (existingTokenState.needsMigration && existingTokenState.refreshToken) {
-            await updateGoogleSyncState(userId, {
-                refreshToken: existingTokenState.refreshToken,
-            });
-        }
-
-        const refreshToken = tokens.refresh_token || existingTokenState.refreshToken;
+        const existingRefreshToken = readStoredGoogleRefreshToken(user.googleSync);
+        const refreshToken = tokens.refresh_token || existingRefreshToken;
         const scopes = parseScopes(tokens.scope) || user.googleSync?.scopes;
 
         if (!refreshToken) {
@@ -252,19 +237,12 @@ export async function restartGoogleContactsSync() {
     }
 
     const user = await findUserByFirebaseUid(userId);
-    const tokenState = readStoredGoogleRefreshToken(user?.googleSync);
-    const refreshToken = tokenState.refreshToken;
+    const refreshToken = readStoredGoogleRefreshToken(user?.googleSync);
     if (!user || !refreshToken) {
         return { success: false, error: 'Google account is not connected. Please reconnect first.' };
     }
 
     try {
-        if (tokenState.needsMigration) {
-            await updateGoogleSyncState(userId, {
-                refreshToken,
-            });
-        }
-
         await queueGoogleContactsSync(userId, {
             refreshToken,
             scopes: user.googleSync?.scopes,

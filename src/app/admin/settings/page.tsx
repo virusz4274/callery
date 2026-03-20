@@ -11,8 +11,27 @@ export default async function SettingsPage() {
         redirect('/');
     }
 
-    const settings = await getSystemSettings();
-    const plans = await getPlans();
+    let settings = null;
+    let plans = null;
+    let initializationError: string | null = null;
+
+    try {
+        [settings, plans] = await Promise.all([getSystemSettings(), getPlans()]);
+    } catch (error) {
+        initializationError = error instanceof Error ? error.message : 'Run `npm run db:init` before using admin settings.';
+    }
+
+    if (initializationError || !settings || !plans) {
+        return (
+            <AdminPageShell
+                eyebrow="Initialization required"
+                title="System settings unavailable"
+                description={initializationError || 'Run `npm run db:init` before using admin settings.'}
+            >
+                <div />
+            </AdminPageShell>
+        );
+    }
 
     return (
         <AdminPageShell

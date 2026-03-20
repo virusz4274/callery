@@ -237,7 +237,7 @@ export async function POST(request: Request) {
                     user._id,
                     'success',
                     'Transcription Ready',
-                    `Your recording "${recording.standardizedDisplayName || recording.fileName}" has been processed.`,
+                    `Your recording "${recording.standardizedDisplayName}" has been processed.`,
                     `/?id=${recordingId}`
                 );
             }

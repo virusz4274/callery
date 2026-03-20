@@ -1,5 +1,6 @@
 import type { Db } from 'mongodb';
 import type { Plan } from '@/lib/db/types';
+import { PLAN_KEYS } from '@/lib/plans';
 
 type CollectionsMap = {
     PLANS: string;
@@ -16,6 +17,7 @@ type PlanSeedDefinition = Omit<
 
 const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
     {
+        key: PLAN_KEYS.FREE_TRIAL,
         name: 'Free Trial',
         description: '30 days of full access without credit card',
         price: 0,
@@ -28,6 +30,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         stripePriceId: '',
     },
     {
+        key: PLAN_KEYS.STANDARD,
         name: 'Standard',
         description: 'For regular usage',
         price: 10,
@@ -42,6 +45,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         stripeTranscriptionPriceId: '',
     },
     {
+        key: PLAN_KEYS.PRO,
         name: 'Pro',
         description: 'Power user access',
         price: 20,
@@ -56,6 +60,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         stripeTranscriptionPriceId: '',
     },
     {
+        key: PLAN_KEYS.LIFETIME,
         name: 'Lifetime',
         description: 'One-time payment for platform access',
         price: 299,
@@ -70,6 +75,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         stripeTranscriptionPriceId: '',
     },
     {
+        key: PLAN_KEYS.INTERNAL,
         name: 'Internal',
         description: 'Team & Family unrestricted access',
         price: 0,
@@ -82,6 +88,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         stripePriceId: '',
     },
     {
+        key: PLAN_KEYS.CUSTOM,
         name: 'Custom',
         description: 'Enterprise needs',
         price: 0,
@@ -101,9 +108,10 @@ export async function seedPlans(db: Db, collections: CollectionsMap): Promise<vo
 
     for (const definition of PLAN_DEFINITIONS) {
         await db.collection(collections.PLANS).updateOne(
-            { name: definition.name },
+            { key: definition.key },
             {
                 $setOnInsert: {
+                    key: definition.key,
                     description: definition.description,
                     price: definition.price,
                     currency: definition.currency,
@@ -129,9 +137,7 @@ export async function seedPlans(db: Db, collections: CollectionsMap): Promise<vo
 export async function seedSystemSettings(db: Db, collections: CollectionsMap): Promise<void> {
     try {
         const defaultPlan = await db.collection<Plan>(collections.PLANS).findOne({
-            isDefault: true,
-        }) ?? await db.collection<Plan>(collections.PLANS).findOne({
-            name: 'Free Trial',
+            key: PLAN_KEYS.FREE_TRIAL,
         });
 
         await db.collection(collections.SYSTEM_SETTINGS).updateOne(
