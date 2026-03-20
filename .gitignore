@@ -19,9 +19,13 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # local env files
-#.env*.local
-#.env
-#service-account.json
+.env*.local
+.env
+*.env.bak
+service-account.json
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk*.json
 
 # vercel
 .vercel

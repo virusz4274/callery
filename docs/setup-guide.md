@@ -1,340 +1,183 @@
-# Setup Guide
+# Setup Guide (Step-by-Step)
 
-This guide documents the environment and service setup the current codebase expects.
+Welcome to Vosift! This guide is written for anyone—whether you are an experienced developer or a complete beginner—to comfortably get this application up and running on your local machine. 
 
-## Prerequisites
+By following these instructions step-by-step, you will create the necessary free accounts, fill in your secret keys, and start the app.
 
-- Node.js 20+
-- npm
-- MongoDB 6+ or MongoDB Atlas
-- one Google Cloud project with Firebase enabled
-- Cloudflare R2 bucket
+---
 
-Optional integrations:
+## Prerequisites Checklist
 
-- Google People API and OAuth clients in the same Google Cloud project
-- Gemini
-- Soniox
-- ElevenLabs
-- Stripe
-- Web Push VAPID keys
-- SMTP provider
+Before you start, make sure you have installed:
+- [Node.js (version 20 or higher)](https://nodejs.org/) - The environment that runs our code.
+- [Git](https://git-scm.com/downloads) - To copy the code to your machine.
 
-## Install
+---
 
-```bash
-git clone <repo-url>
-cd call-memo
-npm install
-cp .env.example .env
-```
+## Step 1: Get the Code and Prepare
 
-The tracked [.env.example](../.env.example) file is the canonical starting point. Fill in `.env` for your local or hosted environment, then initialize MongoDB:
+First, you need to download the code to your computer and install the necessary dependencies.
 
-```bash
-npm run db:init
-```
+1. Open your terminal (or Command Prompt).
+2. Clone the repository and move into its folder:
+   ```bash
+   git clone <repo-url>
+   cd Vosift
+   ```
+3. Install the application dependencies:
+   ```bash
+   npm install
+   ```
+4. Create your secret configuration file by copying the template we provided:
+   ```bash
+   cp .env.example .env
+   ```
 
-Fresh-start workflow for a wiped environment:
+You will spend most of this guide filling in the blank values in right side of the equals sign (`=`) inside the new `.env` file you just created.
 
-1. Wipe MongoDB data.
-2. Wipe R2 objects for the target bucket or prefix.
-3. Run `npm run db:init`.
-4. Start the app.
-5. Sign in with an email listed in `ADMIN_BOOTSTRAP_EMAILS` to create the first admin profile.
+**Generate Random Secrets:**
+In your `.env` file, there are three keys that just need a random, secure string of text:
+- `UPLOAD_SESSION_SECRET`
+- `SHARE_LINK_SECRET`
+- `MOBILE_SYNC_SESSION_SECRET`
 
-## Required Environment Variables
+You can use a password generator or run `openssl rand -hex 32` in your terminal to create a random string, and paste the same string or three different strings for these values.
 
-Minimum values for the app to boot and accept uploads:
+---
 
+## Step 2: Database (MongoDB Atlas)
+
+Vosift uses MongoDB to store data. The easiest way to get a database is using MongoDB's free tier.
+
+**How to set it up:**
+1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) and sign up for a free account.
+2. Create a "Shared" (free) Cluster.
+3. Under "Database Access", create a Database User with a username and password. **Save this password!**
+4. Under "Network Access", add your IP address (or `0.0.0.0/0` to allow access from anywhere for testing purposes).
+5. Go back to "Databases", click **Connect**, then choose **Connect your application**.
+6. Copy the connection string. It will look like this: `mongodb+srv://<username>:<password>@cluster0...`
+7. Replace `<password>` in the connection string with the password you created in step 3.
+
+**Update your `.env` file:**
+Paste your connection string into your `.env` file:
 ```env
-NEXT_PUBLIC_APP_URL=http://localhost:9000
-MONGODB_URI=mongodb://localhost:27017/call-memo
-
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
-
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=...
-
-UPLOAD_SESSION_SECRET=...
-SHARE_LINK_SECRET=...
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-NEXT_PUBLIC_GOOGLE_REDIRECT_URI=...
-ADMIN_BOOTSTRAP_EMAILS=admin@example.com
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/vosift
 ```
 
-Notes:
+---
 
-- This app is designed around one Google Cloud project with Firebase enabled, not separate Firebase and Google API projects.
-- Firebase Admin credentials can come from a local `service-account.json` file or `FIREBASE_SERVICE_ACCOUNT`.
-- `GOOGLE_TOKEN_ENCRYPTION_KEY` is only required when Google Contacts sync is enabled.
-- `ADMIN_BOOTSTRAP_EMAILS` is optional, but it is the supported way to mint the first admin account on a fresh database.
+## Step 3: Authentication (Firebase)
 
-## Recommended Variables
+Vosift uses Firebase to handle user logins securely. You get this for free with a Google account.
 
+**How to set it up:**
+1. Go to the [Firebase Console](https://console.firebase.google.com/) and click **Add project**.
+2. Give your project a name and follow the prompts to create it.
+3. Once in your project dashboard, click the **Web icon (</>)** to add a Web App. Register the app (you don't need Firebase Hosting).
+4. Firebase will show you a block of code with your **firebaseConfig**. Keep this window open.
+
+**Update your `.env` file:**
+Copy the values from the **firebaseConfig** block into your `.env` file:
 ```env
-NEXT_PUBLIC_ENABLE_BILLING=false
-NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
-
-GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
-GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
-
-EXPORT_JOB_STALE_MINUTES=90
-EXPORT_INLINE_PROCESSING=false
-SOFT_DELETE_RESTORE_DAYS=30
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 ```
 
-Useful optional settings read by the current code:
+**Enable Email/Password Login:**
+1. In the Firebase console left menu, click **Authentication**, then **Get Started**.
+2. Go to the **Sign-in method** tab.
+3. Click **Email/Password**, toggle it to **Enable**, and click **Save**.
 
-- `FIREBASE_AUTH_HELPER_ORIGIN`: explicit rewrite target for `/__/auth/*`
-- `CSP_REPORT_ONLY=true`: enables `Content-Security-Policy-Report-Only` instead of enforcement
-- `MONGODB_CONNECTION_MODE=fallback-first`: skips the SRV-first attempt for Atlas DNS trouble
-- `MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1`: custom DNS resolvers for the Mongo fallback path
-- `MOBILE_SYNC_SESSION_SECRET`: optional dedicated signing secret for Android mobile sync tokens; if omitted, the app falls back to the upload/share secret chain
-- `ADMIN_BOOTSTRAP_EMAILS=owner@example.com,ops@example.com`: first-login admin bootstrap allowlist
+**Get the Admin Security Key:**
+For the app to verify users securely, it needs an "Admin" key.
+1. In the Firebase console, click the **Settings Gear** next to "Project Overview" (top left) and select **Project settings**.
+2. Go to the **Service accounts** tab.
+3. Click **Generate new private key**. This will download a JSON file to your computer.
+4. Open the downloaded JSON file in a text editor. Copy all of the contents.
+5. In your `.env` file, paste the ENTIRE JSON content (wrapped in quotes or just exactly as is if formatting allows, but best as a single line JSON) into:
+   ```env
+   FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"..."}
+   ```
+   *(Alternatively, rename the downloaded file to `service-account.json` and save it directly in your project's main folder, leaving `FIREBASE_SERVICE_ACCOUNT` blank in your `.env` file).*
 
-## Firebase Setup
+---
 
-Call Memo uses Firebase Auth on the client and Firebase Admin on the server. The supported deployment model is one Google Cloud project with Firebase enabled, with both app sign-in and Google API integrations configured inside that same project.
+## Step 4: Storage (Cloudflare R2)
 
-1. Create a Google Cloud project and enable Firebase on it.
-2. Add a web app and copy the web config into `.env`.
-3. Enable `Email/Password`.
-4. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
-5. Add local and production origins to Firebase Auth authorized domains.
-6. Register the Android app in the same Firebase project if you ship the APK.
-7. Add the required Android SHA fingerprints in that same project.
-8. Generate a Firebase Admin service account and either:
-   - keep it in `service-account.json` locally, or
-   - store the JSON in `FIREBASE_SERVICE_ACCOUNT`
-9. Download the Android `google-services.json` file from the new Firebase project and replace `android/app/google-services.json` before building the APK.
+Recordings are stored in Cloudflare R2, which offers generous free storage.
 
-If `FIREBASE_AUTH_HELPER_ORIGIN` or `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is configured, Next.js rewrites `/__/auth/*` to Firebase’s auth helper endpoint.
+**How to set it up:**
+1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/sign-up) and create an account.
+2. In the left menu, click **R2**. (You may need to add a payment method, but they won't charge you for the free tier).
+3. Click **Create bucket**. Name it whatever you like (e.g., `vosift-audio`) and click **Create bucket**.
+4. Go back to the main R2 page. Look to the right side and click **Manage R2 API Tokens**.
+5. Click **Create API token**. 
+   - Give it a name like `Vosift App`.
+   - Set Permissions to **Object Read & Write**.
+   - Click **Create API Token**.
+6. Cloudflare will show you your Access Key ID, Secret Access Key, and your specific Endpoint URL.
 
-## Google Contacts Setup
-
-Google Contacts sync is separate from Firebase sign-in, but it should be configured inside the same Google Cloud project.
-
-1. Enable `Google People API` in the same Google Cloud project used for Firebase.
-2. Configure the OAuth consent screen.
-3. Create a web OAuth client.
-4. Add redirect URIs:
-   - `http://localhost:9000/api/auth/google/callback`
-   - `https://<your-domain>/api/auth/google/callback`
-5. Add `https://www.googleapis.com/auth/contacts.readonly`.
-6. Set:
-
+**Update your `.env` file:**
+Paste the credentials into your `.env` file:
 ```env
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
-GOOGLE_TOKEN_ENCRYPTION_KEY=...
-# GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION=v1
+R2_ENDPOINT=https://<your-account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-access-key
+R2_BUCKET_NAME=vosift-audio
 ```
 
-The Google refresh token is encrypted before it is stored on the user document. Without `GOOGLE_TOKEN_ENCRYPTION_KEY`, the connect flow can authenticate but the sync state cannot be saved safely.
+**Set up CORS (Cross-Origin Resource Sharing):**
+This allows the app to upload files directly from your browser.
+1. Go back to your bucket settings in Cloudflare R2.
+2. Scroll down to **CORS Policy** and click **Add CORS policy**.
+3. Paste the following JSON configuration and save:
+   ```json
+   [
+     {
+       "AllowedOrigins": ["http://localhost:9000", "https://your-production-domain.com"],
+       "AllowedMethods": ["PUT", "GET", "HEAD"],
+       "AllowedHeaders": ["Content-Type"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 86400
+     }
+   ]
+   ```
 
-## Fresh Firebase Cutover
+---
 
-Use this sequence when replacing the old Firebase project entirely:
+## Step 5: Final Bootstrapping
 
-1. Create the new Google Cloud project.
-2. Enable Firebase on that project.
-3. Create the Firebase web app and collect the new client config.
-4. Enable Firebase Auth with `Email/Password` and `Google`.
-5. Add the production domain to Firebase authorized domains.
-6. Register the Android package and add SHA fingerprints in that same project.
-7. Download and replace `android/app/google-services.json` from the new Firebase project if Android builds are in scope.
-8. Create the Firebase Admin service account for server verification.
-9. Enable Google People API in the same project.
-10. Configure the OAuth consent screen and create the Contacts-sync OAuth web client.
-11. Replace the local `.env` values with the new project config.
-12. Wipe MongoDB and R2.
-13. Run `npm run db:init`.
-14. Set `ADMIN_BOOTSTRAP_EMAILS`.
-15. Sign in with the bootstrap admin account and verify the first admin user is created.
+You should now have the minimum necessary values filled out in your `.env` file to start the app!
 
-## Cloudflare R2 Setup
+1. **Set yourself as an admin:**
+   In your `.env` file, find `ADMIN_BOOTSTRAP_EMAILS` and add your email:
+   ```env
+   ADMIN_BOOTSTRAP_EMAILS=your.email@example.com
+   ```
+2. **Initialize the Database:**
+   In your terminal, run the following command to set up the default collections and settings in MongoDB:
+   ```bash
+   npm run db:init
+   ```
+3. **Start the App!**
+   Start the local development server:
+   ```bash
+   npm run dev
+   ```
+4. **Login:**
+   Open your browser and navigate to [http://localhost:9000](http://localhost:9000). Click Sign up, and use the exact email address you put in `ADMIN_BOOTSTRAP_EMAILS`. You will now have administrative access.
 
-The app uploads media directly from the client to R2 using signed `PUT` URLs, then finalizes metadata server-side.
+**Congratulations! Your Vosift app is now successfully running.**
 
-Required settings:
+---
 
-```env
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=...
-```
+## Optional: Advanced Integrations
 
-Recommended CORS policy:
+You don't need these to run the app, but you can configure them later as needed. We recommend getting the basic app running first before diving into these.
 
-```json
-[
-  {
-    "AllowedOrigins": ["http://localhost:9000", "https://<your-domain>"],
-    "AllowedMethods": ["PUT", "GET", "HEAD"],
-    "AllowedHeaders": ["Content-Type"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 86400
-  }
-]
-```
-
-The current uploader accepts `mp3`, `wav`, `m4a`, `mp4`, and `webm`. Files can be up to `5 GiB`; transcription is blocked for files over `2 GiB`.
-
-## AI And Transcription Providers
-
-Gemini powers summaries, transliteration, and embeddings:
-
-```env
-GOOGLE_GENERATIVE_AI_API_KEY=...
-GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
-GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
-```
-
-Soniox:
-
-```env
-SONIOX_API_KEY=...
-SONIOX_API_BASE_URL=https://api.soniox.com
-SONIOX_MODEL_ID=stt-async-v3
-SONIOX_WEBHOOK_SECRET=...
-```
-
-ElevenLabs:
-
-```env
-ELEVENLABS_API_KEY=...
-ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
-ELEVENLABS_MODEL_ID=scribe_v2
-ELEVENLABS_WEBHOOK_SECRET=...
-```
-
-Notes:
-
-- Soniox and ElevenLabs are optional and can be enabled independently.
-- Manual and auto transcription switch to provider async webhook mode for recordings over `300 seconds` (`5 minutes`).
-- Auto-transcription is queued through the `async_jobs` collection.
-
-## Billing Setup
-
-Billing is disabled unless you set:
-
-```env
-NEXT_PUBLIC_ENABLE_BILLING=true
-STRIPE_SECRET_KEY=sk_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-See [billing.md](billing.md) for the full Stripe setup. At a minimum you need:
-
-- Stripe prices that map to the `plans` collection
-- Stripe meters named `storage_usage_bytes` and `transcription_usage_seconds`
-- a webhook endpoint pointed at `/api/stripe/webhook`
-
-If billing or admin pages fail with missing seed-data errors, rerun `npm run db:init` before debugging application code. The app now expects `plans` and `system_settings` to exist instead of inventing runtime defaults.
-
-## Web Push And Support Email
-
-Web Push:
-
-```env
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
-VAPID_PRIVATE_KEY=...
-VAPID_CONTACT_EMAIL=admin@example.com
-```
-
-SMTP-backed support delivery:
-
-```env
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=...
-SMTP_PASS=...
-SMTP_FROM="Call Memo <no-reply@example.com>"
-SUPPORT_EMAIL=support@example.com
-```
-
-Support requests are always stored in MongoDB. When `SUPPORT_EMAIL` is set, the app also queues a `support_email` async job.
-
-## Cron Routes
-
-The current codebase exposes three cron endpoints:
-
-- `GET /api/cron/process-exports`
-- `GET /api/cron/process-async-jobs`
-- `GET /api/cron/cleanup-recordings`
-
-All three require:
-
-```http
-Authorization: Bearer <CRON_SECRET>
-```
-
-Use:
-
-```env
-CRON_SECRET=...
-```
-
-`startExport()` can process inline in development or when `EXPORT_INLINE_PROCESSING=true`, but production should use the cron route.
-`GET /api/cron/process-async-jobs` drains auto-transcription, Google Contacts sync, and support-email jobs from `async_jobs`.
-
-## Webhooks
-
-Configure these endpoints only for providers you actually use:
-
-- `POST /api/stripe/webhook`
-- `POST /api/webhooks/soniox`
-- `POST /api/webhooks/elevenlabs`
-
-Security:
-
-- Stripe uses `STRIPE_WEBHOOK_SECRET`
-- Soniox expects `X-Soniox-Secret`
-- ElevenLabs expects a valid `ElevenLabs-Signature`
-
-## Android Notes
-
-The Android wrapper loads the hosted app rather than bundling the full UI locally. Before testing on a device:
-
-1. Set the development `devUrl` in [capacitor.config.ts](../capacitor.config.ts) to a reachable LAN IP.
-2. Run `npm run dev`.
-3. Run `npm run cap:sync`.
-
-The Android-only sync flow also uses:
-
-- `POST /api/mobile/sync-session`
-- `POST /api/mobile/direct-upload/init`
-- `POST /api/mobile/direct-upload/complete`
-
-The sync session token returned by `/api/mobile/sync-session` is currently valid for `24 hours`.
-
-## Verification Checklist
-
-Run these before handing the environment to someone else:
-
-```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-Then verify:
-
-- login works with Firebase
-- uploads can initialize and finalize against R2
-- MongoDB init completed without index errors
-- transcription providers and webhooks work when configured
-- cron endpoints accept `CRON_SECRET`
-- support requests create MongoDB records
+- **AI Summaries & Transliteration:** Get an API key from [Google AI Studio (Gemini)](https://aistudio.google.com/) and paste it into `GOOGLE_GENERATIVE_AI_API_KEY`.
+- **Advanced Transcription:** The app supports [Soniox](https://soniox.com/) or [ElevenLabs](https://elevenlabs.io/) for high-quality, long-form audio transcription. Update the respective keys in the `.env` file.
+- **Stripe Billing:** Switch `NEXT_PUBLIC_ENABLE_BILLING=true` and input your Stripe keys to enable paid subscriptions. See [Stripe Billing docs](billing.md).
+- **Google Contacts Sync:** Enable the Google People API from your Google Cloud Console to let users synchronize their contacts.
