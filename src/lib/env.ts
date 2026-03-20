@@ -101,6 +101,11 @@ const envSchema = z.object({
     NEXT_PUBLIC_ENABLE_BILLING: requiredBooleanString,
     NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: requiredBooleanString,
     CSP_REPORT_ONLY: requiredBooleanString,
+
+    // Sentry (Optional)
+    SENTRY_DSN: z.string().url().optional(),
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+    SENTRY_AUTH_TOKEN: z.string().min(1).optional(),
 });
 
 // For process.env
@@ -160,6 +165,9 @@ const processEnv = {
     NEXT_PUBLIC_ENABLE_BILLING: process.env.NEXT_PUBLIC_ENABLE_BILLING,
     NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU,
     CSP_REPORT_ONLY: process.env.CSP_REPORT_ONLY,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
 };
 
 // Validate
