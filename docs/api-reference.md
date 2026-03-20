@@ -1,10 +1,14 @@
 # API Reference
 
-Call Memo uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, support, filesystem, and scheduled jobs.
+Call Memo uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
 
 ## Server Actions
 
-Location: `src/app/actions`
+Primary action directories:
+
+- `src/app/actions`
+- `src/app/actions/admin`
+- `src/app/actions/upload`
 
 ## Product Actions
 
@@ -28,33 +32,35 @@ Files:
 - `src/app/actions/upload/prepare-upload-context.ts`
 - `src/app/actions/upload/validation.ts`
 
-Main public flow:
+Main browser flow:
 
-- `initializeDirectUpload`
-- `completeDirectUpload`
-- `uploadSingleFile`
-- `triggerAutoTranscription`
+1. `initializeDirectUpload`
+2. client `PUT` to R2
+3. `completeDirectUpload`
+4. optional auto-transcription enqueue
 
-Legacy note:
+Legacy fallback:
 
-- `src/app/actions/upload-recordings.ts` still exists but is not the primary browser flow.
+- `src/app/actions/upload-recordings.ts`
 
-### Transcription And Search
+### Search And Transcription
 
 Files:
 
-- `src/app/actions/transcription.ts`
 - `src/app/actions/search-actions.ts`
+- `src/app/actions/transcription.ts`
 - `src/app/actions/transcription-providers.ts`
 - `src/app/actions/user-settings.ts`
 
 Main actions:
 
-- `transcribeRecordingAction`
 - `searchRecordingsAction`
+- `transcribeRecordingAction`
 - `getAvailableProviders`
 - `getProviderMultiplier`
 - `updateTranscriptionSettings`
+
+`searchRecordingsAction` also reports whether semantic search used Atlas vector search or fell back to keyword mode through `mode` and `fallbackReason`.
 
 ### Contacts And Google Sync
 
@@ -93,131 +99,102 @@ Main actions:
 - `clearAllNotifications`
 - `sendTestNotification`
 - `getPublishedPlans`
+- `getUpgradeablePlans`
 
 ## Admin Actions
 
-Files:
+Current admin action files:
 
 - `src/app/actions/admin-health.ts`
-- `src/app/actions/admin-plans.ts`
 - `src/app/actions/admin-settings.ts`
 - `src/app/actions/admin-announcements.ts`
+- `src/app/actions/admin-plans.ts`
 - `src/app/actions/audit-log.ts`
-- `src/app/actions/admin/users.ts`
-- `src/app/actions/admin/recordings.ts`
 - `src/app/actions/admin/stats.ts`
-- `src/app/actions/delete-recordings.ts`
+- `src/app/actions/admin/recordings.ts`
+- `src/app/actions/admin/users.ts`
+- `src/app/actions/admin/users/queries.ts`
+- `src/app/actions/admin/users/mutations.ts`
 - `src/app/actions/update-contact-plan.ts`
-- `src/app/actions/admin.ts`
+- `src/app/actions/delete-recordings.ts`
 
-Main admin operations include:
+Main admin capabilities:
 
-- system health checks
+- health checks and incident clearing
+- async job retry
+- SMTP test email
 - plan CRUD
-- system settings reads and updates
 - announcement CRUD
+- system settings updates
 - audit log retrieval
-- user search and mutations
-- orphaned recording cleanup
-- bulk deletion
+- user search, role changes, disable/restore, limits, usage edits, and deletion
+- orphaned recording cleanup and bulk deletion
 
 ## Route Handlers
 
-Location: `src/app/api`
+### Auth And User
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Creates a server session from the authenticated Firebase user |
-| `GET`, `POST` | `/api/auth/logout` | Clears the current session |
-| `GET` | `/api/auth/google/callback` | OAuth callback for Google Contacts sync |
-| `GET`, `PATCH` | `/api/user/profile` | Read and update the current profile |
-| `POST` | `/api/user/ensure-profile` | Ensure a MongoDB user exists for the signed-in Firebase user |
-| `PATCH` | `/api/user/billing-settings` | Toggle overage preferences |
-| `GET` | `/api/contacts` | Read contacts for the current user |
-| `GET` | `/api/filesystem` | Return the storage/file tree for the current user |
-| `GET` | `/api/recordings/[id]` | Read a single recording payload |
-| `POST` | `/api/stripe/checkout` | Create a Stripe Checkout session |
-| `POST` | `/api/stripe/portal` | Create a Stripe Customer Portal session |
-| `GET` | `/api/stripe/invoices` | Read recent invoices for the current user |
-| `POST` | `/api/stripe/webhook` | Handle Stripe events |
-| `POST` | `/api/webhooks/soniox` | Handle Soniox transcription callbacks |
-| `POST` | `/api/webhooks/elevenlabs` | Handle ElevenLabs transcription callbacks |
-| `POST`, `DELETE` | `/api/notifications/subscribe` | Register or remove a browser push subscription |
-| `GET` | `/api/system-settings/public` | Return public-facing system settings needed by the client |
-| `POST` | `/api/support` | Create a support request |
-| `GET` | `/api/cron/process-exports` | Process pending export jobs |
-| `GET` | `/api/cron/cleanup-recordings` | Enforce cleanup and retention rules |
-| `GET` | `/api/cron/process-async-jobs` | Process queued transcription and Google sync jobs |
+| `POST` | `/api/auth/login` | creates a server session from the authenticated Firebase user |
+| `GET`, `POST` | `/api/auth/logout` | clears the current session |
+| `GET` | `/api/auth/google/callback` | handles Google Contacts OAuth callback |
+| `GET`, `PATCH` | `/api/user/profile` | reads or updates the current profile via bearer-authenticated requests |
+| `POST` | `/api/user/ensure-profile` | ensures a MongoDB user exists for the current Firebase identity |
+| `PATCH` | `/api/user/billing-settings` | toggles overage preferences and seeds the current storage baseline when enabled |
+| `GET` | `/api/system-settings/public` | returns public maintenance-mode state |
 
-## Public Pages With Signed Access
+### Product Data
 
-- `/s/[token]`: public read-only shared recording page
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `GET` | `/api/contacts` | returns contacts for the current user |
+| `GET` | `/api/filesystem` | returns the storage/file tree for the current user |
+| `GET` | `/api/recordings/[id]` | returns a single recording payload |
+| `POST`, `DELETE` | `/api/notifications/subscribe` | registers or removes a browser push subscription |
+| `POST` | `/api/support` | creates a support request and may queue support email delivery |
 
-This route is page-based rather than an API handler.
+### Billing
 
-## Upload Flow
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/stripe/checkout` | creates a Stripe Checkout session |
+| `POST` | `/api/stripe/portal` | creates a Stripe customer portal session |
+| `GET` | `/api/stripe/invoices` | lists recent invoices for the current user |
+| `POST` | `/api/stripe/webhook` | processes Stripe events idempotently |
 
-The production upload path is:
+Billing routes return `403` when `NEXT_PUBLIC_ENABLE_BILLING=false`.
 
-1. `initializeDirectUpload`
-2. direct client `PUT` to R2
-3. `completeDirectUpload`
-4. optional `async_jobs` enqueue for auto transcription
+### Mobile Sync
 
-Constraints:
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/mobile/sync-session` | creates a short-lived mobile sync token for the authenticated user |
+| `POST` | `/api/mobile/direct-upload/init` | initializes Android mobile direct upload |
+| `POST` | `/api/mobile/direct-upload/complete` | finalizes Android mobile direct upload |
 
-- Maximum upload size: `5 GiB`
-- Maximum transcription size: `2 GiB`
+Mobile upload routes authenticate with the sync token created by `/api/mobile/sync-session`. That token currently expires after `24 hours`.
 
-## Webhook Security
+### Webhooks
 
-### Soniox
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/webhooks/soniox` | handles Soniox transcription callbacks |
+| `POST` | `/api/webhooks/elevenlabs` | handles ElevenLabs transcription callbacks |
 
-- Endpoint: `POST /api/webhooks/soniox`
-- Requires `X-Soniox-Secret`
-- Expects callback metadata containing recording and user context
+Security:
 
-### ElevenLabs
+- Soniox expects `X-Soniox-Secret`
+- ElevenLabs expects a valid `ElevenLabs-Signature`
+- both providers persist idempotency state in `transcription_webhook_events`
 
-- Endpoint: `POST /api/webhooks/elevenlabs`
-- Requires valid `ElevenLabs-Signature`
-- Expects callback metadata for recording correlation
+### Cron
 
-### Shared webhook behavior
-
-Both transcription webhooks:
-
-- validate the callback against the stored external transcription ID
-- process idempotently through `transcription_webhook_events`
-- only finalize usage/accounting after successful claim and processing
-
-## Stripe Webhook Events
-
-`POST /api/stripe/webhook` currently handles:
-
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `checkout.session.async_payment_failed`
-- `checkout.session.expired`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `customer.subscription.paused`
-- `customer.subscription.resumed`
-- `customer.subscription.trial_will_end`
-- `customer.subscription.pending_update_applied`
-- `customer.subscription.pending_update_expired`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-- `invoice.payment_action_required`
-- `invoice.paid`
-- `invoice.voided`
-- `invoice.marked_uncollectible`
-- `customer.deleted`
-
-Stripe event processing is idempotent through the `stripe_webhook_events` collection.
-
-## Cron Authentication
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `GET` | `/api/cron/process-exports` | processes pending export jobs |
+| `GET` | `/api/cron/process-async-jobs` | processes queued async jobs |
+| `GET` | `/api/cron/cleanup-recordings` | enforces cleanup and retention rules |
 
 All cron routes require:
 
@@ -225,10 +202,38 @@ All cron routes require:
 Authorization: Bearer <CRON_SECRET>
 ```
 
-## Index And Seed Initialization
+## Public Signed Access
 
-After initial setup and after backend index changes:
+- `/s/[token]`: read-only shared recording page
 
-```bash
-npx tsx src/lib/db/init.ts
-```
+This is a page route, not an API route.
+
+## Current Upload Rules
+
+- maximum upload size: `5 GiB`
+- maximum transcription-eligible size: `2 GiB`
+- supported upload formats: `mp3`, `wav`, `m4a`, `mp4`, `webm`
+- direct upload URL lifetime: `15 minutes`
+
+## Support Route Behavior
+
+`POST /api/support` currently:
+
+- validates the JSON body with `zod`
+- rejects submissions that fill the honeypot `companyWebsite` field
+- rejects cross-origin submissions that do not match the public app origin
+- rate limits by client IP
+- stores every accepted request in `support_messages`
+- queues async email delivery only when `SUPPORT_EMAIL` is configured
+
+## Stripe Webhook Events
+
+`POST /api/stripe/webhook` handles:
+
+- checkout completion and async checkout outcomes
+- checkout expiration notifications
+- subscription create, update, pause, resume, delete, and pending-update lifecycle events
+- invoice payment success and failure events
+- `customer.deleted`
+
+The webhook processor records state in `stripe_webhook_events`.

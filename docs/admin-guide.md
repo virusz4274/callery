@@ -1,130 +1,139 @@
 # Admin Guide
 
-Admin features live under `/admin` and require a user whose `role` is `admin`.
+Admin features live under `/admin` and require a user whose role is `admin`.
 
 ## Admin Routes
 
-- `/admin`: overview dashboard and service health
-- `/admin/users`: user search, role changes, usage edits, limit edits, disable/restore, and delete
-- `/admin/users/[id]`: user detail view with recordings and invoice history
-- `/admin/plans`: plan management and Stripe ID mapping
-- `/admin/announcements`: create and manage user-facing announcements
-- `/admin/settings`: global toggles such as signups, maintenance mode, and transcription multipliers
-- `/admin/audit`: audit log viewer
+- `/admin`: dashboard, health checks, incidents, async job state, and cleanup actions
+- `/admin/users`: user search and account mutations
+- `/admin/users/[id]`: detailed user view with recordings and billing context
+- `/admin/plans`: plan CRUD and Stripe price mapping
+- `/admin/announcements`: system announcement management
+- `/admin/settings`: shared platform settings
+- `/admin/audit`: admin action log
 
 ## Dashboard
 
-The dashboard shows:
+The dashboard is the operational overview for the platform. It currently surfaces:
 
-- Total users
-- Total recordings
-- Total storage used
-- Total transcription processed
-- Service health cards for MongoDB, R2, Gemini, and other backend dependencies
-- Orphaned recording cleanup when stale records are detected
+- total users
+- total recordings
+- total storage used
+- total transcription used
+- health status for MongoDB, R2, Gemini, Soniox, and ElevenLabs
+- open external service incidents
+- queued, running, and failed async job counts
+- recent failed async jobs
+- orphaned recording cleanup
 
-Use this as the first stop when investigating platform-wide problems.
+The health checks are code-backed, not static status text. MongoDB is pinged directly and Gemini performs a real embedding call. R2 currently checks whether the bucket configuration is present, while Soniox and ElevenLabs currently report configured-vs-missing API keys rather than making paid health probes.
 
 ## User Management
 
 From `/admin/users`, admins can:
 
-- Search users
-- Change user roles
-- Disable or re-enable accounts
-- Soft-delete and restore users
-- Adjust storage or transcription limits
-- Adjust reported usage values
+- search users
+- change roles
+- disable or re-enable accounts
+- soft-delete users
+- restore soft-deleted users during the restore window
+- edit storage and transcription allocations
+- edit reported usage values
 
-Soft deletion behavior:
-
-- The account is disabled immediately.
-- Restore stays available until the configured deadline.
-- Permanent cleanup is handled later by the retention/cleanup flow.
+Soft deletion preserves restore state in the user document and defers final cleanup to the retention flow.
+The restore window defaults to `30 days` and is controlled by `SOFT_DELETE_RESTORE_DAYS`.
 
 ## User Detail View
 
-The user detail page includes:
+`/admin/users/[id]` is the support-oriented drill-down view. It includes:
 
-- Account profile information
-- Current plan and usage snapshot
-- User recordings
-- Payment and invoice history
+- profile details
+- plan and usage information
+- recording history
+- invoice history when Stripe is configured
 
-Use it for support and billing investigations that need more context than the table view.
+Use it when the table view is not enough to diagnose a customer issue.
 
-## Plans And Billing Controls
+## Plans
 
-The plan admin surface manages plan documents stored in MongoDB.
+Plans are stored in MongoDB and managed through `/admin/plans`.
 
-Each plan can define:
+Each plan document can define:
 
-- Name and description
-- Interval
-- Price
-- Storage and transcription limits
-- Feature list
+- name and description
+- price, currency, and interval
+- included storage and transcription limits
+- feature list
 - Stripe base price ID
 - Stripe metered storage and transcription price IDs
+- active/default state
 
-Billing behavior still depends on Stripe being configured correctly. The app does not create Stripe products for you.
+The app does not create Stripe products for you. The admin UI is where you map existing Stripe prices to plan documents.
+The public pricing page only publishes plans that are active and have a non-empty `stripePriceId`, and it still excludes `Free` and `Free Trial`.
 
 ## Global Settings
 
-`/admin/settings` controls shared system behavior:
+`/admin/settings` controls platform-wide behavior:
 
 - `allowSignups`
 - `maintenanceMode`
 - `defaultPlanId`
-- provider-specific transcription multipliers
+- transcription multipliers for Soniox and ElevenLabs
 
-These settings affect all workspaces, so treat them like operational config rather than personal preferences.
+These settings apply to every workspace on the instance.
 
 ## Announcements
 
-Announcements are system-wide messages displayed to users in the app.
+Announcements are system-wide notices shown in the app.
 
 Each announcement supports:
 
-- Title
-- Message
-- Type: `info`, `warning`, `alert`, or `success`
-- Active flag
-- Start date
-- Optional end date
+- title
+- message
+- type: `info`, `warning`, `alert`, `success`
+- active flag
+- start date
+- optional end date
 
-Use them for maintenance notices, product changes, or urgent customer communication.
+Use them for maintenance windows, product notices, or urgent customer communication.
 
 ## Audit Logs
 
-The audit page helps trace admin-side changes. Logs include:
+`/admin/audit` shows the `admin_logs` collection.
+
+Entries capture:
 
 - admin identity
-- action type
-- target resource type and ID
+- action name
+- target type and target ID
 - details payload
 - timestamp
 
-This is the quickest way to understand who changed a plan, user, or system setting.
+Actions from user, plan, announcement, settings, incident, and async-job workflows are recorded here.
 
-## Health Checks And Cleanup
+## Incidents And Async Jobs
 
-The health dashboard tests real dependencies rather than only local state.
+The dashboard can also help resolve operational backlog.
 
-It currently covers the services that power:
+Admins can:
 
-- MongoDB access
-- R2 storage
-- Gemini
-- other core backend integrations
+- clear one external service incident
+- clear all open external service incidents
+- retry failed async jobs
+- send an SMTP test email from the admin surface
 
-Operational cleanup tasks include orphaned recording cleanup from the admin dashboard and retention cleanup from the scheduled cron route.
+Async jobs currently cover:
+
+- auto transcription
+- Google Contacts sync
+- support email delivery
 
 ## Useful Scripts
 
-These helper scripts exist in the repo today:
+Current helper scripts in the repo:
 
 ```bash
+npm run audit:prod
 npx tsx scripts/check-db.ts
 npx tsx scripts/check-user-stripe.ts
 npx tsx scripts/debug-contacts.ts
@@ -136,9 +145,10 @@ npx tsx src/scripts/fix-contact-stats.ts
 
 ## Recommended Admin Runbook
 
-When something looks wrong:
+When something is wrong:
 
-1. Check `/admin` for service health and orphaned data.
-2. Check `/admin/audit` for recent admin-side changes.
+1. Open `/admin` and review service health, incidents, and async job failures.
+2. Check `/admin/audit` for recent platform-side changes.
 3. Inspect the affected user in `/admin/users` or `/admin/users/[id]`.
-4. Verify Stripe, webhook, or transcription provider configuration if the issue is integration-related.
+4. Retry failed async jobs or clear incidents only after you understand the root cause.
+5. Verify Stripe, transcription provider, webhook, or SMTP configuration if the issue crosses an external boundary.

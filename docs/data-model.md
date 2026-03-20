@@ -13,7 +13,7 @@ Stores application users linked to Firebase Auth.
 Important fields:
 
 - `firebaseUid`
-- `email`, `firstName`, `lastName`, `name`, `phoneNumber`
+- `email`, `firstName`, `lastName`, `name`, `phoneNumber`, `photoURL`
 - `role`
 - `plan`
 - `disabled`
@@ -25,12 +25,13 @@ Important fields:
 - `storageUsed`, `storageAllocation`, `storagePeakUsed`, `storagePeakPeriodEnd`
 - `transcriptionUsed`, `transcriptionAllocation`
 - `totalContacts`, `totalRecordings`, `totalDuration`
-- Stripe fields such as `stripeCustomerId`, `stripeSubscriptionId`, `stripeSubscriptionStatus`
+- `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `stripeSubscriptionStatus`, `stripeCurrentPeriodEnd`
 - `trialEndsAt`, `lastLoginAt`
 - `pushSubscriptions`
+- `googleSync`
 - `softDelete`
 
-Notable nested structures:
+Key nested structures:
 
 ```ts
 notificationSettings: {
@@ -56,19 +57,20 @@ billingSettings: {
 
 ### `recordings`
 
-Stores uploaded audio metadata, transcript state, search payloads, and library-level tags.
+Stores uploaded audio metadata, transcript state, embeddings, and user-facing archive state.
 
 Important fields:
 
 - `firebaseUid`
 - `contactId`, `contactName`, `phoneNumber`
-- `r2Key`, `fileName`, `fileSize`, `mimeType`, `duration`
+- `r2Key`, `fileName`, `standardizedDisplayName`, `fileSize`, `mimeType`, `duration`
 - `recordedAt`, `createdAt`, `updatedAt`
 - `transcriptionStatus`
 - `fullTranscript`
 - `languageCode`
 - `transcriptionProvider`, `transcriptionModel`, `transcriptionCostMultiplier`
 - `externalTranscriptionId`
+- `transcriptionUsageReportId`, `transcriptionUsageReportedAt`
 - `transliteratedTranscript`, `translatedTranscript`, `additionalTranscriptions`
 - `summary`, `summaryEmbedding`, `transcriptEmbedding`
 - `tags`
@@ -95,7 +97,7 @@ fullTranscript: {
 
 ### `contacts`
 
-Stores contact records from Google sync and app-side normalization.
+Stores normalized contact records and Google Contacts sync results.
 
 Important fields:
 
@@ -105,12 +107,13 @@ Important fields:
 - `phoneNumbers`
 - `email`
 - `jobTitle`, `company`
+- `createdAt`, `updatedAt`
 - `totalRecordings`
 - `lastRecordingAt`
 
 ### `plans`
 
-Stores plan definitions shown in pricing and used by billing logic.
+Stores plan definitions used by pricing and billing logic.
 
 Important fields:
 
@@ -125,14 +128,15 @@ Important fields:
 
 ### `system_settings`
 
-Singleton-like collection for platform-wide configuration.
+Singleton-like collection for shared platform settings.
 
 Important fields:
 
 - `allowSignups`
 - `maintenanceMode`
 - `defaultPlanId`
-- `transcriptionMultipliers`
+- `transcriptionMultipliers.soniox`
+- `transcriptionMultipliers.elevenlabs`
 - `updatedAt`
 
 ## Operational Collections
@@ -154,7 +158,7 @@ Fields include:
 
 ### `notifications`
 
-In-app notification center entries.
+In-app notification entries.
 
 Fields include:
 
@@ -168,7 +172,7 @@ Fields include:
 
 ### `admin_logs`
 
-Audit log entries for admin actions.
+Admin audit entries.
 
 Fields include:
 
@@ -183,7 +187,7 @@ Fields include:
 
 ### `export_jobs`
 
-Tracks long-running user export jobs.
+Tracks long-running export jobs.
 
 Fields include:
 
@@ -197,24 +201,77 @@ Fields include:
 - `error`
 - `createdAt`, `updatedAt`, `startedAt`, `completedAt`
 
-Export parts currently store signed download URLs, expiration timestamps, sizes, and R2 keys.
+Each part stores a signed download URL, key, size, and expiration time.
+
+### `async_jobs`
+
+Queue-backed background work.
+
+Current job types:
+
+- `auto_transcription`
+- `google_contacts_sync`
+- `support_email`
+
+Important fields:
+
+- `type`
+- `status`
+- `payload`
+- `attempts`
+- `maxAttempts`
+- `runAt`
+- `lockedAt`, `lockedBy`
+- `lastError`
+- `createdAt`, `updatedAt`, `completedAt`
+
+### `external_service_incidents`
+
+Stores deduplicated integration incidents for admin health visibility.
+
+Important fields:
+
+- `provider`, `service`, `operation`
+- `errorKind`
+- `severity`
+- `status`
+- `retryable`
+- `httpStatus`
+- `dedupeKey`
+- `message`
+- `firstSeenAt`, `lastSeenAt`
+- `occurrenceCount`
+- `cooldownUntil`
+- `resolvedAt`, `staleAt`
 
 ### `support_messages`
 
 Stores submissions from `/api/support`.
 
-Fields include:
+Important fields:
 
-- `firebaseUid`
-- `name`
-- `email`
-- `subject`
-- `message`
-- `userAgent`
-- `ipAddress`
+- `firebaseUid` (`null` for anonymous submissions)
+- `name`, `email`, `subject`, `message`
+- `userAgent`, `ipAddress`
+- `deliveryStatus`: `queued`, `sending`, `sent`, `failed`, `skipped`
+- `deliveryAttempts`
+- `lastDeliveryError`
+- `emailedAt`
 - `createdAt`
 
-## Idempotency And Integration Collections
+### `rate_limit_buckets`
+
+Stores short-lived rate limit counters.
+
+Important fields:
+
+- `_id`
+- `count`
+- `expiresAt`
+- `createdAt`
+- `updatedAt`
+
+## Integration And Idempotency Collections
 
 ### `stripe_webhook_events`
 
@@ -222,21 +279,45 @@ Tracks Stripe webhook processing state.
 
 Fields include:
 
-- `_id` as Stripe `event.id`
+- `_id` as the Stripe event ID
 - `type`
 - `status`
 - `attempts`
-- `createdAt`
 - `receivedAt`
-- `updatedAt`
 - `processedAt`
 - `lastError`
+- `createdAt`, `updatedAt`
 
 ### `transcription_webhook_events`
 
-Tracks Soniox and ElevenLabs callback processing state to prevent duplicate transcript handling and duplicate billing/usage side effects.
+Tracks Soniox and ElevenLabs callback processing state.
 
-The exact payload shape is operational rather than user-facing, but the collection exists specifically for webhook idempotency and retry safety.
+It exists specifically to prevent duplicate transcript application and duplicate usage side effects across webhook retries.
+
+Fields include:
+
+- `_id` as `<provider>:<recordingId>:<externalTranscriptionId>:<deliveryStatus>`
+- `provider`
+- `recordingId`
+- `externalTranscriptionId`
+- `deliveryStatus`
+- `status`
+- `attempts`
+- `receivedAt`
+- `processedAt`
+- `lastError`
+- `updatedAt`
+
+## Index And TTL Highlights
+
+The current init code creates:
+
+- unique indexes on `users.firebaseUid`, `recordings.r2Key`, and `plans.name`
+- contact uniqueness by `firebaseUid + phoneNumbers`
+- sort/filter indexes for recordings, contacts, notifications, logs, jobs, and incidents
+- TTL on completed async jobs after 30 days
+- TTL on webhook event history after 90 days
+- TTL on `rate_limit_buckets.expiresAt`
 
 ## Collection Summary
 
@@ -245,12 +326,15 @@ users
 recordings
 contacts
 plans
+export_jobs
+async_jobs
 system_settings
 announcements
-notifications
 admin_logs
-export_jobs
+notifications
+external_service_incidents
 support_messages
+rate_limit_buckets
 stripe_webhook_events
 transcription_webhook_events
 ```

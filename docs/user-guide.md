@@ -1,166 +1,191 @@
 # User Guide
 
-This guide explains the current day-to-day workflow for Call Memo users.
+This guide reflects the current user-facing workflow in the app.
 
-The main purpose of the app is to turn a messy collection of call recordings into a searchable archive. Instead of leaving recordings scattered across phone storage, copied folders, or old backups, users can keep the original audio, transcript, summary, timestamps, and search context together in one place.
+## Signing In
 
-## Sign In And Access
+- Email/password sign-in is supported through Firebase.
+- Google sign-in is supported when Firebase Google auth is enabled.
+- Successful sign-in creates a Firebase session and then syncs a server-side workspace session.
 
-- Users can sign in with email/password.
-- Google sign-in is available when Firebase Google auth is enabled.
-- Apple sign-in is present in the UI as a future option but is not active yet.
-- After login, the main workspace is centered around `Recordings`, `Contacts`, `Files`, `Upload`, `Settings`, and `Support`.
+Main authenticated areas:
+
+- `/recordings`
+- `/contacts`
+- `/files`
+- `/upload`
+- `/settings`
+- `/support`
+
+On Android inside Capacitor, the sidebar also includes `/android-sync`.
 
 ## Uploading Recordings
 
-1. Open `/upload`.
-2. Add one or more audio files to the queue.
-3. Review duplicates and queue status.
-4. Start the upload.
+The primary upload flow lives on `/upload`.
 
-What happens next:
+What happens during upload:
 
-- File bytes go directly from the client to Cloudflare R2.
-- The app finalizes the upload, creates the recording record, and can trigger auto-transcription.
-- Files stay visible in the queue with success or failure state, so retries do not require rebuilding the whole batch.
-- The goal is to make imports safe and repeatable, especially when users are moving old recordings out of phones or copied backup folders.
+1. The app validates the file name, MIME type, and size.
+2. The browser requests a signed R2 upload URL.
+3. File bytes go directly to Cloudflare R2.
+4. The app finalizes the upload, verifies the object and size, creates the recording, and optionally queues auto-transcription.
 
-Limits:
+If the filename contains a recognizable contact name, phone number, or timestamp, the uploader uses that to pre-fill the recording context and storage key.
 
-- Upload limit: `5 GiB` per file
-- Transcription limit: `2 GiB` per file
+Current limits:
 
-Files over the transcription limit still upload and remain available for playback.
+- maximum upload size: `5 GiB`
+- maximum transcription-eligible size: `2 GiB`
+- supported formats: `mp3`, `wav`, `m4a`, `mp4`, `webm`
 
-## Working With Recordings
+Files larger than the transcription limit still upload and remain playable.
 
-From `/recordings`, users can:
+## Recordings Workspace
 
-- Search by text query
-- Run semantic search
-- Filter by date and contact
-- Sort by date or duration
-- Save personal views in local storage
-- Use built-in smart collections like recent uploads or items that still need transcription
+`/recordings` is the main archive view. Users can:
 
-This is the main retrieval workflow in the product. Instead of scrolling through file names or listening to old calls one by one, users can search and narrow the archive until they reach the right recording.
+- browse and paginate recordings
+- filter by contact, date, duration, starred state, and archive state
+- search by text or semantic meaning
+- save custom views locally in the browser
+- apply built-in smart collections such as recent uploads, longest calls, and recordings that still need transcription
+- open a recording detail view
+- star, archive, and tag recordings
+- request manual transcription
+- generate signed share links
 
-Opening a recording shows:
+Recording detail state can include:
 
-- Secure playback
-- The original recording kept as the source file
-- Transcript and speaker segments when available
-- Summary output
-- Status for transcription processing
-- Share controls
-
-Users can also:
-
-- Star recordings
-- Archive recordings
-- Tag recordings
-- Manually trigger transcription on a recording
+- playback
+- transcript segments with speaker labels
+- summary
+- transliteration output when available
+- transcription provider metadata
+- sharing controls
 
 ## Sharing
 
-The share flow supports:
+The app supports signed public links under `/s/[token]`.
 
-- Full recording links
-- Optional clipped segments
-- Expiration windows of `1 hour`, `24 hours`, or `7 days`
+Users can create:
 
-Shared links open under `/s/[token]` and do not require the recipient to log in.
+- full-recording share links
+- clipped share links with optional start and end seconds
+
+Available expiration windows in the current action flow:
+
+- `1 hour`
+- `24 hours`
+- `7 days`
+
+Recipients do not need an account.
 
 ## Contacts
 
-The contacts workspace helps tie recordings back to people and companies.
+`/contacts` is the relationship-focused view of the archive.
 
 Users can:
 
-- Sync Google Contacts from Settings -> Data
-- Search the directory
-- Open a contact detail view
-- Jump directly into recordings linked to that contact
+- search contacts
+- open a contact detail page
+- review linked recordings for a person or company
+- sync Google Contacts from Settings
 
-Contact detail pages show:
-
-- Identity details
-- Company and role
-- Recent call timeline
-- Aggregated duration and tags
+Contact records track aggregate information such as total recordings and last recording date so the app can use contacts as an index into the archive. Google Contacts sync is started from Settings and then continues as a background job.
 
 ## Files
 
-The file browser at `/files` is a storage-oriented view of the library.
+`/files` shows a storage-oriented view derived from recording keys.
 
-Users can:
+Use it when you want to:
 
-- Browse folders and files
-- Inspect recording details from the file view
-- Delete files intentionally through the file browser workflow
+- browse the archive like a folder tree
+- inspect recordings from their storage path
+- clean up intentionally through the file browser workflow
 
-Use this when you want to reason about storage layout rather than search the main recordings table.
-
-This is especially useful when users imported large historical archives and want to understand how recordings are organized after upload.
+This is different from `/recordings`, which is optimized for retrieval and search. The file browser can also open a recording detail dialog or launch the single-item delete flow from the storage view.
 
 ## Settings
 
-The settings area includes these tabs:
+The current settings tabs are:
 
-- `Overview`: workspace stats and quick actions
-- `Profile`: name, email-linked identity, and password changes
-- `General`: timezone and general preferences
-- `Data`: Google sync, transcription defaults, retention policy, and exports
-- `Notifications`: digest and ingest-related notification preferences
-- `Billing`: subscription, usage, overage toggle, checkout, portal, and invoice history
+- `Profile`: name, password changes, and account details
+- `General`: timezone and general workspace preferences
+- `Sources`: Google Contacts connection state
+- `Processing`: auto-transcription, default provider, and model settings
+- `Retention`: usage review and automatic deletion policy
+- `Export`: archive export jobs and downloads
+- `Notifications`: digest and ingest preferences
+- `Billing`: plan, usage, invoices, portal, and checkout when billing is enabled
 
-Notable data settings:
+Notable settings behavior:
 
-- Auto-transcription on upload
-- Default transcription provider
-- Deletion policy: `never`, `3m`, `6m`, or `1y`
-- Export jobs with downloadable archive parts and an offline viewer
+- deletion policy values are `never`, `3m`, `6m`, and `1y`
+- export jobs create downloadable archive parts and an offline viewer
+- billing is hidden when `NEXT_PUBLIC_ENABLE_BILLING=false`
+- billing controls appear under the `Billing & Plans` panel title when enabled
 
-Exports are designed to stay usable outside the app. Instead of producing a flat unsorted dump, the export flow organizes recordings, transcripts, and metadata, and includes a viewer so users can browse history more easily offline.
+## Exports
+
+Exports are designed to stay useful outside the app.
+
+Each export job packages:
+
+- zipped archive parts stored in R2
+- recordings grouped by contact and date
+- JSON metadata
+- transcript text files
+- a `viewer.html` file for offline browsing
+
+Only one pending or processing export job is allowed per user at a time.
 
 ## Notifications
 
-The notification center surfaces:
+The notification center can show:
 
-- Upload and transcription outcomes
-- Export completion
-- Billing-related notices
-- Announcements
+- transcription completion or failure
+- upload outcomes
+- export completion
+- billing-related notices
+- announcements
 
-If web push is configured, users can also opt into browser push notifications.
+If VAPID keys are configured, users can also register browser push notifications.
 
 ## Billing
 
 When billing is enabled, users can:
 
-- Review their current plan
-- See storage and transcription usage
-- Enable or disable overage
-- Upgrade through Stripe Checkout
-- Open the Stripe customer portal
-- Review recent invoices
+- review the active plan
+- see storage and transcription usage
+- enable or disable overage
+- start Stripe Checkout
+- open the Stripe customer portal
+- review invoice history
 
-If billing is disabled through environment config, the billing tab is hidden.
+If billing is disabled for the deployment, these controls are not shown. Free and Free Trial users cannot enable pay-per-usage overage.
 
-## Private Hosting
+## Android Sync
 
-Some users may want to keep the application on their own server for stronger control over storage and data ownership.
+`/android-sync` is only functional inside the Capacitor Android app.
 
-- Individuals can purchase a self-hosted license for private deployment.
-- Teams can use private hosting arrangements when needed.
-- The hosted app and private deployments follow the same core workflow: archive recordings, generate transcript context, and make the library searchable.
+The flow lets users:
+
+- choose a device folder
+- scan nested files
+- filter and select pending items
+- upload selected recordings with the same direct-to-R2 pipeline used on the web
+- run foreground or background sync, depending on the device workflow
+
+When opened in a normal browser, the page explains that folder sync is Android-only and links users back to `/upload`.
 
 ## Support
 
-The support page provides:
+`/support` lets users submit a support request with:
 
-- A support message form backed by `/api/support`
-- Quick links to pricing and changelog pages
-- A direct email support action
+- name
+- email
+- subject
+- message
 
-Support requests are stored by the app and can also be forwarded by email when SMTP is configured.
+The request is stored in MongoDB. If support email delivery is configured, the app also queues outbound email delivery in the background.
+The route works for signed-in and signed-out visitors, but it enforces origin checks, rate limits, and a honeypot field.

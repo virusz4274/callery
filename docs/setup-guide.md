@@ -1,70 +1,53 @@
 # Setup Guide
 
-This guide is for getting Call Memo running locally or handing it to a new operator without reverse-engineering the current codebase.
+This guide documents the environment and service setup the current codebase expects.
 
-## What This Covers
-
-- Local development setup
-- Required and optional environment variables
-- Firebase, Google Contacts OAuth, Cloudflare R2, Gemini, Soniox, ElevenLabs, Stripe, push, and SMTP setup
-- Webhook and cron configuration
-- Verification steps for a healthy install
-
-## 1. Prerequisites
-
-Install locally:
+## Prerequisites
 
 - Node.js 20+
 - npm
 - MongoDB 6+ or MongoDB Atlas
-- Git
+- Firebase project
+- Cloudflare R2 bucket
 
-Accounts and services used by the app:
+Optional integrations:
 
-- Firebase and Google Cloud for authentication and Google Contacts sync
-- Cloudflare R2 for audio storage and exports
-- Gemini for summaries, transliteration, and embeddings
-- Soniox and/or ElevenLabs for transcription
-- Stripe for subscriptions and metered usage
-- Web Push VAPID keys for in-app/browser notifications
-- SMTP provider for support email delivery
+- Google Cloud OAuth + Google People API
+- Gemini
+- Soniox
+- ElevenLabs
+- Stripe
+- Web Push VAPID keys
+- SMTP provider
 
-## 2. Install The Project
+## Install
 
 ```bash
 git clone <repo-url>
 cd call-memo
 npm install
-```
-
-## 3. Required App Configuration
-
-Copy the tracked example file and then fill in the values for your environment:
-
-```bash
 cp .env.example .env
 ```
 
-`.env.example` is the canonical list of app-level environment variables used by the codebase. Keep local secrets in `.env`, and keep `service-account.json` local-only if you use the file-based Firebase Admin path.
+The tracked [.env.example](../.env.example) file is the canonical starting point. Fill in `.env` for your local or hosted environment, then initialize MongoDB:
 
-### Minimum variables for the app to boot
+```bash
+npx tsx src/lib/db/init.ts
+```
+
+## Required Environment Variables
+
+Minimum values for the app to boot and accept uploads:
 
 ```env
 NEXT_PUBLIC_APP_URL=http://localhost:9000
 MONGODB_URI=mongodb://localhost:27017/call-memo
-# MONGODB_CONNECTION_MODE=default
 
 NEXT_PUBLIC_FIREBASE_API_KEY=...
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
-# FIREBASE_AUTH_HELPER_ORIGIN=https://your-project.firebaseapp.com
-
-# Choose one Firebase Admin approach:
-# 1) service-account.json in repo root
-# 2) full JSON string below
-FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 
 R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=...
@@ -73,67 +56,168 @@ R2_BUCKET_NAME=...
 
 UPLOAD_SESSION_SECRET=...
 SHARE_LINK_SECRET=...
-GOOGLE_TOKEN_ENCRYPTION_KEY=...
 ```
 
 Notes:
 
-- `UPLOAD_SESSION_SECRET` secures upload finalization tokens.
-- `SHARE_LINK_SECRET` secures public share links.
-- `GOOGLE_TOKEN_ENCRYPTION_KEY` is required for Google Contacts refresh-token encryption at rest. Generate a high-entropy value such as `openssl rand -base64 32`.
-- `NEXTAUTH_SECRET` is only a legacy fallback in parts of the codebase and should not be your primary setting.
+- `APP_URL` is an optional server-side alias for `NEXT_PUBLIC_APP_URL`. The public URL helpers will use `APP_URL` first when it is present.
+- Firebase Admin credentials can come from a local `service-account.json` file or `FIREBASE_SERVICE_ACCOUNT`.
+- `GOOGLE_TOKEN_ENCRYPTION_KEY` is only required when Google Contacts sync is enabled.
+- `NEXTAUTH_SECRET` is only a legacy fallback for some token helpers and should not be the primary secret.
 
-### Strongly recommended optional variables
+## Recommended Variables
 
 ```env
-# AI
-GOOGLE_GENERATIVE_AI_API_KEY=...
-GEMINI_API_KEY=... # legacy fallback, optional
+NEXT_PUBLIC_ENABLE_BILLING=false
+NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+
 GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
 GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
 
-# Webhooks / cron / retention
-CRON_SECRET=...
 EXPORT_JOB_STALE_MINUTES=90
 EXPORT_INLINE_PROCESSING=false
 SOFT_DELETE_RESTORE_DAYS=30
-
-# UI toggles
-NEXT_PUBLIC_ENABLE_BILLING=true
-NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 ```
 
-### Optional integration variables
+Useful optional settings read by the current code:
+
+- `FIREBASE_AUTH_HELPER_ORIGIN`: explicit rewrite target for `/__/auth/*`
+- `CSP_REPORT_ONLY=true`: enables `Content-Security-Policy-Report-Only` instead of enforcement
+- `MONGODB_CONNECTION_MODE=fallback-first`: skips the SRV-first attempt for Atlas DNS trouble
+- `MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1`: custom DNS resolvers for the Mongo fallback path
+- `MOBILE_SYNC_SESSION_SECRET`: optional dedicated signing secret for Android mobile sync tokens; if omitted, the app falls back to the upload/share secret chain
+
+## Firebase Setup
+
+Call Memo uses Firebase Auth on the client and Firebase Admin on the server.
+
+1. Create a Firebase project.
+2. Add a web app and copy the web config into `.env`.
+3. Enable `Email/Password`.
+4. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
+5. Add local and production origins to Firebase Auth authorized domains.
+6. Generate a Firebase Admin service account and either:
+   - keep it in `service-account.json` locally, or
+   - store the JSON in `FIREBASE_SERVICE_ACCOUNT`
+
+If `FIREBASE_AUTH_HELPER_ORIGIN` or `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is configured, Next.js rewrites `/__/auth/*` to Firebase’s auth helper endpoint.
+
+## Google Contacts Setup
+
+Google Contacts sync is separate from Firebase sign-in.
+
+1. Enable `Google People API` in Google Cloud.
+2. Configure the OAuth consent screen.
+3. Create a web OAuth client.
+4. Add redirect URIs:
+   - `http://localhost:9000/api/auth/google/callback`
+   - `https://<your-domain>/api/auth/google/callback`
+5. Add `https://www.googleapis.com/auth/contacts.readonly`.
+6. Set:
 
 ```env
-# Google Contacts OAuth
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_ID=... # optional alternative source
+# GOOGLE_CLIENT_ID=...  # optional server-side alias
 GOOGLE_CLIENT_SECRET=...
 NEXT_PUBLIC_GOOGLE_REDIRECT_URI=http://localhost:9000/api/auth/google/callback
+GOOGLE_TOKEN_ENCRYPTION_KEY=...
+# GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION=v1
+```
 
-# Soniox
+The Google refresh token is encrypted before it is stored on the user document. Without `GOOGLE_TOKEN_ENCRYPTION_KEY`, the connect flow can authenticate but the sync state cannot be saved safely.
+
+## Cloudflare R2 Setup
+
+The app uploads media directly from the client to R2 using signed `PUT` URLs, then finalizes metadata server-side.
+
+Required settings:
+
+```env
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=...
+```
+
+Recommended CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["http://localhost:9000", "https://<your-domain>"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 86400
+  }
+]
+```
+
+The current uploader accepts `mp3`, `wav`, `m4a`, `mp4`, and `webm`. Files can be up to `5 GiB`; transcription is blocked for files over `2 GiB`.
+
+## AI And Transcription Providers
+
+Gemini powers summaries, transliteration, and embeddings:
+
+```env
+GOOGLE_GENERATIVE_AI_API_KEY=...
+GEMINI_MODEL_SUMMARY=gemini-2.0-flash-lite-preview-02-05
+GEMINI_MODEL_TRANSLITERATION=gemini-2.0-flash-lite-preview-02-05
+```
+
+Soniox:
+
+```env
 SONIOX_API_KEY=...
 SONIOX_API_BASE_URL=https://api.soniox.com
 SONIOX_MODEL_ID=stt-async-v3
 SONIOX_WEBHOOK_SECRET=...
+```
 
-# ElevenLabs
+ElevenLabs:
+
+```env
 ELEVENLABS_API_KEY=...
 ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
 ELEVENLABS_MODEL_ID=scribe_v2
 ELEVENLABS_WEBHOOK_SECRET=...
+```
 
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
+Notes:
+
+- Soniox and ElevenLabs are optional and can be enabled independently.
+- Manual and auto transcription switch to provider async webhook mode for recordings over `300 seconds` (`5 minutes`).
+- Auto-transcription is queued through the `async_jobs` collection.
+
+## Billing Setup
+
+Billing is disabled unless you set:
+
+```env
+NEXT_PUBLIC_ENABLE_BILLING=true
+STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+```
 
-# Web Push
+See [billing.md](billing.md) for the full Stripe setup. At a minimum you need:
+
+- Stripe prices that map to the `plans` collection
+- Stripe meters named `storage_usage_bytes` and `transcription_usage_seconds`
+- a webhook endpoint pointed at `/api/stripe/webhook`
+
+## Web Push And Support Email
+
+Web Push:
+
+```env
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 VAPID_CONTACT_EMAIL=admin@example.com
+```
 
-# Email / support
+SMTP-backed support delivery:
+
+```env
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -141,288 +225,79 @@ SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM="Call Memo <no-reply@example.com>"
 SUPPORT_EMAIL=support@example.com
-
-# Security policy rollout
-# Set to true in staging/preview if you want CSP violations reported without enforcing the policy yet.
-CSP_REPORT_ONLY=false
-
-# Atlas DNS fallback, only if needed
-MONGODB_CONNECTION_MODE=default
-MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```
 
-Important notes from the code audit:
+Support requests are always stored in MongoDB. When `SUPPORT_EMAIL` is set, the app also queues a `support_email` async job.
 
-- Use `ELEVENLABS_API_BASE_URL`. `ELEVENLABS_API_ENDPOINT` is not read by the current app code.
-- `NEXT_PUBLIC_APP_URL` should be set for any non-localhost deployment so generated share URLs, Google OAuth flows, and webhook metadata use the correct origin.
-- `FIREBASE_AUTH_HELPER_ORIGIN` is optional. If it is unset, the app falls back to `https://${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}` for the Firebase auth helper rewrite. If neither value is present, the rewrite is disabled entirely.
-- `FIREBASE_SERVICE_ACCOUNT` is only required if you are not using a local `service-account.json` file.
-- `MONGODB_CONNECTION_MODE=fallback-first` skips the slow SRV-first connection attempt and is useful on hosts with unstable Atlas DNS resolution.
-- Set `CSP_REPORT_ONLY=true` in staging or preview deployments while validating the Content Security Policy before turning on full enforcement.
+## Cron Routes
 
-## 4. Firebase Setup
-
-Firebase is used for client auth, session verification, and user identity.
-
-### 4.1 Create the Firebase project
-
-1. Open [Firebase Console](https://console.firebase.google.com/).
-2. Create a project.
-3. Add a web app and copy the web config values into `.env`.
-4. Create or reuse a Google OAuth web client ID and set `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
-
-### 4.2 Enable sign-in methods
-
-In Firebase Console:
-
-1. Go to `Authentication`.
-2. Enable `Email/Password`.
-3. Enable `Google` if you want Google sign-in on `/login` and `/signup`.
-4. Add your production domain and local dev host to Firebase Auth authorized domains.
-
-### 4.3 Create a Firebase Admin service account
-
-1. Open `Project settings` -> `Service accounts`.
-2. Generate a private key.
-3. Either:
-   - store it as `service-account.json` in the repo root for local development, or
-   - paste the JSON into `FIREBASE_SERVICE_ACCOUNT`.
-
-Do not commit real secrets.
-
-## 5. Google Contacts OAuth Setup
-
-Google Contacts sync is separate from Firebase sign-in. It uses Google People API and the callback route `/api/auth/google/callback`.
-
-1. Open [Google Cloud Console](https://console.cloud.google.com/) for the same project.
-2. Enable `Google People API`.
-3. Configure the OAuth consent screen.
-4. Add the scope:
-   - `https://www.googleapis.com/auth/contacts.readonly`
-5. Create an OAuth client ID for a web application.
-6. Add redirect URIs:
-   - Local: `http://localhost:9000/api/auth/google/callback`
-   - Production: `https://<your-domain>/api/auth/google/callback`
-7. Copy the client ID and secret into `.env`.
-
-## 6. Cloudflare R2 Setup
-
-R2 stores uploaded recordings and generated export archives.
-
-1. Create an R2 bucket.
-2. Create API credentials with read/write access.
-3. Copy endpoint, access key, secret key, and bucket name into `.env`.
-4. Add a lifecycle rule for export archives if you want automatic cleanup:
-   - Prefix: `exports/`
-   - Action: delete objects after 7 days
-
-### Required R2 CORS policy
-
-The upload flow sends file bytes directly from the client to R2. Add a CORS policy like this:
-
-```json
-[
-  {
-    "AllowedOrigins": [
-      "http://localhost:9000",
-      "https://<your-domain>"
-    ],
-    "AllowedMethods": [
-      "PUT",
-      "GET",
-      "HEAD"
-    ],
-    "AllowedHeaders": [
-      "Content-Type"
-    ],
-    "ExposeHeaders": [
-      "ETag"
-    ],
-    "MaxAgeSeconds": 86400
-  }
-]
-```
-
-### Upload limits enforced by the app
-
-- Upload limit: `5 GiB` per file
-- Transcription limit: `2 GiB` per file
-
-Files larger than `2 GiB` still upload and remain playable, but transcription is skipped or blocked.
-
-## 7. AI And Transcription Providers
-
-### Gemini
-
-Gemini is used for:
-
-- English call summaries
-- Transliteration output
-- Embeddings for semantic search
-
-Preferred env var:
-
-- `GOOGLE_GENERATIVE_AI_API_KEY`
-
-Legacy fallback still supported:
-
-- `GEMINI_API_KEY`
-
-### Soniox and ElevenLabs
-
-The app can use either provider as the default transcription engine. Users can pick a default provider in Settings -> Data.
-
-Set whichever providers you plan to use:
-
-- `SONIOX_*`
-- `ELEVENLABS_*`
-
-Each async provider also requires a webhook secret for callback verification.
-
-## 8. Stripe Setup
-
-Billing is optional. If you are not setting up Stripe yet, use:
-
-```env
-NEXT_PUBLIC_ENABLE_BILLING=false
-```
-
-If billing is enabled:
-
-1. Create the base plan prices you want to sell.
-2. Create two meters in Stripe:
-   - `storage_usage_bytes`
-   - `transcription_usage_seconds`
-3. Create usage-based prices tied to those meters.
-4. Configure the Stripe webhook endpoint:
-   - `POST /api/stripe/webhook`
-5. In `/admin/plans`, assign Stripe IDs to each plan document.
-
-Full billing details live in [billing.md](billing.md).
-
-## 9. Web Push Setup
-
-Web push enables the in-app/browser notification opt-in flow.
-
-Generate VAPID keys and set:
-
-- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
-- `VAPID_PRIVATE_KEY`
-- `VAPID_CONTACT_EMAIL`
-
-If these are missing, the notification UI still renders, but push subscription and delivery will not work.
-
-## 10. Support Email Setup
-
-`POST /api/support` always saves messages to MongoDB. If `SUPPORT_EMAIL` is configured, the route enqueues a durable background job that forwards support requests by email using the SMTP credentials in `.env`.
-
-## 11. Initialize MongoDB And Run The App
-
-Initialize collections, indexes, and seeded defaults:
-
-```bash
-npx tsx src/lib/db/init.ts
-```
-
-Then start development:
-
-```bash
-npm run dev
-```
-
-Local URL: `http://localhost:9000`
-
-Re-run `npx tsx src/lib/db/init.ts` after backend or index changes, especially when new collections or webhook idempotency indexes are added.
-
-## 12. Local Webhook Testing
-
-### Soniox
-
-- Endpoint: `POST /api/webhooks/soniox`
-- Required header: `X-Soniox-Secret`
-
-### ElevenLabs
-
-- Endpoint: `POST /api/webhooks/elevenlabs`
-- Required signature: `ElevenLabs-Signature`
-
-### Stripe
-
-Use the Stripe CLI locally:
-
-```bash
-stripe listen --forward-to localhost:9000/api/stripe/webhook
-```
-
-Register these Stripe event types:
-
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `checkout.session.async_payment_failed`
-- `checkout.session.expired`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `customer.subscription.paused`
-- `customer.subscription.resumed`
-- `customer.subscription.trial_will_end`
-- `customer.subscription.pending_update_applied`
-- `customer.subscription.pending_update_expired`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-- `invoice.payment_action_required`
-- `invoice.paid`
-- `invoice.voided`
-- `invoice.marked_uncollectible`
-- `customer.deleted`
-
-## 13. Production Cron Configuration
-
-The app exposes three protected cron routes:
+The current codebase exposes three cron endpoints:
 
 - `GET /api/cron/process-exports`
-- `GET /api/cron/cleanup-recordings`
 - `GET /api/cron/process-async-jobs`
+- `GET /api/cron/cleanup-recordings`
 
-They require:
+All three require:
 
 ```http
 Authorization: Bearer <CRON_SECRET>
 ```
 
-`vercel.json` currently schedules:
+Use:
 
-- `/api/cron/process-exports` every 5 minutes
-- `/api/cron/cleanup-recordings` daily at `03:00 UTC`
+```env
+CRON_SECRET=...
+```
 
-Recommended addition:
+`startExport()` can process inline in development or when `EXPORT_INLINE_PROCESSING=true`, but production should use the cron route.
+`GET /api/cron/process-async-jobs` drains auto-transcription, Google Contacts sync, and support-email jobs from `async_jobs`.
 
-- `/api/cron/process-async-jobs` every minute
+## Webhooks
 
-## 14. Verification Checklist
+Configure these endpoints only for providers you actually use:
 
-Confirm these before calling the setup healthy:
+- `POST /api/stripe/webhook`
+- `POST /api/webhooks/soniox`
+- `POST /api/webhooks/elevenlabs`
 
-1. Sign up works with email/password.
-2. Google sign-in works if enabled.
-3. Google Contacts sync completes if OAuth is configured.
-4. Uploading a recording stores the file in R2.
-5. Playback works from the recordings workspace.
-6. Uploading a recording queues transcription work and the async processor advances it through `pending`, `processing`, and `completed` or `failed`.
-7. Gemini summaries and semantic search work when Gemini is configured.
-8. Sharing generates a public signed link.
-9. Export jobs complete and produce a downloadable archive.
-10. Notifications appear in the notification center.
-11. Billing checkout and invoice history work if Stripe is enabled.
-12. Support form submissions appear in MongoDB and forward by email if SMTP is configured.
-13. `npm run audit:prod` reports no unexpected production dependency regressions before release. If the only remaining findings are the accepted low-severity `firebase-admin` transitive items, review [docs/dependency-review.md](/Users/virusz4274/development/call-memo/docs/dependency-review.md) before upgrading.
+Security:
 
-## 15. Useful Commands
+- Stripe uses `STRIPE_WEBHOOK_SECRET`
+- Soniox expects `X-Soniox-Secret`
+- ElevenLabs expects a valid `ElevenLabs-Signature`
+
+## Android Notes
+
+The Android wrapper loads the hosted app rather than bundling the full UI locally. Before testing on a device:
+
+1. Set the development `devUrl` in [capacitor.config.ts](../capacitor.config.ts) to a reachable LAN IP.
+2. Run `npm run dev`.
+3. Run `npm run cap:sync`.
+
+The Android-only sync flow also uses:
+
+- `POST /api/mobile/sync-session`
+- `POST /api/mobile/direct-upload/init`
+- `POST /api/mobile/direct-upload/complete`
+
+The sync session token returned by `/api/mobile/sync-session` is currently valid for `24 hours`.
+
+## Verification Checklist
+
+Run these before handing the environment to someone else:
 
 ```bash
-npm run dev
 npm run lint
 npm run typecheck
+npm test
 npm run build
-npm run cap:sync
 ```
+
+Then verify:
+
+- login works with Firebase
+- uploads can initialize and finalize against R2
+- MongoDB init completed without index errors
+- transcription providers and webhooks work when configured
+- cron endpoints accept `CRON_SECRET`
+- support requests create MongoDB records

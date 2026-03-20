@@ -24,8 +24,8 @@ export async function ensureUserProfile(
     }
 
     let planName = 'Free Trial';
-    let storageAllocation = 5 * 1024 * 1024 * 1024;
-    let transcriptionAllocation = 3600;
+    let storageAllocation = 100 * 1024 * 1024;
+    let transcriptionAllocation = 10 * 60;
 
     if (settings?.defaultPlanId) {
         const defaultPlan = await getPlanById(settings.defaultPlanId);

@@ -15,8 +15,9 @@ if (!process.env.R2_BUCKET_NAME) {
 }
 
 export const r2Client = new S3Client({
-    region: 'auto',
+    region: process.env.R2_REGION || 'auto',
     endpoint: process.env.R2_ENDPOINT,
+    forcePathStyle: process.env.R2_FORCE_PATH_STYLE === 'true',
     credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,

@@ -1,13 +1,8 @@
 # Stripe Billing Verification Reference
 
-Last reviewed: 2026-03-13
+This file is a focused verification map for the Stripe integration in this repo. It is intentionally narrower than Stripe’s full documentation and should be updated when the app’s billing behavior changes.
 
-This project should not vendor full Stripe documentation into the repository.
-Stripe docs are living documentation and can change independently of this codebase.
-
-Instead, use this file as the stable verification map for the Stripe billing integration in this app.
-
-## Pinned API version
+## Pinned API Version
 
 The app currently pins Stripe to:
 
@@ -17,110 +12,79 @@ Source:
 
 - `src/lib/stripe.ts`
 
-## Official Stripe sources
-
-Use these official docs when verifying billing behavior:
-
-- Checkout Sessions create: https://docs.stripe.com/api/checkout/sessions/create
-- Customer Portal Sessions create: https://docs.stripe.com/api/customer_portal/sessions
-- List invoices: https://docs.stripe.com/api/invoices/list
-- Subscription object: https://docs.stripe.com/api/subscriptions/object
-- Stripe webhooks: https://docs.stripe.com/webhooks
-- Create billing meter event: https://docs.stripe.com/api/billing/meter-event/create
-- Create/configure meters: https://docs.stripe.com/billing/subscriptions/usage-based/meters/create
-- Changelog for subscription-level period removal: https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end
-
-## App verification map
-
-### Checkout
-
-Relevant app code:
+## Relevant App Code
 
 - `src/app/api/stripe/checkout/route.ts`
-
-What to verify:
-
-- Subscription plans use Checkout `mode=subscription`.
-- One-time plans use Checkout `mode=payment`.
-- One-time plans enable `invoice_creation.enabled=true` so they can appear in invoice history.
-- Success and cancel URLs remain same-origin.
-- Metadata/client reference link the Checkout Session back to the local user.
-
-### Customer portal
-
-Relevant app code:
-
 - `src/app/api/stripe/portal/route.ts`
-
-What to verify:
-
-- Portal sessions are created with a valid Stripe customer.
-- The return URL is same-origin and points back into the app.
-- Portal configuration in Stripe Dashboard matches the product behavior you want to allow.
-
-### Invoices
-
-Relevant app code:
-
 - `src/app/api/stripe/invoices/route.ts`
-- `src/app/actions/admin/users/queries.ts`
-
-What to verify:
-
-- User invoice history is read with `customer=<stripeCustomerId>`.
-- One-time Checkout purchases that should appear as invoices use Checkout invoice creation.
-
-### Subscription sync
-
-Relevant app code:
-
+- `src/app/api/stripe/webhook/route.ts`
+- `src/lib/stripe/customer.ts`
 - `src/lib/stripe/sync.ts`
-- `src/lib/access-control-common.ts`
-
-What to verify:
-
-- Billing period end is derived from subscription items, not deprecated top-level subscription period fields.
-- `cancel_at_period_end=true` is not treated as fully canceled before the period actually ends.
-- Access restrictions only apply after Stripe’s subscription status and billing period end actually require it.
-- Metered subscription items required by the selected plan exist on the subscription.
-
-### Metered billing
-
-Relevant app code:
-
 - `src/lib/stripe/usage.ts`
 
-What to verify:
-
-- Storage meter uses the app’s peak-for-period model and is configured in Stripe to aggregate as `Last`.
-- Transcription meter uses incremental events and is configured in Stripe to aggregate as `Sum`.
-- Meter event payload keys match the Stripe meter configuration.
-- If retry safety becomes important, add a stable `identifier` for meter events.
-
-### Webhooks
-
-Relevant app code:
-
-- `src/app/api/stripe/webhook/route.ts`
+## Checkout
 
 What to verify:
 
-- Webhook signature verification uses the raw request body.
-- The endpoint is subscribed to every event type the app expects.
-- Event processing is idempotent in MongoDB and safe to retry.
+- billing-disabled deployments return `403`
+- the selected plan can be found by `priceId` or `planName`
+- duplicate active subscriptions are blocked before Checkout starts
+- the route derives Checkout `mode` from the Stripe price type
+- lifetime plans only use one-time prices
+- success and cancel URLs stay same-origin
+- one-time purchases enable invoice creation
+- checkout metadata links the Stripe session back to the local user
 
-## Recommended workflow
+## Customer Portal
 
-When re-auditing Stripe billing:
+What to verify:
 
-1. Check `src/lib/stripe.ts` for the pinned API version.
-2. Re-open the official Stripe docs above.
-3. Verify the app code against those docs.
-4. Update this file with any new Stripe behavior changes that affect the app.
+- the route authenticates the current user
+- a Stripe customer is created on demand if missing
+- the return URL is same-origin and points back into the app
 
-## Why not save the full docs?
+## Invoices
 
-- They will go stale.
-- They create unnecessary repo noise.
-- The official Stripe docs are already the source of truth.
-- A focused verification map is easier to maintain than a mirrored documentation dump.
+What to verify:
+
+- invoices are listed with `customer=<stripeCustomerId>`
+- the route handles users with no Stripe customer by returning an empty list
+- one-time purchases that should appear in history use Checkout invoice creation
+
+## Subscription Sync
+
+What to verify:
+
+- subscription status changes update the user record
+- billing period boundaries come from the synced Stripe data
+- canceled-at-period-end behavior does not remove access too early
+- the selected plan’s metered Stripe price IDs are present where required
+
+## Metered Usage
+
+What to verify:
+
+- storage events use `storage_usage_bytes`
+- transcription events use `transcription_usage_seconds`
+- storage reports the period peak, not deltas
+- transcription reports weighted seconds after rounding up to `15-second` blocks
+- Stripe meter values are sent as whole numbers
+- identifiers are stable enough to reduce duplicate reporting risk
+- enabling overage seeds a baseline storage event for the current period
+
+## Webhooks
+
+What to verify:
+
+- raw-body signature verification is used
+- the webhook endpoint is subscribed to every event type the app expects
+- event processing is idempotent in MongoDB
+- retrying the same event does not duplicate side effects
+- `checkout.session.expired`, `customer.subscription.pending_update_applied`, and `customer.subscription.pending_update_expired` are included in the endpoint subscription set
+
+## Suggested Re-Verification Workflow
+
+1. Review the files listed above.
+2. Reconfirm the pinned API version in `src/lib/stripe.ts`.
+3. Re-run the key checkout, portal, invoice, webhook, and overage flows in Stripe test mode.
+4. Update this document if the app’s billing behavior changes.
