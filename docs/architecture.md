@@ -159,7 +159,7 @@ src/scripts/            Backfill and repair scripts
 - Provider webhooks require secrets or signature validation.
 - Cron routes require `Authorization: Bearer <CRON_SECRET>`.
 - Support submissions enforce origin checks, a honeypot field, and IP-based rate limiting.
-- Next.js responses include security headers and optional CSP report-only mode.
+- Next.js responses include security headers. A Content Security Policy is applied in production, either in enforced mode (`Content-Security-Policy`) or report-only mode (`Content-Security-Policy-Report-Only`) based on the `CSP_REPORT_ONLY` env flag. Vercel preview deployments automatically use report-only mode. The CSP directives and mode logic live in `src/lib/firebase-auth-helper-config.ts`.
 
 ## Deployment Notes
 

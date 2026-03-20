@@ -365,6 +365,15 @@ NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 CSP_REPORT_ONLY=false
 ```
 
+> [!NOTE]
+> **`CSP_REPORT_ONLY`** controls how the Content Security Policy header behaves in production:
+> - **`false`** (recommended for production) — the browser **enforces** the policy and **blocks** any requests, scripts, or resources that violate it. This protects against XSS and data-injection attacks.
+> - **`true`** — the browser sends the policy as `Content-Security-Policy-Report-Only`, which **logs** violations to the browser console but **does not block** them. Use this when first deploying to test that the CSP rules don't accidentally break legitimate app functionality.
+>
+> On **Vercel preview and development deployments** (`VERCEL_ENV` is not `production`), report-only mode is automatically enabled regardless of this setting, so previews are never blocked by CSP.
+>
+> This setting has no effect in local development (`NODE_ENV !== 'production'`), where CSP headers are not sent at all.
+
 ### Step 10: Error Tracking with Sentry (Optional)
 
 Sentry captures runtime errors and performance data so you can diagnose production issues. This integration is **completely optional** — the app works perfectly without it.

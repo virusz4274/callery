@@ -49,8 +49,11 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
+      // TODO: Once all file uploads go directly to Cloudflare R2 (bypassing the server),
+      // this limit can be reduced significantly (e.g. 1mb) since only form data will pass through.
       bodySizeLimit: '20mb',
     },
+    // TODO: Same as above — reduce once server-proxied uploads are removed.
     proxyClientMaxBodySize: '20mb',
   },
 
