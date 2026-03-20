@@ -45,7 +45,7 @@ export function AppHeader({
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center gap-2">
             <Logo className="h-8 w-8 text-primary" />
-            <span className="font-bold text-xl tracking-tight hidden xs:block">VoSift</span>
+            <span className="font-bold text-xl tracking-tight hidden xs:block">vosift</span>
           </Link>
         </div>
 

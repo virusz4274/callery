@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
         data = { body: event.data.text() };
     }
 
-    const title = data.title || 'VoSift';
+    const title = data.title || 'vosift';
     const options = {
         body: data.body || data.message || 'New notification',
         icon: data.icon || '/icons/android-chrome-192x192.png',

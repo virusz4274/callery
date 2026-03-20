@@ -7,7 +7,7 @@ const devUrl = 'http://10.0.0.169:9000';
 
 const config: CapacitorConfig = {
   appId: 'com.coarde.vosift',
-  appName: 'Vosift',
+  appName: 'vosift',
   webDir: 'public',
 
   // Load the app from remote server (keeps Server Actions working)

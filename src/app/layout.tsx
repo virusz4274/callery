@@ -16,13 +16,13 @@ import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'VoSift',
+  title: 'vosift',
   description: 'Organize call recordings with transcripts, summaries, speaker labels, timestamps, and semantic search.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'VoSift',
+    title: 'vosift',
   },
   icons: {
     icon: '/icons/android-chrome-192x192.png',

@@ -1,6 +1,6 @@
-# Call Memo (VoSift)
+# vosift
 
-Call Memo is a Next.js 16 application for turning scattered call recordings into a searchable archive. The app keeps the original audio, transcript, summary, speaker labels, timestamps, and search context together so users can find important conversations again without digging through folders.
+vosift is a Next.js 16 application for turning scattered call recordings into a searchable archive. The app keeps the original audio, transcript, summary, speaker labels, timestamps, and search context together so users can find important conversations again without digging through folders.
 
 ## Current Product Scope
 
@@ -43,7 +43,7 @@ cp .env.example .env
 4. Initialize MongoDB collections, indexes, plans, and default system settings:
 
 ```bash
-npx tsx src/lib/db/init.ts
+npm run db:init
 ```
 
 5. Start the app:
@@ -58,6 +58,7 @@ Local URL: [http://localhost:9000](http://localhost:9000)
 
 - [Documentation Index](docs/README.md)
 - [Setup Guide](docs/setup-guide.md)
+- [Firebase Cutover Runbook](docs/firebase-cutover.md)
 - [User Guide](docs/user-guide.md)
 - [Admin Guide](docs/admin-guide.md)
 - [Architecture](docs/architecture.md)

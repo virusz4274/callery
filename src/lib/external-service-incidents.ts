@@ -170,11 +170,11 @@ async function notifyAdminsAboutIncident(incident: ExternalServiceIncident): Pro
         .map((admin) =>
             sendEmail({
                 to: admin.email,
-                subject: `[Call Memo] Service incident: ${incident.service} ${severityLabel}`,
+                subject: `[vosift] Service incident: ${incident.service} ${severityLabel}`,
                 html: `
                     <h2>Service incident detected</h2>
                     <p>Hello ${escapeHtml(admin.firstName || admin.name || 'Admin')},</p>
-                    <p>An external service incident was recorded in Call Memo.</p>
+                    <p>An external service incident was recorded in vosift.</p>
                     <ul>
                         <li><strong>Service:</strong> ${escapedService}</li>
                         <li><strong>Operation:</strong> ${escapedOperation}</li>

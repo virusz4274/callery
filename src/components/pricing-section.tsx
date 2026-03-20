@@ -516,7 +516,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
               Own your own data
             </div>
             <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
-              Keep VoSift on your own server when the archive needs private hosting.
+              Keep vosift on your own server when the archive needs private hosting.
             </h3>
             <p className="max-w-3xl text-sm leading-6 text-default-600">
               Individuals can purchase a self-hosted license for{' '}

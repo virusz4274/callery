@@ -23,7 +23,7 @@ export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDi
                         <Modal.Body>
                             <div className="space-y-4">
                                 <p className="text-default-500">
-                                    Connecting your Google account allows CallMemo to sync your contacts and better identify callers.
+                                    Connecting your Google account allows vosift to sync your contacts and better identify callers.
                                 </p>
                                 <div className="rounded-lg bg-default-100 p-4 text-sm text-default-600">
                                     <p className="mb-2 font-medium">We will only access:</p>
