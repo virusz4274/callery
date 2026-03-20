@@ -122,7 +122,7 @@ Notable settings behavior:
 
 - deletion policy values are `never`, `3m`, `6m`, and `1y`
 - export jobs create downloadable archive parts and an offline viewer
-- billing is hidden when `NEXT_PUBLIC_ENABLE_BILLING=false`
+- billing is hidden unless `NEXT_PUBLIC_ENABLE_BILLING=true`
 - billing controls appear under the `Billing & Plans` panel title when enabled
 
 ## Exports

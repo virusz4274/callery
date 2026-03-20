@@ -253,7 +253,7 @@ async function handleStripeCustomerDeleted(customerId: string) {
 }
 
 export async function POST(req: NextRequest) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
         return new NextResponse('Billing disabled', { status: 200 });
     }
 

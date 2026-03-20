@@ -183,6 +183,9 @@ You should now have the minimum necessary values filled out in your `.env` file 
    ```env
    ADMIN_BOOTSTRAP_EMAILS=your.email@example.com
    ```
+
+   > [!WARNING]
+   > **Security Note:** Currently, anyone who signs up with an email listed here can be granted admin access, even if their email is not yet verified in Firebase. It is recommended to remove your email from this list once you have successfully signed up and confirmed your admin status.
 2. **Initialize the Database:**
    In your terminal, run the following command to set up the default collections and settings in MongoDB:
    ```bash

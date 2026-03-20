@@ -25,7 +25,7 @@ Plan seeds live in `src/lib/db/init/seed.ts`.
 | `free-trial` | Free Trial | monthly | `0 USD` | `100 MiB` | `10 min` | default plan |
 | `standard` | Standard | monthly | `10 USD` | `2 GiB` | `60 min` | paid recurring plan |
 | `pro` | Pro | monthly | `20 USD` | `5 GiB` | `120 min` | paid recurring plan |
-| `lifetime` | Lifetime | lifetime | `299 USD` | `0` | `0` | one-time purchase, overage-based usage |
+| `lifetime` | Lifetime | lifetime | `250 USD` | `0` | `0` | one-time purchase, metered overage subscription bills usage |
 | `internal` | Internal | lifetime | `0 USD` | `1 TiB` | `99999 min` | internal/unrestricted seed |
 | `custom` | Custom | yearly | `0 USD` | `0` | `0` | custom enterprise-style seed |
 
@@ -83,7 +83,19 @@ The Stripe client is pinned to API version:
 
 ## Required Stripe Objects
 
-Create Stripe prices for the plans you want to sell and map them into the `plans` collection:
+Create Stripe prices for the plans you want to sell and map them into the `plans` collection.
+
+Price expectations by field:
+
+- `stripePriceId`: the plan's main Stripe Price ID
+  - Standard/Pro: recurring (fixed) base price
+  - Lifetime: one-time price (`mode=payment` checkout)
+- `stripeStoragePriceId`: recurring metered price for `storage_usage_bytes`
+- `stripeTranscriptionPriceId`: recurring metered price for `transcription_usage_seconds`
+
+Each plan can use different metered prices if you want different overage rates per plan.
+
+Map the IDs into MongoDB `plans` documents:
 
 - `stripePriceId`
 - `stripeStoragePriceId`
@@ -98,6 +110,11 @@ Recommended aggregation:
 
 - storage: `Last`
 - transcription: `Sum`
+
+Lifetime usage billing:
+
+- Lifetime is a one-time purchase, but the app creates a separate metered Stripe subscription after purchase so Stripe can invoice usage.
+- For Lifetime to bill usage, `stripeStoragePriceId` and `stripeTranscriptionPriceId` must be set on the `lifetime` plan.
 
 ## Checkout And Portal
 
@@ -173,7 +190,7 @@ Useful test cards:
 
 ## Troubleshooting
 
-- `Billing is disabled on this instance.`: `NEXT_PUBLIC_ENABLE_BILLING` is false.
+- `Billing is disabled on this instance.`: `NEXT_PUBLIC_ENABLE_BILLING` is not `true`.
 - Checkout says the plan is invalid: the plan is inactive or `stripePriceId` is empty.
 - Portal failures: the user is missing a valid Stripe customer.
 - `Pay Per Usage cannot be enabled on Free Trial.`: the current plan key is `free-trial`.

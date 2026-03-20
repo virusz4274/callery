@@ -40,7 +40,7 @@ function resolveSafeReturnUrl(
 }
 
 export async function POST(req: NextRequest) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
         return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
     }
 
