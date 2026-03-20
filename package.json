@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev -p 9000",
     "build": "NODE_ENV=production next build --webpack",
-    "start": "next start -p 9000",
+    "start": "PORT=9000 node .next/standalone/server.js",
     "db:init": "tsx src/lib/db/init.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

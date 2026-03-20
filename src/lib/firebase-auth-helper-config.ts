@@ -1,6 +1,6 @@
-import { env as validatedEnv } from '@/lib/env';
+import { env as validatedEnv } from './env';
 
-type EnvPrimitive = string | boolean | undefined;
+type EnvPrimitive = string | boolean | number | undefined;
 
 type EnvLike = Partial<typeof validatedEnv> & {
     FIREBASE_AUTH_HELPER_ORIGIN?: string;
@@ -13,9 +13,15 @@ const DEFAULT_CSP_DIRECTIVES: Record<string, string[]> = {
     objectSrc: ["'none'"],
     baseUri: ["'self'"],
     frameAncestors: ["'none'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://www.gstatic.com'],
+    scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://www.gstatic.com', 'https://apis.google.com', 'https://static.cloudflareinsights.com'],
     styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://placehold.co'],
+    imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://lh3.googleusercontent.com",
+        "https://*.googleusercontent.com",
+    ],
     connectSrc: [
         "'self'",
         'https://api.stripe.com',
