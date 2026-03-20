@@ -1,6 +1,12 @@
 import { env as validatedEnv } from '@/lib/env';
 
-type EnvLike = Partial<typeof validatedEnv> & Record<string, string | undefined>;
+type EnvPrimitive = string | boolean | undefined;
+
+type EnvLike = Partial<typeof validatedEnv> & {
+    FIREBASE_AUTH_HELPER_ORIGIN?: string;
+    VERCEL_ENV?: string;
+    [key: string]: EnvPrimitive;
+};
 
 const DEFAULT_CSP_DIRECTIVES: Record<string, string[]> = {
     defaultSrc: ["'self'"],
@@ -42,6 +48,10 @@ function unique(values: string[]): string[] {
     return Array.from(new Set(values));
 }
 
+function readBooleanFlag(value: EnvPrimitive): boolean {
+    return value === true || value === 'true';
+}
+
 export function getFirebaseAuthHelperOrigin(env: EnvLike = validatedEnv): string | null {
     const explicitOrigin = normalizeOrigin(env.FIREBASE_AUTH_HELPER_ORIGIN);
     if (explicitOrigin) {
@@ -74,7 +84,7 @@ export function isCspReportOnlyMode(env: EnvLike = validatedEnv): boolean {
         return false;
     }
 
-    if (env.CSP_REPORT_ONLY === 'true') {
+    if (readBooleanFlag(env.CSP_REPORT_ONLY)) {
         return true;
     }
 

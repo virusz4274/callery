@@ -2,7 +2,7 @@
  * @fileoverview API Pattern Documentation
  * 
  * This documents the patterns used for data fetching and mutations
- * in the vosift application.
+ * in the Callery application.
  * 
  * @module docs/api-patterns
  */

@@ -1,6 +1,6 @@
-# vosift
+# Callery
 
-vosift is a Next.js 16 application for turning scattered call recordings into a searchable archive. The app keeps the original audio, transcript, summary, speaker labels, timestamps, and search context together so users can find important conversations again without digging through folders.
+Callery is a Next.js 16 application for turning scattered call recordings into a searchable archive. The app keeps the original audio, transcript, summary, speaker labels, timestamps, and search context together so users can find important conversations again without digging through folders.
 
 ## Current Product Scope
 

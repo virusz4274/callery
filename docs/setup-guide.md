@@ -1,6 +1,6 @@
 # Setup Guide (Step-by-Step)
 
-Welcome to Vosift! This guide is written for anyone—whether you are an experienced developer or a complete beginner—to comfortably get this application up and running on your local machine. 
+Welcome to Callery! This guide is written for anyone—whether you are an experienced developer or a complete beginner—to comfortably get this application up and running on your local machine. 
 
 By following these instructions step-by-step, you will create the necessary free accounts, fill in your secret keys, and start the app.
 
@@ -22,7 +22,7 @@ First, you need to download the code to your computer and install the necessary 
 2. Clone the repository and move into its folder:
    ```bash
    git clone <repo-url>
-   cd Vosift
+   cd Callery
    ```
 3. Install the application dependencies:
    ```bash
@@ -36,7 +36,7 @@ First, you need to download the code to your computer and install the necessary 
 You will spend most of this guide replacing the placeholder values on the right side of the equals sign (`=`) inside the new `.env` file you just created.
 
 > [!IMPORTANT]
-> Vosift now validates environment variables strictly at startup and build time. Do not delete required keys or leave them commented out. If you are not ready to configure an integration yet, leave the key present and keep a placeholder value such as `replace-me` until you wire the real service.
+> Callery now validates environment variables strictly at startup and build time. Do not delete required keys or leave them commented out. If you are not ready to configure an integration yet, leave the key present and keep a placeholder value such as `replace-me` until you wire the real service.
 
 **Generate Random Secrets:**
 In your `.env` file, there are three keys that just need a random, secure string of text:
@@ -54,7 +54,7 @@ You can use a password generator or run `openssl rand -hex 32` in your terminal 
 
 ## Step 2: Database (MongoDB Atlas)
 
-Vosift uses MongoDB to store data. The easiest way to get a database is using MongoDB's free tier.
+Callery uses MongoDB to store data. The easiest way to get a database is using MongoDB's free tier.
 
 **How to set it up:**
 1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) and sign up for a free account.
@@ -68,7 +68,7 @@ Vosift uses MongoDB to store data. The easiest way to get a database is using Mo
 **Update your `.env` file:**
 Paste your connection string into your `.env` file:
 ```env
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/vosift
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/callery
 MONGODB_CONNECTION_MODE=default
 ```
 
@@ -76,7 +76,7 @@ MONGODB_CONNECTION_MODE=default
 
 ## Step 3: Authentication (Firebase)
 
-Vosift uses Firebase to handle user logins securely. You get this for free with a Google account.
+Callery uses Firebase to handle user logins securely. You get this for free with a Google account.
 
 **How to set it up:**
 1. Go to the [Firebase Console](https://console.firebase.google.com/) and click **Add project**.
@@ -125,10 +125,10 @@ Recordings are stored in Cloudflare R2, which offers generous free storage.
 **How to set it up:**
 1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/sign-up) and create an account.
 2. In the left menu, click **R2**. (You may need to add a payment method, but they won't charge you for the free tier).
-3. Click **Create bucket**. Name it whatever you like (e.g., `vosift-audio`) and click **Create bucket**.
+3. Click **Create bucket**. Name it whatever you like (e.g., `callery-audio`) and click **Create bucket**.
 4. Go back to the main R2 page. Look to the right side and click **Manage R2 API Tokens**.
 5. Click **Create API token**. 
-   - Give it a name like `Vosift App`.
+   - Give it a name like `Callery App`.
    - Set Permissions to **Object Read & Write**.
    - Click **Create API Token**.
 6. Cloudflare will show you your Access Key ID, Secret Access Key, and your specific Endpoint URL.
@@ -139,7 +139,7 @@ Paste the credentials into your `.env` file:
 R2_ENDPOINT=https://<your-account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-access-key
-R2_BUCKET_NAME=vosift-audio
+R2_BUCKET_NAME=callery-audio
 R2_REGION=auto
 R2_FORCE_PATH_STYLE=false
 ```
@@ -205,7 +205,7 @@ Before starting the app, make sure every required key in `.env` still exists and
 4. **Login:**
    Open your browser and navigate to [http://localhost:9000](http://localhost:9000). Click Sign up, and use the exact email address you put in `ADMIN_BOOTSTRAP_EMAILS`. You will now have administrative access.
 
-**Congratulations! Your Vosift app is now successfully running.**
+**Congratulations! Your Callery app is now successfully running.**
 
 ---
 
@@ -215,7 +215,7 @@ These services unlock important product features. The current env validator stil
 
 ### Step 6: Google Contacts Sync
 
-To allow users to synchronize their contacts with Vosift, you need to configure the Google People API.
+To allow users to synchronize their contacts with Callery, you need to configure the Google People API.
 **CRITICAL:** This *must* be done inside the **same Google Cloud Project** that you created for Firebase in Step 3. Creating a new, separate project will break authentication.
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
@@ -224,7 +224,15 @@ To allow users to synchronize their contacts with Vosift, you need to configure 
 4. In the left-hand menu, click **APIs & Services**, then **OAuth consent screen**.
    - Select **External** (or Internal if you have a Google Workspace) and click Create.
    - Fill in the required standard app details (App name, Support email) and save.
-   - You don't need to add specific scopes here right now. Click Save and Continue through the setup.
+   - Under the **Scopes** section, click **Add or Remove Scopes**.
+   - In the "Manually add scopes" box at the bottom, paste: `https://www.googleapis.com/auth/contacts.readonly`
+   - Click **Add to Table**, then click **Update** at the bottom of the drawer.
+   - Scroll to the bottom and click **Save and Continue**.
+   
+   > [!NOTE]
+   > The `contacts.readonly` scope is the only one required for Callery's contacts synchronization. 
+   > - **Firebase Auth:** Handles its own scopes (`email`, `profile`, `openid`) automatically within its own setup.
+   > - **Gemini AI:** Uses an API key and does not require manual OAuth scope configuration.
 5. In the left-hand menu, click **Credentials**.
    - Click **Create Credentials** at the top, and select **OAuth client ID**.
    - Application Type: **Web application**.
@@ -251,7 +259,7 @@ GOOGLE_TOKEN_ENCRYPTION_KEY=your-random-encryption-key
 
 ### Step 7: AI and Transcription Providers
 
-Vosift uses AI for intelligent meeting summaries, audio transcription, and document transliteration.
+Callery uses AI for intelligent meeting summaries, audio transcription, and document transliteration.
 
 #### Gemini (Summaries & Transliteration)
 1. Go to [Google AI Studio](https://aistudio.google.com/).
@@ -331,7 +339,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-smtp-user
 SMTP_PASS=your-smtp-password
-SMTP_FROM="vosift <no-reply@example.com>"
+SMTP_FROM="Callery <no-reply@example.com>"
 SUPPORT_EMAIL=support@example.com
 
 CRON_SECRET=your-random-cron-secret
@@ -344,7 +352,7 @@ CSP_REPORT_ONLY=false
 
 ### Step 10: Custom Firebase Auth Domain (Optional Proxy)
 
-If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Vosift has a built-in Next.js proxy to seamlessly hide it behind your own domain.
+If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Callery has a built-in Next.js proxy to seamlessly hide it behind your own domain.
 
 1. Go to Firebase Console -> **Authentication** -> **Settings** -> **Authorized domains**.
 2. Click **Add domain** and type your live custom domain (e.g., `yourwebsite.com`).

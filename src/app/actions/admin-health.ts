@@ -289,10 +289,10 @@ export async function sendAdminTestEmail(recipient?: string) {
     const sentAt = new Date();
     const response = await sendEmail({
         to: parsed.data,
-        subject: '[vosift] Admin test email',
+        subject: '[Callery] Admin test email',
         html: `
             <h2>Admin test email</h2>
-            <p>This email confirms SMTP notifications are working from the vosift admin console.</p>
+            <p>This email confirms SMTP notifications are working from the Callery admin console.</p>
             <ul>
                 <li><strong>Triggered by:</strong> ${admin.email}</li>
                 <li><strong>Sent to:</strong> ${parsed.data}</li>

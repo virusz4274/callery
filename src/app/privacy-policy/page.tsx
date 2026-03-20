@@ -5,7 +5,7 @@ const sections = [
   {
     title: '1. Introduction',
     content: [
-      'vosift ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.',
+      'Callery ("we", "our", "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.',
       'By using the Service, you agree to the collection and use of information in accordance with this policy.',
     ],
   },

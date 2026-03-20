@@ -1,4 +1,4 @@
-package com.coarde.vosift;
+package com.coarde.callery;
 
 import android.app.Notification;
 import android.app.NotificationChannel;

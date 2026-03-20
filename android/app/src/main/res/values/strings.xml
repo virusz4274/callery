@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">vosift</string>
-    <string name="title_activity_main">vosift</string>
-    <string name="package_name">com.coarde.vosift</string>
-    <string name="custom_url_scheme">com.coarde.vosift</string>
+    <string name="app_name">Callery</string>
+    <string name="title_activity_main">Callery</string>
+    <string name="package_name">com.coarde.callery</string>
+    <string name="custom_url_scheme">com.coarde.callery</string>
 </resources>

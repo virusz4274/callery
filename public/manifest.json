@@ -1,7 +1,7 @@
 {
-    "name": "vosift",
-    "short_name": "vosift",
-    "description": "vosift - Search deeper than words. Managing, transcribing, and organizing phone call recordings.",
+    "name": "Callery",
+    "short_name": "Callery",
+    "description": "Callery: Call Archive & AI Search. The Professional Gallery for your Voice Recordings.",
     "id": "/",
     "start_url": "/",
     "scope": "/",

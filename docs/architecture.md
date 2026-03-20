@@ -1,6 +1,6 @@
 # Architecture
 
-Call Memo is a Next.js 16 App Router application for ingesting, organizing, transcribing, searching, exporting, and sharing recorded conversations.
+Callery is a Next.js 16 App Router application for ingesting, organizing, transcribing, searching, exporting, and sharing recorded conversations.
 
 ## Stack
 

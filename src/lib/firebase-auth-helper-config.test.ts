@@ -53,7 +53,7 @@ test('builds CSP with the configured Firebase helper origin and without hard-cod
 
 test('uses report-only CSP mode for preview deployments', () => {
     const env = {
-        NODE_ENV: 'production',
+        NODE_ENV: 'production' as const,
         VERCEL_ENV: 'preview',
     };
 

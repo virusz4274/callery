@@ -27,10 +27,10 @@ export function PublicHeader() {
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold uppercase tracking-[0.22em] text-default-500">
-                vosift
+                Callery
               </div>
               <div className="hidden text-sm text-default-600 sm:block">
-                Call archive and search
+                Call Archive & AI Search
               </div>
             </div>
           </Link>

@@ -18,9 +18,9 @@ import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search
 import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 
-const SAVED_VIEWS_STORAGE_KEY = 'vosift:recordings:saved-views';
-const CHECKLIST_DISMISSED_STORAGE_KEY = 'vosift:recordings:checklist-dismissed';
-const DENSITY_STORAGE_KEY = 'vosift:recordings:density';
+const SAVED_VIEWS_STORAGE_KEY = 'callery:recordings:saved-views';
+const CHECKLIST_DISMISSED_STORAGE_KEY = 'callery:recordings:checklist-dismissed';
+const DENSITY_STORAGE_KEY = 'callery:recordings:density';
 
 const SMART_COLLECTIONS: SmartCollection[] = [
     {

@@ -1,4 +1,4 @@
-package com.coarde.vosift;
+package com.coarde.callery;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;

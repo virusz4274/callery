@@ -17,13 +17,13 @@ import { env } from '@/lib/env';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'vosift',
-  description: 'Organize call recordings with transcripts, summaries, speaker labels, timestamps, and semantic search.',
+  title: 'Callery: Call Archive & AI Search',
+  description: 'The Professional Gallery for your Voice Recordings.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'vosift',
+    title: 'Callery',
   },
   icons: {
     icon: '/icons/android-chrome-192x192.png',

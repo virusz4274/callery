@@ -1,4 +1,3 @@
-import 'server-only';
 import { z } from 'zod';
 
 const requiredBooleanString = z.enum(['true', 'false']).transform((value) => value === 'true');
