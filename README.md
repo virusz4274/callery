@@ -58,7 +58,6 @@ Local URL: [http://localhost:9000](http://localhost:9000)
 
 - [Documentation Index](docs/README.md)
 - [Setup Guide](docs/setup-guide.md)
-- [Firebase Cutover Runbook](docs/firebase-cutover.md)
 - [User Guide](docs/user-guide.md)
 - [Admin Guide](docs/admin-guide.md)
 - [Architecture](docs/architecture.md)
@@ -66,9 +65,6 @@ Local URL: [http://localhost:9000](http://localhost:9000)
 - [Data Model](docs/data-model.md)
 - [Billing](docs/billing.md)
 - [Android App](docs/android-app.md)
-- [Full Application Test Plan](docs/full-application-test-plan.md)
-- [Stripe Billing Verification](docs/stripe-billing-verification.md)
-- [Dependency Review Register](docs/dependency-review.md)
 - [Changelog](CHANGELOG.md)
 
 ## Common Commands
