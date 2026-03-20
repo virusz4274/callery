@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Recording } from '@/lib/db/types';
 import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
     let claimedEventId: string | null = null;
 
     try {
-        const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+        const webhookSecret = env.ELEVENLABS_WEBHOOK_SECRET;
         if (!webhookSecret) {
             logger.error('[ElevenLabs Webhook] ELEVENLABS_WEBHOOK_SECRET is not configured');
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });

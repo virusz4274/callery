@@ -1,9 +1,8 @@
 import Stripe from 'stripe';
 
-// Fallback for self-hosted / non-billing environments
-const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_build';
+import { env } from '@/lib/env';
 
-export const stripe = new Stripe(apiKey, {
+export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
     apiVersion: '2026-01-28.clover' as any, // Latest stable version
     typescript: true,
 });

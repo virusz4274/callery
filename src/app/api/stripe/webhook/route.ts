@@ -8,6 +8,7 @@ import { createNotification } from '@/lib/notifications';
 import { findUserByStripeCustomerId } from '@/lib/db/users';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '@/lib/db/types';
+import { env } from '@/lib/env';
 
 export const runtime = 'nodejs';
 
@@ -253,7 +254,7 @@ async function handleStripeCustomerDeleted(customerId: string) {
 }
 
 export async function POST(req: NextRequest) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) {
         return new NextResponse('Billing disabled', { status: 200 });
     }
 
@@ -263,13 +264,10 @@ export async function POST(req: NextRequest) {
     let event: Stripe.Event;
 
     try {
-        if (!process.env.STRIPE_WEBHOOK_SECRET) {
-            throw new Error('STRIPE_WEBHOOK_SECRET is not set');
-        }
         if (!sig) {
             throw new Error('Missing stripe-signature header');
         }
-        event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        event = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET);
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown webhook validation error';
         logger.error(`Webhook Error: ${errorMessage}`);

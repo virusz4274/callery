@@ -1,8 +1,9 @@
+import { env } from './env';
 import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
 import { isFreeTrialPlanKey } from './plans';
 
-export const IS_BILLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
+export const IS_BILLING_ENABLED = env.NEXT_PUBLIC_ENABLE_BILLING;
 
 export function isTrialExpired(user: User): boolean {
     if (!IS_BILLING_ENABLED) {

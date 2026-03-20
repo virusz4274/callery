@@ -1,4 +1,6 @@
-type EnvLike = Record<string, string | undefined>;
+import { env as validatedEnv } from '@/lib/env';
+
+type EnvLike = Partial<typeof validatedEnv> & Record<string, string | undefined>;
 
 const DEFAULT_CSP_DIRECTIVES: Record<string, string[]> = {
     defaultSrc: ["'self'"],
@@ -40,7 +42,7 @@ function unique(values: string[]): string[] {
     return Array.from(new Set(values));
 }
 
-export function getFirebaseAuthHelperOrigin(env: EnvLike = process.env): string | null {
+export function getFirebaseAuthHelperOrigin(env: EnvLike = validatedEnv): string | null {
     const explicitOrigin = normalizeOrigin(env.FIREBASE_AUTH_HELPER_ORIGIN);
     if (explicitOrigin) {
         return explicitOrigin;
@@ -58,7 +60,7 @@ export function getFirebaseAuthHelperOrigin(env: EnvLike = process.env): string 
     return normalizeOrigin(`https://${authDomain}`);
 }
 
-export function shouldWarnAboutMissingFirebaseAuthHelper(env: EnvLike = process.env): boolean {
+export function shouldWarnAboutMissingFirebaseAuthHelper(env: EnvLike = validatedEnv): boolean {
     const isUsingFirebase = Boolean(
         env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim()
         || env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim()
@@ -67,7 +69,7 @@ export function shouldWarnAboutMissingFirebaseAuthHelper(env: EnvLike = process.
     return isUsingFirebase && !getFirebaseAuthHelperOrigin(env);
 }
 
-export function isCspReportOnlyMode(env: EnvLike = process.env): boolean {
+export function isCspReportOnlyMode(env: EnvLike = validatedEnv): boolean {
     if (env.NODE_ENV !== 'production') {
         return false;
     }
@@ -79,7 +81,7 @@ export function isCspReportOnlyMode(env: EnvLike = process.env): boolean {
     return Boolean(env.VERCEL_ENV && env.VERCEL_ENV !== 'production');
 }
 
-export function buildContentSecurityPolicy(env: EnvLike = process.env): string {
+export function buildContentSecurityPolicy(env: EnvLike = validatedEnv): string {
     const helperOrigin = getFirebaseAuthHelperOrigin(env);
     const connectSrc = [...DEFAULT_CSP_DIRECTIVES.connectSrc];
     const frameSrc = [...DEFAULT_CSP_DIRECTIVES.frameSrc];
@@ -109,7 +111,7 @@ export function buildContentSecurityPolicy(env: EnvLike = process.env): string {
 }
 
 export function getContentSecurityPolicyHeader(
-    env: EnvLike = process.env
+    env: EnvLike = validatedEnv
 ): { key: 'Content-Security-Policy' | 'Content-Security-Policy-Report-Only'; value: string } | null {
     if (env.NODE_ENV !== 'production') {
         return null;

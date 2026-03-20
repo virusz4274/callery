@@ -5,6 +5,7 @@ import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils'
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 import { getPublicAppOrigin } from '@/lib/public-url';
+import { env } from '@/lib/env';
 
 function resolveSafeReturnUrl(candidateUrl: string | undefined, origin: string): string {
     const fallback = new URL('/settings', origin).toString();
@@ -25,7 +26,7 @@ function resolveSafeReturnUrl(candidateUrl: string | undefined, origin: string):
 }
 
 export async function POST(req: NextRequest) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) {
         return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
     }
 

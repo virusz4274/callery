@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { claimNextExportJob, getExportJob } from '@/lib/db/export-jobs';
 import { processExport } from '@/lib/export-processor';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 
 export const maxDuration = 300;
 
@@ -13,15 +14,7 @@ export const maxDuration = 300;
  */
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-        logger.error('[process-exports] CRON_SECRET environment variable is not set');
-        return NextResponse.json(
-            { success: false, error: 'Server misconfiguration' },
-            { status: 500 }
-        );
-    }
+    const cronSecret = env.CRON_SECRET;
 
     const providedToken = authHeader?.replace('Bearer ', '').trim();
     if (providedToken !== cronSecret) {
@@ -32,9 +25,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const staleAfterMinutesRaw = process.env.EXPORT_JOB_STALE_MINUTES || '90';
-    const staleAfterMinutes = Number.parseInt(staleAfterMinutesRaw, 10);
-    const safeStaleAfterMinutes = Number.isNaN(staleAfterMinutes) ? 90 : Math.max(5, staleAfterMinutes);
+    const safeStaleAfterMinutes = env.EXPORT_JOB_STALE_MINUTES;
 
     try {
         const job = await claimNextExportJob(safeStaleAfterMinutes);

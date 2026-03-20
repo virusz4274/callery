@@ -18,6 +18,7 @@ import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
 import { signOutNativeGoogle } from '@/lib/firebase/google-sign-in';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
+import { publicEnv } from '@/lib/public-env';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -130,7 +131,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, [maintenanceMode, pathname, isUserLoading, isProfileLoading, userProfile, router]);
 
-  const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+  const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
   const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
   const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
   const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(

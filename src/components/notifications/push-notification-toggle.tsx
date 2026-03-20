@@ -5,6 +5,7 @@ import { BellOff, BellRing } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
 import { disablePushNotifications, enablePushNotifications } from './push/helpers';
 import { usePushStatus } from './push/use-push-status';
+import { publicEnv } from '@/lib/public-env';
 
 export function PushNotificationToggle() {
     const { toast } = useToast();
@@ -18,7 +19,7 @@ export function PushNotificationToggle() {
         setPermission,
     } = usePushStatus();
 
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+    const vapidPublicKey = publicEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
     const handleToggle = async (enabled: boolean) => {
         setIsLoading(true);

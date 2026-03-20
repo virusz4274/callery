@@ -6,6 +6,7 @@ import { stripe } from '@/lib/stripe';
 import { reportUsage } from '@/lib/stripe/usage';
 import { isLifetimePlanKey } from '@/lib/plans';
 import { safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
+import { env } from '@/lib/env';
 
 type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
 
@@ -93,7 +94,7 @@ async function resolveCheckoutPriceId(session: Stripe.Checkout.Session): Promise
  * This is idempotent and can be called from webhooks or the frontend.
  */
 export async function syncSubscription(subscriptionId: string) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) return;
 
     let subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
@@ -271,7 +272,7 @@ export async function linkCustomerToUser(stripeCustomerId: string, firebaseUid: 
  * Used for lifetime access or other payment-mode checkouts.
  */
 export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) return;
 
     const db = await getMongoDb();
     const customerId = getCustomerIdFromCheckoutSession(session);

@@ -12,6 +12,7 @@ import { PushServiceWorkerRegister } from '@/components/push-service-worker-regi
 import { ServiceWorkerUnregister } from '@/components/service-worker-unregister';
 
 import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
+import { env } from '@/lib/env';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -55,8 +56,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {process.env.NODE_ENV === 'development' && <ServiceWorkerUnregister />}
-          {process.env.NODE_ENV === 'production' && <PushServiceWorkerRegister />}
+          {env.NODE_ENV === 'development' && <ServiceWorkerUnregister />}
+          {env.NODE_ENV === 'production' && <PushServiceWorkerRegister />}
 
 
           <FirebaseClientProvider>

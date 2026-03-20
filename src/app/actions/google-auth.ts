@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
+import { env } from '@/lib/env';
 
 // These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
@@ -14,12 +15,12 @@ function getBaseUrl() {
 
 
 export async function getGoogleAuthUrl() {
-  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
+  const redirectUri = env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
   const state = crypto.randomUUID();
 
   (await cookies()).set('google_oauth_state', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 10,

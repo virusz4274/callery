@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { env } from '@/lib/env';
 import { TranscriptionSegment } from '@/lib/db/types';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { logger } from '@/lib/logger';
@@ -12,14 +13,10 @@ export class GeminiService implements IAIService {
     private apiKey: string | undefined;
 
     constructor() {
-        this.apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-
-        if (!this.apiKey) {
-            logger.warn('GOOGLE_GENERATIVE_AI_API_KEY is not defined. AI features will be disabled.');
-        }
+        this.apiKey = env.GOOGLE_GENERATIVE_AI_API_KEY;
 
         // Initialize even if key is missing to avoid crash on constructor, but methods will check.
-        this.ai = new GoogleGenAI({ apiKey: this.apiKey || 'dummy_key_for_init' });
+        this.ai = new GoogleGenAI({ apiKey: this.apiKey });
     }
 
     private async handleUnavailableConfiguration<T>(
@@ -64,7 +61,7 @@ ${transcript.substring(0, 100000)} [Truncated if too long]
 
         try {
             const result = await this.ai.models.generateContent({
-                model: process.env.GEMINI_MODEL_SUMMARY || 'gemini-2.0-flash-lite-preview-02-05', // Updated to newer model as default if not set
+                model: env.GEMINI_MODEL_SUMMARY,
                 contents: prompt,
             });
             await resolveExternalServiceIncident({
@@ -130,7 +127,7 @@ ${JSON.stringify(segments)}
 
         try {
             const result = await this.ai.models.generateContent({
-                model: process.env.GEMINI_MODEL_TRANSLITERATION || 'gemini-2.0-flash-lite-preview-02-05',
+                model: env.GEMINI_MODEL_TRANSLITERATION,
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json"
@@ -180,7 +177,7 @@ ${JSON.stringify(segments)}
 
         try {
             const result = await this.ai.models.embedContent({
-                model: 'gemini-embedding-001',
+                model: env.GEMINI_MODEL_EMBEDDING,
                 contents: text,
             });
             await resolveExternalServiceIncident({

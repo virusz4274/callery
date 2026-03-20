@@ -11,6 +11,7 @@ import { MainNav } from './navigation/main-nav';
 import { MobileMenu } from './navigation/mobile-menu';
 import type { User } from 'firebase/auth';
 import type { User as UserProfile } from '@/lib/types';
+import { publicEnv } from '@/lib/public-env';
 
 type AppHeaderProps = {
   user: User | null;
@@ -27,7 +28,7 @@ export function AppHeader({
   showPrimaryNav = true,
   compact = false,
 }: AppHeaderProps) {
-  const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
+  const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">

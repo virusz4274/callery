@@ -12,6 +12,7 @@ import {
     markSupportMessageFailed,
 } from '@/lib/db/support-messages';
 import { enqueueSupportEmailJob } from '@/lib/async-job-queue';
+import { env } from '@/lib/env';
 
 const supportMessageSchema = z.object({
     name: z.string().trim().min(2).max(120),
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
         const { companyWebsite, ...messageData } = parsed.data;
         void companyWebsite;
 
-        const shouldQueueEmail = Boolean(process.env.SUPPORT_EMAIL?.trim());
+        const shouldQueueEmail = Boolean(env.SUPPORT_EMAIL?.trim());
         const doc = await createSupportMessage({
             firebaseUid: firebaseUid || null,
             ...messageData,

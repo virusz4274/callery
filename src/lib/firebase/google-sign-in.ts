@@ -11,11 +11,12 @@ import {
     type User,
     type UserCredential,
 } from 'firebase/auth';
+import { publicEnv } from '@/lib/public-env';
 
 let initializePromise: Promise<void> | null = null;
 
 function getGoogleWebClientId(): string {
-    const webClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+    const webClientId = publicEnv.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID.trim();
     if (!webClientId) {
         throw new Error('Missing NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID for Capacitor Google sign-in.');
     }

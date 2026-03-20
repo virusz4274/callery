@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useEffect } from "react";
 import { ArrowRight, RotateCcw, TriangleAlert } from "lucide-react";
+import { publicEnv } from "@/lib/public-env";
 
 export default function GlobalError({
   error,
@@ -79,7 +80,7 @@ export default function GlobalError({
                     </div>
                   </div>
 
-                  {process.env.NODE_ENV === "development" && error.message ? (
+                  {publicEnv.NODE_ENV === "development" && error.message ? (
                     <div className="rounded-[1.5rem] border border-default-200/80 bg-default-50/70 p-5">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-500">
                         Dev detail

@@ -1,4 +1,5 @@
 import webpush, { PushSubscription as WebPushSubscription } from 'web-push';
+import { env } from '@/lib/env';
 
 let vapidConfigured = false;
 
@@ -7,15 +8,11 @@ function ensureVapidConfigured(): boolean {
         return true;
     }
 
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-
-    if (!publicKey || !privateKey) {
-        return false;
-    }
+    const publicKey = env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const privateKey = env.VAPID_PRIVATE_KEY;
 
     webpush.setVapidDetails(
-        'mailto:' + (process.env.VAPID_CONTACT_EMAIL || 'admin@vosift.com'),
+        'mailto:' + env.VAPID_CONTACT_EMAIL,
         publicKey,
         privateKey
     );
@@ -55,5 +52,5 @@ export async function sendWebPushNotification(
  * Get the public VAPID key for client-side subscription.
  */
 export function getVapidPublicKey(): string {
-    return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+    return env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 }
