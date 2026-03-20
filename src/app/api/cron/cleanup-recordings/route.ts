@@ -4,6 +4,7 @@ import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 import { purgeExpiredSoftDeletedUsers } from '@/lib/db/users/soft-delete';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 
 /**
  * Cron endpoint to enforce automatic deletion policies.
@@ -20,15 +21,7 @@ import { logger } from '@/lib/logger';
 export async function GET(request: NextRequest) {
     // Verify authorization
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-        logger.error('[cleanup-recordings] CRON_SECRET environment variable is not set');
-        return NextResponse.json(
-            { success: false, error: 'Server misconfiguration' },
-            { status: 500 }
-        );
-    }
+    const cronSecret = env.CRON_SECRET;
 
     // Accept both "Bearer TOKEN" and just "TOKEN"
     const providedToken = authHeader?.replace('Bearer ', '').trim();

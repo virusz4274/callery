@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { processNextAsyncJob } from '@/lib/async-job-runner';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-        logger.error('[process-async-jobs] CRON_SECRET environment variable is not set');
-        return NextResponse.json(
-            { success: false, error: 'Server misconfiguration' },
-            { status: 500 }
-        );
-    }
+    const cronSecret = env.CRON_SECRET;
 
     const providedToken = authHeader?.replace('Bearer ', '').trim();
     if (providedToken !== cronSecret) {

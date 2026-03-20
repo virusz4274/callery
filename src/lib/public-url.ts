@@ -1,3 +1,5 @@
+import { env } from './env';
+
 type RequestLike = {
     headers: Headers;
     nextUrl?: URL;
@@ -27,7 +29,7 @@ function getFirstHeaderValue(headers: Headers, name: string): string | null {
 }
 
 export function getPublicAppOrigin(request?: RequestLike): string {
-    const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+    const configuredOrigin = normalizeOrigin(env.NEXT_PUBLIC_APP_URL);
 
     if (configuredOrigin) {
         return configuredOrigin;
@@ -59,7 +61,7 @@ export function getPublicAppOrigin(request?: RequestLike): string {
 }
 
 export function getConfiguredPublicAppOrigin(): string {
-    const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+    const configuredOrigin = normalizeOrigin(env.NEXT_PUBLIC_APP_URL);
 
     if (configuredOrigin) {
         return configuredOrigin;

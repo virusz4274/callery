@@ -5,11 +5,12 @@ import { BellRing, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
 import { enablePushNotifications } from './push/helpers';
 import { usePushStatus } from './push/use-push-status';
+import { publicEnv } from '@/lib/public-env';
 
 export function EnablePushButton() {
     const { toast } = useToast();
     const { isSupported, isEnabled, isLoading, setIsEnabled, setIsLoading } = usePushStatus();
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+    const vapidPublicKey = publicEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
     const handleEnable = async () => {
         setIsLoading(true);

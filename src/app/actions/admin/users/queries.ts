@@ -3,6 +3,7 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import { stripe } from '@/lib/stripe';
 import type { User } from '@/lib/db/types';
 import { buildUserSearchQuery, serializeUser, toInvoiceStatus } from './shared';
+import { env } from '@/lib/env';
 import { getPlanNameMap } from '@/lib/db/users';
 
 export async function getUsersQuery(page: number = 1, limit: number = 10, search?: string) {
@@ -61,7 +62,7 @@ export async function getUserInvoicesQuery(userId: string, limit: number = 20) {
         _id: parseObjectId(userId, 'userId'),
     });
 
-    if (!user?.stripeCustomerId || !process.env.STRIPE_SECRET_KEY) {
+    if (!user?.stripeCustomerId || !env.STRIPE_SECRET_KEY) {
         return [];
     }
 

@@ -1,14 +1,12 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 
-const TOKEN_SECRET =
-    process.env.MOBILE_SYNC_SESSION_SECRET ||
-    process.env.UPLOAD_SESSION_SECRET ||
-    process.env.SHARE_LINK_SECRET ||
-    (process.env.NODE_ENV === 'development' ? 'dev-mobile-sync-session-secret-change-in-prod' : '');
+import { env } from '@/lib/env';
+
+const TOKEN_SECRET = env.MOBILE_SYNC_SESSION_SECRET;
 
 function getTokenSigningKey() {
     if (!TOKEN_SECRET) {
-        throw new Error('Missing MOBILE_SYNC_SESSION_SECRET (or fallback secret)');
+        throw new Error('Missing MOBILE_SYNC_SESSION_SECRET');
     }
 
     return new TextEncoder().encode(TOKEN_SECRET);

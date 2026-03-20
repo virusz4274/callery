@@ -224,7 +224,7 @@ This is a page route, not an API route.
 - rejects cross-origin submissions that do not match the public app origin
 - rate limits by client IP
 - stores every accepted request in `support_messages`
-- queues async email delivery only when `SUPPORT_EMAIL` is configured
+- queues async email delivery to the configured `SUPPORT_EMAIL`
 
 ## Stripe Webhook Events
 

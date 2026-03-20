@@ -21,6 +21,7 @@ import {
     markSupportMessageSent,
 } from '@/lib/db/support-messages';
 import { sendSupportMessageNotification } from '@/lib/support-email';
+import { env } from '@/lib/env';
 
 async function processAutoTranscriptionJob(job: AsyncJob) {
     const payload = job.payload;
@@ -57,10 +58,7 @@ async function processSupportEmailJob(job: AsyncJob) {
         throw new Error('Support message not found');
     }
 
-    const supportEmail = process.env.SUPPORT_EMAIL?.trim();
-    if (!supportEmail) {
-        throw new Error('SUPPORT_EMAIL is not configured');
-    }
+    const supportEmail = env.SUPPORT_EMAIL;
 
     await sendSupportMessageNotification(supportMessage, supportEmail);
     await markSupportMessageSent(payload.supportMessageId, job.attempts);

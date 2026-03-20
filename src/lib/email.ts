@@ -1,8 +1,9 @@
 import nodemailer from 'nodemailer';
+import { env } from '@/lib/env';
 
 /**
  * Send an email using SMTP.
- * Requires SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM in process.env
+ * Requires SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM in env
  */
 export async function sendEmail({
     to,
@@ -13,24 +14,19 @@ export async function sendEmail({
     subject: string;
     html: string;
 }) {
-    if (!process.env.SMTP_HOST) {
-        console.warn('SMTP_HOST not set, skipping email.');
-        return { success: false, error: 'SMTP_HOST not set' };
-    }
-
     try {
         const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+            host: env.SMTP_HOST,
+            port: env.SMTP_PORT,
+            secure: env.SMTP_SECURE, // true for 465, false for other ports
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
+                user: env.SMTP_USER,
+                pass: env.SMTP_PASS,
             },
         });
 
         const info = await transporter.sendMail({
-            from: process.env.SMTP_FROM || '"vosift" <noreply@vosift.com>',
+            from: env.SMTP_FROM,
             to,
             subject,
             html,

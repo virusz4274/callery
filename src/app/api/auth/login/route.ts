@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { resolveProfileEnsureFailurePolicy } from './profile-ensure-policy';
+import { env } from '@/lib/env';
 
 export async function POST(request: NextRequest) {
     try {
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
             value: sessionCookie,
             maxAge: maxAgeSeconds,
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'lax' as const,
         };

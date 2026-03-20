@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
+import { env } from '@/lib/env';
 
 type InvoiceStatus = 'Paid' | 'Pending' | 'Failed';
 
@@ -18,7 +19,7 @@ function toInvoiceStatus(status: string | null): InvoiceStatus {
 }
 
 export async function GET(req: NextRequest) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) {
         return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
     }
 

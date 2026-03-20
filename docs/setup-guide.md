@@ -33,7 +33,10 @@ First, you need to download the code to your computer and install the necessary 
    cp .env.example .env
    ```
 
-You will spend most of this guide filling in the blank values on the right side of the equals sign (`=`) inside the new `.env` file you just created.
+You will spend most of this guide replacing the placeholder values on the right side of the equals sign (`=`) inside the new `.env` file you just created.
+
+> [!IMPORTANT]
+> Vosift now validates environment variables strictly at startup and build time. Do not delete required keys or leave them commented out. If you are not ready to configure an integration yet, leave the key present and keep a placeholder value such as `replace-me` until you wire the real service.
 
 **Generate Random Secrets:**
 In your `.env` file, there are three keys that just need a random, secure string of text:
@@ -66,6 +69,7 @@ Vosift uses MongoDB to store data. The easiest way to get a database is using Mo
 Paste your connection string into your `.env` file:
 ```env
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/vosift
+MONGODB_CONNECTION_MODE=default
 ```
 
 ---
@@ -136,6 +140,8 @@ R2_ENDPOINT=https://<your-account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-access-key
 R2_BUCKET_NAME=vosift-audio
+R2_REGION=auto
+R2_FORCE_PATH_STYLE=false
 ```
 
 **Set up Lifecycle Rules (Crucial for Storage Costs):**
@@ -176,7 +182,7 @@ This allows the app to upload files directly from your browser.
 
 ## Step 5: Final Bootstrapping
 
-You should now have the minimum necessary values filled out in your `.env` file to start the app!
+Before starting the app, make sure every required key in `.env` still exists and has some explicit value. For services you are not enabling yet, keep the placeholder values from `.env.example` instead of removing the keys.
 
 1. **Set yourself as an admin:**
    In your `.env` file, find `ADMIN_BOOTSTRAP_EMAILS` and add your email:
@@ -203,9 +209,9 @@ You should now have the minimum necessary values filled out in your `.env` file 
 
 ---
 
-## Advanced Setup (Optional Integrations)
+## Additional Service Configuration
 
-You don't need these to run the basic app, but you can configure them to unlock powerful features. We highly recommend completing Steps 1-5 and ensuring the app runs *before* diving into these additions.
+These services unlock important product features. The current env validator still expects explicit values for their keys, so either configure them properly now or keep the placeholder values in place until you are ready.
 
 ### Step 6: Google Contacts Sync
 
@@ -233,6 +239,7 @@ Paste the generated credentials:
 ```env
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
 You also need an encryption key so the app securely stores contact tokens. Generate another random 32-character string (like you did in Step 1) and add it here:
 ```env
@@ -253,6 +260,9 @@ Vosift uses AI for intelligent meeting summaries, audio transcription, and docum
 4. Copy the API key and update your `.env` file:
 ```env
 GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
+GEMINI_MODEL_SUMMARY=gemini-2.5-flash-lite
+GEMINI_MODEL_TRANSLITERATION=gemini-2.5-flash-lite
+GEMINI_MODEL_EMBEDDING=gemini-embedding-001
 ```
 
 #### Soniox or ElevenLabs (Advanced Audio Transcription)
@@ -261,12 +271,13 @@ If you are processing audio recordings longer than 5 minutes, you'll need one of
 **For Soniox:**
 1. Sign up at [Soniox](https://soniox.com/).
 2. Find your API Key in your dashboard.
-3. (Optional) Setup a Webhook in the Soniox dashboard pointing to `http://your-live-domain.com/api/webhooks/soniox` so Soniox can send async completion events. A Webhook Secret will be generated here.
+3. Set up a Webhook in the Soniox dashboard pointing to `http://your-live-domain.com/api/webhooks/soniox` so Soniox can send async completion events. A Webhook Secret will be generated here.
 4. Update your `.env` file:
 ```env
 SONIOX_API_KEY=your-soniox-key
-# Only if you created the webhook:
-# SONIOX_WEBHOOK_SECRET=your-soniox-webhook-secret
+SONIOX_API_BASE_URL=https://api.soniox.com
+SONIOX_MODEL_ID=stt-async-v4
+SONIOX_WEBHOOK_SECRET=your-soniox-webhook-secret
 ```
 
 **For ElevenLabs (Alternative to Soniox):**
@@ -275,7 +286,12 @@ SONIOX_API_KEY=your-soniox-key
 3. Update your `.env` file:
 ```env
 ELEVENLABS_API_KEY=your-elevenlabs-key
+ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
+ELEVENLABS_MODEL_ID=scribe_v2
+ELEVENLABS_WEBHOOK_SECRET=your-elevenlabs-webhook-secret
 ```
+
+If you are not using one of these transcription providers yet, leave its required keys in `.env` with placeholder values until you finish that integration.
 
 ### Step 8: Stripe Billing Setup
 
@@ -286,7 +302,11 @@ To charge users for processing time and storage, you can enable Stripe integrati
 3. Open the **Developers** tab and look for your **Secret key**.
 4. Keep the **Developers** tab open, switch to the **Webhooks** section, and click **Add an endpoint**.
    - Endpoint URL: `http://localhost:9000/api/stripe/webhook` (Update this when deploying live).
-   - Events to listen to: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
+   - Events to listen to (match the app webhook handler):
+     - Checkout: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`
+     - Subscriptions: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `customer.subscription.trial_will_end`, `customer.subscription.pending_update_applied`, `customer.subscription.pending_update_expired`
+     - Invoices: `invoice.payment_failed`, `invoice.payment_action_required`, `invoice.payment_succeeded`, `invoice.paid`, `invoice.voided`, `invoice.marked_uncollectible`
+     - Customers: `customer.deleted`
    - Once created, Stripe will reveal a **Signing secret** (it starts with `whsec_`).
 5. Update your `.env` file:
 ```env
@@ -297,7 +317,32 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 *Note: For a fully functioning billing cycle, you must also create Pricing Products and Meters inside Stripe for "storage_usage_bytes" and "transcription_usage_seconds". For deep details on creating pricing tiers, see our specific [billing.md](billing.md) guide.*
 
-### Step 9: Custom Firebase Auth Domain (Optional Proxy)
+### Step 9: Push, Email, and Cron Configuration
+
+These settings are also required by the current env contract:
+
+```env
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
+VAPID_CONTACT_EMAIL=admin@example.com
+
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+SMTP_FROM="vosift <no-reply@example.com>"
+SUPPORT_EMAIL=support@example.com
+
+CRON_SECRET=your-random-cron-secret
+EXPORT_JOB_STALE_MINUTES=90
+EXPORT_INLINE_PROCESSING=false
+SOFT_DELETE_RESTORE_DAYS=30
+NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
+CSP_REPORT_ONLY=false
+```
+
+### Step 10: Custom Firebase Auth Domain (Optional Proxy)
 
 If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Vosift has a built-in Next.js proxy to seamlessly hide it behind your own domain.
 

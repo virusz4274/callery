@@ -2,6 +2,7 @@
 import { ITranscriptionService, TranscriptionResult, TranscribeOptions, TranscribeAsyncOptions, TranscribeAsyncResult } from './types';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
+import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 export class ElevenLabsService implements ITranscriptionService {
@@ -11,12 +12,9 @@ export class ElevenLabsService implements ITranscriptionService {
     public readonly provider = 'elevenlabs';
 
     constructor() {
-        if (!process.env.ELEVENLABS_API_KEY) {
-            logger.warn('ELEVENLABS_API_KEY is not defined. Transcription will fail.');
-        }
-        this.apiKey = process.env.ELEVENLABS_API_KEY || '';
-        this.baseUrl = process.env.ELEVENLABS_API_BASE_URL || 'https://api.elevenlabs.io';
-        this.model = process.env.ELEVENLABS_MODEL_ID || 'scribe_v2'; // Scribe v2
+        this.apiKey = env.ELEVENLABS_API_KEY;
+        this.baseUrl = env.ELEVENLABS_API_BASE_URL;
+        this.model = env.ELEVENLABS_MODEL_ID;
     }
 
     async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
@@ -122,17 +120,7 @@ export class ElevenLabsService implements ITranscriptionService {
             });
             throw configError;
         }
-        if (!process.env.ELEVENLABS_WEBHOOK_SECRET) {
-            const configError = new Error('ELEVENLABS_WEBHOOK_SECRET is not defined');
-            await safelyReportExternalServiceIncident({
-                provider: this.provider,
-                service: 'ElevenLabs',
-                operation: 'transcribe_async',
-                error: configError,
-                notifyAdmins: true,
-            });
-            throw configError;
-        }
+        const webhookSecret = env.ELEVENLABS_WEBHOOK_SECRET;
 
         const modelToUse = options?.model || this.model;
 

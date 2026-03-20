@@ -1,7 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, setStoragePeakUsed } from '@/lib/db/users'; // updateUser generic function?
+import { findUserByFirebaseUid, setStoragePeakUsed } from '@/lib/db/users';
+import { env } from '@/lib/env';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
 import { reportUsage } from '@/lib/stripe/usage';
@@ -10,7 +11,7 @@ import { isFreeTrialPlanKey } from '@/lib/plans';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) {
         return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
     }
 

@@ -16,6 +16,7 @@ import {
     markTranscriptionWebhookProcessed,
 } from '@/lib/webhooks/transcription-events';
 import { processSonioxWordsIntoSegments, type SonioxWebhookPayload } from './helpers';
+import { env } from '@/lib/env';
 
 /**
  * Soniox Webhook - Receives async transcription notifications
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         const firebaseUid = url.searchParams.get('firebaseUid');
 
         // Verify webhook secret
-        const expectedSecret = process.env.SONIOX_WEBHOOK_SECRET;
+        const expectedSecret = env.SONIOX_WEBHOOK_SECRET;
         if (!expectedSecret) {
             logger.error('[Soniox Webhook] SONIOX_WEBHOOK_SECRET is not configured');
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -147,8 +148,8 @@ export async function POST(request: Request) {
         }
 
         // Fetch the actual transcript from Soniox
-        const sonioxApiKey = process.env.SONIOX_API_KEY;
-        const sonioxBaseUrl = process.env.SONIOX_API_BASE_URL || 'https://api.soniox.com';
+        const sonioxApiKey = env.SONIOX_API_KEY;
+        const sonioxBaseUrl = env.SONIOX_API_BASE_URL;
 
         if (!sonioxApiKey) {
             logger.error('[Soniox Webhook] SONIOX_API_KEY not configured');

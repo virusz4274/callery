@@ -4,14 +4,10 @@ import { deleteFromR2 } from '@/lib/r2';
 import { logger } from '@/lib/logger';
 import type { Recording, User } from '../types';
 
-const DEFAULT_SOFT_DELETE_RESTORE_DAYS = 30;
+import { env } from '@/lib/env';
 
 export function getSoftDeleteRestoreWindowDays(): number {
-    const configuredDays = Number.parseInt(process.env.SOFT_DELETE_RESTORE_DAYS || '', 10);
-    if (Number.isNaN(configuredDays) || configuredDays < 1 || configuredDays > 365) {
-        return DEFAULT_SOFT_DELETE_RESTORE_DAYS;
-    }
-    return configuredDays;
+    return env.SOFT_DELETE_RESTORE_DAYS;
 }
 
 export function buildRestoreDeadline(now: Date = new Date()): Date {

@@ -1,12 +1,10 @@
 import { Resolver } from 'node:dns/promises';
 import { Db, MongoClient } from 'mongodb';
 
-if (!process.env.MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable');
-}
+import { env } from './env';
 
-const uri = process.env.MONGODB_URI;
-const isDevelopment = process.env.NODE_ENV === 'development';
+const uri = env.MONGODB_URI;
+const isDevelopment = env.NODE_ENV === 'development';
 const DEFAULT_FALLBACK_DNS_SERVERS = ['8.8.8.8', '1.1.1.1'];
 type MongoConnectionMode = 'default' | 'fallback-first';
 
@@ -33,9 +31,9 @@ const cache: MongoCache = isDevelopment
     : {};
 
 function getFallbackDnsServers(): string[] {
-    const configured = process.env.MONGODB_DNS_SERVERS
+    const configured = env.MONGODB_DNS_SERVERS
         ?.split(',')
-        .map((entry) => entry.trim())
+        .map((entry: string) => entry.trim())
         .filter(Boolean);
 
     if (configured && configured.length > 0) {
@@ -46,9 +44,7 @@ function getFallbackDnsServers(): string[] {
 }
 
 function getMongoConnectionMode(): MongoConnectionMode {
-    return process.env.MONGODB_CONNECTION_MODE === 'fallback-first'
-        ? 'fallback-first'
-        : 'default';
+    return env.MONGODB_CONNECTION_MODE;
 }
 
 function decodeMaybeEncoded(value: string): string {

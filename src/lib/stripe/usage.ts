@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { User, Plan } from '@/lib/db/types';
+import { env } from '@/lib/env';
 
 /**
  * Reports metered usage to Stripe for a specific user.
@@ -16,7 +17,7 @@ export async function reportUsage(
     quantity: number,
     options?: { multiplier?: number; identifier?: string }
 ) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
+    if (!env.NEXT_PUBLIC_ENABLE_BILLING) return;
     if (!Number.isFinite(quantity)) return;
 
     // Apply multiplier if present (default 1.0)

@@ -5,13 +5,14 @@ import { UserResponse } from '@/lib/db/types';
 import { AlertCircle, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { isFreeTrialPlanKey } from '@/lib/plans';
+import { publicEnv } from '@/lib/public-env';
 
 interface BillingAlertProps {
     userProfile: UserResponse | null;
 }
 
 export function BillingAlert({ userProfile }: BillingAlertProps) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return null;
+    if (!publicEnv.NEXT_PUBLIC_ENABLE_BILLING) return null;
     if (!userProfile) return null;
 
     const status = userProfile.stripeSubscriptionStatus;

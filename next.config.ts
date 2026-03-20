@@ -1,5 +1,6 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import './src/lib/env'; // Trigger environment validation at build time
 import {
   getContentSecurityPolicyHeader,
   getFirebaseAuthHelperOrigin,

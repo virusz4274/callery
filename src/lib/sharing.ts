@@ -1,7 +1,6 @@
-import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { env } from '@/lib/env';
 
-const SECRET_KEY = process.env.SHARE_LINK_SECRET
-    || (process.env.NODE_ENV === 'development' ? 'dev-secret-key-change-in-prod' : '');
+const SECRET_KEY = env.SHARE_LINK_SECRET;
 
 function getSigningKey() {
     if (!SECRET_KEY) {

@@ -27,7 +27,12 @@ function getKeyMaterial(env: EnvLike = process.env): Buffer {
 }
 
 function getKeyVersion(env: EnvLike = process.env): string {
-    return env.GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION?.trim() || 'v1';
+    const keyVersion = env.GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION?.trim();
+    if (!keyVersion) {
+        throw new Error('GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION must be set before Google refresh tokens can be stored or used.');
+    }
+
+    return keyVersion;
 }
 
 function toBase64Url(value: Buffer): string {

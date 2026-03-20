@@ -6,6 +6,7 @@ import {
     TranscriptionResult,
 } from './types';
 import { safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
+import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { deleteTranscript as deleteSonioxTranscript, pollCompletedTranscript, startAsyncTranscription, startTranscription } from '@/services/transcription/soniox/api';
 import { processWordsIntoSegments } from '@/services/transcription/soniox/processing';
@@ -17,13 +18,9 @@ export class SonioxService implements ITranscriptionService {
     public readonly provider = 'soniox';
 
     constructor() {
-        if (!process.env.SONIOX_API_KEY) {
-            logger.warn('SONIOX_API_KEY is not defined. Transcription will fail.');
-        }
-
-        this.apiKey = process.env.SONIOX_API_KEY || '';
-        this.baseUrl = process.env.SONIOX_API_BASE_URL || 'https://api.soniox.com';
-        this.model = process.env.SONIOX_MODEL_ID || 'stt-async-v3';
+        this.apiKey = env.SONIOX_API_KEY;
+        this.baseUrl = env.SONIOX_API_BASE_URL;
+        this.model = env.SONIOX_MODEL_ID;
     }
 
     private getConfig() {

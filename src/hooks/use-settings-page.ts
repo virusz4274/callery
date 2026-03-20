@@ -14,6 +14,7 @@ import { useExportJob } from '@/hooks/settings/use-export-job';
 import { buildSettingsPath, buildSettingsTabs, passwordFormSchema, type SettingsTab } from '@/hooks/settings/use-settings-page-utils';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { useAuth, useUser } from '@/lib/firebase/provider';
+import { publicEnv } from '@/lib/public-env';
 
 export type { SettingsTab } from '@/hooks/settings/use-settings-page-utils';
 
@@ -23,7 +24,7 @@ export function useSettingsPage() {
     const searchParams = useSearchParams();
     const auth = useAuth();
 
-    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
+    const showBilling = publicEnv.NEXT_PUBLIC_ENABLE_BILLING;
     const requestedTab = searchParams.get('tab') || 'profile';
     const defaultTab = requestedTab === 'overview'
         ? 'profile'

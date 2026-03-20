@@ -3,6 +3,7 @@ import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } f
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import type { TranscribeAsyncOptions, TranscribeAsyncResult } from '../types';
 import type { SonioxConfig } from './soniox-api-types';
+import { env } from '@/lib/env';
 
 export async function startAsyncTranscription(
     config: SonioxConfig,
@@ -12,19 +13,7 @@ export async function startAsyncTranscription(
 ): Promise<TranscribeAsyncResult> {
     const modelToUse = options?.model || model;
     const appUrl = getConfiguredPublicAppOrigin();
-    const webhookSecret = process.env.SONIOX_WEBHOOK_SECRET;
-
-    if (!webhookSecret) {
-        const configError = new Error('SONIOX_WEBHOOK_SECRET is not defined');
-        await safelyReportExternalServiceIncident({
-            provider: 'soniox',
-            service: 'Soniox API',
-            operation: 'start_async_transcription',
-            error: configError,
-            notifyAdmins: true,
-        });
-        throw configError;
-    }
+    const webhookSecret = env.SONIOX_WEBHOOK_SECRET;
 
     let webhookUrl = `${appUrl}/api/webhooks/soniox`;
     if (options?.webhookMetadata) {

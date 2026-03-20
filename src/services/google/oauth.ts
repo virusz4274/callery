@@ -1,8 +1,9 @@
 import { google } from 'googleapis';
+import { env } from '@/lib/env';
 
 export function getOAuth2Client(redirectUri?: string) {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const clientSecret = env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error(
@@ -11,7 +12,7 @@ export function getOAuth2Client(redirectUri?: string) {
   }
 
   // Use the passed redirectUri, or fall back to the environment variable
-  const callbackUrl = redirectUri || process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
+  const callbackUrl = redirectUri || env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
 
   return new google.auth.OAuth2(
     clientId,
