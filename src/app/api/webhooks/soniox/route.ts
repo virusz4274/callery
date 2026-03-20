@@ -79,12 +79,12 @@ export async function POST(request: Request) {
 
         if (!recordingId || !firebaseUid) {
             logger.error('[Soniox Webhook] Missing metadata (recordingId or firebaseUid)');
-            return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
+            return NextResponse.json({ success: true, status: 'ignored_missing_metadata' });
         }
 
         if (!ObjectId.isValid(recordingId)) {
             logger.error(`[Soniox Webhook] Invalid recordingId: ${recordingId}`);
-            return NextResponse.json({ error: 'Invalid recording ID' }, { status: 400 });
+            return NextResponse.json({ success: true, status: 'ignored_invalid_recording_id' });
         }
 
         if (!payload?.id || !payload?.status) {
@@ -101,21 +101,21 @@ export async function POST(request: Request) {
 
         if (!recording) {
             logger.error(`[Soniox Webhook] Recording not found: ${recordingId}`);
-            return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
+            return NextResponse.json({ success: true, status: 'ignored_recording_not_found' });
         }
 
         if (!recording.externalTranscriptionId) {
             logger.warn(
                 `[Soniox Webhook] Missing externalTranscriptionId on recording ${recordingId}. Rejecting callback for safety.`
             );
-            return NextResponse.json({ error: 'Correlation not initialized' }, { status: 409 });
+            return NextResponse.json({ success: true, status: 'ignored_correlation_not_initialized' });
         }
 
         if (recording.externalTranscriptionId !== payload.id) {
             logger.warn(
                 `[Soniox Webhook] Correlation mismatch for ${recordingId}. Expected ${recording.externalTranscriptionId}, got ${payload.id}`
             );
-            return NextResponse.json({ error: 'Correlation mismatch' }, { status: 409 });
+            return NextResponse.json({ success: true, status: 'ignored_correlation_mismatch' });
         }
 
         const eventId = `soniox:${recordingId}:${recording.externalTranscriptionId}:${payload.status}`;

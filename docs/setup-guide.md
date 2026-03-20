@@ -279,8 +279,9 @@ If you are processing audio recordings longer than 5 minutes, you'll need one of
 **For Soniox:**
 1. Sign up at [Soniox](https://soniox.com/).
 2. Find your API Key in your dashboard.
-3. Set up a Webhook in the Soniox dashboard pointing to `http://your-live-domain.com/api/webhooks/soniox` so Soniox can send async completion events. A Webhook Secret will be generated here.
-4. Update your `.env` file:
+3. Set `NEXT_PUBLIC_APP_URL` to your live app origin so the server can generate a public webhook URL like `https://your-live-domain.com/api/webhooks/soniox` for each async transcription request.
+4. Choose a shared secret value for webhook authentication and add it to your environment as `SONIOX_WEBHOOK_SECRET`. The app sends it to Soniox as a custom header on each async transcription request, and verifies the same header on callback.
+5. Update your `.env` file:
 ```env
 SONIOX_API_KEY=your-soniox-key
 SONIOX_API_BASE_URL=https://api.soniox.com
