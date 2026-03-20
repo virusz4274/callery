@@ -15,6 +15,10 @@ export async function startAsyncTranscription(
     const appUrl = getConfiguredPublicAppOrigin();
     const webhookSecret = env.SONIOX_WEBHOOK_SECRET;
 
+    if (!webhookSecret) {
+        throw new Error('SONIOX_WEBHOOK_SECRET must be configured for async Soniox transcription');
+    }
+
     let webhookUrl = `${appUrl}/api/webhooks/soniox`;
     if (options?.webhookMetadata) {
         const params = new URLSearchParams();
