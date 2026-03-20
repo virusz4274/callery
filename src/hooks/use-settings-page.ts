@@ -23,7 +23,7 @@ export function useSettingsPage() {
     const searchParams = useSearchParams();
     const auth = useAuth();
 
-    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
+    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
     const requestedTab = searchParams.get('tab') || 'profile';
     const defaultTab = requestedTab === 'overview'
         ? 'profile'

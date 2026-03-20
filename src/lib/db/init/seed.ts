@@ -63,7 +63,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
         key: PLAN_KEYS.LIFETIME,
         name: 'Lifetime',
         description: 'One-time payment for platform access',
-        price: 299,
+        price: 250,
         currency: 'USD',
         interval: 'lifetime',
         limits: { storage: 0, transcription: 0 },
@@ -112,6 +112,7 @@ export async function seedPlans(db: Db, collections: CollectionsMap): Promise<vo
             {
                 $setOnInsert: {
                     key: definition.key,
+                    name: definition.name,
                     description: definition.description,
                     price: definition.price,
                     currency: definition.currency,

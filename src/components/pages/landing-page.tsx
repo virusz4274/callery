@@ -102,7 +102,7 @@ const frequentlyAskedQuestions = [
   {
     question: 'Can I host it privately?',
     answer:
-      'Yes. Individuals can purchase a self-hosted license for $300, and teams that need private deployment can reach out for custom rollout and pricing.',
+      'Yes. Individuals can purchase a self-hosted license for $250, and teams that need private deployment can reach out for custom rollout and pricing.',
   },
   {
     question: 'What happens when I export my archive?',

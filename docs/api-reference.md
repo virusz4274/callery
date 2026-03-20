@@ -163,7 +163,7 @@ Main admin capabilities:
 | `GET` | `/api/stripe/invoices` | lists recent invoices for the current user |
 | `POST` | `/api/stripe/webhook` | processes Stripe events idempotently |
 
-Billing routes return `403` when `NEXT_PUBLIC_ENABLE_BILLING=false`.
+Billing routes return `403` unless `NEXT_PUBLIC_ENABLE_BILLING=true`.
 
 ### Mobile Sync
 

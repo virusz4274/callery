@@ -16,7 +16,7 @@ export async function reportUsage(
     quantity: number,
     options?: { multiplier?: number; identifier?: string }
 ) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
     if (!Number.isFinite(quantity)) return;
 
     // Apply multiplier if present (default 1.0)

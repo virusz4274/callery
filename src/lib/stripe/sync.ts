@@ -5,6 +5,7 @@ import { updateUser } from '@/lib/db/users';
 import { stripe } from '@/lib/stripe';
 import { reportUsage } from '@/lib/stripe/usage';
 import { isLifetimePlanKey } from '@/lib/plans';
+import { safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 
 type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
 
@@ -39,6 +40,13 @@ function getBasePlanPriceId(subscription: Stripe.Subscription): string | null {
     const baseItem = getBaseSubscriptionItem(subscription);
 
     return baseItem?.price?.id ?? null;
+}
+
+function getPlanKeyFromSubscriptionMetadata(subscription: Stripe.Subscription): string | null {
+    const metadata = subscription.metadata as Record<string, string> | null | undefined;
+    if (!metadata) return null;
+
+    return metadata.selectedPlanKey || metadata.planKey || null;
 }
 
 function getSubscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
@@ -85,7 +93,7 @@ async function resolveCheckoutPriceId(session: Stripe.Checkout.Session): Promise
  * This is idempotent and can be called from webhooks or the frontend.
  */
 export async function syncSubscription(subscriptionId: string) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
 
     let subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
@@ -109,9 +117,27 @@ export async function syncSubscription(subscriptionId: string) {
     const basePriceId = getBasePlanPriceId(subscription);
 
     // Find Plan details to update limits based on base subscription item.
-    const plan = basePriceId
+    let planResolution: 'base_price' | 'metadata' | null = null;
+    const planFromBasePrice: Plan | null = basePriceId
         ? await db.collection<Plan>(Collections.PLANS).findOne({ stripePriceId: basePriceId })
         : null;
+
+    let plan: Plan | null = planFromBasePrice;
+    if (planFromBasePrice) {
+        planResolution = 'base_price';
+    }
+
+    // Usage-only subscriptions (e.g. Lifetime metered add-on subscriptions) might not have a non-metered base item
+    // that maps cleanly to `plans.stripePriceId`. In that case, fall back to the plan key stored in metadata.
+    if (!plan) {
+        const metadataPlanKey = getPlanKeyFromSubscriptionMetadata(subscription);
+        if (metadataPlanKey) {
+            plan = await db.collection<Plan>(Collections.PLANS).findOne({ key: metadataPlanKey });
+            if (plan) {
+                planResolution = 'metadata';
+            }
+        }
+    }
 
     // Map Stripe status to our internal status
     const status = mapSubscriptionStatus(subscription);
@@ -172,7 +198,11 @@ export async function syncSubscription(subscriptionId: string) {
         // 'billingSettings.allowOverage': false, // Removed: Handled efficiently in plan check
         updatedAt: new Date(),
     };
-    if (basePriceId) {
+    if (planResolution === 'base_price' && basePriceId) {
+        updateData.stripePriceId = basePriceId;
+    } else if (plan?.stripePriceId) {
+        updateData.stripePriceId = plan.stripePriceId;
+    } else if (basePriceId) {
         updateData.stripePriceId = basePriceId;
     }
     if (typeof currentPeriodEnd === 'number') {
@@ -241,7 +271,7 @@ export async function linkCustomerToUser(stripeCustomerId: string, firebaseUid: 
  * Used for lifetime access or other payment-mode checkouts.
  */
 export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') return;
 
     const db = await getMongoDb();
     const customerId = getCustomerIdFromCheckoutSession(session);
@@ -279,7 +309,6 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
         storageAllocation: plan.limits.storage,
         transcriptionAllocation: plan.limits.transcription,
         stripePriceId: selectedPriceId,
-        stripeSubscriptionStatus: 'active',
         updatedAt: new Date(),
     };
 
@@ -287,8 +316,117 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
         setData.stripeCustomerId = customerId;
     }
 
+    let createdLifetimeUsageSubscriptionId: string | null = null;
+    let createdLifetimeUsageSubscriptionPeriodEnd: Date | null = null;
+    let createdLifetimeUsageSubscriptionStatus: SubscriptionStatus | null = null;
+
     if (isLifetimePlanKey(plan.key)) {
         setData['billingSettings.allowOverage'] = true;
+
+        if (customerId) {
+            const meteredPriceIds = [plan.stripeStoragePriceId, plan.stripeTranscriptionPriceId]
+                .filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+
+            if (meteredPriceIds.length === 0) {
+                await safelyReportExternalServiceIncident({
+                    provider: 'stripe',
+                    service: 'Stripe',
+                    operation: 'create_lifetime_usage_subscription',
+                    error: new Error('Lifetime plan is missing metered Stripe price IDs. Usage will not be billed.'),
+                    context: {
+                        userId: user._id.toString(),
+                        firebaseUid: user.firebaseUid,
+                        planKey: plan.key,
+                        planId: plan._id.toString(),
+                    },
+                    notifyAdmins: true,
+                });
+            } else {
+                let paymentMethodId: string | null = null;
+                try {
+                    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null;
+                    if (paymentIntentId) {
+                        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+                            expand: ['payment_method'],
+                        });
+                        paymentMethodId = typeof paymentIntent.payment_method === 'string'
+                            ? paymentIntent.payment_method
+                            : paymentIntent.payment_method?.id ?? null;
+                    }
+                } catch (error) {
+                    console.warn(`[Sync] Failed to resolve payment method for lifetime checkout session ${session.id}`, error);
+                }
+
+                if (paymentMethodId) {
+                    try {
+                        await stripe.customers.update(customerId, {
+                            invoice_settings: { default_payment_method: paymentMethodId },
+                        });
+                    } catch (error) {
+                        console.warn(`[Sync] Failed to set default payment method for customer ${customerId}`, error);
+                    }
+                }
+
+                try {
+                    const lifetimeUsageSubscription = await stripe.subscriptions.create(
+                        {
+                            customer: customerId,
+                            items: meteredPriceIds.map((price) => ({ price })),
+                            metadata: {
+                                firebaseUid: user.firebaseUid,
+                                userId: user._id.toString(),
+                                selectedPlanKey: plan.key,
+                                selectedPlanName: plan.name,
+                                selectedPriceId: selectedPriceId,
+                            },
+                            ...(paymentMethodId ? { default_payment_method: paymentMethodId } : {}),
+                        },
+                        {
+                            idempotencyKey: `lifetime-usage-subscription:${session.id}`,
+                        }
+                    );
+
+                    createdLifetimeUsageSubscriptionId = lifetimeUsageSubscription.id;
+                    createdLifetimeUsageSubscriptionStatus = lifetimeUsageSubscription.status as SubscriptionStatus;
+                    const lifetimePeriodEnd = getSubscriptionCurrentPeriodEnd(
+                        lifetimeUsageSubscription as unknown as Stripe.Subscription
+                    );
+                    if (typeof lifetimePeriodEnd === 'number') {
+                        createdLifetimeUsageSubscriptionPeriodEnd = new Date(lifetimePeriodEnd * 1000);
+                    }
+                } catch (error) {
+                    await safelyReportExternalServiceIncident({
+                        provider: 'stripe',
+                        service: 'Stripe',
+                        operation: 'create_lifetime_usage_subscription',
+                        error,
+                        context: {
+                            userId: user._id.toString(),
+                            firebaseUid: user.firebaseUid,
+                            planKey: plan.key,
+                            customerId,
+                            sessionId: session.id,
+                        },
+                        notifyAdmins: true,
+                    });
+                }
+            }
+        }
+    }
+
+    // If we created a Stripe subscription (including the Lifetime usage-only subscription), track it so we can
+    // react to status updates (past_due/unpaid/canceled) via webhooks.
+    if (createdLifetimeUsageSubscriptionId) {
+        setData.stripeSubscriptionId = createdLifetimeUsageSubscriptionId;
+    }
+    if (createdLifetimeUsageSubscriptionStatus) {
+        setData.stripeSubscriptionStatus = createdLifetimeUsageSubscriptionStatus;
+    } else {
+        // For one-time checkouts, we treat the plan as active locally.
+        setData.stripeSubscriptionStatus = 'active';
+    }
+    if (createdLifetimeUsageSubscriptionPeriodEnd) {
+        setData.stripeCurrentPeriodEnd = createdLifetimeUsageSubscriptionPeriodEnd;
     }
 
     await db.collection<User>(Collections.USERS).updateOne(
@@ -296,8 +434,8 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
         {
             $set: setData,
             $unset: {
-                stripeSubscriptionId: '',
-                stripeCurrentPeriodEnd: '',
+                ...(createdLifetimeUsageSubscriptionId ? {} : { stripeSubscriptionId: '' }),
+                ...(createdLifetimeUsageSubscriptionPeriodEnd ? {} : { stripeCurrentPeriodEnd: '' }),
             },
         }
     );
