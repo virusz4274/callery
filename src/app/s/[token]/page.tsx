@@ -29,7 +29,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                     This shared link is no longer valid. Please ask the sender to generate a new one.
                 </p>
                 <Link href="/" className="text-primary hover:underline mt-4">
-                    Go to VoSift
+                    Go to vosift
                 </Link>
             </div>
         );
@@ -69,7 +69,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
             <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl px-4 md:px-6 h-16 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
                     <Logo className="h-8 w-8 text-primary" />
-                    <span className="font-bold text-xl tracking-tight">VoSift</span>
+                    <span className="font-bold text-xl tracking-tight">vosift</span>
                 </Link>
                 <div className="text-xs font-mono bg-default-100 px-2 py-1 rounded text-default-500">
                     SHARED VIEW

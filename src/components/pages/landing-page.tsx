@@ -166,7 +166,7 @@ export function LandingPage() {
                     Keep every important call easy to find, review, and export.
                   </h1>
                   <p className="max-w-2xl text-lg leading-8 text-default-600 md:text-xl">
-                    VoSift turns scattered recordings into a calmer archive where the original audio,
+                    vosift turns scattered recordings into a calmer archive where the original audio,
                     transcript, summary, speaker labels, timestamps, and search context stay together.
                   </p>
                 </div>
@@ -352,7 +352,7 @@ export function LandingPage() {
               <SectionHeading
                 eyebrow="Why It Works"
                 title="Archive calls in a way that still makes sense later."
-                description="VoSift works best when the archive stays readable, searchable, and easy to take with you as it grows."
+                description="vosift works best when the archive stays readable, searchable, and easy to take with you as it grows."
               />
 
               <div className="grid gap-5 lg:grid-cols-3">

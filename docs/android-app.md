@@ -10,6 +10,7 @@ The Android project does not bundle the full app for offline operation. Instead,
 - production URL: `https://vosift.virusz4274.tech`
 
 Before local device testing, update the development URL to a LAN address the phone can reach.
+Before shipping a self-hosted APK, replace the production URL in `capacitor.config.ts` with your hosted app origin.
 Because the WebView depends on the remote Next.js app, Server Actions, auth, and uploads only work while that server is reachable from the device.
 
 ## Prerequisites
@@ -34,7 +35,7 @@ npm install
 npm run dev
 ```
 
-3. Update the development `devUrl` in [capacitor.config.ts](../capacitor.config.ts).
+3. Update the `devUrl` in [capacitor.config.ts](../capacitor.config.ts), and update `productionUrl` too if you are preparing a self-hosted production build.
 
 4. Sync Capacitor:
 
@@ -117,6 +118,7 @@ For native Google sign-in and session sync, make sure you have:
 - the Android package `com.coarde.vosift`
 - the correct Android SHA fingerprints in that same Firebase-enabled project
 - authorized domains that match the hosted app origin
+- a freshly downloaded `android/app/google-services.json` from that same Firebase project
 
 The Capacitor Social Login plugin is currently configured only for Google. Firebase Google sign-in is the app-auth flow; Google Contacts sync uses a separate OAuth web client in the same cloud project.
 
@@ -138,6 +140,6 @@ cd android
 - Device cannot reach dev server: fix the LAN IP, firewall, or network mismatch.
 - HTTP blocked on device: keep `cleartext` enabled only for development.
 - R2 upload failures: verify bucket CORS for the app origin and `PUT`, `GET`, `HEAD`.
-- Google sign-in issues: re-check the web client ID, SHA fingerprints, and authorized domains in the same Firebase-enabled project.
+- Google sign-in issues: re-check the web client ID, SHA fingerprints, authorized domains, and `android/app/google-services.json` from the same Firebase-enabled project.
 - Folder scan or background sync issues: inspect the native plugin configuration and the Android app logs.
 - Stale build behavior: rerun `npm run cap:sync` and rebuild in Android Studio.

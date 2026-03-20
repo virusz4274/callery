@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 import { WorkspaceLoadingState } from '@/components/loading-shells';
 
 export const metadata: Metadata = {
-    title: 'Recordings | VoSift',
+    title: 'Recordings | vosift',
     description: 'Browse and manage your call recordings.',
 };
 

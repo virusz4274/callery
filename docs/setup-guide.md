@@ -114,6 +114,7 @@ Call Memo uses Firebase Auth on the client and Firebase Admin on the server. The
 8. Generate a Firebase Admin service account and either:
    - keep it in `service-account.json` locally, or
    - store the JSON in `FIREBASE_SERVICE_ACCOUNT`
+9. Download the Android `google-services.json` file from the new Firebase project and replace `android/app/google-services.json` before building the APK.
 
 If `FIREBASE_AUTH_HELPER_ORIGIN` or `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is configured, Next.js rewrites `/__/auth/*` to Firebase’s auth helper endpoint.
 
@@ -150,14 +151,15 @@ Use this sequence when replacing the old Firebase project entirely:
 4. Enable Firebase Auth with `Email/Password` and `Google`.
 5. Add the production domain to Firebase authorized domains.
 6. Register the Android package and add SHA fingerprints in that same project.
-7. Create the Firebase Admin service account for server verification.
-8. Enable Google People API in the same project.
-9. Configure the OAuth consent screen and create the Contacts-sync OAuth web client.
-10. Replace the local `.env` values with the new project config.
-11. Wipe MongoDB and R2.
-12. Run `npm run db:init`.
-13. Set `ADMIN_BOOTSTRAP_EMAILS`.
-14. Sign in with the bootstrap admin account and verify the first admin user is created.
+7. Download and replace `android/app/google-services.json` from the new Firebase project if Android builds are in scope.
+8. Create the Firebase Admin service account for server verification.
+9. Enable Google People API in the same project.
+10. Configure the OAuth consent screen and create the Contacts-sync OAuth web client.
+11. Replace the local `.env` values with the new project config.
+12. Wipe MongoDB and R2.
+13. Run `npm run db:init`.
+14. Set `ADMIN_BOOTSTRAP_EMAILS`.
+15. Sign in with the bootstrap admin account and verify the first admin user is created.
 
 ## Cloudflare R2 Setup
 

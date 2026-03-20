@@ -36,7 +36,7 @@ export async function sendSupportMessageNotification(
 ) {
     const result = await sendEmail({
         to: recipient,
-        subject: `[Call Memo Support] ${message.subject}`,
+        subject: `[vosift Support] ${message.subject}`,
         html: buildSupportMessageEmailHtml(message),
     });
 

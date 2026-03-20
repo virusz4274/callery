@@ -21,13 +21,14 @@ This runbook is the supported replacement flow when retiring the old Firebase pr
 5. Add the production origin to Firebase authorized domains.
 6. Register the Android package `com.coarde.vosift`.
 7. Add the required Android SHA fingerprints.
-8. Create the Firebase Admin service account and supply it through `service-account.json` or `FIREBASE_SERVICE_ACCOUNT`.
-9. Enable `Google People API`.
-10. Configure the OAuth consent screen.
-11. Create the Contacts-sync OAuth web client and add:
+8. Download the Android `google-services.json` file from the new Firebase project and replace `android/app/google-services.json`.
+9. Create the Firebase Admin service account and supply it through `service-account.json` or `FIREBASE_SERVICE_ACCOUNT`.
+10. Enable `Google People API`.
+11. Configure the OAuth consent screen.
+12. Create the Contacts-sync OAuth web client and add:
    - `https://<your-domain>/api/auth/google/callback`
    - `http://localhost:9000/api/auth/google/callback`
-12. Set or rotate:
+13. Set or rotate:
    - `NEXT_PUBLIC_FIREBASE_*`
    - `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
    - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
@@ -41,10 +42,11 @@ This runbook is the supported replacement flow when retiring the old Firebase pr
 1. Wipe MongoDB.
 2. Wipe R2 objects for the app bucket or prefix.
 3. Run `npm run db:init`.
-4. Start the app with the new env.
-5. Sign in with an email listed in `ADMIN_BOOTSTRAP_EMAILS`.
-6. Confirm the first profile is created as `admin`.
-7. Verify signup, login, Google sign-in, Contacts sync, and Android sign-in.
+4. Update `capacitor.config.ts` so `productionUrl` points at your hosted origin if you ship the Android app.
+5. Start the app with the new env.
+6. Sign in with an email listed in `ADMIN_BOOTSTRAP_EMAILS`.
+7. Confirm the first profile is created as `admin`.
+8. Verify signup, login, Google sign-in, Contacts sync, and Android sign-in.
 
 ## Notes
 

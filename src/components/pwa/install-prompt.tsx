@@ -104,7 +104,7 @@ export function InstallPwaPrompt() {
                             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
                                 <Image
                                     src="/icons/android-chrome-192x192.png"
-                                    alt="VoSift"
+                                    alt="vosift"
                                     width={34}
                                     height={34}
                                     className="size-8 object-contain"
@@ -112,14 +112,14 @@ export function InstallPwaPrompt() {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Install VoSift</h3>
+                                    <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Install vosift</h3>
                                     <Chip size="sm" variant="soft" color="accent">
                                         {isIOS ? 'iPhone / iPad' : 'App install available'}
                                     </Chip>
                                 </div>
                                 <p className="text-sm leading-6 text-default-500">
                                     {isIOS
-                                        ? 'Add VoSift to your home screen for a faster, app-like workspace.'
+                                        ? 'Add vosift to your home screen for a faster, app-like workspace.'
                                         : 'Install the app for quicker access, better launch behavior, and a more reliable mobile workflow.'}
                                 </p>
                             </div>

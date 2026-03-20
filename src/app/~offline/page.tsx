@@ -38,7 +38,7 @@ export default function OfflinePage() {
                                 </div>
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-default-500">
-                                        VoSift
+                                        vosift
                                     </p>
                                     <p className="text-sm text-default-500">
                                         Offline workspace fallback
@@ -64,7 +64,7 @@ export default function OfflinePage() {
                                     You are offline, but the app is still here.
                                 </h1>
                                 <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                    VoSift could not reach the network for this page. Your installed app shell is available,
+                                    vosift could not reach the network for this page. Your installed app shell is available,
                                     and you can jump back in as soon as your connection returns.
                                 </p>
                             </div>

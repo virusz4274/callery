@@ -58,7 +58,7 @@ export function AuthShell({
             <span className={`flex items-center justify-center rounded-2xl bg-background/80 text-primary shadow-sm ring-1 ring-default-200/60 ${useCompactLayout ? 'size-9' : 'size-10'}`}>
               <BrandLogo className={useCompactLayout ? 'size-5.5' : 'size-6'} />
             </span>
-            <span className="text-base font-semibold tracking-tight">VoSift</span>
+            <span className="text-base font-semibold tracking-tight">vosift</span>
           </Link>
 
           <Link

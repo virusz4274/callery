@@ -34,7 +34,7 @@ const protectedRouteExpectations = [
 
 test('public pages load', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('body')).toContainText('VoSift');
+  await expect(page.locator('body')).toContainText('vosift');
   await expect(page.locator('body')).toContainText('Archive calls in a way that still makes sense later.');
   await expect(page.locator('body')).not.toContainText('The homepage now leads with');
   await expect(page.locator('body')).not.toContainText('capability story');

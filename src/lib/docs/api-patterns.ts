@@ -2,7 +2,7 @@
  * @fileoverview API Pattern Documentation
  * 
  * This documents the patterns used for data fetching and mutations
- * in the VoSift application.
+ * in the vosift application.
  * 
  * @module docs/api-patterns
  */

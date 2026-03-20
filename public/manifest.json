@@ -1,7 +1,7 @@
 {
-    "name": "VoSift",
-    "short_name": "VoSift",
-    "description": "VoSift - Search deeper than words. Managing, transcribing, and organizing phone call recordings.",
+    "name": "vosift",
+    "short_name": "vosift",
+    "description": "vosift - Search deeper than words. Managing, transcribing, and organizing phone call recordings.",
     "id": "/",
     "start_url": "/",
     "scope": "/",
