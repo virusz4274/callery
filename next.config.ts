@@ -7,6 +7,12 @@ import {
   shouldWarnAboutMissingFirebaseAuthHelper,
 } from './src/lib/firebase-auth-helper-config';
 
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const sentryOrg = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT;
+const sentryUrl = process.env.SENTRY_URL;
+const shouldEnableSentryBuildPlugin = Boolean(sentryAuthToken && sentryOrg && sentryProject);
+
 const securityHeaders = [
   {
     key: 'X-Content-Type-Options',
@@ -49,12 +55,9 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
-      // TODO: Once all file uploads go directly to Cloudflare R2 (bypassing the server),
-      // this limit can be reduced significantly (e.g. 1mb) since only form data will pass through.
-      bodySizeLimit: '20mb',
+      bodySizeLimit: '1mb',
     },
-    // TODO: Same as above — reduce once server-proxied uploads are removed.
-    proxyClientMaxBodySize: '20mb',
+    proxyClientMaxBodySize: '1mb',
   },
 
   images: {
@@ -119,15 +122,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: 'harisankar',
-  project: 'javascript-nextjs',
+const sentryBuildConfig = {
+  org: sentryOrg!,
+  project: sentryProject!,
+  authToken: sentryAuthToken!,
+  url: sentryUrl,
   silent: !process.env.CI,
+  // Source map upload is an operator concern. Self-hosters can opt in by setting
+  // their own Sentry build env vars without changing the shared app config contract.
   widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
   webpack: {
     automaticVercelMonitors: true,
     treeshake: {
       removeDebugLogging: true,
     },
   },
-});
+};
+
+export default shouldEnableSentryBuildPlugin
+  ? withSentryConfig(nextConfig, sentryBuildConfig)
+  : nextConfig;

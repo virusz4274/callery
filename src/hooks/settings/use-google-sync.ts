@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ReadonlyURLSearchParams } from 'next/navigation';
-import { syncGoogleContacts } from '@/app/actions/contacts';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import type { User } from '@/lib/types';
@@ -27,6 +26,7 @@ type UseGoogleSyncParams = {
 
 export function useGoogleSync({ googleSync, refetchProfile, searchParams, router, toast }: UseGoogleSyncParams) {
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [showConnectDialog, setShowConnectDialog] = useState(false);
     const [hasConsented, setHasConsented] = useLocalStorage('google-contact-consent', false);
     const handledStatusRef = useRef<string | null>(null);
@@ -60,17 +60,35 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
         setIsSyncing(true);
 
         try {
-            const result = await syncGoogleContacts();
+            const response = await fetch('/api/contacts/sync', {
+                method: 'POST',
+            });
+            const result = await response.json() as {
+                success: boolean;
+                error?: string;
+                message?: string;
+            };
+
+            if (response.status === 409) {
+                toast({
+                    title: 'Sync already running',
+                    description: result.error || 'Google Contacts sync is already in progress.',
+                    status: 'danger',
+                });
+                await refetchProfile();
+                return;
+            }
+
             if (!result.success) {
                 toast({
                     title: 'Google Sync Failed',
-                    description: result.error || 'Could not start the stored Google Contacts sync.',
+                    description: result.error || 'Could not refresh Google Contacts.',
                     status: 'danger',
                 });
             } else {
                 toast({
-                    title: 'Sync Started',
-                    description: result.message || 'Contacts are syncing in the background.',
+                    title: 'Sync Complete',
+                    description: result.message || 'Google Contacts were refreshed.',
                     status: 'success',
                 });
                 await refetchProfile();
@@ -78,7 +96,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
         } catch (error) {
             toast({
                 title: 'Google Sync Failed',
-                description: error instanceof Error ? error.message : 'Could not start the stored Google Contacts sync.',
+                description: error instanceof Error ? error.message : 'Could not refresh Google Contacts.',
                 status: 'danger',
             });
         } finally {
@@ -98,6 +116,39 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
         }
 
         setShowConnectDialog(true);
+    };
+
+    const handleDisconnectGoogle = async () => {
+        setIsDisconnecting(true);
+
+        try {
+            const response = await fetch('/api/contacts/disconnect', {
+                method: 'POST',
+            });
+            const result = await response.json() as {
+                success: boolean;
+                error?: string;
+            };
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Could not disconnect Google Contacts.');
+            }
+
+            toast({
+                title: 'Google Contacts disconnected',
+                description: 'You can now connect a different Google account. Existing contacts stay in your workspace.',
+                status: 'success',
+            });
+            await refetchProfile();
+        } catch (error) {
+            toast({
+                title: 'Disconnect failed',
+                description: error instanceof Error ? error.message : 'Could not disconnect Google Contacts.',
+                status: 'danger',
+            });
+        } finally {
+            setIsDisconnecting(false);
+        }
     };
 
     const onDialogConfirm = () => {
@@ -160,9 +211,11 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
 
     return {
         isSyncing,
+        isDisconnecting,
         showConnectDialog,
         setShowConnectDialog,
         handleConnectGoogle,
+        handleDisconnectGoogle,
         onDialogConfirm,
     };
 }

@@ -57,7 +57,7 @@ The primary media path is direct-to-R2:
 2. The client uploads bytes directly to Cloudflare R2.
 3. The app verifies the object through `HeadObject` and checks the uploaded byte size.
 4. The app creates the recording document and updates storage usage.
-5. If auto-transcription is enabled, the app queues an async job.
+5. If auto-transcription is enabled, the app starts post-response transcription work with `after(...)`.
 
 This keeps large files off the Next.js request body path and works for both web uploads and Android sync.
 
@@ -98,15 +98,13 @@ Exports are modeled as background jobs:
 
 Each archive part contains audio, JSON metadata, transcript text files, `README.txt`, and `viewer.html`.
 
-### Async Job System
+### Post-Response Work
 
-The `async_jobs` collection powers queued background work for:
+Not all background work is cron-managed:
 
-- auto transcription
-- Google Contacts sync
-- support email delivery
-
-Jobs can be claimed, retried with exponential backoff, marked failed, and retried manually from the admin dashboard. Completed jobs are TTL-cleaned after `30 days`.
+- auto-transcription starts with Next.js `after(...)` after upload finalization
+- support email delivery also uses `after(...)` after the support request is accepted
+- exports remain the only job model that waits for scheduled cron pickup in production
 
 ### Android Folder Sync
 

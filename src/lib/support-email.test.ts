@@ -13,7 +13,7 @@ function createSupportMessage(overrides: Partial<SupportMessageDocument> = {}): 
         email: 'support@example.com',
         subject: 'Need help',
         message: 'Line one\nLine two',
-        deliveryStatus: 'queued',
+        deliveryStatus: 'pending',
         deliveryAttempts: 0,
         createdAt: new Date('2026-03-19T00:00:00.000Z'),
         ...overrides,

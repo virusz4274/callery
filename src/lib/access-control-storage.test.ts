@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ObjectId } from 'mongodb';
 
-import { checkStorageAccess } from '@/lib/access-control-storage';
 import type { User } from '@/lib/db/types';
+
+async function getAccessControlStorageModule() {
+    process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+    return import('@/lib/access-control-storage');
+}
 
 function createUser(overrides: Partial<User> = {}): User {
     return {
@@ -44,14 +48,16 @@ function createUser(overrides: Partial<User> = {}): User {
     };
 }
 
-test('blocks paid users from exceeding storage allocation when overage is disabled', () => {
+test('blocks paid users from exceeding storage allocation when overage is disabled', async () => {
+    const { checkStorageAccess } = await getAccessControlStorageModule();
     const result = checkStorageAccess(createUser(), 10);
 
     assert.equal(result.allowed, false);
     assert.match(result.reason || '', /Enable 'Pay Per Usage'/);
 });
 
-test('allows paid users to exceed storage allocation when overage is enabled', () => {
+test('allows paid users to exceed storage allocation when overage is enabled', async () => {
+    const { checkStorageAccess } = await getAccessControlStorageModule();
     const result = checkStorageAccess(createUser({
         billingSettings: {
             allowOverage: true,
@@ -61,7 +67,8 @@ test('allows paid users to exceed storage allocation when overage is enabled', (
     assert.deepEqual(result, { allowed: true });
 });
 
-test('keeps free-trial storage limits strict even when overage is enabled elsewhere', () => {
+test('keeps free-trial storage limits strict even when overage is enabled elsewhere', async () => {
+    const { checkStorageAccess } = await getAccessControlStorageModule();
     const result = checkStorageAccess(createUser({
         planKey: 'free-trial',
         storageUsed: 100,
@@ -72,7 +79,8 @@ test('keeps free-trial storage limits strict even when overage is enabled elsewh
     assert.match(result.reason || '', /Free Trial/);
 });
 
-test('does not treat the legacy free alias as a canonical free-trial plan key', () => {
+test('does not treat the legacy free alias as a canonical free-trial plan key', async () => {
+    const { checkStorageAccess } = await getAccessControlStorageModule();
     const result = checkStorageAccess(createUser({
         planKey: 'free',
         storageUsed: 100,

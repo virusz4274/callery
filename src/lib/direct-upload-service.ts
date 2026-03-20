@@ -18,7 +18,6 @@ import { getR2ObjectDurationSeconds, R2_BUCKET, r2Client, validateAudioMimeType 
 import { reportUsage } from '@/lib/stripe/usage';
 import { createUploadSessionToken, verifyUploadSessionToken } from '@/lib/upload-session-token';
 import { prepareUploadContext } from '@/app/actions/upload/prepare-upload-context';
-import { enqueueAutoTranscriptionJob } from '@/lib/async-job-queue';
 
 const DIRECT_UPLOAD_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 15 * 60;
@@ -45,6 +44,10 @@ export interface CompleteDirectUploadResult {
     success: boolean;
     recordingId?: string;
     error?: string;
+}
+
+export interface CompleteDirectUploadForUserResult extends CompleteDirectUploadResult {
+    shouldStartAutoTranscription?: boolean;
 }
 
 async function updateStorageUsageForUpload(firebaseUid: string, fileSize: number): Promise<void> {
@@ -163,7 +166,7 @@ export async function initializeDirectUploadForUser(
 export async function completeDirectUploadForUser(
     firebaseUid: string,
     input: CompleteDirectUploadInput
-): Promise<CompleteDirectUploadResult> {
+): Promise<CompleteDirectUploadForUserResult> {
     try {
         if (!firebaseUid) {
             return { success: false, error: 'Not authenticated' };
@@ -194,7 +197,11 @@ export async function completeDirectUploadForUser(
 
         const existing = await getRecordingByR2Key(firebaseUid, payload.r2Key);
         if (existing) {
-            return { success: true, recordingId: existing._id.toString() };
+            return {
+                success: true,
+                recordingId: existing._id.toString(),
+                shouldStartAutoTranscription: false,
+            };
         }
 
         const head = await r2Client.send(
@@ -254,23 +261,12 @@ export async function completeDirectUploadForUser(
 
         await updateStorageUsageForUpload(firebaseUid, uploadedSize);
 
-        if (user.transcriptionSettings?.autoTranscribe) {
-            await enqueueAutoTranscriptionJob({
-                firebaseUid,
-                recordingId: createdRecording._id.toString(),
-                r2Key: payload.r2Key,
-                duration: Math.round(duration),
-                fileSize: uploadedSize,
-                fileName: payload.fileName,
-                standardizedDisplayName: payload.standardizedDisplayName,
-            });
-        }
-
         logger.info(`[directUpload] Completed: ${payload.fileName} -> ${payload.r2Key}`);
 
         return {
             success: true,
             recordingId: createdRecording._id.toString(),
+            shouldStartAutoTranscription: Boolean(user.transcriptionSettings?.autoTranscribe),
         };
     } catch (error) {
         logger.error('[directUpload] completeDirectUpload failed:', error);

@@ -217,28 +217,6 @@ Fields include:
 
 Each part stores a signed download URL, key, size, and expiration time.
 
-### `async_jobs`
-
-Queue-backed background work.
-
-Current job types:
-
-- `auto_transcription`
-- `google_contacts_sync`
-- `support_email`
-
-Important fields:
-
-- `type`
-- `status`
-- `payload`
-- `attempts`
-- `maxAttempts`
-- `runAt`
-- `lockedAt`, `lockedBy`
-- `lastError`
-- `createdAt`, `updatedAt`, `completedAt`
-
 ### `external_service_incidents`
 
 Stores deduplicated integration incidents for admin health visibility.
@@ -267,7 +245,7 @@ Important fields:
 - `firebaseUid` (`null` for anonymous submissions)
 - `name`, `email`, `subject`, `message`
 - `userAgent`, `ipAddress`
-- `deliveryStatus`: `queued`, `sending`, `sent`, `failed`, `skipped`
+- `deliveryStatus`: `pending`, `sending`, `sent`, `failed`, `skipped`
 - `deliveryAttempts`
 - `lastDeliveryError`
 - `emailedAt`
@@ -328,8 +306,7 @@ The current init code creates:
 
 - unique indexes on `users.firebaseUid`, `recordings.r2Key`, and `plans.name`
 - contact uniqueness by `firebaseUid + phoneNumbers`
-- sort/filter indexes for recordings, contacts, notifications, logs, jobs, and incidents
-- TTL on completed async jobs after 30 days
+- sort/filter indexes for recordings, contacts, notifications, logs, export jobs, and incidents
 - TTL on webhook event history after 90 days
 - TTL on `rate_limit_buckets.expiresAt`
 
@@ -341,7 +318,6 @@ recordings
 contacts
 plans
 export_jobs
-async_jobs
 system_settings
 announcements
 admin_logs

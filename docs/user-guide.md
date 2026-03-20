@@ -28,7 +28,7 @@ What happens during upload:
 1. The app validates the file name, MIME type, and size.
 2. The browser requests a signed R2 upload URL.
 3. File bytes go directly to Cloudflare R2.
-4. The app finalizes the upload, verifies the object and size, creates the recording, and optionally queues auto-transcription.
+4. The app finalizes the upload, verifies the object and size, creates the recording, and optionally starts auto-transcription after the response.
 
 If the filename contains a recognizable contact name, phone number, or timestamp, the uploader uses that to pre-fill the recording context and storage key.
 
@@ -187,5 +187,5 @@ When opened in a normal browser, the page explains that folder sync is Android-o
 - subject
 - message
 
-The request is stored in MongoDB. If support email delivery is configured, the app also queues outbound email delivery in the background.
+The request is stored in MongoDB. If support email delivery is configured, the app also sends the outbound email after the response is returned.
 The route works for signed-in and signed-out visitors, but it enforces origin checks, rate limits, and a honeypot field.

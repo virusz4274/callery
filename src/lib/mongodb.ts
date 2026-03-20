@@ -237,7 +237,6 @@ export const Collections = {
     CONTACTS: 'contacts',
     PLANS: 'plans',
     EXPORT_JOBS: 'export_jobs',
-    ASYNC_JOBS: 'async_jobs',
     SYSTEM_SETTINGS: 'system_settings',
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',

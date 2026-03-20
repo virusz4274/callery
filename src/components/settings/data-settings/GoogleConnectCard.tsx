@@ -6,7 +6,9 @@ import type { User } from '@/lib/types';
 interface GoogleConnectProps {
     googleSync?: User['googleSync'];
     isSyncing: boolean;
+    isDisconnecting: boolean;
     onConnect: () => void;
+    onDisconnect: () => void;
 }
 
 function getStatusLabel(googleSync?: User['googleSync']) {
@@ -22,7 +24,7 @@ function getStatusLabel(googleSync?: User['googleSync']) {
     }
 }
 
-export function GoogleConnectCard({ googleSync, isSyncing, onConnect }: GoogleConnectProps) {
+export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onConnect, onDisconnect }: GoogleConnectProps) {
     const status = getStatusLabel(googleSync);
     const buttonLabel = googleSync?.hasRefreshToken ? 'Sync now' : 'Connect Google';
 
@@ -58,15 +60,28 @@ export function GoogleConnectCard({ googleSync, isSyncing, onConnect }: GoogleCo
                         </div>
                     </div>
 
-                    <Button
-                        variant="primary"
-                        onPress={onConnect}
-                        isDisabled={isSyncing}
-                        className="w-full gap-2 rounded-full sm:w-auto"
-                    >
-                        {isSyncing ? <Spinner size="sm" color="current" /> : <GoogleIcon className="h-4 w-4" />}
-                        {isSyncing ? 'Syncing...' : buttonLabel}
-                    </Button>
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                        <Button
+                            variant="primary"
+                            onPress={onConnect}
+                            isDisabled={isSyncing || isDisconnecting}
+                            className="w-full gap-2 rounded-full sm:w-auto"
+                        >
+                            {isSyncing ? <Spinner size="sm" color="current" /> : <GoogleIcon className="h-4 w-4" />}
+                            {isSyncing ? 'Syncing...' : buttonLabel}
+                        </Button>
+                        {googleSync?.hasRefreshToken ? (
+                            <Button
+                                variant="secondary"
+                                onPress={onDisconnect}
+                                isDisabled={isSyncing || isDisconnecting}
+                                className="w-full rounded-full sm:w-auto"
+                            >
+                                {isDisconnecting ? <Spinner size="sm" color="current" /> : null}
+                                {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -86,6 +101,11 @@ export function GoogleConnectCard({ googleSync, isSyncing, onConnect }: GoogleCo
                         </p>
                     </div>
                 </div>
+                {googleSync?.hasRefreshToken ? (
+                    <p className="text-xs leading-5 text-default-400">
+                        Disconnecting stops future syncs and lets you connect a different Google account. Existing contacts stay in your workspace.
+                    </p>
+                ) : null}
             </Card.Content>
         </Card>
     );

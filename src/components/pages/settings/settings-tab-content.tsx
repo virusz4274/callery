@@ -104,7 +104,9 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                                 onSave={state.handleSaveData}
                                 isSaving={state.isSavingData}
                                 onConnectGoogle={state.handleConnectGoogle}
+                                onDisconnectGoogle={state.handleDisconnectGoogle}
                                 isSyncing={state.isSyncing}
+                                isDisconnecting={state.isDisconnecting}
                                 showConnectDialog={state.showConnectDialog}
                                 onDialogConfirm={state.onDialogConfirm}
                                 onOpenChangeDialog={state.setShowConnectDialog}

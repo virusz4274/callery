@@ -9,9 +9,32 @@ services:
     ports:
       - "9000:3000"
     restart: always
+    stop_grace_period: 10m
     # Loads environment variables from the .env file at runtime
     env_file:
       - .env
+
+  cron:
+    container_name: callery-cron
+    image: alpine:3.20
+    restart: always
+    depends_on:
+      - app
+    env_file:
+      - .env
+    environment:
+      TZ: UTC
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        cat > /etc/crontabs/root <<EOF
+        SHELL=/bin/sh
+        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        */5 * * * * wget -q -O /dev/null --header="Authorization: Bearer ${CRON_SECRET}" http://app:3000/api/cron/process-exports
+        0 3 * * * wget -q -O /dev/null --header="Authorization: Bearer ${CRON_SECRET}" http://app:3000/api/cron/cleanup-recordings
+        EOF
+        exec crond -f -l 2
 
   # ---------- Bundled services (commented out – using external Atlas + R2) ----------
 

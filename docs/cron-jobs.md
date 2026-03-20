@@ -1,18 +1,16 @@
 # Cron Jobs Setup
 
-Vosift uses three scheduled cron endpoints for background work. All three are standard `GET` route handlers protected by the `CRON_SECRET` environment variable.
-
----
+Vosift only uses scheduled cron endpoints for export processing and retention cleanup. Both routes are standard `GET` handlers protected by `CRON_SECRET`.
 
 ## Cron Endpoints
 
 ### `GET /api/cron/process-exports`
 
-Picks up the next pending data-export job (status `pending`) and processes it. Each invocation handles **one job** so it stays within serverless execution limits.
+Picks up the next pending data-export job (status `pending`) and processes it. Each invocation handles one job.
 
 - **Schedule:** Every 5 minutes.
-- **What it does:** Claims a queued export, zips the user's recordings along with metadata, uploads the `.zip` to R2 under `exports/`, and marks the job as `completed` (or `failed`).
-- **Stale job recovery:** If a job has been stuck in `processing` for longer than `EXPORT_JOB_STALE_MINUTES`, the cron considers it stale and re-claims it.
+- **What it does:** Claims a pending or stale export, packages the user's recordings and metadata, uploads the archive to R2, and marks the job `completed` or `failed`.
+- **Stale job recovery:** If a job is stuck in `processing` longer than `EXPORT_JOB_STALE_MINUTES`, the next cron run can reclaim it.
 
 ### `GET /api/cron/cleanup-recordings`
 
@@ -22,21 +20,19 @@ Enforces automatic deletion policies across all users.
 - **What it does:**
   1. Finds recordings past their auto-delete date and deletes them from both R2 and MongoDB.
   2. Decrements each affected user's `storageUsed` counter.
-  3. Permanently purges user accounts that were soft-deleted more than `SOFT_DELETE_RESTORE_DAYS` ago (deletes their R2 files and MongoDB documents).
+  3. Permanently purges user accounts that were soft-deleted more than `SOFT_DELETE_RESTORE_DAYS` ago.
 
-### `GET /api/cron/process-async-jobs`
+## What No Longer Uses Cron
 
-General-purpose async job runner. Picks up and processes the next queued async job (e.g., background transcription retries, email delivery).
-
-- **Schedule:** Not included in `vercel.json` by default — call it on-demand or add it to your scheduler if needed.
-
----
+- Auto-transcription now starts immediately after upload finalization with Next.js `after(...)`.
+- Support email delivery now runs with `after(...)` after the support request is accepted.
+- There is no generic async job queue or worker system.
 
 ## Deployment Scenarios
 
-### Vercel (Automatic)
+### Vercel
 
-If you deploy to Vercel, cron jobs are handled automatically. The schedules are defined in [`vercel.json`](../vercel.json):
+If you deploy to Vercel, the schedules are defined in [`vercel.json`](../vercel.json):
 
 ```json
 {
@@ -53,65 +49,38 @@ If you deploy to Vercel, cron jobs are handled automatically. The schedules are 
 }
 ```
 
-Vercel automatically sends the `CRON_SECRET` as the `Authorization: Bearer` header when invoking these routes. You only need to set `CRON_SECRET` in your Vercel environment variables.
+Vercel sends `Authorization: Bearer <CRON_SECRET>` automatically when invoking these routes.
 
-> [!NOTE]
-> On Vercel's free (Hobby) plan, cron jobs can run at most once per day. The `*/5 * * * *` schedule for `process-exports` will only work on the Pro plan or higher. On Hobby, you can work around this by setting `EXPORT_INLINE_PROCESSING=true` (see below).
+### Docker Compose
 
-### Docker / Self-Hosted / External Scheduler
+The included [`docker-compose.yml`](../docker-compose.yml) defines a `cron` sidecar that runs BusyBox `crond` inside `alpine:3.20` and calls the app service directly:
 
-If you are **not** on Vercel, you need to set up an external scheduler to call these endpoints. Use any cron service you prefer (system crontab, cron-job.org, AWS EventBridge, GCP Cloud Scheduler, etc.).
+```cron
+*/5 * * * *  wget -qO- --header="Authorization: Bearer ${CRON_SECRET}" http://app:3000/api/cron/process-exports >/dev/null 2>&1
+0 3 * * *    wget -qO- --header="Authorization: Bearer ${CRON_SECRET}" http://app:3000/api/cron/cleanup-recordings >/dev/null 2>&1
+```
 
-**Configure each job to make a `GET` request with the auth header:**
+The sidecar uses `TZ=UTC` and depends on the `app` service.
+
+### Other Self-Hosted Schedulers
+
+If you are not using the provided Compose setup, configure any scheduler to make `GET` requests with the cron bearer token:
 
 ```bash
-# Process exports — every 5 minutes
 curl -X GET https://your-domain.com/api/cron/process-exports \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 
-# Cleanup recordings — daily at 3 AM
 curl -X GET https://your-domain.com/api/cron/cleanup-recordings \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
-
-# Async jobs (optional) — every 10 minutes, or as needed
-curl -X GET https://your-domain.com/api/cron/process-async-jobs \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
-
-**Example using system crontab:**
-
-```cron
-*/5 * * * *  curl -sS -X GET https://your-domain.com/api/cron/process-exports -H "Authorization: Bearer YOUR_CRON_SECRET"
-0 3 * * *    curl -sS -X GET https://your-domain.com/api/cron/cleanup-recordings -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
-
----
 
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `CRON_SECRET` | **Yes** | — | Shared secret used to authenticate all cron requests. Generate with `openssl rand -hex 32`. |
-| `EXPORT_JOB_STALE_MINUTES` | **Yes** | `90` | Minutes before a stuck `processing` export job is considered stale and can be re-claimed by the next cron run. |
-| `EXPORT_INLINE_PROCESSING` | **Yes** | `false` | When `true`, exports are processed immediately in-line (using the Next.js `after()` hook) instead of waiting for the cron to pick them up. Useful for development or Vercel Hobby plans where cron frequency is limited. |
-| `SOFT_DELETE_RESTORE_DAYS` | **Yes** | `30` | Number of days a soft-deleted user account can be restored before the cleanup cron permanently purges it. |
-
----
-
-## Inline Processing (Alternative to Cron)
-
-For local development or simple setups where you don't want to configure a scheduler, set:
-
-```env
-EXPORT_INLINE_PROCESSING=true
-```
-
-With this enabled, when a user clicks "Export", the job runs immediately in the background using Next.js's `after()` hook — no cron needed. In development mode (`NODE_ENV=development`), inline processing is always enabled regardless of this flag.
-
-> [!IMPORTANT]
-> For production deployments with multiple concurrent users, the cron-based approach is recommended. Inline processing ties the export to the original request's serverless function, which may time out for large exports.
-
----
+| `CRON_SECRET` | **Yes** | — | Shared secret used to authenticate cron requests. Generate with `openssl rand -hex 32`. |
+| `EXPORT_JOB_STALE_MINUTES` | **Yes** | `90` | Minutes before a stuck `processing` export job is considered stale and can be reclaimed. |
+| `SOFT_DELETE_RESTORE_DAYS` | **Yes** | `30` | Days a soft-deleted user account can be restored before permanent purge. |
 
 ## Relevant Documentation
 

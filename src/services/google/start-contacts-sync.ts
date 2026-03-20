@@ -1,43 +1,50 @@
-import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
+import { waitUntil } from '@vercel/functions';
+import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { syncContactsBackground } from '@/services/google/contacts-sync';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '@/lib/db/types';
 import { findUserByFirebaseUid } from '@/lib/db/users';
-import { enqueueGoogleContactsSyncJob } from '@/lib/async-job-queue';
 import {
     encryptGoogleRefreshToken,
     getGoogleTokenEncryptionErrorMessage,
     readStoredGoogleRefreshToken,
 } from '@/services/google/refresh-token-crypto';
 
+const GOOGLE_SYNC_STALE_AFTER_MS = 15 * 60 * 1000;
+const STALE_SYNC_ERROR_MESSAGE = 'Previous sync did not finish. Please try again.';
+
 type GoogleCredentialState = {
     refreshToken?: string;
-    accessToken?: string;
     expiryDate?: number;
     scopes?: string[];
 };
 
-async function getUserIdFromSessionCookie() {
-    try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('session');
+type RunGoogleContactsSyncDependencies = {
+    findUserByFirebaseUid: typeof findUserByFirebaseUid;
+    readStoredGoogleRefreshToken: typeof readStoredGoogleRefreshToken;
+    getOAuth2Client: typeof getOAuth2Client;
+    syncContactsBackground: typeof syncContactsBackground;
+    updateGoogleSyncState: typeof updateGoogleSyncState;
+};
 
-        if (!sessionCookie?.value) {
-            console.error('Session cookie not found.');
-            return null;
-        }
+type StartGoogleContactsSyncDependencies = {
+    getOAuth2Client: typeof getOAuth2Client;
+    getFirebaseUidFromSession: typeof getFirebaseUidFromSession;
+    findUserByFirebaseUid: typeof findUserByFirebaseUid;
+    readStoredGoogleRefreshToken: typeof readStoredGoogleRefreshToken;
+    prepareGoogleContactsSync: typeof prepareGoogleContactsSync;
+    scheduleGoogleContactsSyncInBackground: typeof scheduleGoogleContactsSyncInBackground;
+    recoverStaleGoogleSync: typeof recoverStaleGoogleSync;
+};
 
-        const adminApp = getFirebaseAdminApp();
-        const decodedIdToken = await getAuth(adminApp).verifySessionCookie(sessionCookie.value, true);
-        return decodedIdToken.uid;
-    } catch (error) {
-        console.error('Error verifying session cookie in Google sync:', error);
-        return null;
-    }
-}
+type DisconnectGoogleContactsDependencies = {
+    findUserByFirebaseUid: typeof findUserByFirebaseUid;
+    readStoredGoogleRefreshToken: typeof readStoredGoogleRefreshToken;
+    getOAuth2Client: typeof getOAuth2Client;
+    updateGoogleSyncState: typeof updateGoogleSyncState;
+    getMongoDb: typeof getMongoDb;
+};
 
 function parseScopes(scope: string | null | undefined): string[] | undefined {
     if (!scope) {
@@ -130,7 +137,7 @@ export async function updateGoogleSyncState(
     );
 }
 
-async function queueGoogleContactsSync(firebaseUid: string, credentials: GoogleCredentialState) {
+export async function prepareGoogleContactsSync(firebaseUid: string, credentials: GoogleCredentialState) {
     const now = new Date();
     const user = await findUserByFirebaseUid(firebaseUid);
     await updateGoogleSyncState(firebaseUid, {
@@ -144,24 +151,46 @@ async function queueGoogleContactsSync(firebaseUid: string, credentials: GoogleC
         scopes: credentials.scopes,
         tokenExpiresAt: typeof credentials.expiryDate === 'number' ? new Date(credentials.expiryDate) : undefined,
     });
-
-    await enqueueGoogleContactsSyncJob(firebaseUid);
 }
 
-export async function runQueuedGoogleContactsSync(firebaseUid: string) {
-    const user = await findUserByFirebaseUid(firebaseUid);
-    const refreshToken = readStoredGoogleRefreshToken(user?.googleSync);
+export function isGoogleSyncStale(googleSync?: User['googleSync']) {
+    if (googleSync?.status !== 'syncing' || !googleSync.lastAttemptAt) {
+        return false;
+    }
+
+    return Date.now() - googleSync.lastAttemptAt.getTime() >= GOOGLE_SYNC_STALE_AFTER_MS;
+}
+
+export async function recoverStaleGoogleSync(firebaseUid: string, googleSync?: User['googleSync']) {
+    if (!isGoogleSyncStale(googleSync)) {
+        return false;
+    }
+
+    await updateGoogleSyncState(firebaseUid, {
+        status: 'failed',
+        lastError: STALE_SYNC_ERROR_MESSAGE,
+    });
+
+    return true;
+}
+
+export async function runGoogleContactsSyncWithDependencies(
+    firebaseUid: string,
+    dependencies: RunGoogleContactsSyncDependencies
+) {
+    const user = await dependencies.findUserByFirebaseUid(firebaseUid);
+    const refreshToken = dependencies.readStoredGoogleRefreshToken(user?.googleSync);
     if (!user || !refreshToken) {
         throw new Error('Google account is not connected. Please reconnect first.');
     }
 
-    const backgroundClient = getOAuth2Client();
+    const backgroundClient = dependencies.getOAuth2Client();
     backgroundClient.setCredentials({
         refresh_token: refreshToken,
     });
 
-    const importedCount = await syncContactsBackground(firebaseUid, backgroundClient);
-    await updateGoogleSyncState(firebaseUid, {
+    const importedCount = await dependencies.syncContactsBackground(firebaseUid, backgroundClient);
+    await dependencies.updateGoogleSyncState(firebaseUid, {
         status: 'completed',
         lastSyncedAt: new Date(),
         lastImportedCount: importedCount,
@@ -174,31 +203,112 @@ export async function runQueuedGoogleContactsSync(firebaseUid: string) {
     });
 }
 
-export async function markQueuedGoogleContactsSyncFailed(firebaseUid: string, errorMessage: string) {
+export async function runGoogleContactsSync(firebaseUid: string) {
+    return runGoogleContactsSyncWithDependencies(firebaseUid, {
+        findUserByFirebaseUid,
+        readStoredGoogleRefreshToken,
+        getOAuth2Client,
+        syncContactsBackground,
+        updateGoogleSyncState,
+    });
+}
+
+export async function markGoogleContactsSyncFailed(firebaseUid: string, errorMessage: string) {
     await updateGoogleSyncState(firebaseUid, {
         status: 'failed',
         lastError: errorMessage,
     });
 }
 
-export async function startGoogleContactsSync(code: string) {
+export async function disconnectGoogleContactsWithDependencies(
+    firebaseUid: string,
+    dependencies: DisconnectGoogleContactsDependencies
+) {
+    const user = await dependencies.findUserByFirebaseUid(firebaseUid);
+    const refreshToken = dependencies.readStoredGoogleRefreshToken(user?.googleSync);
+
+    if (refreshToken) {
+        try {
+            const client = dependencies.getOAuth2Client();
+            await client.revokeToken(refreshToken);
+        } catch (error) {
+            console.warn('Failed to revoke Google refresh token during disconnect:', error);
+        }
+    }
+
+    await dependencies.updateGoogleSyncState(firebaseUid, {
+        status: 'not_connected',
+        connectedAt: undefined,
+        lastAttemptAt: undefined,
+        lastError: null,
+        refreshToken: null,
+        scopes: undefined,
+        tokenExpiresAt: undefined,
+    });
+
+    const db = await dependencies.getMongoDb();
+    await db.collection<User>(Collections.USERS).updateOne(
+        { firebaseUid },
+        {
+            $unset: {
+                'googleSync.connectedAt': '',
+                'googleSync.lastAttemptAt': '',
+                'googleSync.scopes': '',
+                'googleSync.tokenExpiresAt': '',
+            },
+        }
+    );
+
+    return { success: true };
+}
+
+export async function disconnectGoogleContacts(firebaseUid: string) {
+    return disconnectGoogleContactsWithDependencies(firebaseUid, {
+        findUserByFirebaseUid,
+        readStoredGoogleRefreshToken,
+        getOAuth2Client,
+        updateGoogleSyncState,
+        getMongoDb,
+    });
+}
+
+export function scheduleGoogleContactsSyncInBackground(firebaseUid: string) {
+    waitUntil(
+        runGoogleContactsSync(firebaseUid).catch(async (error) => {
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+            console.error('Error running Google contacts sync in background:', error);
+            await markGoogleContactsSyncFailed(firebaseUid, errorMessage);
+        })
+    );
+}
+
+export async function startGoogleContactsSyncWithDependencies(
+    code: string,
+    dependencies: StartGoogleContactsSyncDependencies
+) {
     try {
-        const oAuth2Client = getOAuth2Client();
+        const oAuth2Client = dependencies.getOAuth2Client();
         const { tokens } = await oAuth2Client.getToken(code);
 
         oAuth2Client.setCredentials(tokens);
 
-        const userId = await getUserIdFromSessionCookie();
+        const userId = await dependencies.getFirebaseUidFromSession();
         if (!userId) {
             return { success: false, error: 'User not authenticated' };
         }
 
-        const user = await findUserByFirebaseUid(userId);
+        const user = await dependencies.findUserByFirebaseUid(userId);
         if (!user) {
             return { success: false, error: 'User profile not found' };
         }
+        if (user.googleSync?.status === 'syncing') {
+            const recovered = await dependencies.recoverStaleGoogleSync(userId, user.googleSync);
+            if (!recovered) {
+                return { success: false, error: 'Google Contacts sync is already in progress.' };
+            }
+        }
 
-        const existingRefreshToken = readStoredGoogleRefreshToken(user.googleSync);
+        const existingRefreshToken = dependencies.readStoredGoogleRefreshToken(user.googleSync);
         const refreshToken = tokens.refresh_token || existingRefreshToken;
         const scopes = parseScopes(tokens.scope) || user.googleSync?.scopes;
 
@@ -206,12 +316,12 @@ export async function startGoogleContactsSync(code: string) {
             return { success: false, error: 'Google did not return a refresh token. Please reconnect and grant access again.' };
         }
 
-        await queueGoogleContactsSync(userId, {
+        await dependencies.prepareGoogleContactsSync(userId, {
             refreshToken,
-            accessToken: tokens.access_token || undefined,
             expiryDate: tokens.expiry_date || undefined,
             scopes,
         });
+        dependencies.scheduleGoogleContactsSyncInBackground(userId);
 
         return { success: true, message: 'Sync started in background.' };
     } catch (error) {
@@ -230,38 +340,14 @@ export async function startGoogleContactsSync(code: string) {
     }
 }
 
-export async function restartGoogleContactsSync() {
-    const userId = await getUserIdFromSessionCookie();
-    if (!userId) {
-        return { success: false, error: 'User not authenticated' };
-    }
-
-    const user = await findUserByFirebaseUid(userId);
-    const refreshToken = readStoredGoogleRefreshToken(user?.googleSync);
-    if (!user || !refreshToken) {
-        return { success: false, error: 'Google account is not connected. Please reconnect first.' };
-    }
-
-    try {
-        await queueGoogleContactsSync(userId, {
-            refreshToken,
-            scopes: user.googleSync?.scopes,
-            expiryDate: user.googleSync?.tokenExpiresAt?.getTime(),
-        });
-
-        return { success: true, message: 'Sync started in background.' };
-    } catch (error) {
-        console.error('Error restarting Google contacts sync:', error);
-        if (error instanceof Error && error.message === getGoogleTokenEncryptionErrorMessage()) {
-            return {
-                success: false,
-                error: 'Google sync is not configured correctly on this deployment. Please contact support.',
-            };
-        }
-
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'An unknown error occurred.',
-        };
-    }
+export async function startGoogleContactsSync(code: string) {
+    return startGoogleContactsSyncWithDependencies(code, {
+        getOAuth2Client,
+        getFirebaseUidFromSession,
+        findUserByFirebaseUid,
+        readStoredGoogleRefreshToken,
+        prepareGoogleContactsSync,
+        scheduleGoogleContactsSyncInBackground,
+        recoverStaleGoogleSync,
+    });
 }

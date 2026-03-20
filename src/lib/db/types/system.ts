@@ -74,7 +74,7 @@ export interface ExternalServiceIncident {
     lastSeenAt: Date;
     occurrenceCount: number;
     cooldownUntil: Date;
-    sentryEventId?: string;
+    monitoringEventId?: string;
     sampleContext?: Record<string, unknown>;
     resolvedAt?: Date;
     staleAt?: Date;
@@ -125,49 +125,6 @@ export interface ExportJob {
     completedAt?: Date;
 }
 
-export type AsyncJobType = 'auto_transcription' | 'google_contacts_sync' | 'support_email';
-export type AsyncJobStatus = 'queued' | 'running' | 'failed' | 'completed';
-
-export interface AutoTranscriptionJobPayload {
-    firebaseUid: string;
-    recordingId: string;
-    r2Key: string;
-    duration: number;
-    fileSize: number;
-    fileName: string;
-    standardizedDisplayName: string;
-}
-
-export interface GoogleContactsSyncJobPayload {
-    firebaseUid: string;
-}
-
-export interface SupportEmailJobPayload {
-    firebaseUid: string;
-    supportMessageId: string;
-}
-
-export type AsyncJobPayload =
-    | AutoTranscriptionJobPayload
-    | GoogleContactsSyncJobPayload
-    | SupportEmailJobPayload;
-
-export interface AsyncJob {
-    _id: ObjectId;
-    type: AsyncJobType;
-    status: AsyncJobStatus;
-    payload: AsyncJobPayload;
-    attempts: number;
-    maxAttempts: number;
-    runAt: Date;
-    lockedAt?: Date;
-    lockedBy?: string;
-    lastError?: string;
-    createdAt: Date;
-    updatedAt: Date;
-    completedAt?: Date;
-}
-
 export interface RateLimitBucket {
     _id: string;
     count: number;
@@ -184,13 +141,6 @@ export type UpdateAnnouncementInput = Partial<Omit<Announcement, '_id' | 'create
 export type CreateNotificationInput = Omit<Notification, '_id' | 'createdAt'>;
 
 export type CreateExportJobInput = Omit<ExportJob, '_id' | 'createdAt' | 'updatedAt'>;
-export type CreateAsyncJobInput = Omit<
-    AsyncJob,
-    '_id' | 'attempts' | 'maxAttempts' | 'createdAt' | 'updatedAt' | 'completedAt' | 'lockedAt' | 'lockedBy' | 'lastError'
-> & {
-    attempts?: number;
-    maxAttempts?: number;
-};
 
 export interface SystemSettingsResponse {
     id: string;
@@ -241,7 +191,7 @@ export interface ExternalServiceIncidentResponse {
     lastSeenAt: string;
     occurrenceCount: number;
     cooldownUntil: string;
-    sentryEventId?: string;
+    monitoringEventId?: string;
     sampleContext?: Record<string, unknown>;
     resolvedAt?: string;
     staleAt?: string;
@@ -271,19 +221,4 @@ export interface ExportJobResponse {
     error?: string;
     createdAt: string;
     completedAt?: string;
-}
-
-export interface AsyncJobResponse {
-    id: string;
-    type: AsyncJobType;
-    status: AsyncJobStatus;
-    attempts: number;
-    maxAttempts: number;
-    runAt: string;
-    lastError?: string;
-    updatedAt: string;
-    createdAt: string;
-    firebaseUid: string;
-    recordingId?: string;
-    supportMessageId?: string;
 }
