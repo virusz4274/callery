@@ -269,3 +269,20 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 *Note: For a fully functioning billing cycle, you must also create Pricing Products and Meters inside Stripe for "storage_usage_bytes" and "transcription_usage_seconds". For deep details on creating pricing tiers, see our specific [billing.md](billing.md) guide.*
+
+### Step 9: Custom Firebase Auth Domain (Optional Proxy)
+
+If you don't want the Google Login popup to redirect users to the default `your-project.firebaseapp.com` domain, Vosift has a built-in Next.js proxy to seamlessly hide it behind your own domain.
+
+1. Go to Firebase Console -> **Authentication** -> **Settings** -> **Authorized domains**.
+2. Click **Add domain** and type your live custom domain (e.g., `app.yourwebsite.com`).
+3. In your `.env` file, change `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` to your custom domain, and then set `FIREBASE_AUTH_HELPER_ORIGIN` to the original Firebase domain you replaced.
+```env
+# Change this to your actual custom domain
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=app.yourwebsite.com
+
+# Tell Next.js where to proxy the /__/auth/ requests under the hood
+FIREBASE_AUTH_HELPER_ORIGIN=https://your-project.firebaseapp.com
+```
+
+With this configured, Next.js will automatically proxy the authentication traffic, keeping your users on your custom domain the entire time!
