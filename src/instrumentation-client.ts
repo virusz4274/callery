@@ -4,9 +4,9 @@
 
 import { init, replayIntegration, captureRouterTransitionStart } from "@sentry/nextjs";
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
   init({
-    dsn: "https://5506dac56dc73db49dde64aedf34944d@o4510817425817600.ingest.us.sentry.io/4510817435123712",
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
     // Add optional integrations for additional features
     integrations: [replayIntegration()],

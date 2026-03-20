@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import {
@@ -10,8 +10,11 @@ import { getPublicAppOrigin } from '@/lib/public-url';
 import {
     createSupportMessage,
     markSupportMessageFailed,
+    markSupportMessageSending,
+    markSupportMessageSent,
 } from '@/lib/db/support-messages';
-import { enqueueSupportEmailJob } from '@/lib/async-job-queue';
+import { logger } from '@/lib/logger';
+import { sendSupportMessageNotification } from '@/lib/support-email';
 import { env } from '@/lib/env';
 
 const supportMessageSchema = z.object({
@@ -83,30 +86,36 @@ export async function POST(request: NextRequest) {
         const { companyWebsite, ...messageData } = parsed.data;
         void companyWebsite;
 
-        const shouldQueueEmail = Boolean(env.SUPPORT_EMAIL?.trim());
+        const supportEmail = env.SUPPORT_EMAIL?.trim();
+        const shouldSendEmail = Boolean(supportEmail);
         const doc = await createSupportMessage({
             firebaseUid: firebaseUid || null,
             ...messageData,
             userAgent: request.headers.get('user-agent') || undefined,
             ipAddress,
-            deliveryStatus: shouldQueueEmail ? 'queued' : 'skipped',
+            deliveryStatus: shouldSendEmail ? 'pending' : 'skipped',
             deliveryAttempts: 0,
             createdAt: now,
         });
 
-        if (shouldQueueEmail) {
-            try {
-                await enqueueSupportEmailJob(doc._id.toString(), firebaseUid || null);
-            } catch (queueError) {
-                const errorMessage = queueError instanceof Error
-                    ? queueError.message
-                    : 'Failed to queue support email';
-                console.error('[Support API] Support email queueing failed:', queueError);
-                await markSupportMessageFailed(doc._id.toString(), {
-                    deliveryAttempts: 0,
-                    errorMessage,
-                });
-            }
+        if (shouldSendEmail && supportEmail) {
+            after(async () => {
+                try {
+                    await markSupportMessageSending(doc._id.toString(), 1);
+                    await sendSupportMessageNotification(doc, supportEmail);
+                    await markSupportMessageSent(doc._id.toString(), 1);
+                } catch (emailError) {
+                    const errorMessage = emailError instanceof Error
+                        ? emailError.message
+                        : 'Failed to send support email';
+
+                    logger.error('[Support API] Support email delivery failed:', emailError);
+                    await markSupportMessageFailed(doc._id.toString(), {
+                        deliveryAttempts: 1,
+                        errorMessage,
+                    });
+                }
+            });
         }
 
         return NextResponse.json(
@@ -121,7 +130,7 @@ export async function POST(request: NextRequest) {
             }
         );
     } catch (error) {
-        console.error('[Support API] Failed to create support request:', error);
+        logger.error('[Support API] Failed to create support request:', error);
         return NextResponse.json({ error: 'Failed to submit support request' }, { status: 500 });
     }
 }

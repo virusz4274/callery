@@ -88,4 +88,4 @@ npm run cap:sync
 - Transcription limit is `2 GiB` per file, and longer recordings may be processed asynchronously by the provider.
 - Recordings longer than `5 minutes` are handed off to Soniox or ElevenLabs async flows plus webhooks; shorter jobs can finish inline.
 - Billing routes return `403` when `NEXT_PUBLIC_ENABLE_BILLING=false`.
-- Cron routes require `Authorization: Bearer <CRON_SECRET>`.
+- The export and cleanup cron routes require `Authorization: Bearer <CRON_SECRET>`.

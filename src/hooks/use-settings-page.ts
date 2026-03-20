@@ -70,9 +70,11 @@ export function useSettingsPage() {
 
     const {
         isSyncing,
+        isDisconnecting,
         showConnectDialog,
         setShowConnectDialog,
         handleConnectGoogle,
+        handleDisconnectGoogle,
         onDialogConfirm,
     } = useGoogleSync({ googleSync: userProfile?.googleSync, refetchProfile: refetchUserProfile, searchParams, router, toast });
 
@@ -220,6 +222,7 @@ export function useSettingsPage() {
         tabs,
         showBilling,
         isSyncing,
+        isDisconnecting,
         showConnectDialog,
         setShowConnectDialog,
         isSavingProfile,
@@ -236,6 +239,7 @@ export function useSettingsPage() {
         handleSaveNotifications,
         handleSaveData,
         handleConnectGoogle,
+        handleDisconnectGoogle,
         onDialogConfirm,
         handleTabSelect,
         handleBack: () => setView('list'),

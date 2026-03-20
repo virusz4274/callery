@@ -27,7 +27,9 @@ interface DataSettingsProps {
     onSave: () => Promise<void>;
     isSaving: boolean;
     onConnectGoogle: () => void;
+    onDisconnectGoogle: () => void;
     isSyncing: boolean;
+    isDisconnecting: boolean;
     showConnectDialog: boolean;
     onDialogConfirm: () => void;
     onOpenChangeDialog: (open: boolean) => void;
@@ -44,7 +46,9 @@ export function DataSettings({
     onSave,
     isSaving,
     onConnectGoogle,
+    onDisconnectGoogle,
     isSyncing,
+    isDisconnecting,
     showConnectDialog,
     onDialogConfirm,
     onOpenChangeDialog,
@@ -64,7 +68,13 @@ export function DataSettings({
             <div className="space-y-6">
                 {mode === 'sources' && (
                 <SettingsPage title="Sources" description="Connect or review the services that supply contacts and incoming data.">
-                    <GoogleConnectCard googleSync={userProfile?.googleSync} isSyncing={isSyncing} onConnect={onConnectGoogle} />
+                    <GoogleConnectCard
+                        googleSync={userProfile?.googleSync}
+                        isSyncing={isSyncing}
+                        isDisconnecting={isDisconnecting}
+                        onConnect={onConnectGoogle}
+                        onDisconnect={onDisconnectGoogle}
+                    />
                 </SettingsPage>
                 )}
 

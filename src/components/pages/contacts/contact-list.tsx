@@ -12,6 +12,7 @@ type ContactListProps = {
     searchQuery: string;
     hasMore: boolean;
     isLoadingMore: boolean;
+    showGoogleSetup: boolean;
     setSentinelRef: (node: HTMLDivElement | null) => void;
     onContactClick: (contactId?: string) => void;
 };
@@ -21,6 +22,7 @@ export function ContactList({
     searchQuery,
     hasMore,
     isLoadingMore,
+    showGoogleSetup,
     setSentinelRef,
     onContactClick,
 }: ContactListProps) {
@@ -118,15 +120,26 @@ export function ContactList({
                     <p className="font-semibold text-xl text-foreground mb-2">
                         {searchQuery ? 'No contacts found' : 'No contacts yet'}
                     </p>
-                    <p className="text-default-500">
-                        {searchQuery ? 'Try putting in a different term.' : 'Your contacts will appear here.'}
+                    <p className="text-center text-default-500">
+                        {searchQuery
+                            ? 'Try putting in a different term.'
+                            : 'Contacts appear here after Google Contacts sync or once recordings start linking people in your workspace.'}
                     </p>
                     {!searchQuery && (
-                        <Link href="/upload" className="mt-5">
-                            <Button variant="secondary" className="rounded-full">
-                                Upload recordings
-                            </Button>
-                        </Link>
+                        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                            {showGoogleSetup ? (
+                                <Link href="/settings?tab=sources">
+                                    <Button className="rounded-full">
+                                        Connect Google Contacts
+                                    </Button>
+                                </Link>
+                            ) : null}
+                            <Link href="/upload">
+                                <Button variant="secondary" className="rounded-full">
+                                    Upload recordings
+                                </Button>
+                            </Link>
+                        </div>
                     )}
                 </div>
             )}

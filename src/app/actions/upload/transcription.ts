@@ -1,8 +1,9 @@
 import { findUserByFirebaseUid } from '@/lib/db/users';
-import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
+import { getRecordingById, markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
 import { logger } from '@/lib/logger';
 import { checkTranscriptionAccess } from '@/lib/access-control';
 import { getProviderMultiplier } from '@/app/actions/transcription-providers';
+import type { Recording, User } from '@/lib/db/types';
 import { TranscriptionFactory, TranscriptionProviderId } from '@/services/transcription/factory';
 import { getSignedR2Url } from '@/lib/r2';
 import { ElevenLabsService } from '@/services/transcription/elevenlabs-service';
@@ -24,7 +25,7 @@ export type AutoTranscriptionResult = {
     outcome: 'skipped' | 'started_async' | 'completed';
 };
 
-export async function markAutoTranscriptionJobFailed(
+export async function markAutoTranscriptionFailed(
     firebaseUid: string,
     recordingId: string,
     standardizedDisplayName: string,
@@ -44,23 +45,31 @@ export async function markAutoTranscriptionJobFailed(
     }
 }
 
-export async function triggerAutoTranscription(
+async function runAutoTranscription(
     firebaseUid: string,
-    recordingId: string,
-    r2Key: string,
-    duration: number,
-    fileSize: number,
-    fileName: string,
-    standardizedDisplayName: string
-) : Promise<AutoTranscriptionResult> {
-    const user = await findUserByFirebaseUid(firebaseUid);
+    recording: Recording,
+    user: User
+): Promise<AutoTranscriptionResult> {
     if (!user?.transcriptionSettings?.autoTranscribe) {
+        return { outcome: 'skipped' };
+    }
+
+    const { _id, duration, fileSize, r2Key, standardizedDisplayName } = recording;
+    const recordingId = _id.toString();
+
+    if (recording.transcriptionStatus === 'completed') {
+        logger.info(`[startAutoTranscriptionForRecording] Skipped for ${recordingId}: already completed`);
+        return { outcome: 'skipped' };
+    }
+
+    if (recording.transcriptionStatus === 'processing') {
+        logger.info(`[startAutoTranscriptionForRecording] Skipped for ${recordingId}: already processing`);
         return { outcome: 'skipped' };
     }
 
     if (!isTranscriptionFileSizeAllowed(fileSize)) {
         const reason = buildTranscriptionFileSizeError(fileSize);
-        logger.warn(`[triggerAutoTranscription] Skipped for ${recordingId}: ${reason}`);
+        logger.warn(`[startAutoTranscriptionForRecording] Skipped for ${recordingId}: ${reason}`);
         await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
         await createNotification(
             user._id,
@@ -82,7 +91,7 @@ export async function triggerAutoTranscription(
     const costDuration = duration * multiplier;
     const transcriptionAccess = await checkTranscriptionAccess(user, costDuration);
     if (!transcriptionAccess.allowed) {
-        logger.warn(`[triggerAutoTranscription] Skipped: ${transcriptionAccess.reason}`);
+        logger.warn(`[startAutoTranscriptionForRecording] Skipped: ${transcriptionAccess.reason}`);
         await updateRecording(recordingId, firebaseUid, { transcriptionStatus: 'failed' });
         await createNotification(
             user._id,
@@ -94,7 +103,7 @@ export async function triggerAutoTranscription(
         return { outcome: 'skipped' };
     }
 
-    logger.info(`[triggerAutoTranscription] Starting ${providerId} for ${recordingId}`);
+    logger.info(`[startAutoTranscriptionForRecording] Starting ${providerId} for ${recordingId}`);
 
     await updateRecording(recordingId, firebaseUid, {
         transcriptionStatus: 'processing',
@@ -162,7 +171,7 @@ export async function triggerAutoTranscription(
                 summaryEmbedding = await aiService.generateEmbedding(summary);
             }
         } catch (aiError) {
-            logger.error(`[triggerAutoTranscription] AI processing failed for ${recordingId}:`, aiError);
+            logger.error(`[startAutoTranscriptionForRecording] AI processing failed for ${recordingId}:`, aiError);
         }
     }
 
@@ -190,7 +199,7 @@ export async function triggerAutoTranscription(
     try {
         await transcriptionService.deleteTranscript(result.transcriptionId);
     } catch (cleanupError) {
-        logger.warn(`[triggerAutoTranscription] Cleanup failed for ${recordingId}:`, cleanupError);
+        logger.warn(`[startAutoTranscriptionForRecording] Cleanup failed for ${recordingId}:`, cleanupError);
     }
 
     try {
@@ -202,8 +211,36 @@ export async function triggerAutoTranscription(
             `/?id=${recordingId}`
         );
     } catch (notificationError) {
-        logger.warn(`[triggerAutoTranscription] Notification failed for ${recordingId}:`, notificationError);
+        logger.warn(`[startAutoTranscriptionForRecording] Notification failed for ${recordingId}:`, notificationError);
     }
 
     return { outcome: 'completed' };
+}
+
+export async function startAutoTranscriptionForRecording(
+    firebaseUid: string,
+    recordingId: string
+): Promise<AutoTranscriptionResult> {
+    const [user, recording] = await Promise.all([
+        findUserByFirebaseUid(firebaseUid),
+        getRecordingById(recordingId, firebaseUid),
+    ]);
+
+    if (!user) {
+        logger.warn(`[startAutoTranscriptionForRecording] Skipped for ${recordingId}: user not found`);
+        return { outcome: 'skipped' };
+    }
+
+    if (!recording) {
+        logger.warn(`[startAutoTranscriptionForRecording] Skipped for ${recordingId}: recording not found`);
+        return { outcome: 'skipped' };
+    }
+
+    try {
+        return await runAutoTranscription(firebaseUid, recording, user);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown transcription error';
+        await markAutoTranscriptionFailed(firebaseUid, recordingId, recording.standardizedDisplayName, errorMessage);
+        throw error;
+    }
 }

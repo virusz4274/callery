@@ -18,7 +18,7 @@
  * Location: `src/app/actions/`
  * 
  * Files:
- * - `upload-recordings.ts` - Upload audio files to R2 and create recordings
+ * - `upload/direct-upload.ts` - Initialize and finalize direct client uploads to R2
  * - `delete-recordings.ts` - Delete recordings from R2 and MongoDB
  * - `contacts.ts` - Create/update contacts
  * - `save-contacts.ts` - Bulk sync contacts from Google

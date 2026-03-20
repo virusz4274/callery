@@ -423,11 +423,12 @@ SUPPORT_EMAIL=support@example.com
 
 CRON_SECRET=your-random-cron-secret
 EXPORT_JOB_STALE_MINUTES=90
-EXPORT_INLINE_PROCESSING=false
 SOFT_DELETE_RESTORE_DAYS=30
 NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 CSP_REPORT_ONLY=false
 ```
+
+If you use the provided Docker Compose file, its `cron` sidecar reads the same `CRON_SECRET` and schedules only `process-exports` and `cleanup-recordings`.
 
 > [!NOTE]
 > **`CSP_REPORT_ONLY`** controls how the Content Security Policy header behaves in production:
@@ -438,25 +439,27 @@ CSP_REPORT_ONLY=false
 >
 > This setting has no effect in local development (`NODE_ENV !== 'production'`), where CSP headers are not sent at all.
 
-### Step 10: Error Tracking with Sentry (Optional)
+### Step 10: Optional Deployment Customizations
 
-Sentry captures runtime errors and performance data so you can diagnose production issues. This integration is **completely optional** — the app works perfectly without it.
+Some integrations in this repo are used by the first-party hosted service and are not required for self-hosting. Monitoring is one of those deployment-owned concerns.
 
-1. Create a free account at [Sentry](https://sentry.io/) and create a new **Next.js** project.
-2. Sentry will show you a **DSN** (Data Source Name) — a URL that tells the SDK where to send events.
-3. Optionally, go to **Settings → Auth Tokens** and create an **Auth Token** — this lets the build process upload source maps for readable stack traces.
+If you self-host Callery and want error monitoring in your own deployment, configure it in your copy of the app. The upstream app does not require Sentry and the standard self-host `.env` contract does not include Sentry variables.
 
-**Update your `.env` file:**
-```env
-SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-NEXT_PUBLIC_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-SENTRY_AUTH_TOKEN=sntrys_your-auth-token
+#### Optional: Add your own Sentry
+
+1. Clone or deploy your own copy of the app first.
+2. Run the Sentry wizard inside your deployment copy:
+
+```bash
+npx @sentry/wizard@latest -i nextjs
 ```
 
+3. Follow the wizard using your own Sentry account, project, and deployment settings.
+
 > [!NOTE]
-> Both `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` use the **same DSN value**. The `NEXT_PUBLIC_` variant is needed so the client-side SDK can report browser errors. DSNs are safe to expose publicly — they only identify where to send events, not grant admin access.
+> The hosted Callery service may use its own monitoring separately. That configuration is not part of the public self-host setup flow.
 >
-> If any of these variables are absent or left commented out, Sentry is silently disabled and the app runs normally.
+> If you want Sentry in a self-hosted deployment, it is owned by your deployment. You can either let the wizard scaffold the integration or manually adapt the existing Sentry files/config to your own DSNs and build settings.
 
 ### Step 11: Custom Firebase Auth Domain (Optional Proxy)
 

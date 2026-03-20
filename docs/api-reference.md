@@ -37,7 +37,7 @@ Main browser flow:
 1. `initializeDirectUpload`
 2. client `PUT` to R2
 3. `completeDirectUpload`
-4. optional auto-transcription enqueue
+4. optional auto-transcription start with `after(...)`
 
 Legacy fallback:
 
@@ -149,10 +149,11 @@ Main admin capabilities:
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
 | `GET` | `/api/contacts` | returns contacts for the current user |
+| `POST` | `/api/contacts/sync` | runs a foreground Google Contacts refresh for the current user |
 | `GET` | `/api/filesystem` | returns the storage/file tree for the current user |
 | `GET` | `/api/recordings/[id]` | returns a single recording payload |
 | `POST`, `DELETE` | `/api/notifications/subscribe` | registers or removes a browser push subscription |
-| `POST` | `/api/support` | creates a support request and may queue support email delivery |
+| `POST` | `/api/support` | creates a support request and may send support email after the response |
 
 ### Billing
 
@@ -193,7 +194,6 @@ Security:
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
 | `GET` | `/api/cron/process-exports` | processes pending export jobs |
-| `GET` | `/api/cron/process-async-jobs` | processes queued async jobs |
 | `GET` | `/api/cron/cleanup-recordings` | enforces cleanup and retention rules |
 
 All cron routes require:
@@ -224,7 +224,8 @@ This is a page route, not an API route.
 - rejects cross-origin submissions that do not match the public app origin
 - rate limits by client IP
 - stores every accepted request in `support_messages`
-- queues async email delivery to the configured `SUPPORT_EMAIL`
+- stores `pending` delivery state when `SUPPORT_EMAIL` is configured, otherwise `skipped`
+- sends the support email after the response with Next.js `after(...)`
 
 ## Stripe Webhook Events
 

@@ -4,7 +4,6 @@ import { after } from 'next/server';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { createExportJob, getLatestExportJob, toExportJobResponse } from '@/lib/db/export-jobs';
 import { processExport } from '@/lib/export-processor';
-import { env } from '@/lib/env';
 
 export async function startExport() {
     const firebaseUid = await getFirebaseUidFromSession();
@@ -33,9 +32,7 @@ export async function startExport() {
 
     // Local/dev fallback so exports still run without a scheduler.
     // Production should use the cron worker route.
-    const shouldRunInline =
-        env.NODE_ENV === 'development' ||
-        env.EXPORT_INLINE_PROCESSING;
+    const shouldRunInline = process.env.NODE_ENV === 'development';
 
     if (shouldRunInline) {
         after(async () => {

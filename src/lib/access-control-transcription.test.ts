@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ObjectId } from 'mongodb';
 
-import { checkTranscriptionAccess } from '@/lib/access-control-transcription';
 import type { User } from '@/lib/db/types';
+
+async function getAccessControlTranscriptionModule() {
+    process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+    return import('@/lib/access-control-transcription');
+}
 
 function createUser(overrides: Partial<User> = {}): User {
     return {
@@ -44,14 +48,16 @@ function createUser(overrides: Partial<User> = {}): User {
     };
 }
 
-test('blocks paid users from exceeding transcription allocation when overage is disabled', () => {
+test('blocks paid users from exceeding transcription allocation when overage is disabled', async () => {
+    const { checkTranscriptionAccess } = await getAccessControlTranscriptionModule();
     const result = checkTranscriptionAccess(createUser(), 200);
 
     assert.equal(result.allowed, false);
     assert.match(result.reason || '', /Transcription limit exceeded/);
 });
 
-test('allows paid users to exceed transcription allocation when overage is enabled', () => {
+test('allows paid users to exceed transcription allocation when overage is enabled', async () => {
+    const { checkTranscriptionAccess } = await getAccessControlTranscriptionModule();
     const result = checkTranscriptionAccess(createUser({
         billingSettings: {
             allowOverage: true,
@@ -61,7 +67,8 @@ test('allows paid users to exceed transcription allocation when overage is enabl
     assert.deepEqual(result, { allowed: true });
 });
 
-test('keeps free-tier transcription limits strict', () => {
+test('keeps free-tier transcription limits strict', async () => {
+    const { checkTranscriptionAccess } = await getAccessControlTranscriptionModule();
     const result = checkTranscriptionAccess(createUser({
         planKey: 'free-trial',
         transcriptionUsed: 3600,
@@ -72,7 +79,8 @@ test('keeps free-tier transcription limits strict', () => {
     assert.match(result.reason || '', /Free Trial/);
 });
 
-test('does not treat the legacy free alias as a canonical free-trial plan key', () => {
+test('does not treat the legacy free alias as a canonical free-trial plan key', async () => {
+    const { checkTranscriptionAccess } = await getAccessControlTranscriptionModule();
     const result = checkTranscriptionAccess(createUser({
         planKey: 'free',
         transcriptionUsed: 3600,

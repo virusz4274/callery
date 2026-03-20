@@ -126,7 +126,7 @@ function toExternalServiceIncidentResponse(
         lastSeenAt: incident.lastSeenAt.toISOString(),
         occurrenceCount: incident.occurrenceCount,
         cooldownUntil: incident.cooldownUntil.toISOString(),
-        sentryEventId: incident.sentryEventId,
+        monitoringEventId: incident.monitoringEventId,
         sampleContext: incident.sampleContext,
         resolvedAt: incident.resolvedAt?.toISOString(),
         staleAt: incident.staleAt?.toISOString(),
@@ -222,7 +222,7 @@ export async function reportExternalServiceIncident(
     const now = new Date();
     const db = await getMongoDb();
     const incidents = db.collection<ExternalServiceIncident>(Collections.EXTERNAL_SERVICE_INCIDENTS);
-    const sentryEventId = captureIncidentInSentry(provider, service, operation, classification, input.error, input.context);
+    const monitoringEventId = captureIncidentInSentry(provider, service, operation, classification, input.error, input.context);
 
     const existing = await incidents.findOne({
         dedupeKey,
@@ -248,7 +248,7 @@ export async function reportExternalServiceIncident(
                     message: classification.message,
                     lastSeenAt: now,
                     cooldownUntil: new Date(now.getTime() + cooldownMs),
-                    sentryEventId,
+                    monitoringEventId,
                     sampleContext: input.context,
                     updatedAt: now,
                 },
@@ -290,7 +290,7 @@ export async function reportExternalServiceIncident(
         lastSeenAt: now,
         occurrenceCount: 1,
         cooldownUntil: new Date(now.getTime() + cooldownMs),
-        sentryEventId,
+        monitoringEventId,
         sampleContext: input.context,
         createdAt: now,
         updatedAt: now,

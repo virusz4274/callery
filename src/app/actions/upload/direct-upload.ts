@@ -1,5 +1,6 @@
 'use server';
 
+import { after } from 'next/server';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import {
     completeDirectUploadForUser,
@@ -9,6 +10,8 @@ import {
     type InitDirectUploadInput,
     type InitDirectUploadResult,
 } from '@/lib/direct-upload-service';
+import { logger } from '@/lib/logger';
+import { startAutoTranscriptionForRecording } from './transcription';
 
 export async function initializeDirectUpload(input: InitDirectUploadInput): Promise<InitDirectUploadResult> {
     const firebaseUid = await getFirebaseUidFromSession();
@@ -25,5 +28,19 @@ export async function completeDirectUpload(input: CompleteDirectUploadInput): Pr
         return { success: false, error: 'Not authenticated' };
     }
 
-    return completeDirectUploadForUser(firebaseUid, input);
+    const { shouldStartAutoTranscription, ...result } = await completeDirectUploadForUser(firebaseUid, input);
+
+    const recordingId = result.success ? result.recordingId : undefined;
+
+    if (recordingId && shouldStartAutoTranscription) {
+        after(async () => {
+            try {
+                await startAutoTranscriptionForRecording(firebaseUid, recordingId);
+            } catch (error) {
+                logger.error('[directUpload] after() auto-transcription failed:', error);
+            }
+        });
+    }
+
+    return result;
 }

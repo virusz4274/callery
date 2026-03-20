@@ -93,7 +93,6 @@ const envSchema = z.object({
     CRON_SECRET: z.string().min(1),
     EXPORT_JOB_STALE_MINUTES: requiredNumber,
     SOFT_DELETE_RESTORE_DAYS: requiredNumber,
-    EXPORT_INLINE_PROCESSING: requiredBooleanString,
     SUPPORT_EMAIL: z.string().email(),
     GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION: z.string().min(1),
 
@@ -102,10 +101,6 @@ const envSchema = z.object({
     NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: requiredBooleanString,
     CSP_REPORT_ONLY: requiredBooleanString,
 
-    // Sentry (Optional)
-    SENTRY_DSN: z.string().url().optional(),
-    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
-    SENTRY_AUTH_TOKEN: z.string().min(1).optional(),
 });
 
 // For process.env
@@ -156,7 +151,6 @@ const processEnv = {
     SMTP_PASS: process.env.SMTP_PASS,
     EXPORT_JOB_STALE_MINUTES: process.env.EXPORT_JOB_STALE_MINUTES,
     SOFT_DELETE_RESTORE_DAYS: process.env.SOFT_DELETE_RESTORE_DAYS,
-    EXPORT_INLINE_PROCESSING: process.env.EXPORT_INLINE_PROCESSING,
     SONIOX_WEBHOOK_SECRET: process.env.SONIOX_WEBHOOK_SECRET,
     ELEVENLABS_WEBHOOK_SECRET: process.env.ELEVENLABS_WEBHOOK_SECRET,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
@@ -165,9 +159,6 @@ const processEnv = {
     NEXT_PUBLIC_ENABLE_BILLING: process.env.NEXT_PUBLIC_ENABLE_BILLING,
     NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU,
     CSP_REPORT_ONLY: process.env.CSP_REPORT_ONLY,
-    SENTRY_DSN: process.env.SENTRY_DSN,
-    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
 };
 
 // Validate

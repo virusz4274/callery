@@ -4,7 +4,7 @@ Admin features live under `/admin` and require a user whose role is `admin`.
 
 ## Admin Routes
 
-- `/admin`: dashboard, health checks, incidents, async job state, and cleanup actions
+- `/admin`: dashboard, health checks, incidents, and cleanup actions
 - `/admin/users`: user search and account mutations
 - `/admin/users/[id]`: detailed user view with recordings and billing context
 - `/admin/plans`: plan CRUD and Stripe price mapping
@@ -22,8 +22,6 @@ The dashboard is the operational overview for the platform. It currently surface
 - total transcription used
 - health status for MongoDB, R2, Gemini, Soniox, and ElevenLabs
 - open external service incidents
-- queued, running, and failed async job counts
-- recent failed async jobs
 - orphaned recording cleanup
 
 The health checks are code-backed, not static status text. MongoDB is pinged directly and Gemini performs a real embedding call. R2 currently checks whether the bucket configuration is present, while Soniox and ElevenLabs currently report configured-vs-missing API keys rather than making paid health probes.
@@ -111,9 +109,9 @@ Entries capture:
 - details payload
 - timestamp
 
-Actions from user, plan, announcement, settings, incident, and async-job workflows are recorded here.
+Actions from user, plan, announcement, settings, and incident workflows are recorded here.
 
-## Incidents And Async Jobs
+## Incidents And Email Testing
 
 The dashboard can also help resolve operational backlog.
 
@@ -121,14 +119,7 @@ Admins can:
 
 - clear one external service incident
 - clear all open external service incidents
-- retry failed async jobs
 - send an SMTP test email from the admin surface
-
-Async jobs currently cover:
-
-- auto transcription
-- Google Contacts sync
-- support email delivery
 
 ## Useful Scripts
 
@@ -150,8 +141,8 @@ npx tsx src/scripts/fix-contact-stats.ts
 
 When something is wrong:
 
-1. Open `/admin` and review service health, incidents, and async job failures.
+1. Open `/admin` and review service health and open incidents.
 2. Check `/admin/audit` for recent platform-side changes.
 3. Inspect the affected user in `/admin/users` or `/admin/users/[id]`.
-4. Retry failed async jobs or clear incidents only after you understand the root cause.
+4. Clear incidents only after you understand the root cause.
 5. Verify Stripe, transcription provider, webhook, or SMTP configuration if the issue crosses an external boundary.

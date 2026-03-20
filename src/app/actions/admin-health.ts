@@ -8,23 +8,14 @@ import {
     resolveAllOpenExternalServiceIncidents,
     resolveExternalServiceIncidentById,
 } from '@/lib/external-service-incidents';
-import {
-    getAsyncJobById,
-    getAsyncJobStats,
-    retryAsyncJobNow,
-} from '@/lib/db/async-jobs';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { env } from '@/lib/env';
 import { requireCurrentAdmin } from '@/lib/admin-auth';
 import type {
-    AsyncJobResponse,
     ExternalServiceIncidentResponse,
 } from '@/lib/db/types';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { sendEmail } from '@/lib/email';
-import { updateRecording } from '@/lib/db/recordings';
-import { updateGoogleSyncState } from '@/services/google/start-contacts-sync';
-import { markSupportMessageQueued } from '@/lib/db/support-messages';
 
 type ServiceStatus = {
     name: string;
@@ -39,16 +30,9 @@ export type SystemHealthResponse = {
         openCount: number;
         recent: ExternalServiceIncidentResponse[];
     };
-    asyncJobs: {
-        queuedCount: number;
-        runningCount: number;
-        failedCount: number;
-        recentFailed: AsyncJobResponse[];
-    };
 };
 
 const IncidentIdSchema = z.string().trim().min(1);
-const JobIdSchema = z.string().trim().min(1);
 const TestEmailSchema = z.string().trim().email();
 
 export async function checkSystemHealth(): Promise<SystemHealthResponse> {
@@ -169,10 +153,9 @@ export async function checkSystemHealth(): Promise<SystemHealthResponse> {
         });
     }
 
-    const [openCount, recentIncidents, asyncJobs] = await Promise.all([
+    const [openCount, recentIncidents] = await Promise.all([
         getOpenExternalServiceIncidentCount(),
         getOpenExternalServiceIncidents(),
-        getAsyncJobStats(),
     ]);
 
     return {
@@ -181,7 +164,6 @@ export async function checkSystemHealth(): Promise<SystemHealthResponse> {
             openCount,
             recent: recentIncidents,
         },
-        asyncJobs,
     };
 }
 
@@ -222,59 +204,6 @@ export async function clearAllServiceIncidents() {
     );
 
     return { success: true, clearedCount };
-}
-
-export async function retryFailedAsyncJob(jobId: string) {
-    const admin = await requireCurrentAdmin();
-    const parsed = JobIdSchema.safeParse(jobId);
-
-    if (!parsed.success) {
-        return { success: false, error: 'Invalid async job ID' };
-    }
-
-    const job = await getAsyncJobById(parsed.data);
-    if (!job) {
-        return { success: false, error: 'Async job not found' };
-    }
-
-    if (job.status !== 'failed') {
-        return { success: false, error: 'Only failed jobs can be retried' };
-    }
-
-    const retried = await retryAsyncJobNow(parsed.data);
-    if (!retried) {
-        return { success: false, error: 'Failed to requeue async job' };
-    }
-
-    if (job.type === 'auto_transcription' && 'recordingId' in job.payload) {
-        await updateRecording(job.payload.recordingId, job.payload.firebaseUid, {
-            transcriptionStatus: 'pending',
-        });
-    } else if (job.type === 'google_contacts_sync') {
-        await updateGoogleSyncState(job.payload.firebaseUid, {
-            status: 'syncing',
-            lastAttemptAt: new Date(),
-            lastError: null,
-        });
-    } else if ('supportMessageId' in job.payload) {
-        await markSupportMessageQueued(job.payload.supportMessageId, {
-            deliveryAttempts: 0,
-            lastDeliveryError: null,
-        });
-    }
-
-    await logAdminAction(
-        admin._id.toString(),
-        'ASYNC_JOB_RETRY',
-        {
-            jobId: parsed.data,
-            jobType: job.type,
-        },
-        parsed.data,
-        'SYSTEM'
-    );
-
-    return { success: true };
 }
 
 export async function sendAdminTestEmail(recipient?: string) {

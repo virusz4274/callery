@@ -6,7 +6,6 @@ type CollectionsMap = {
     CONTACTS: string;
     PLANS: string;
     EXPORT_JOBS: string;
-    ASYNC_JOBS: string;
     ADMIN_LOGS: string;
     NOTIFICATIONS: string;
     EXTERNAL_SERVICE_INCIDENTS: string;
@@ -110,17 +109,6 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
                 { key: { status: 1, updatedAt: -1 }, name: 'status_updatedAt' },
             ],
             errorMessage: '⚠️ Export jobs index creation failed:',
-        },
-        {
-            label: 'Async Jobs',
-            collection: collections.ASYNC_JOBS,
-            indexes: [
-                { key: { status: 1, runAt: 1 }, name: 'status_runAt' },
-                { key: { type: 1, status: 1, updatedAt: -1 }, name: 'type_status_updatedAt' },
-                { key: { 'payload.firebaseUid': 1, status: 1, updatedAt: -1 }, name: 'payloadFirebaseUid_status_updatedAt' },
-                { key: { completedAt: 1 }, name: 'completedAt_ttl_30d', expireAfterSeconds: 30 * 24 * 60 * 60 },
-            ],
-            errorMessage: '⚠️ Async jobs index creation failed:',
         },
         {
             label: 'Stripe Webhook Events',

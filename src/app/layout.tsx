@@ -1,6 +1,4 @@
 
-import "@/instrumentation-client";
-
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Suspense } from 'react';

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button, Card, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
 import type { Contact } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useUser } from '@/lib/firebase/provider';
 import { ContactList } from './contacts/contact-list';
 import { useContactGroups } from './contacts/use-contact-groups';
@@ -57,6 +58,7 @@ export function ContactsPage({
     const searchParams = useSearchParams();
     const searchQuery = searchParams.get('q') || '';
     const { user, isUserLoading } = useUser();
+    const { userProfile } = useUserProfile(user);
 
     const { groupedContacts, sortedAndFilteredContacts } = useContactGroups(allContacts, searchQuery);
 
@@ -125,6 +127,21 @@ export function ContactsPage({
                         <p className="max-w-2xl text-sm leading-6 text-default-500">
                             Search people, companies, and phone numbers, then jump straight into the call history tied to that contact.
                         </p>
+                        {!userProfile?.googleSync?.hasRefreshToken ? (
+                            <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
+                                <p className="text-sm font-semibold text-foreground">Want Google Contacts here?</p>
+                                <p className="mt-1 max-w-2xl text-sm leading-6 text-default-500">
+                                    Connect Google Contacts in Settings &gt; Sources to import names and numbers into your workspace.
+                                </p>
+                                <div className="mt-3">
+                                    <Link href="/settings?tab=sources">
+                                        <Button variant="secondary" className="rounded-full">
+                                            Go to Sources
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
                                 {displayedCount} visible
@@ -206,6 +223,7 @@ export function ContactsPage({
                 searchQuery={searchQuery}
                 hasMore={hasMore}
                 onContactClick={handleContactClick}
+                showGoogleSetup={!userProfile?.googleSync?.hasRefreshToken}
                 setSentinelRef={(node) => {
                     sentinelRef.current = node;
                 }}
