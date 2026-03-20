@@ -1,3 +1,7 @@
+// TODO: This file is part of the server-proxied upload path (uploadRecordings action).
+// All uploads should go directly to Cloudflare R2 from the client instead.
+// Once upload-recordings.ts is removed, this file can be deleted too.
+
 import { ObjectId } from 'mongodb';
 import {
     uploadToR2WithMetadata,

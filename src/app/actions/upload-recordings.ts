@@ -1,5 +1,12 @@
 'use server';
 
+// TODO: Migrate all uploads to go directly to Cloudflare R2 from the client.
+// Currently files ≤20MB are proxied through this server action, which wastes
+// server memory/CPU. The direct-upload pipeline (r2-direct-upload-client.ts +
+// direct-upload.ts) already exists and handles large files. Unify all uploads
+// to use that path and remove this server-proxied action entirely.
+// See also: upload-single-file.ts, next.config.ts bodySizeLimit.
+
 import pLimit from 'p-limit';
 import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 import { checkUserAccess, checkStorageAccess } from '@/lib/access-control';
