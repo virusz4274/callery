@@ -1,12 +1,12 @@
-import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
-import { incrementContactCount } from '../../users';
+import { setContactCount } from '../../users';
 import type { Contact } from '../../types';
 import type { UpsertContactInput } from '../types';
+import { normalizeGoogleContactInput } from '../normalize';
 import { linkRecordingsToContact } from '../link';
 
 /**
- * Upsert multiple contacts (create/update based on Google ID and phone numbers).
+ * Replace a user's contact projection from Google Contacts.
  */
 export async function upsertContacts(
     firebaseUid: string,
@@ -19,165 +19,88 @@ export async function upsertContacts(
 
     let created = 0;
     let updated = 0;
-
-    const existingContacts = await collection.find({ firebaseUid }).toArray();
-    const googleIdMap = new Map<string, Contact>();
-    const phoneMap = new Map<string, Contact>();
-
-    existingContacts.forEach((existingContact) => {
-        if (existingContact.googleContactId) {
-            googleIdMap.set(existingContact.googleContactId, existingContact);
-        }
-
-        if (existingContact.phoneNumbers && Array.isArray(existingContact.phoneNumbers)) {
-            existingContact.phoneNumbers.forEach((phone) => {
-                if (!phoneMap.has(phone)) {
-                    phoneMap.set(phone, existingContact);
-                }
-            });
-        }
-    });
-
-    const batchProcessedPhones = new Map<string, ObjectId>();
-    const batchProcessedGoogleIds = new Map<string, ObjectId>();
-    const mergePhoneNumbers = (...phoneGroups: Array<string[] | undefined>): string[] =>
-        [...new Set(phoneGroups.flatMap((phoneGroup) => phoneGroup || []).filter(Boolean))];
+    const existingContacts = await collection.find({
+        firebaseUid,
+        googleContactId: { $type: 'string' },
+    }).toArray();
+    const existingByGoogleId = new Map(existingContacts.map((contact) => [contact.googleContactId, contact]));
+    const syncedGoogleContactIds = new Set<string>();
 
     for (const contact of contacts) {
-        const [firstName, ...lastNameParts] = contact.name.split(' ');
-        const lastName = lastNameParts.join(' ');
-
-        let googleMatchId: ObjectId | undefined;
-        let googleMatchDoc: Contact | undefined;
-
-        if (contact.googleContactId) {
-            if (batchProcessedGoogleIds.has(contact.googleContactId)) {
-                googleMatchId = batchProcessedGoogleIds.get(contact.googleContactId);
-            } else if (googleIdMap.has(contact.googleContactId)) {
-                googleMatchDoc = googleIdMap.get(contact.googleContactId);
-                googleMatchId = googleMatchDoc?._id;
-            }
+        if (!contact.googleContactId) {
+            continue;
         }
 
-        let phoneMatchId: ObjectId | undefined;
-        let phoneMatchDoc: Contact | undefined;
+        syncedGoogleContactIds.add(contact.googleContactId);
 
-        if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-            for (const phone of contact.phoneNumbers) {
-                if (batchProcessedPhones.has(phone)) {
-                    phoneMatchId = batchProcessedPhones.get(phone);
-                    break;
-                }
+        const normalizedContact = normalizeGoogleContactInput(contact);
+        const existingContact = existingByGoogleId.get(contact.googleContactId);
 
-                if (phoneMap.has(phone)) {
-                    const found = phoneMap.get(phone);
-                    if (found && (!googleMatchId || !found._id.equals(googleMatchId))) {
-                        phoneMatchDoc = found;
-                        phoneMatchId = found._id;
-                        break;
-                    }
-                }
-            }
-        }
-
-        const contactData = {
-            name: contact.name,
-            email: contact.email || '',
-            googleContactId: contact.googleContactId,
-            jobTitle: contact.jobTitle || undefined,
-            company: contact.company || undefined,
-            firstName: firstName || '',
-            lastName: lastName || '',
-            updatedAt: now,
-        };
-
-        let targetId: ObjectId | undefined;
-
-        let finalPhoneNumbers = contact.phoneNumbers || [];
-
-        if (googleMatchId && phoneMatchId && !googleMatchId.equals(phoneMatchId)) {
-            if (phoneMatchDoc) {
-                finalPhoneNumbers = mergePhoneNumbers(
-                    finalPhoneNumbers,
-                    googleMatchDoc?.phoneNumbers,
-                    phoneMatchDoc.phoneNumbers
-                );
-
-                await recordingsCollection.updateMany(
-                    { contactId: phoneMatchDoc._id },
-                    {
-                        $set: {
-                            contactId: googleMatchId,
-                            contactName: contact.name,
-                        },
-                    }
-                );
-
-                await collection.deleteOne({ _id: phoneMatchDoc._id });
-                updated++;
-
-                if (phoneMatchDoc.phoneNumbers) {
-                    phoneMatchDoc.phoneNumbers.forEach((phone) => phoneMap.delete(phone));
-                }
-
-                await incrementContactCount(firebaseUid, -1);
-            }
-
-            targetId = googleMatchId;
-        } else if (googleMatchId) {
-            targetId = googleMatchId;
-        } else if (phoneMatchId) {
-            targetId = phoneMatchId;
-        }
-
-        if (targetId) {
-            finalPhoneNumbers = mergePhoneNumbers(
-                finalPhoneNumbers,
-                googleMatchDoc?.phoneNumbers,
-                phoneMatchDoc?.phoneNumbers
-            );
-
+        if (existingContact) {
             await collection.updateOne(
-                { _id: targetId },
+                { _id: existingContact._id },
                 {
-                    $set: contactData,
-                    $addToSet: { phoneNumbers: { $each: finalPhoneNumbers } },
+                    $set: {
+                        ...normalizedContact,
+                        updatedAt: now,
+                    },
                 }
             );
             updated++;
-
-            if (finalPhoneNumbers.length > 0) {
-                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
-            }
+            await linkRecordingsToContact(
+                existingContact._id,
+                normalizedContact.phoneNumbers,
+                firebaseUid,
+                normalizedContact.name
+            );
         } else {
             const result = await collection.insertOne({
-                ...contactData,
+                ...normalizedContact,
                 firebaseUid,
                 createdAt: now,
-                phoneNumbers: finalPhoneNumbers,
+                updatedAt: now,
                 totalRecordings: 0,
                 lastRecordingAt: null,
             } as Contact);
-
-            targetId = result.insertedId;
             created++;
-
-            if (finalPhoneNumbers.length > 0) {
-                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
-            }
-        }
-
-        if (targetId) {
-            if (contact.googleContactId) {
-                batchProcessedGoogleIds.set(contact.googleContactId, targetId);
-            }
-            finalPhoneNumbers.forEach((phone) => batchProcessedPhones.set(phone, targetId));
+            await linkRecordingsToContact(
+                result.insertedId,
+                normalizedContact.phoneNumbers,
+                firebaseUid,
+                normalizedContact.name
+            );
         }
     }
 
-    if (created > 0) {
-        await incrementContactCount(firebaseUid, created);
+    const staleContacts = existingContacts.filter((contact) => !syncedGoogleContactIds.has(contact.googleContactId));
+    if (staleContacts.length > 0) {
+        for (const staleContact of staleContacts) {
+            await recordingsCollection.updateMany(
+                {
+                    firebaseUid,
+                    contactId: staleContact._id,
+                },
+                {
+                    $set: {
+                        contactId: null,
+                        contactName: staleContact.name,
+                    },
+                }
+            );
+        }
+
+        await collection.deleteMany({
+            _id: { $in: staleContacts.map((contact) => contact._id) },
+        });
     }
+
+    await setContactCount(
+        firebaseUid,
+        await collection.countDocuments({
+            firebaseUid,
+            googleContactId: { $type: 'string' },
+        })
+    );
 
     return { created, updated };
 }

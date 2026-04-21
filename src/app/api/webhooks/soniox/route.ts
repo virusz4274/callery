@@ -9,6 +9,7 @@ import { incrementTranscriptionUsed, findUserByFirebaseUid } from '@/lib/db/user
 import { GeminiService } from '@/services/ai/gemini-service';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { createNotification } from '@/lib/notifications';
+import { buildRecordingNotificationLink } from '@/lib/notification-links';
 import { ObjectId } from 'mongodb';
 import {
     claimTranscriptionWebhookEvent,
@@ -239,7 +240,7 @@ export async function POST(request: Request) {
                     'success',
                     'Transcription Ready',
                     `Your recording "${recording.standardizedDisplayName}" has been processed.`,
-                    `/?id=${recordingId}`
+                    buildRecordingNotificationLink(recordingId)
                 );
             }
         } catch (notificationError) {

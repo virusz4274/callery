@@ -16,6 +16,7 @@ import {
 import { logger } from '@/lib/logger';
 import { sendSupportMessageNotification } from '@/lib/support-email';
 import { env } from '@/lib/env';
+import { siteProfile } from '@/lib/site-profile';
 
 const supportMessageSchema = z.object({
     name: z.string().trim().min(2).max(120),
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
         const { companyWebsite, ...messageData } = parsed.data;
         void companyWebsite;
 
-        const supportEmail = env.SUPPORT_EMAIL?.trim();
+        const supportEmail = siteProfile.supportEmail?.trim() || env.SUPPORT_EMAIL?.trim();
         const shouldSendEmail = Boolean(supportEmail);
         const doc = await createSupportMessage({
             firebaseUid: firebaseUid || null,

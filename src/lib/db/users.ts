@@ -20,6 +20,7 @@ export {
     incrementContactCount,
     incrementStorageUsed,
     incrementTranscriptionUsed,
+    setContactCount,
     setStoragePeakUsed,
     updateUserRecordingStats,
 } from './users/usage';

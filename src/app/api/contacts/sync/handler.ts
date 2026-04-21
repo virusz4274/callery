@@ -56,11 +56,12 @@ export function createPostContactsSyncHandler(dependencies: ContactsSyncRouteDep
                 expiryDate: user.googleSync?.tokenExpiresAt?.getTime(),
             });
 
-            await dependencies.runGoogleContactsSync(firebaseUid);
+            const syncResult = await dependencies.runGoogleContactsSync(firebaseUid);
 
             return NextResponse.json({
                 success: true,
                 message: 'Contacts synced successfully.',
+                duplicatePhoneIssueCount: syncResult.duplicatePhoneIssues.length,
             });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to sync contacts';

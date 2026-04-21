@@ -39,6 +39,7 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
             indexes: [
                 { key: { firebaseUid: 1, recordedAt: -1 }, name: 'firebaseUid_recordedAt' },
                 { key: { firebaseUid: 1, contactId: 1 }, name: 'firebaseUid_contactId' },
+                { key: { firebaseUid: 1, normalizedPhoneNumber: 1 }, name: 'firebaseUid_normalizedPhoneNumber' },
                 { key: { r2Key: 1 }, unique: true, name: 'r2Key_unique' },
                 { key: { firebaseUid: 1, isArchived: 1 }, name: 'firebaseUid_isArchived' },
             ],
@@ -48,8 +49,9 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
             label: 'Contacts',
             collection: collections.CONTACTS,
             indexes: [
-                { key: { firebaseUid: 1, phoneNumbers: 1 }, unique: true, name: 'firebaseUid_phoneNumbers_unique' },
-                { key: { firebaseUid: 1, name: 1 }, name: 'firebaseUid_name' },
+                { key: { firebaseUid: 1, googleContactId: 1 }, unique: true, name: 'firebaseUid_googleContactId_unique' },
+                { key: { firebaseUid: 1, normalizedName: 1 }, name: 'firebaseUid_normalizedName' },
+                { key: { firebaseUid: 1, normalizedPhoneNumbers: 1 }, name: 'firebaseUid_normalizedPhoneNumbers' },
             ],
             errorMessage: '⚠️ Contacts index creation failed (likely duplicates):',
         },

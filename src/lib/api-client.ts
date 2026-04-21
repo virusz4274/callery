@@ -1,20 +1,22 @@
 'use client';
 
 import { getAuth } from 'firebase/auth';
+import { initializeFirebase } from '@/lib/firebase/client';
 
 /**
  * Get the current user's Firebase ID token.
  * Returns null if no user is logged in.
  */
 export async function getIdToken(): Promise<string | null> {
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
-        return null;
-    }
-
     try {
+        initializeFirebase();
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+            return null;
+        }
+
         return await user.getIdToken();
     } catch (error) {
         console.error('Failed to get ID token:', error);

@@ -15,22 +15,33 @@ export interface PreparedUploadContext {
     r2Key: string;
 }
 
-export async function prepareUploadContext(
+type PrepareUploadContextDependencies = {
+    resolveUploadMimeType: typeof resolveUploadMimeType;
+    validateAudioMimeType: typeof validateAudioMimeType;
+    parseContactFromFilename: typeof parseContactFromFilename;
+    extractFileExtension: typeof extractFileExtension;
+    findContactByPhone: typeof findContactByPhone;
+    findContactByName: typeof findContactByName;
+    generateRecordingKey: typeof generateRecordingKey;
+};
+
+export async function prepareUploadContextWithDependencies(
     firebaseUid: string,
     fileName: string,
-    mimeType?: string
+    mimeType: string | undefined,
+    dependencies: PrepareUploadContextDependencies
 ): Promise<PreparedUploadContext | { error: string }> {
-    const normalizedMimeType = resolveUploadMimeType(fileName, mimeType);
+    const normalizedMimeType = dependencies.resolveUploadMimeType(fileName, mimeType);
     if (!normalizedMimeType) {
         return { error: `Unsupported file type for ${fileName}` };
     }
 
-    if (!validateAudioMimeType(normalizedMimeType)) {
+    if (!dependencies.validateAudioMimeType(normalizedMimeType)) {
         return { error: `Invalid MIME type: ${normalizedMimeType}` };
     }
 
-    const contactInfo = parseContactFromFilename(fileName);
-    const extension = extractFileExtension(fileName);
+    const contactInfo = dependencies.parseContactFromFilename(fileName);
+    const extension = dependencies.extractFileExtension(fileName);
 
     let contactId: string | null = null;
     let contactName = contactInfo.name || null;
@@ -38,7 +49,7 @@ export async function prepareUploadContext(
     let googleContactId: string | undefined;
 
     if (contactInfo.phoneNumber) {
-        const contact = await findContactByPhone(firebaseUid, contactInfo.phoneNumber);
+        const contact = await dependencies.findContactByPhone(firebaseUid, contactInfo.phoneNumber);
         if (contact) {
             contactId = contact._id.toString();
             contactName = contact.name;
@@ -46,7 +57,7 @@ export async function prepareUploadContext(
             googleContactId = contact.googleContactId;
         }
     } else if (contactInfo.name) {
-        const contact = await findContactByName(firebaseUid, contactInfo.name);
+        const contact = await dependencies.findContactByName(firebaseUid, contactInfo.name);
         if (contact) {
             contactId = contact._id.toString();
             contactName = contact.name;
@@ -62,7 +73,7 @@ export async function prepareUploadContext(
         ? `${contactName.replace(/\s+/g, '_')}_${displayDate}_${displayTime}`
         : `${phoneNumber}_${displayDate}_${displayTime}`;
 
-    const r2Key = generateRecordingKey(firebaseUid, contactId, phoneNumber, recordedAt, extension);
+    const r2Key = dependencies.generateRecordingKey(firebaseUid, contactId, phoneNumber, recordedAt, extension);
 
     return {
         contactId,
@@ -75,4 +86,20 @@ export async function prepareUploadContext(
         standardizedDisplayName,
         r2Key,
     };
+}
+
+export async function prepareUploadContext(
+    firebaseUid: string,
+    fileName: string,
+    mimeType?: string
+): Promise<PreparedUploadContext | { error: string }> {
+    return prepareUploadContextWithDependencies(firebaseUid, fileName, mimeType, {
+        resolveUploadMimeType,
+        validateAudioMimeType,
+        parseContactFromFilename,
+        extractFileExtension,
+        findContactByPhone,
+        findContactByName,
+        generateRecordingKey,
+    });
 }

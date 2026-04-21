@@ -183,7 +183,12 @@ test('runGoogleContactsSync updates sync state after a successful import', async
         syncContactsBackground: async (firebaseUid, client) => {
             assert.equal(firebaseUid, 'user-1');
             assert.equal(client, fakeClient);
-            return 42;
+            return {
+                importedCount: 42,
+                duplicatePhoneIssues: [
+                    { phoneNumber: '+919353096358', names: ['Deon M Sebastian', 'Deon Pc Customer'] },
+                ],
+            };
         },
         updateGoogleSyncState: async (_firebaseUid, patch) => {
             updates.push(patch as Record<string, unknown>);
@@ -200,6 +205,11 @@ test('runGoogleContactsSync updates sync state after a successful import', async
     assert.equal(updates[1].lastImportedCount, 42);
     assert.equal(updates[1].lastError, null);
     assert.deepEqual(updates[1].scopes, ['scope-a']);
+    assert.equal(updates[1].duplicatePhoneIssueCount, 1);
+    assert.deepEqual(updates[1].duplicatePhoneIssues, [
+        { phoneNumber: '+919353096358', names: ['Deon M Sebastian', 'Deon Pc Customer'] },
+    ]);
+    assert.ok(updates[1].duplicatePhoneIssueDetectedAt instanceof Date);
     assert.ok(updates[1].lastSyncedAt instanceof Date);
     assert.ok(updates[1].tokenExpiresAt instanceof Date);
 });

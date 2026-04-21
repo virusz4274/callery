@@ -10,6 +10,7 @@ import { ElevenLabsService } from '@/services/transcription/elevenlabs-service';
 import { SonioxService } from '@/services/transcription/soniox-service';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { createNotification } from '@/lib/notifications';
+import { buildRecordingNotificationLink } from '@/lib/notification-links';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { reportUsage } from '@/lib/stripe/usage';
 import { incrementTranscriptionUsed } from '@/lib/db/users';
@@ -76,7 +77,7 @@ async function runAutoTranscription(
             'warning',
             'Transcription Skipped',
             `Skipped "${standardizedDisplayName}" because it exceeds the ${MAX_TRANSCRIPTION_FILE_SIZE_LABEL} transcription limit.`,
-            `/?id=${recordingId}`
+            buildRecordingNotificationLink(recordingId)
         );
         return { outcome: 'skipped' };
     }
@@ -98,7 +99,7 @@ async function runAutoTranscription(
             'warning',
             'Transcription Skipped',
             transcriptionAccess.reason || `Skipped "${standardizedDisplayName}".`,
-            `/?id=${recordingId}`
+            buildRecordingNotificationLink(recordingId)
         );
         return { outcome: 'skipped' };
     }
@@ -208,7 +209,7 @@ async function runAutoTranscription(
             'success',
             'Transcription Ready',
             `Your recording "${standardizedDisplayName}" has been processed successfully.`,
-            `/?id=${recordingId}`
+            buildRecordingNotificationLink(recordingId)
         );
     } catch (notificationError) {
         logger.warn(`[startAutoTranscriptionForRecording] Notification failed for ${recordingId}:`, notificationError);

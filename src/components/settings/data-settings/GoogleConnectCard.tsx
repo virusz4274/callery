@@ -1,5 +1,5 @@
 import { Button, Card, Chip, Spinner } from '@heroui/react';
-import { CloudDownload, ContactRound } from 'lucide-react';
+import { AlertTriangle, CloudDownload, ContactRound, ExternalLink } from 'lucide-react';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import type { User } from '@/lib/types';
 
@@ -27,6 +27,8 @@ function getStatusLabel(googleSync?: User['googleSync']) {
 export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onConnect, onDisconnect }: GoogleConnectProps) {
     const status = getStatusLabel(googleSync);
     const buttonLabel = googleSync?.hasRefreshToken ? 'Sync now' : 'Connect Google';
+    const duplicatePhoneIssues = googleSync?.duplicatePhoneIssues || [];
+    const duplicatePhoneIssueCount = googleSync?.duplicatePhoneIssueCount || 0;
 
     return (
         <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
@@ -55,6 +57,11 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                             {googleSync?.lastError ? (
                                 <p className="text-xs text-warning">
                                     Last sync error: {googleSync.lastError}
+                                </p>
+                            ) : null}
+                            {duplicatePhoneIssueCount > 0 ? (
+                                <p className="text-xs text-warning">
+                                    Review needed: {duplicatePhoneIssueCount} phone number{duplicatePhoneIssueCount === 1 ? '' : 's'} appear on multiple Google contacts.
                                 </p>
                             ) : null}
                         </div>
@@ -101,9 +108,53 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                         </p>
                     </div>
                 </div>
+                {duplicatePhoneIssueCount > 0 ? (
+                    <div className="rounded-[1.2rem] border border-warning/30 bg-warning/8 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <AlertTriangle className="h-4 w-4 text-warning" />
+                                    Review duplicate Google numbers
+                                </div>
+                                <p className="text-sm leading-6 text-default-600">
+                                    Vosift is keeping these contacts separate because Google is the source of truth. Review them in Google Contacts and merge or edit them there if needed.
+                                </p>
+                                {googleSync?.duplicatePhoneIssueDetectedAt ? (
+                                    <p className="text-xs text-default-400">
+                                        Detected on {new Date(googleSync.duplicatePhoneIssueDetectedAt).toLocaleString()}
+                                    </p>
+                                ) : null}
+                            </div>
+                            <a
+                                href="https://contacts.google.com/"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex"
+                            >
+                                <Button variant="secondary" className="rounded-full">
+                                    Review in Google Contacts
+                                    <ExternalLink className="h-4 w-4" />
+                                </Button>
+                            </a>
+                        </div>
+                        <div className="mt-4 space-y-3">
+                            {duplicatePhoneIssues.slice(0, 5).map((issue) => (
+                                <div key={issue.phoneNumber} className="rounded-2xl border border-warning/20 bg-background/80 p-3">
+                                    <div className="text-sm font-semibold text-foreground">{issue.phoneNumber}</div>
+                                    <div className="mt-1 text-sm text-default-500">{issue.names.join(', ')}</div>
+                                </div>
+                            ))}
+                            {duplicatePhoneIssueCount > duplicatePhoneIssues.slice(0, 5).length ? (
+                                <p className="text-xs text-default-400">
+                                    Showing 5 of {duplicatePhoneIssueCount} duplicate phone number{duplicatePhoneIssueCount === 1 ? '' : 's'}.
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
                 {googleSync?.hasRefreshToken ? (
                     <p className="text-xs leading-5 text-default-400">
-                        Disconnecting stops future syncs and lets you connect a different Google account. Existing contacts stay in your workspace.
+                        Disconnecting stops future syncs and lets you connect a different Google account. Your last synced contacts stay visible until a future sync replaces them.
                     </p>
                 ) : null}
             </Card.Content>

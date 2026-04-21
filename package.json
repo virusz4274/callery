@@ -8,6 +8,7 @@
     "build": "NODE_ENV=production next build --webpack",
     "start": "PORT=9000 node .next/standalone/server.js",
     "db:init": "tsx src/lib/db/init.ts",
+    "contacts:rebuild-google": "tsx scripts/rebuild-google-contacts.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx --import ./src/test/env-test-setup.ts --test \"src/**/*.test.ts\"",

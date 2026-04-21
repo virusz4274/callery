@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Notification, NotificationResponse, User } from '@/lib/db/types';
 import { sendWebPushNotification } from '@/lib/web-push';
+import { normalizeNotificationLink } from '@/lib/notification-links';
 
 /**
  * Create a new in-app notification for a user.
@@ -14,6 +15,7 @@ export async function createNotification(
     link?: string
 ): Promise<void> {
     const db = await getMongoDb();
+    const normalizedLink = normalizeNotificationLink(link);
 
     const notification: Notification = {
         _id: new ObjectId(),
@@ -21,7 +23,7 @@ export async function createNotification(
         type,
         title,
         message,
-        link,
+        link: normalizedLink,
         isRead: false,
         createdAt: new Date(),
     };
@@ -36,7 +38,7 @@ export async function createNotification(
                 title,
                 body: message,
                 icon: '/icons/android-chrome-192x192.png',
-                url: link || '/',
+                url: normalizedLink || '/',
             };
 
             const pushPromises = user.pushSubscriptions.map(async (sub) => {
@@ -98,7 +100,7 @@ export async function getNotifications(userId: ObjectId, limit: number = 20): Pr
         title: n.title,
         message: n.message,
         isRead: n.isRead,
-        link: n.link,
+        link: normalizeNotificationLink(n.link),
         createdAt: n.createdAt.toISOString(),
     }));
 }

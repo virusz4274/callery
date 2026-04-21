@@ -57,9 +57,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
 
     if (user && pathname === '/') {
-      router.replace('/recordings');
+      const search = searchParams.toString();
+      router.replace(search ? `/recordings?${search}` : '/recordings');
     }
-  }, [isUserLoading, pathname, router, user]);
+  }, [isUserLoading, pathname, router, searchParams, user]);
 
   useEffect(() => {
     const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(

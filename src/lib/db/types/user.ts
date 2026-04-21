@@ -14,6 +14,11 @@ export interface PushSubscriptionEntry {
     createdAt: Date;
 }
 
+export interface GoogleSyncDuplicatePhoneIssue {
+    phoneNumber: string;
+    names: string[];
+}
+
 /**
  * User document stored in MongoDB.
  * Links to Firebase Auth via firebaseUid.
@@ -90,6 +95,9 @@ export interface User {
         refreshTokenKeyVersion?: string;
         scopes?: string[];
         tokenExpiresAt?: Date;
+        duplicatePhoneIssueCount?: number;
+        duplicatePhoneIssues?: GoogleSyncDuplicatePhoneIssue[];
+        duplicatePhoneIssueDetectedAt?: Date;
     };
 
     // Soft deletion lifecycle
@@ -164,5 +172,8 @@ export interface UserResponse {
         hasRefreshToken: boolean;
         scopes?: string[];
         tokenExpiresAt?: string;
+        duplicatePhoneIssueCount?: number;
+        duplicatePhoneIssues?: GoogleSyncDuplicatePhoneIssue[];
+        duplicatePhoneIssueDetectedAt?: string;
     };
 }

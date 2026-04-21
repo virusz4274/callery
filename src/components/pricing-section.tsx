@@ -18,8 +18,6 @@ import { useToast } from '@/components/toast-provider';
 import { authFetch } from '@/lib/api-client';
 import type { PublicPlan } from '@/app/actions/plans';
 
-const SELF_HOST_EMAIL = 'sales@callery.com';
-
 const addOns = [
   {
     title: 'Advanced AI transcription',
@@ -37,6 +35,7 @@ const addOns = [
 
 type PricingSectionProps = {
   availablePlans?: PublicPlan[];
+  salesEmail: string;
 };
 
 type DisplayPlan = {
@@ -131,7 +130,7 @@ function getPlanComparisonValue(plan: DisplayPlan) {
   };
 }
 
-export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
+export function PricingSection({ availablePlans = [], salesEmail }: PricingSectionProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -410,7 +409,7 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
                     variant="secondary"
                     className="w-full rounded-full font-semibold"
                     onPress={() => {
-                      window.location.href = `mailto:${SELF_HOST_EMAIL}`;
+                      window.location.href = `mailto:${salesEmail}`;
                     }}
                   >
                     {plan.ctaLabel}
@@ -527,12 +526,12 @@ export function PricingSection({ availablePlans = [] }: PricingSectionProps) {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <a href={`mailto:${SELF_HOST_EMAIL}`} className="w-full">
+            <a href={`mailto:${salesEmail}`} className="w-full">
               <Button className="w-full rounded-full font-semibold">
                 Email about private hosting
               </Button>
             </a>
-            <div className="text-sm text-default-500 lg:text-right">{SELF_HOST_EMAIL}</div>
+            <div className="text-sm text-default-500 lg:text-right">{salesEmail}</div>
           </div>
         </div>
       </Surface>

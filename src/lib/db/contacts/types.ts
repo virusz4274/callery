@@ -1,5 +1,5 @@
 export type UpsertContactInput = {
-    googleContactId?: string;
+    googleContactId: string;
     name: string;
     phoneNumbers: string[];
     email: string | null;

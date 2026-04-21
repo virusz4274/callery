@@ -123,6 +123,23 @@ export async function incrementContactCount(firebaseUid: string, count: number):
 }
 
 /**
+ * Set the user's contact count to an exact value.
+ */
+export async function setContactCount(firebaseUid: string, totalContacts: number): Promise<void> {
+    const db = await getMongoDb();
+
+    await db.collection<User>(Collections.USERS).updateOne(
+        { firebaseUid },
+        {
+            $set: {
+                totalContacts,
+                updatedAt: new Date(),
+            },
+        }
+    );
+}
+
+/**
  * Update the user's recording statistics.
  */
 export async function updateUserRecordingStats(

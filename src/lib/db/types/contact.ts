@@ -6,9 +6,11 @@ import { ObjectId } from 'mongodb';
 export interface Contact {
     _id: ObjectId;
     firebaseUid: string;
-    googleContactId?: string;
+    googleContactId: string;
     name: string;
+    normalizedName: string;
     phoneNumbers: string[];
+    normalizedPhoneNumbers: string[];
 
     email: string;
     firstName: string;
@@ -29,7 +31,7 @@ export type UpdateContactInput = Partial<Omit<Contact, '_id' | 'firebaseUid' | '
 export interface ContactResponse {
     id: string;
     firebaseUid: string;
-    googleContactId?: string;
+    googleContactId: string;
     name: string;
     phoneNumbers: string[];
     email: string | null;
