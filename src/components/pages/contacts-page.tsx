@@ -142,6 +142,23 @@ export function ContactsPage({
                                 </div>
                             </div>
                         ) : null}
+                        {(userProfile?.googleSync?.duplicatePhoneIssueCount || 0) > 0 ? (
+                            <div className="rounded-[1.25rem] border border-warning/20 bg-warning/8 p-4">
+                                <p className="text-sm font-semibold text-foreground">
+                                    Review duplicate numbers in Google Contacts
+                                </p>
+                                <p className="mt-1 max-w-2xl text-sm leading-6 text-default-500">
+                                    {userProfile?.googleSync?.duplicatePhoneIssueCount} phone number{userProfile?.googleSync?.duplicatePhoneIssueCount === 1 ? '' : 's'} currently appear on multiple Google contacts. Vosift keeps them separate until you fix them in Google Contacts.
+                                </p>
+                                <div className="mt-3">
+                                    <Link href="/settings?tab=sources">
+                                        <Button variant="secondary" className="rounded-full">
+                                            Review sync issues
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
                                 {displayedCount} visible

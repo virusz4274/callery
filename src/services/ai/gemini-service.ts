@@ -46,6 +46,89 @@ export class GeminiService implements IAIService {
         return fallbackValue;
     }
 
+    private extractFirstJsonArray(text: string): string | null {
+        const trimmed = text.trim();
+        const arrayStart = trimmed.indexOf('[');
+
+        if (arrayStart === -1) {
+            return null;
+        }
+
+        let depth = 0;
+        let inString = false;
+        let isEscaped = false;
+
+        for (let index = arrayStart; index < trimmed.length; index += 1) {
+            const character = trimmed[index];
+
+            if (inString) {
+                if (isEscaped) {
+                    isEscaped = false;
+                    continue;
+                }
+
+                if (character === '\\') {
+                    isEscaped = true;
+                    continue;
+                }
+
+                if (character === '"') {
+                    inString = false;
+                }
+
+                continue;
+            }
+
+            if (character === '"') {
+                inString = true;
+                continue;
+            }
+
+            if (character === '[') {
+                depth += 1;
+                continue;
+            }
+
+            if (character !== ']') {
+                continue;
+            }
+
+            depth -= 1;
+            if (depth === 0) {
+                return trimmed.slice(arrayStart, index + 1);
+            }
+        }
+
+        return null;
+    }
+
+    private parseTransliterationSegments(responseText: string): TranscriptionSegment[] {
+        const candidates = [responseText.trim()];
+        const extractedJsonArray = this.extractFirstJsonArray(responseText);
+
+        if (extractedJsonArray && extractedJsonArray !== candidates[0]) {
+            candidates.push(extractedJsonArray);
+        }
+
+        let lastError: unknown;
+
+        for (const candidate of candidates) {
+            try {
+                const parsed = JSON.parse(candidate) as unknown;
+
+                if (!Array.isArray(parsed)) {
+                    throw new Error('Gemini transliteration response was not a JSON array');
+                }
+
+                return parsed as TranscriptionSegment[];
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError instanceof Error ? lastError : new Error('Failed to parse Gemini transliteration response');
+    }
+
     async generateSummary(transcript: string, languageCode: string, options?: AIRequestOptions): Promise<string> {
         if (!this.apiKey) return this.handleUnavailableConfiguration('generate_summary', '', options);
         if (!transcript || !transcript.trim()) return '';
@@ -99,6 +182,8 @@ ${transcript.substring(0, 100000)} [Truncated if too long]
         if (!this.apiKey) return this.handleUnavailableConfiguration('generate_transliteration', segments, options);
         if (!segments || segments.length === 0) return segments;
 
+        let responseText = '';
+
         const prompt = `
 You are a universal transliteration expert. 
 I will provide a JSON array of transcription segments. 
@@ -134,10 +219,10 @@ ${JSON.stringify(segments)}
                 }
             });
 
-            const responseText = result.text;
+            responseText = result.text || '';
             if (!responseText) return segments;
 
-            const transliteratedSegments = JSON.parse(responseText) as TranscriptionSegment[];
+            const transliteratedSegments = this.parseTransliterationSegments(responseText);
 
             await resolveExternalServiceIncident({
                 provider: GEMINI_PROVIDER,
@@ -160,6 +245,7 @@ ${JSON.stringify(segments)}
                     context: {
                         languageCode,
                         segmentCount: segments.length,
+                        responsePreview: responseText.slice(0, 500),
                     },
                     notifyAdmins: true,
                 });

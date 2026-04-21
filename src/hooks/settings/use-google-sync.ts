@@ -67,6 +67,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
                 success: boolean;
                 error?: string;
                 message?: string;
+                duplicatePhoneIssueCount?: number;
             };
 
             if (response.status === 409) {
@@ -86,9 +87,12 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
                     status: 'danger',
                 });
             } else {
+                const duplicatePhoneIssueCount = result.duplicatePhoneIssueCount || 0;
                 toast({
-                    title: 'Sync Complete',
-                    description: result.message || 'Google Contacts were refreshed.',
+                    title: duplicatePhoneIssueCount > 0 ? 'Sync complete with review items' : 'Sync Complete',
+                    description: duplicatePhoneIssueCount > 0
+                        ? `${result.message || 'Google Contacts were refreshed.'} Review ${duplicatePhoneIssueCount} shared phone number${duplicatePhoneIssueCount === 1 ? '' : 's'} in Google Contacts.`
+                        : result.message || 'Google Contacts were refreshed.',
                     status: 'success',
                 });
                 await refetchProfile();
@@ -136,7 +140,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
 
             toast({
                 title: 'Google Contacts disconnected',
-                description: 'You can now connect a different Google account. Existing contacts stay in your workspace.',
+                description: 'You can now connect a different Google account. Your last synced contacts and recording labels stay available until the next sync.',
                 status: 'success',
             });
             await refetchProfile();

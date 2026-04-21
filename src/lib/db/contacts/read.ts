@@ -1,6 +1,13 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
-import { findUserByFirebaseUid } from '../users';
 import type { Contact } from '../types';
+import { normalizeContactName, normalizeContactPhoneNumber } from './normalize';
+
+function buildGoogleContactQuery(firebaseUid: string) {
+    return {
+        firebaseUid,
+        googleContactId: { $type: 'string' as const },
+    };
+}
 
 /**
  * Get all contacts for a user.
@@ -16,9 +23,8 @@ export async function getContactsByUser(
 
     return db
         .collection<Contact>(Collections.CONTACTS)
-        .find({ firebaseUid })
-        .collation({ locale: 'en', strength: 2 })
-        .sort({ name: 1 })
+        .find(buildGoogleContactQuery(firebaseUid))
+        .sort({ normalizedName: 1, name: 1 })
         .skip(options?.skip || 0)
         .limit(options?.limit || 0)
         .toArray();
@@ -29,11 +35,21 @@ export async function getContactsByUser(
  */
 export async function findContactByPhone(firebaseUid: string, phoneNumber: string): Promise<Contact | null> {
     const db = await getMongoDb();
+    const normalizedPhoneNumber = normalizeContactPhoneNumber(phoneNumber);
 
-    return db.collection<Contact>(Collections.CONTACTS).findOne({
-        firebaseUid,
-        phoneNumbers: phoneNumber,
-    });
+    if (!normalizedPhoneNumber) {
+        return null;
+    }
+
+    const matches = await db.collection<Contact>(Collections.CONTACTS)
+        .find({
+            ...buildGoogleContactQuery(firebaseUid),
+            normalizedPhoneNumbers: normalizedPhoneNumber,
+        })
+        .limit(2)
+        .toArray();
+
+    return matches.length === 1 ? matches[0] : null;
 }
 
 /**
@@ -41,20 +57,28 @@ export async function findContactByPhone(firebaseUid: string, phoneNumber: strin
  */
 export async function findContactByName(firebaseUid: string, name: string): Promise<Contact | null> {
     const db = await getMongoDb();
+    const normalizedName = normalizeContactName(name);
 
-    return db.collection<Contact>(Collections.CONTACTS).findOne(
-        {
-            firebaseUid,
-            name,
-        },
-        { collation: { locale: 'en', strength: 2 } }
-    );
+    if (!normalizedName) {
+        return null;
+    }
+
+    const matches = await db.collection<Contact>(Collections.CONTACTS)
+        .find({
+            ...buildGoogleContactQuery(firebaseUid),
+            normalizedName,
+        })
+        .limit(2)
+        .toArray();
+
+    return matches.length === 1 ? matches[0] : null;
 }
 
 /**
  * Count all contacts for a user.
  */
 export async function countContactsByUser(firebaseUid: string): Promise<number> {
-    const user = await findUserByFirebaseUid(firebaseUid);
-    return user?.totalContacts || 0;
+    const db = await getMongoDb();
+
+    return db.collection<Contact>(Collections.CONTACTS).countDocuments(buildGoogleContactQuery(firebaseUid));
 }

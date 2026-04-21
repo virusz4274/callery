@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
+import { normalizeContactPhoneNumbers } from './normalize';
 import type { Contact } from '../types';
 
 export async function recalculateContactStats(
@@ -84,7 +85,8 @@ export async function incrementContactRecordings(
 export async function linkRecordingsToContact(
     contactId: string | ObjectId,
     phoneNumbers: string[],
-    firebaseUid: string
+    firebaseUid: string,
+    contactName?: string | null
 ): Promise<{ totalRecordings: number; lastRecordingAt: Date | null }> {
     const db = await getMongoDb();
     const cId = new ObjectId(contactId);
@@ -92,17 +94,42 @@ export async function linkRecordingsToContact(
     if (!phoneNumbers || phoneNumbers.length === 0) {
         return { totalRecordings: 0, lastRecordingAt: null };
     }
+    const normalizedPhoneNumbers = normalizeContactPhoneNumbers(phoneNumbers);
+
+    const resolvedContactName = contactName === undefined
+        ? (await db.collection<Contact>(Collections.CONTACTS).findOne({ _id: cId }))?.name ?? null
+        : contactName;
 
     await db.collection(Collections.RECORDINGS).updateMany(
         {
             firebaseUid,
-            phoneNumber: { $in: phoneNumbers },
+            contactId: cId,
+            $and: [
+                { normalizedPhoneNumber: { $nin: normalizedPhoneNumbers } },
+                { phoneNumber: { $nin: phoneNumbers } },
+            ],
+        },
+        {
+            $set: {
+                contactId: null,
+                contactName: resolvedContactName,
+            },
+        }
+    );
+
+    await db.collection(Collections.RECORDINGS).updateMany(
+        {
+            firebaseUid,
             contactId: { $ne: cId },
+            $or: [
+                { normalizedPhoneNumber: { $in: normalizedPhoneNumbers } },
+                { phoneNumber: { $in: phoneNumbers } },
+            ],
         },
         {
             $set: {
                 contactId: cId,
-                contactName: (await db.collection<Contact>(Collections.CONTACTS).findOne({ _id: cId }))?.name,
+                contactName: resolvedContactName,
             },
         }
     );

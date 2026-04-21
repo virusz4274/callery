@@ -1,5 +1,7 @@
 import { google } from 'googleapis';
 import { saveContactsToMongoDB } from '@/app/actions/save-contacts';
+import { normalizeContactPhoneNumbers } from '@/lib/db/contacts/normalize';
+import type { GoogleSyncDuplicatePhoneIssue } from '@/lib/db/types';
 
 function errorLog(userId: string, message: string, error?: any) {
     const timestamp = new Date().toISOString();
@@ -18,12 +20,22 @@ function errorLog(userId: string, message: string, error?: any) {
  * @param userId - The Firebase UID of the user.
  * @param authClient - The authenticated OAuth2Client.
  */
-export async function syncContactsBackground(userId: string, authClient: any): Promise<number> {
+export async function syncContactsBackground(
+    userId: string,
+    authClient: any
+): Promise<{ importedCount: number; duplicatePhoneIssues: GoogleSyncDuplicatePhoneIssue[] }> {
     try {
         const peopleService = google.people({ version: 'v1', auth: authClient });
 
         let nextPageToken: string | undefined = undefined;
-        let totalSynced = 0;
+        const contactsToSave: Array<{
+            googleContactId: string;
+            name: string;
+            phoneNumbers: string[];
+            email: string | null;
+            jobTitle?: string;
+            company?: string;
+        }> = [];
 
         do {
             const response = await peopleService.people.connections.list({
@@ -38,15 +50,16 @@ export async function syncContactsBackground(userId: string, authClient: any): P
 
             if (connections.length > 0) {
                 // Transform to our internal format
-                const contactsToSave = connections
+                const pageContacts = connections
                     .map((person: any) => {
                         const name = person.names?.[0]?.displayName;
                         const phoneNumbers = person.phoneNumbers?.map((p: any) => p.value).filter(Boolean) as string[];
+                        const googleContactId = person.resourceName;
 
-                        if (name && phoneNumbers && phoneNumbers.length > 0) {
+                        if (name && phoneNumbers && phoneNumbers.length > 0 && googleContactId) {
                             const organization = person.organizations?.[0];
                             return {
-                                googleContactId: person.resourceName ?? undefined,
+                                googleContactId,
                                 name,
                                 phoneNumbers,
                                 email: person.emailAddresses?.[0]?.value || null,
@@ -58,19 +71,57 @@ export async function syncContactsBackground(userId: string, authClient: any): P
                     })
                     .filter((c: any) => c !== null);
 
-                if (contactsToSave.length > 0) {
-                    // We assume saveContactsToMongoDB handles batch upserts efficiently
-                    await saveContactsToMongoDB(userId, contactsToSave);
-                    totalSynced += contactsToSave.length;
-                }
+                contactsToSave.push(...pageContacts);
             }
 
         } while (nextPageToken);
 
-        return totalSynced;
+        const duplicatePhoneIssues = logDuplicateNormalizedPhones(userId, contactsToSave);
+        await saveContactsToMongoDB(userId, contactsToSave);
+
+        return {
+            importedCount: contactsToSave.length,
+            duplicatePhoneIssues,
+        };
 
     } catch (error) {
         errorLog(userId, 'Sync failed.', error);
         throw error;
     }
+}
+
+function logDuplicateNormalizedPhones(
+    userId: string,
+    contacts: Array<{ name: string; phoneNumbers: string[] }>
+): GoogleSyncDuplicatePhoneIssue[] {
+    const duplicates = new Map<string, Set<string>>();
+
+    for (const contact of contacts) {
+        const normalizedPhoneNumbers = normalizeContactPhoneNumbers(contact.phoneNumbers);
+
+        for (const phoneNumber of normalizedPhoneNumbers) {
+            const names = duplicates.get(phoneNumber) ?? new Set<string>();
+            names.add(contact.name);
+            duplicates.set(phoneNumber, names);
+        }
+    }
+
+    const issues: GoogleSyncDuplicatePhoneIssue[] = [];
+
+    for (const [phoneNumber, names] of duplicates.entries()) {
+        const normalizedLength = phoneNumber.replace(/^\+/, '').length;
+        if (names.size <= 1 || normalizedLength <= 3) {
+            continue;
+        }
+
+        const issue = {
+            phoneNumber,
+            names: [...names].sort((left, right) => left.localeCompare(right)),
+        };
+
+        issues.push(issue);
+        console.warn(`[GoogleSync][WARN][${userId}] Duplicate normalized phone across Google contacts`, issue);
+    }
+
+    return issues.sort((left, right) => left.phoneNumber.localeCompare(right.phoneNumber));
 }

@@ -47,7 +47,7 @@ function getPlanKeyFromSubscriptionMetadata(subscription: Stripe.Subscription): 
     const metadata = subscription.metadata as Record<string, string> | null | undefined;
     if (!metadata) return null;
 
-    return metadata.selectedPlanKey || metadata.planKey || null;
+    return metadata.selectedPlanKey || null;
 }
 
 function getSubscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {

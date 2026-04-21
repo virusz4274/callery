@@ -106,14 +106,14 @@ async function searchRecordingsByKeyword(
     };
 }
 
-function mergeSearchResults(keywordResults: SearchResult[], vectorResults: SearchResult[]): SearchResult[] {
+export function mergeSearchResults(keywordResults: SearchResult[], vectorResults: SearchResult[]): SearchResult[] {
     const merged = new Map<string, SearchResult>();
 
-    for (const result of keywordResults) {
+    for (const result of vectorResults) {
         merged.set(result._id.toString(), result);
     }
 
-    for (const result of vectorResults) {
+    for (const result of keywordResults) {
         const key = result._id.toString();
         if (!merged.has(key)) {
             merged.set(key, result);
@@ -169,13 +169,11 @@ export async function searchRecordingsByVector(
                             numCandidates,
                             limit: vectorWindow,
                             filter: {
-                                firebaseUid: { $eq: firebaseUid },
+                                $and: [
+                                    { firebaseUid: { $eq: firebaseUid } },
+                                    { isArchived: { $ne: true } },
+                                ],
                             },
-                        },
-                    },
-                    {
-                        $match: {
-                            isArchived: { $ne: true },
                         },
                     },
                     {

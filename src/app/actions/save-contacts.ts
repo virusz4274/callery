@@ -3,7 +3,7 @@
 import { upsertContacts } from '@/lib/db/contacts';
 
 type ContactData = {
-    googleContactId?: string;
+    googleContactId: string;
     name: string;
     phoneNumbers: string[];
     email: string | null;
@@ -29,4 +29,3 @@ export async function saveContactsToMongoDB(
 
     return upsertContacts(firebaseUid, contacts);
 }
-

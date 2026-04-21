@@ -1,8 +1,18 @@
 import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { incrementContactRecordings } from '../contacts';
+import { normalizeContactPhoneNumber } from '../contacts/normalize';
 import type { CreateRecordingInput, Recording, UpdateRecordingInput } from '../types';
 import { updateUserRecordingStats } from '../users';
+
+export function buildRecordingWriteData(data: CreateRecordingInput, timestamp: Date): Omit<Recording, '_id'> {
+    return {
+        ...data,
+        normalizedPhoneNumber: normalizeContactPhoneNumber(data.phoneNumber),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+    };
+}
 
 /**
  * Create a new recording.
@@ -10,12 +20,7 @@ import { updateUserRecordingStats } from '../users';
 export async function createRecording(data: CreateRecordingInput): Promise<Recording> {
     const db = await getMongoDb();
     const now = new Date();
-
-    const recordingDoc = {
-        ...data,
-        createdAt: now,
-        updatedAt: now,
-    };
+    const recordingDoc = buildRecordingWriteData(data, now);
 
     const result = await db.collection<Recording>(Collections.RECORDINGS).insertOne(recordingDoc as Recording);
 
@@ -43,14 +48,19 @@ export async function updateRecording(
     data: UpdateRecordingInput
 ): Promise<Recording | null> {
     const db = await getMongoDb();
+    const updateData: Record<string, unknown> = {
+        ...data,
+        updatedAt: new Date(),
+    };
+
+    if (typeof data.phoneNumber === 'string') {
+        updateData.normalizedPhoneNumber = normalizeContactPhoneNumber(data.phoneNumber);
+    }
 
     return db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate(
         { _id: new ObjectId(recordingId), firebaseUid },
         {
-            $set: {
-                ...data,
-                updatedAt: new Date(),
-            },
+            $set: updateData,
         },
         { returnDocument: 'after' }
     );

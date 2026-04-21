@@ -10,6 +10,7 @@ import {
     getGoogleTokenEncryptionErrorMessage,
     readStoredGoogleRefreshToken,
 } from '@/services/google/refresh-token-crypto';
+import type { GoogleSyncDuplicatePhoneIssue } from '@/lib/db/types';
 
 const GOOGLE_SYNC_STALE_AFTER_MS = 15 * 60 * 1000;
 const STALE_SYNC_ERROR_MESSAGE = 'Previous sync did not finish. Please try again.';
@@ -18,6 +19,11 @@ type GoogleCredentialState = {
     refreshToken?: string;
     expiryDate?: number;
     scopes?: string[];
+};
+
+type GoogleContactsSyncResult = {
+    importedCount: number;
+    duplicatePhoneIssues: GoogleSyncDuplicatePhoneIssue[];
 };
 
 type RunGoogleContactsSyncDependencies = {
@@ -71,6 +77,9 @@ export async function updateGoogleSyncState(
         refreshToken?: string | null;
         scopes?: string[];
         tokenExpiresAt?: Date;
+        duplicatePhoneIssueCount?: number;
+        duplicatePhoneIssues?: GoogleSyncDuplicatePhoneIssue[];
+        duplicatePhoneIssueDetectedAt?: Date | null;
     }
 ) {
     const db = await getMongoDb();
@@ -106,6 +115,19 @@ export async function updateGoogleSyncState(
     }
     if (patch.tokenExpiresAt !== undefined) {
         setData['googleSync.tokenExpiresAt'] = patch.tokenExpiresAt;
+    }
+    if (patch.duplicatePhoneIssueCount !== undefined) {
+        setData['googleSync.duplicatePhoneIssueCount'] = patch.duplicatePhoneIssueCount;
+    }
+    if (patch.duplicatePhoneIssues !== undefined) {
+        setData['googleSync.duplicatePhoneIssues'] = patch.duplicatePhoneIssues;
+    }
+    if (patch.duplicatePhoneIssueDetectedAt !== undefined) {
+        if (patch.duplicatePhoneIssueDetectedAt === null) {
+            unsetData['googleSync.duplicatePhoneIssueDetectedAt'] = '';
+        } else {
+            setData['googleSync.duplicatePhoneIssueDetectedAt'] = patch.duplicatePhoneIssueDetectedAt;
+        }
     }
 
     if (patch.refreshToken !== undefined) {
@@ -189,18 +211,26 @@ export async function runGoogleContactsSyncWithDependencies(
         refresh_token: refreshToken,
     });
 
-    const importedCount = await dependencies.syncContactsBackground(firebaseUid, backgroundClient);
+    const syncResult = await dependencies.syncContactsBackground(firebaseUid, backgroundClient);
+    const duplicatePhoneIssueCount = syncResult.duplicatePhoneIssues.length;
+    const duplicatePhoneIssueDetectedAt = duplicatePhoneIssueCount > 0 ? new Date() : null;
+
     await dependencies.updateGoogleSyncState(firebaseUid, {
         status: 'completed',
         lastSyncedAt: new Date(),
-        lastImportedCount: importedCount,
+        lastImportedCount: syncResult.importedCount,
         lastError: null,
         refreshToken,
         scopes: user.googleSync?.scopes,
         tokenExpiresAt: typeof backgroundClient.credentials.expiry_date === 'number'
             ? new Date(backgroundClient.credentials.expiry_date)
             : user.googleSync?.tokenExpiresAt,
+        duplicatePhoneIssueCount,
+        duplicatePhoneIssues: syncResult.duplicatePhoneIssues,
+        duplicatePhoneIssueDetectedAt,
     });
+
+    return syncResult;
 }
 
 export async function runGoogleContactsSync(firebaseUid: string) {

@@ -12,11 +12,13 @@ import { useStats } from '@/hooks/use-stats';
 import { useContacts } from '@/hooks/use-contacts';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
 import { useToast } from '@/components/toast-provider';
+import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import type { Recording } from '@/lib/types';
 import type { SavedRecordingsView, SmartCollection } from '@/components/recordings/toolbar/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
 import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
+import { getRecordingDetailsAction } from '@/app/actions/recordings';
 
 const SAVED_VIEWS_STORAGE_KEY = 'callery:recordings:saved-views';
 const CHECKLIST_DISMISSED_STORAGE_KEY = 'callery:recordings:checklist-dismissed';
@@ -80,6 +82,7 @@ export function RecordingsPage() {
     const contactId = searchParams.get('contact') || undefined;
     const activeViewId = searchParams.get('view') || undefined;
     const activeSmartCollectionId = searchParams.get('collection') || undefined;
+    const linkedRecordingId = searchParams.get('id') || undefined;
     const redirectPath = buildCurrentPath(pathname, searchParams.toString());
 
     // -- Data Fetching --
@@ -158,6 +161,7 @@ export function RecordingsPage() {
         }
     });
     const [searchMode, setSearchMode] = useState<'text' | 'semantic'>('text');
+    const [linkedRecording, setLinkedRecording] = useState<Recording | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -183,6 +187,11 @@ export function RecordingsPage() {
             window.localStorage.setItem(CHECKLIST_DISMISSED_STORAGE_KEY, 'true');
         }
     }, []);
+
+    const closeLinkedRecording = useCallback(() => {
+        setLinkedRecording(null);
+        updateUrl({ id: undefined });
+    }, [updateUrl]);
 
     const handleSemanticSearch = useCallback(() => {
         if (!semanticQuery.trim()) return;
@@ -380,12 +389,74 @@ export function RecordingsPage() {
     // -- Handlers --
     const handlePageChange = (newPage: number) => updateUrl({ page: newPage.toString() });
 
+    const handleLinkedRecordingUpdated = useCallback(async (recording: Recording) => {
+        setLinkedRecording(recording);
+        await refetch();
+    }, [refetch]);
+
     // -- Render --
     useEffect(() => {
         if (!user) {
             router.replace(buildLoginRedirectHref(redirectPath));
         }
     }, [redirectPath, router, user]);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        if (!linkedRecordingId) {
+            setLinkedRecording(null);
+            return;
+        }
+
+        const recordingFromList = (recordings || []).find((recording) => recording.id === linkedRecordingId);
+        if (recordingFromList) {
+            setLinkedRecording(recordingFromList);
+            return;
+        }
+
+        let cancelled = false;
+
+        void getRecordingDetailsAction(linkedRecordingId)
+            .then((result) => {
+                if (cancelled) {
+                    return;
+                }
+
+                if ('error' in result) {
+                    setLinkedRecording(null);
+                    updateUrl({ id: undefined });
+                    toast({
+                        title: 'Recording unavailable',
+                        description: 'The linked recording could not be opened.',
+                        status: 'warning',
+                    });
+                    return;
+                }
+
+                setLinkedRecording(result.recording as Recording);
+            })
+            .catch((error) => {
+                if (cancelled) {
+                    return;
+                }
+
+                console.error('Failed to open linked recording:', error);
+                setLinkedRecording(null);
+                updateUrl({ id: undefined });
+                toast({
+                    title: 'Recording unavailable',
+                    description: 'The linked recording could not be opened.',
+                    status: 'warning',
+                });
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [linkedRecordingId, recordings, toast, updateUrl, user]);
 
     if (!user) {
         return (
@@ -576,6 +647,18 @@ export function RecordingsPage() {
                     </div>
                 </section>
             </div>
+
+            {linkedRecording && (
+                <RecordingDetailsDialog
+                    recording={linkedRecording}
+                    onOpenChange={(isOpen) => {
+                        if (!isOpen) {
+                            closeLinkedRecording();
+                        }
+                    }}
+                    onRecordingUpdated={handleLinkedRecordingUpdated}
+                />
+            )}
         </div>
     );
 }

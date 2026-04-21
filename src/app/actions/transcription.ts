@@ -15,6 +15,7 @@ import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCy
 import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createNotification } from '@/lib/notifications';
+import { buildRecordingNotificationLink } from '@/lib/notification-links';
 import { buildTranscriptionFileSizeError, isTranscriptionFileSizeAllowed } from '@/lib/transcription-limits';
 import { RecordingIdSchema } from '@/lib/schemas';
 import { getProviderMultiplier } from '@/app/actions/transcription-providers';
@@ -138,7 +139,7 @@ async function runManualTranscriptionJob({
         'success',
         'Transcription Ready',
         `Your recording "${displayName}" is ready.`,
-        `/?id=${recordingId}`
+        buildRecordingNotificationLink(recordingId)
     );
 }
 

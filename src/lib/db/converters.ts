@@ -137,6 +137,9 @@ export function toUserResponse(user: User, planName: string): UserResponse {
                 hasRefreshToken: hasStoredGoogleRefreshToken(user.googleSync),
                 scopes: user.googleSync.scopes,
                 tokenExpiresAt: user.googleSync.tokenExpiresAt?.toISOString(),
+                duplicatePhoneIssueCount: user.googleSync.duplicatePhoneIssueCount,
+                duplicatePhoneIssues: user.googleSync.duplicatePhoneIssues,
+                duplicatePhoneIssueDetectedAt: user.googleSync.duplicatePhoneIssueDetectedAt?.toISOString(),
             }
             : {
                 status: 'not_connected',

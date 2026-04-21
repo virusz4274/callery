@@ -1,0 +1,409 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - link "Callery Call Archive & AI Search" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - generic [ref=e12]:
+            - generic [ref=e13]: Callery
+            - generic [ref=e14]: Call Archive & AI Search
+        - navigation [ref=e15]:
+          - link "Overview" [ref=e16] [cursor=pointer]:
+            - /url: /
+          - link "Pricing" [ref=e17] [cursor=pointer]:
+            - /url: /pricing
+          - link "Support" [ref=e18] [cursor=pointer]:
+            - /url: /support
+          - link "Updates" [ref=e19] [cursor=pointer]:
+            - /url: /changelog
+      - generic [ref=e20]:
+        - link "Log in" [ref=e21] [cursor=pointer]:
+          - /url: /login
+        - link "Start free" [ref=e22] [cursor=pointer]:
+          - /url: /signup
+          - button "Start free" [ref=e23]
+    - navigation [ref=e25]:
+      - link "Overview" [ref=e26] [cursor=pointer]:
+        - /url: /
+      - link "Pricing" [ref=e27] [cursor=pointer]:
+        - /url: /pricing
+      - link "Support" [ref=e28] [cursor=pointer]:
+        - /url: /support
+      - link "Updates" [ref=e29] [cursor=pointer]:
+        - /url: /changelog
+  - main [ref=e30]:
+    - main [ref=e32]:
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]: Built for Samsung and any phone with folder-based recordings
+          - generic [ref=e37]:
+            - heading "Turn call recordings into a searchable archive with transcripts and AI search." [level=1] [ref=e38]
+            - paragraph [ref=e39]: Callery is a call recording archive for Samsung users and anyone else who stores call audio in folders. Import recordings, keep the original files safe, and search your call history by transcript, summary, timestamp, contact, or meaning.
+          - generic [ref=e40]:
+            - link "Start free workspace" [ref=e41] [cursor=pointer]:
+              - /url: /signup
+              - button "Start free workspace" [ref=e42]
+            - link "Explore plans" [ref=e43] [cursor=pointer]:
+              - /url: /pricing
+              - button "Explore plans" [ref=e44]
+          - generic [ref=e45]:
+            - generic [ref=e47]:
+              - generic [ref=e48]: Folder-based imports
+              - paragraph [ref=e49]: Bring in recordings from Samsung and other phones that store call audio in accessible folders.
+            - generic [ref=e51]:
+              - generic [ref=e52]: Searchable call history
+              - paragraph [ref=e53]: Find the right conversation by keyword, meaning, contact, or date instead of replaying files one by one.
+            - generic [ref=e55]:
+              - generic [ref=e56]: Original audio preserved
+              - paragraph [ref=e57]: Keep the source file attached while transcripts, summaries, and timestamps are layered on top.
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - img [ref=e64]
+              - generic [ref=e67]:
+                - heading "Find the right call in context" [level=3] [ref=e68]
+                - paragraph [ref=e69]: Search by phrase or intent, then open the transcript, summary, and timing that explain why the result matters on desktop, tablet, or phone.
+            - generic [ref=e70]:
+              - generic [ref=e71]: "Search library: \"payment confirmation call from January\""
+              - generic [ref=e72]:
+                - generic [ref=e73]:
+                  - generic [ref=e74]: Caller08:14
+                  - paragraph [ref=e75]: I am trying to find the payment confirmation call from January because I need it for reference.
+                - generic [ref=e76]:
+                  - generic [ref=e77]: Support08:31
+                  - paragraph [ref=e78]: The transfer was discussed here, and the amount was confirmed during this section of the call.
+                - generic [ref=e79]:
+                  - generic [ref=e80]: SummaryReady
+                  - paragraph [ref=e81]: Transcript, timestamps, and summary all stay attached to the original recording.
+          - generic [ref=e82]:
+            - generic [ref=e83]: Import call recordings from Samsung devices and other phones that save audio into folders
+            - generic [ref=e84]: Keep the original audio file attached to every call record
+            - generic [ref=e85]: Generate transcripts, summaries, timestamps, and speaker labels
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]: What It Is
+          - heading "A searchable call archive for recordings that would otherwise sit in folders." [level=2] [ref=e90]
+          - paragraph [ref=e91]: Callery is for people who already have call recordings and need a better way to keep them, understand them, and find them again later.
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e95]: "1"
+            - generic [ref=e96]:
+              - heading "Import recordings from folders" [level=3] [ref=e97]
+              - paragraph [ref=e98]: Bring in old call recordings from Samsung storage, desktop backups, or synced directories.
+          - generic [ref=e99]:
+            - generic [ref=e101]: "2"
+            - generic [ref=e102]:
+              - heading "Add transcript and summary layers" [level=3] [ref=e103]
+              - paragraph [ref=e104]: Turn each audio file into a searchable record with transcript, timestamps, speaker labels, and summaries.
+          - generic [ref=e105]:
+            - generic [ref=e107]: "3"
+            - generic [ref=e108]:
+              - heading "Search and retrieve later" [level=3] [ref=e109]
+              - paragraph [ref=e110]: Find the exact payment call, support discussion, or personal conversation when you need it again.
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]: Who It Helps
+          - heading "Samsung users are a natural fit, but the workflow is bigger than one phone brand." [level=2] [ref=e115]
+          - paragraph [ref=e116]: If your recordings can be copied or synced out of phone storage into folders, Callery can turn that raw library into a searchable archive on desktop or tablet.
+        - generic [ref=e117]:
+          - generic [ref=e118]:
+            - generic [ref=e119]:
+              - img [ref=e121]
+              - generic [ref=e124]:
+                - heading "Import call recordings from folders" [level=3] [ref=e125]
+                - paragraph [ref=e126]: Bring recordings in from Samsung devices, backup folders, desktops, and other phones without losing the original file.
+            - generic [ref=e127]:
+              - generic [ref=e128]:
+                - img [ref=e129]
+                - text: Bulk upload from exported or synced folders
+              - generic [ref=e132]:
+                - img [ref=e133]
+                - text: Keep source audio attached to every record
+              - generic [ref=e136]:
+                - img [ref=e137]
+                - text: Track upload and processing status clearly
+          - generic [ref=e140]:
+            - generic [ref=e141]:
+              - img [ref=e143]
+              - generic [ref=e146]:
+                - heading "Search call history instead of browsing files" [level=3] [ref=e147]
+                - paragraph [ref=e148]: Use transcripts, summaries, timestamps, and semantic search to get back to the right call fast.
+            - generic [ref=e149]:
+              - generic [ref=e150]:
+                - img [ref=e151]
+                - text: Search by keyword or intent
+              - generic [ref=e154]:
+                - img [ref=e155]
+                - text: Jump back to the correct moment in the call
+              - generic [ref=e158]:
+                - img [ref=e159]
+                - text: Review by contact, date, or conversation history
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - img [ref=e165]
+              - generic [ref=e169]:
+                - heading "Keep ownership and exportability clear" [level=3] [ref=e170]
+                - paragraph [ref=e171]: Exports, private hosting options, and organized records make long-term control obvious.
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - img [ref=e174]
+                - text: Structured exports with an offline viewer
+              - generic [ref=e177]:
+                - img [ref=e178]
+                - text: Private hosting path for sensitive archives
+              - generic [ref=e181]:
+                - img [ref=e182]
+                - text: Clear lanes from free to custom rollout
+      - generic [ref=e187]:
+        - generic [ref=e188]:
+          - generic [ref=e189]: Why not native storage?
+          - heading "Phones are built to save recordings. Archives are built to retrieve them later." [level=2] [ref=e190]
+        - generic [ref=e191]:
+          - paragraph [ref=e192]: Samsung and call recording apps can help you capture recent calls, but they do not turn a growing folder tree into a searchable call archive.
+          - paragraph [ref=e193]: Callery adds transcript search, summaries, timestamps, and contact context so your call history is still usable when you need something from months ago.
+      - generic [ref=e195]:
+        - generic [ref=e197]:
+          - img [ref=e199]
+          - generic [ref=e201]:
+            - generic [ref=e202]: Every call stays together
+            - paragraph [ref=e203]: Audio, transcript, summary, speaker labels, and metadata stay together as one record.
+        - generic [ref=e205]:
+          - img [ref=e207]
+          - generic [ref=e211]:
+            - generic [ref=e212]: The AI is retrieval-focused
+            - paragraph [ref=e213]: The AI layer focuses on transcript, summary, timestamps, speaker labels, and semantic search.
+        - generic [ref=e215]:
+          - img [ref=e217]
+          - generic [ref=e219]:
+            - generic [ref=e220]: Built for real call archives
+            - paragraph [ref=e221]: Useful for personal records, business calls, support conversations, and sensitive voice archives.
+      - generic [ref=e223]:
+        - generic [ref=e224]:
+          - generic [ref=e225]: Compatibility
+          - heading "Use Callery when your call recordings already live in folders." [level=2] [ref=e226]
+          - paragraph [ref=e227]: The product is especially useful when recordings are trapped in device storage, synced directories, or exported backup folders and need to become searchable again.
+        - generic [ref=e228]:
+          - generic [ref=e230]:
+            - img [ref=e232]
+            - generic [ref=e234]:
+              - heading "Samsung call recording folders" [level=3] [ref=e235]
+              - paragraph [ref=e236]: Callery is designed for the common workflow where Samsung call recordings are saved on-device and later copied or synced into folders.
+          - generic [ref=e238]:
+            - img [ref=e240]
+            - generic [ref=e245]:
+              - heading "Other phones with folder exports" [level=3] [ref=e246]
+              - paragraph [ref=e247]: If a phone or call recording app stores recordings in accessible folders, Callery can treat those files as an archive source too.
+          - generic [ref=e249]:
+            - img [ref=e251]
+            - generic [ref=e253]:
+              - heading "One searchable workspace" [level=3] [ref=e254]
+              - paragraph [ref=e255]: Mixed imports from old phones, desktops, and exported backups can live in one searchable call archive instead of staying scattered.
+      - generic [ref=e257]:
+        - generic [ref=e258]:
+          - generic [ref=e259]: Why It Works
+          - heading "Callery is built for long-tail retrieval, not just storage." [level=2] [ref=e260]
+          - paragraph [ref=e261]: When the archive gets large, the job is no longer saving one more audio file. The job is finding the right conversation quickly and confidently.
+        - generic [ref=e262]:
+          - generic [ref=e264]:
+            - heading "Native tools are good for recent calls" [level=3] [ref=e265]
+            - paragraph [ref=e266]: Call recording apps and phone galleries usually help with what is still fresh, not with deep call history.
+          - generic [ref=e268]:
+            - heading "Archives need structure" [level=3] [ref=e269]
+            - paragraph [ref=e270]: Once recordings pile up in folders, you need transcript search, contact context, and exportable organization.
+          - generic [ref=e272]:
+            - heading "Retrieval matters more than storage" [level=3] [ref=e273]
+            - paragraph [ref=e274]: Saving files is not the same as finding the right conversation quickly months later.
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - generic [ref=e279]: Pricing
+          - heading "Choose the lane that matches your archive." [level=2] [ref=e280]
+          - paragraph [ref=e281]: Start small, then move into the plan that fits your storage, transcription, and rollout needs as your call history grows.
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - generic [ref=e284]: Pricing
+            - heading "Pick the plan that matches how much call history you need to rescue and search." [level=2] [ref=e285]
+            - paragraph [ref=e286]: Compare storage, transcription, AI search, support, and hosting before you move more recordings in.
+            - paragraph [ref=e287]: Paid plans are not published on this instance yet. Run the pricing setup before enabling upgrades.
+          - generic [ref=e288]:
+            - generic [ref=e289]:
+              - generic [ref=e290]:
+                - generic [ref=e291]:
+                  - img [ref=e293]
+                  - generic [ref=e298]: Entry point
+                - generic [ref=e299]:
+                  - heading "Free" [level=3] [ref=e300]
+                  - paragraph [ref=e301]: For validating the archive experience before you move more recordings in.
+                - generic [ref=e302]: $0/month
+              - separator [ref=e303]
+              - generic [ref=e304]:
+                - generic [ref=e305]: Included
+                - generic [ref=e306]:
+                  - img [ref=e307]
+                  - text: 100 MB storage
+                - generic [ref=e309]:
+                  - img [ref=e310]
+                  - text: Basic transcription
+                - generic [ref=e312]:
+                  - img [ref=e313]
+                  - text: Search across your transcript library
+                - generic [ref=e315]:
+                  - img [ref=e316]
+                  - text: A simple starting point for personal or occasional call archives
+              - link "Start on Free" [ref=e319] [cursor=pointer]:
+                - /url: /signup
+                - button "Start on Free" [ref=e320]
+            - generic [ref=e321]:
+              - generic [ref=e322]:
+                - generic [ref=e323]:
+                  - img [ref=e325]
+                  - generic [ref=e329]: Talk to us
+                - generic [ref=e330]:
+                  - heading "Custom" [level=3] [ref=e331]
+                  - paragraph [ref=e332]: For teams that need shared archives, rollout help, private hosting, or custom billing.
+                - generic [ref=e333]: Custom
+              - separator [ref=e334]
+              - generic [ref=e335]:
+                - generic [ref=e336]: Included
+                - generic [ref=e337]:
+                  - img [ref=e338]
+                  - text: Shared or larger archive options
+                - generic [ref=e340]:
+                  - img [ref=e341]
+                  - text: Rollout guidance for sensitive recordings
+                - generic [ref=e343]:
+                  - img [ref=e344]
+                  - text: Custom controls and support expectations
+                - generic [ref=e346]:
+                  - img [ref=e347]
+                  - text: Private deployment and custom pricing paths
+              - button "Talk to sales" [ref=e350]
+          - generic [ref=e352]:
+            - generic [ref=e353]:
+              - generic [ref=e354]: Compare what changes
+              - heading "See the differences without flipping between cards." [level=3] [ref=e355]
+              - paragraph [ref=e356]: Every plan keeps the archive organized. The comparison below shows what grows as you need more room, stronger search, or tighter support.
+            - generic [ref=e357]:
+              - generic [ref=e358]:
+                - generic [ref=e359]:
+                  - generic [ref=e360]: Storage
+                  - paragraph [ref=e361]: How much archive space you start with.
+                - generic [ref=e362]:
+                  - generic [ref=e363]:
+                    - generic [ref=e364]: Free
+                    - generic [ref=e365]: 100 MB
+                  - generic [ref=e366]:
+                    - generic [ref=e367]: Custom
+                    - generic [ref=e368]: Custom archive size
+              - generic [ref=e369]:
+                - generic [ref=e370]:
+                  - generic [ref=e371]: Transcription
+                  - paragraph [ref=e372]: What transcript workflow comes with the plan.
+                - generic [ref=e373]:
+                  - generic [ref=e374]:
+                    - generic [ref=e375]: Free
+                    - generic [ref=e376]: Basic transcription
+                  - generic [ref=e377]:
+                    - generic [ref=e378]: Custom
+                    - generic [ref=e379]: Custom workflow
+              - generic [ref=e380]:
+                - generic [ref=e381]:
+                  - generic [ref=e382]: Search
+                  - paragraph [ref=e383]: How you get back to the right call later.
+                - generic [ref=e384]:
+                  - generic [ref=e385]:
+                    - generic [ref=e386]: Free
+                    - generic [ref=e387]: Transcript search
+                  - generic [ref=e388]:
+                    - generic [ref=e389]: Custom
+                    - generic [ref=e390]: Custom retrieval setup
+              - generic [ref=e391]:
+                - generic [ref=e392]:
+                  - generic [ref=e393]: Support
+                  - paragraph [ref=e394]: What help path you can expect as the archive grows.
+                - generic [ref=e395]:
+                  - generic [ref=e396]:
+                    - generic [ref=e397]: Free
+                    - generic [ref=e398]: Self-serve support
+                  - generic [ref=e399]:
+                    - generic [ref=e400]: Custom
+                    - generic [ref=e401]: Rollout and migration help
+              - generic [ref=e402]:
+                - generic [ref=e403]:
+                  - generic [ref=e404]: Hosting
+                  - paragraph [ref=e405]: Where the archive runs and when private deployment enters the picture.
+                - generic [ref=e406]:
+                  - generic [ref=e407]:
+                    - generic [ref=e408]: Free
+                    - generic [ref=e409]: Shared cloud workspace
+                  - generic [ref=e410]:
+                    - generic [ref=e411]: Custom
+                    - generic [ref=e412]: Private deployment
+          - generic [ref=e413]:
+            - generic [ref=e415]:
+              - generic [ref=e416]: Billing notes
+              - heading "Start on free, then upgrade only when your archive needs more room." [level=3] [ref=e417]
+              - paragraph [ref=e418]: You can begin without a credit card. Paid plans move through Stripe checkout when you are ready for more storage, deeper history, or stronger retrieval.
+            - generic [ref=e420]:
+              - generic [ref=e421]:
+                - generic [ref=e422]: Add-on
+                - heading "Advanced AI transcription" [level=4] [ref=e423]
+                - paragraph [ref=e424]: Higher-accuracy transcription for larger archives or recordings that need closer review.
+              - generic [ref=e425]:
+                - generic [ref=e426]: $0.05
+                - generic [ref=e427]: /minute
+            - generic [ref=e429]:
+              - generic [ref=e430]:
+                - generic [ref=e431]: Add-on
+                - heading "Additional storage" [level=4] [ref=e432]
+                - paragraph [ref=e433]: Expand your archive as more phone recordings and historical calls move into one library.
+              - generic [ref=e434]:
+                - generic [ref=e435]: $2
+                - generic [ref=e436]: /GB / month
+          - generic [ref=e438]:
+            - generic [ref=e439]:
+              - generic [ref=e440]: Own your own data
+              - heading "Keep Callery on your own server when the archive needs private hosting." [level=3] [ref=e441]
+              - paragraph [ref=e442]: Individuals can purchase a self-hosted license for $300 and keep full control of their own recordings, transcripts, and deployment. Teams that want private hosting can email us to discuss rollout, setup expectations, and custom pricing.
+            - generic [ref=e443]:
+              - link "Email about private hosting" [ref=e444] [cursor=pointer]:
+                - /url: mailto:sales@callery.com
+                - button "Email about private hosting" [ref=e445]
+              - generic [ref=e446]: sales@callery.com
+      - generic [ref=e448]:
+        - generic [ref=e449]:
+          - generic [ref=e450]: FAQ
+          - heading "Questions that matter before you trust a call archive." [level=2] [ref=e451]
+          - paragraph [ref=e452]: These are the practical questions people ask before moving important recordings into a new home.
+        - generic [ref=e453]:
+          - generic [ref=e454]:
+            - heading "What phones work with Callery?" [level=3] [ref=e456]
+            - generic [ref=e457]: Callery works best with Samsung devices and any phone or call recording app that saves recordings into accessible folders you can upload or sync from.
+          - generic [ref=e458]:
+            - heading "What kinds of calls fit best?" [level=3] [ref=e460]
+            - generic [ref=e461]: Personal archives, customer conversations, business records, support discussions, and other important voice recordings fit well when they need to stay organized and searchable.
+          - generic [ref=e462]:
+            - heading "Can I host it privately?" [level=3] [ref=e464]
+            - generic [ref=e465]: Yes. Individuals can purchase a self-hosted license for $250, and teams that need private deployment can reach out for custom rollout and pricing.
+          - generic [ref=e466]:
+            - heading "What happens when I export my archive?" [level=3] [ref=e468]
+            - generic [ref=e469]: Exports stay organized by call context instead of turning into a flat unsorted dump, and the viewer helps you browse recordings and transcripts offline.
+          - generic [ref=e470]:
+            - heading "What does the AI actually do?" [level=3] [ref=e472]
+            - generic [ref=e473]: It handles transcript generation, summary, speaker labeling, timestamps, and semantic search so you can retrieve the right call faster.
+      - generic [ref=e477]:
+        - generic [ref=e478]:
+          - generic [ref=e479]: Ready when you are
+          - heading "Turn scattered recordings into a searchable call archive." [level=2] [ref=e480]
+          - paragraph [ref=e481]: Start with a smaller archive, prove retrieval works for your workflow, and grow from there.
+        - generic [ref=e482]:
+          - link "Create workspace" [ref=e483] [cursor=pointer]:
+            - /url: /signup
+            - button "Create workspace" [ref=e484]
+          - link "Talk to support" [ref=e485] [cursor=pointer]:
+            - /url: /support
+            - button "Talk to support" [ref=e486]
+```

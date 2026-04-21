@@ -108,6 +108,10 @@ test('contacts sync route runs sync and returns 200 on success', async () => {
         },
         runGoogleContactsSync: async (firebaseUid) => {
             calls.push(`run:${firebaseUid}`);
+            return {
+                importedCount: 42,
+                duplicatePhoneIssues: [{ phoneNumber: '+919353096358', names: ['A', 'B'] }],
+            };
         },
         markGoogleContactsSyncFailed: async () => {
             throw new Error('should not mark failure');
@@ -121,7 +125,11 @@ test('contacts sync route runs sync and returns 200 on success', async () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.deepEqual(body, { success: true, message: 'Contacts synced successfully.' });
+    assert.deepEqual(body, {
+        success: true,
+        message: 'Contacts synced successfully.',
+        duplicatePhoneIssueCount: 1,
+    });
     assert.deepEqual(calls, [
         'prepare:user-1:refresh-token:contacts.readonly',
         'run:user-1',
@@ -147,6 +155,10 @@ test('contacts sync route recovers stale syncing state before running sync', asy
         },
         runGoogleContactsSync: async () => {
             calls.push('run');
+            return {
+                importedCount: 0,
+                duplicatePhoneIssues: [],
+            };
         },
         markGoogleContactsSyncFailed: async () => {
             throw new Error('should not mark failure');
@@ -161,7 +173,7 @@ test('contacts sync route recovers stale syncing state before running sync', asy
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.deepEqual(body, { success: true, message: 'Contacts synced successfully.' });
+    assert.deepEqual(body, { success: true, message: 'Contacts synced successfully.', duplicatePhoneIssueCount: 0 });
     assert.deepEqual(calls, ['recover:user-1', 'prepare', 'run']);
 });
 

@@ -33,7 +33,3 @@ export function isLifetimePlanKey(planKey: string): boolean {
 export function isInternalPlanKey(planKey: string): boolean {
     return planKey === PLAN_KEYS.INTERNAL;
 }
-
-export function isDefaultFreeAccessPlanKey(planKey: string): boolean {
-    return isFreeTrialPlanKey(planKey);
-}

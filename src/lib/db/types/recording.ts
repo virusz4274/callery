@@ -26,6 +26,7 @@ export interface Recording {
     contactId: ObjectId | null;
     contactName: string | null;
     phoneNumber: string;
+    normalizedPhoneNumber: string;
 
     // File metadata
     r2Key: string;
@@ -71,7 +72,7 @@ export interface Recording {
     isArchived: boolean;
 }
 
-export type CreateRecordingInput = Omit<Recording, '_id' | 'createdAt' | 'updatedAt'>;
+export type CreateRecordingInput = Omit<Recording, '_id' | 'createdAt' | 'updatedAt' | 'normalizedPhoneNumber'>;
 export type UpdateRecordingInput = Partial<Omit<Recording, '_id' | 'firebaseUid' | 'createdAt'>>;
 
 export interface RecordingResponse {
