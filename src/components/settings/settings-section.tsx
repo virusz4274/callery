@@ -1,14 +1,14 @@
 import { Chip } from '@heroui/react';
 import { cn } from '@/lib/utils';
 
-interface SettingsPageProps {
+interface SettingsSectionProps {
     title: string;
     description?: string;
     children: React.ReactNode;
     className?: string;
 }
 
-export function SettingsPage({ title, description, children, className }: SettingsPageProps) {
+export function SettingsSection({ title, description, children, className }: SettingsSectionProps) {
     return (
         <section className={cn('space-y-3', className)}>
             <div className="flex flex-wrap items-center gap-2">

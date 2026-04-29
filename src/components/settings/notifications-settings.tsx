@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button, Card, Chip, Label, Radio, RadioGroup, Spinner, Surface, Switch } from '@heroui/react';
 import { BellRing, CircleCheck, TriangleAlert } from 'lucide-react';
-import { SettingsPage } from './settings-page';
+import { SettingsSection } from './settings-section';
 
 interface NotificationsSettingsProps {
     settings: {
@@ -22,7 +22,7 @@ interface NotificationsSettingsProps {
 
 export function NotificationsSettings({ settings, onSettingsChange, onSave, isSaving }: NotificationsSettingsProps) {
     return (
-        <SettingsPage title="Notifications" description="Manage your email notifications and alerts.">
+        <SettingsSection title="Notifications" description="Manage your email notifications and alerts.">
             <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/90 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
                 <Card.Content className="space-y-6 p-5 md:p-6">
                     <div className="flex flex-wrap items-center gap-2">
@@ -112,6 +112,6 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                     </Button>
                 </Card.Footer>
             </Card>
-        </SettingsPage>
+        </SettingsSection>
     );
 }

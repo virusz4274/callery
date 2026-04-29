@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '@/components/toast-provider';
 import { authFetch } from '@/lib/api-client';
-import { SettingsPage } from './settings-page';
+import { SettingsSection } from './settings-section';
 import { BillingHistoryCard } from './billing/billing-history-card';
 import { CurrentPlanCard } from './billing/current-plan-card';
 import type { BillingSettingsProps, Invoice } from './billing/types';
@@ -76,7 +76,7 @@ export function BillingSettings({ userProfile }: BillingSettingsProps) {
     }, []);
 
     return (
-        <SettingsPage title="Billing & Plans" description="Manage your subscription, limits, and usage preferences.">
+        <SettingsSection title="Billing & Plans" description="Manage your subscription, limits, and usage preferences.">
             <div className="space-y-6">
                 <CurrentPlanCard
                     planName={planName}
@@ -107,6 +107,6 @@ export function BillingSettings({ userProfile }: BillingSettingsProps) {
                     error={invoicesError}
                 />
             </div>
-        </SettingsPage>
+        </SettingsSection>
     );
 }

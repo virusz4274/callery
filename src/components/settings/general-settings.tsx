@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button, Card, Chip, Label, ListBox, Select, Spinner, Surface } from '@heroui/react';
 import { Clock3, Globe2 } from 'lucide-react';
-import { SettingsPage } from './settings-page';
+import { SettingsSection } from './settings-section';
 
 const timezones = [
     { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -41,7 +41,7 @@ interface GeneralSettingsProps {
 
 export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }: GeneralSettingsProps) {
     return (
-        <SettingsPage title="Localization" description="Set your preferred language and timezone for date and time display.">
+        <SettingsSection title="Localization" description="Set your preferred language and timezone for date and time display.">
             <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/90 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
                 <Card.Content className="space-y-5 p-5 md:p-6">
                     <div className="flex flex-wrap items-center gap-2">
@@ -114,6 +114,6 @@ export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }
                     </Button>
                 </Card.Footer>
             </Card>
-        </SettingsPage>
+        </SettingsSection>
     );
 }

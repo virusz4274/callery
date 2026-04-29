@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Spinner } from '@heroui/react';
 import { GoogleConnectDialog } from './google-connect-dialog';
-import { SettingsPage } from './settings-page';
+import { SettingsSection } from './settings-section';
 import type { User } from '@/lib/types';
 import type { ExportJobResponse } from '@/lib/db/types';
 import { getAvailableProviders, type AvailableProvider } from '@/app/actions/transcription-providers';
@@ -67,7 +67,7 @@ export function DataSettings({
         <>
             <div className="space-y-6">
                 {mode === 'sources' && (
-                <SettingsPage title="Sources" description="Connect or review the services that supply contacts and incoming data.">
+                <SettingsSection title="Sources" description="Connect or review the services that supply contacts and incoming data.">
                     <GoogleConnectCard
                         googleSync={userProfile?.googleSync}
                         isSyncing={isSyncing}
@@ -75,11 +75,11 @@ export function DataSettings({
                         onConnect={onConnectGoogle}
                         onDisconnect={onDisconnectGoogle}
                     />
-                </SettingsPage>
+                </SettingsSection>
                 )}
 
                 {mode === 'processing' && (
-                <SettingsPage title="Processing" description="Choose how new recordings are transcribed and which provider runs automated jobs.">
+                <SettingsSection title="Processing" description="Choose how new recordings are transcribed and which provider runs automated jobs.">
                     <TranscriptionSettingsCard
                         autoTranscribe={settings.transcriptionSettings.autoTranscribe}
                         defaultProvider={settings.transcriptionSettings.defaultProvider}
@@ -96,11 +96,11 @@ export function DataSettings({
                             {isSaving ? <Spinner color="current" size="sm" /> : "Save Settings"}
                         </Button>
                     </div>
-                </SettingsPage>
+                </SettingsSection>
                 )}
 
                 {mode === 'retention' && (
-                <SettingsPage title="Retention" description="Track storage and transcription usage, then tune how aggressively old recordings are removed.">
+                <SettingsSection title="Retention" description="Track storage and transcription usage, then tune how aggressively old recordings are removed.">
                     <UsageStorageCard
                         userProfile={userProfile}
                         deletionPolicy={settings.deletionPolicy}
@@ -113,17 +113,17 @@ export function DataSettings({
                             {isSaving ? <Spinner color="current" size="sm" /> : "Save Policy"}
                         </Button>
                     </div>
-                </SettingsPage>
+                </SettingsSection>
                 )}
 
                 {mode === 'export' && (
-                <SettingsPage title="Export" description="Create a portable archive of recordings, transcripts, metadata, and the offline viewer.">
+                <SettingsSection title="Export" description="Create a portable archive of recordings, transcripts, metadata, and the offline viewer.">
                     <ExportDataCard
                         exportJob={exportJob}
                         isExportStarting={isExportStarting}
                         onStartExport={onStartExport}
                     />
-                </SettingsPage>
+                </SettingsSection>
                 )}
             </div >
             {showConnectDialog && (

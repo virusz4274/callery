@@ -9,6 +9,7 @@ interface FolderSelectionCardProps {
     pendingSize: number;
     syncedTotal: number;
     isLoading: boolean;
+    isRefreshing: boolean;
     isSyncing: boolean;
     selectedCount: number;
     onPickFolder: () => void;
@@ -23,6 +24,7 @@ export function FolderSelectionCard({
     pendingSize,
     syncedTotal,
     isLoading,
+    isRefreshing,
     isSyncing,
     selectedCount,
     onPickFolder,
@@ -77,12 +79,12 @@ export function FolderSelectionCard({
                             <Button
                                 variant="ghost"
                                 onPress={onLoadFiles}
-                                isIconOnly={isLoading}
-                                isDisabled={isLoading}
+                                isIconOnly={isLoading || isRefreshing}
+                                isDisabled={isLoading || isRefreshing}
                                 className="flex-1 rounded-full lg:flex-none"
                             >
-                                {!isLoading && <RefreshCw className="mr-2 h-4 w-4" />}
-                                {isLoading ? <Spinner size="sm" /> : 'Refresh'}
+                                {!(isLoading || isRefreshing) && <RefreshCw className="mr-2 h-4 w-4" />}
+                                {(isLoading || isRefreshing) ? <Spinner size="sm" /> : 'Refresh'}
                             </Button>
 
                             <Button
