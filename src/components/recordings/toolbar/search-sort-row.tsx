@@ -1,9 +1,9 @@
 import React from 'react';
 import { parseDate, type DateValue } from '@internationalized/date';
-import { Button, Chip, DateField, DateRangePicker, FieldError, ListBox, Popover, RangeCalendar, SearchField, Select } from '@heroui/react';
+import { Button, Chip, DateField, DateRangePicker, Disclosure, FieldError, ListBox, Popover, RangeCalendar, SearchField, Select } from '@heroui/react';
 import { ContextHelp } from '@/components/context-help';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { CalendarRange, ChevronDown, Filter, LayoutGrid, Rows3, SlidersHorizontal, Sparkles, User, X } from 'lucide-react';
+import { CalendarRange, Filter, LayoutGrid, Rows3, SlidersHorizontal, Sparkles, User, X } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
 import type { ReactNode } from 'react';
@@ -451,71 +451,74 @@ export function SearchSortRow({
             </div>
 
             {(summaryParts.length > 0 || density === 'comfortable') && (
-                <details className="group rounded-[1rem] border border-default-200/80 bg-background/70">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                <SlidersHorizontal className="h-4 w-4 text-default-500" />
-                                Active setup
+                <Disclosure className="rounded-[1rem] border border-default-200/80 bg-background/70">
+                    <Disclosure.Heading>
+                        <Disclosure.Trigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-2.5">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                    <SlidersHorizontal className="h-4 w-4 text-default-500" />
+                                    Active setup
+                                </div>
+                                <div className="truncate text-sm text-default-500">
+                                    {summaryParts.length > 0 ? summaryParts.join(' • ') : 'Comfortable density'}
+                                </div>
                             </div>
-                            <div className="truncate text-sm text-default-500">
-                                {summaryParts.length > 0 ? summaryParts.join(' • ') : 'Comfortable density'}
-                            </div>
-                        </div>
-                        <ChevronDown className="h-4 w-4 flex-shrink-0 text-default-400 transition-transform group-open:rotate-180" />
-                    </summary>
-
-                    <div className="flex flex-wrap items-center gap-2 border-t border-default-100/80 px-4 py-3">
-                        {hasTextSearch && (
-                            <Chip variant="soft" color="default">
-                                Text: {search}
-                            </Chip>
-                        )}
-                        {semanticResultsCount !== undefined && (
-                            <Chip variant="soft" color="accent">
-                                <Sparkles className="mr-1 h-3.5 w-3.5" />
-                                {semanticResultsCount} AI match{semanticResultsCount === 1 ? '' : 'es'}
-                            </Chip>
-                        )}
-                        {selectedContact && (
-                            <Chip variant="soft" color="accent">
-                                <span className="inline-flex items-center gap-1.5">
-                                    <User className="h-3.5 w-3.5" />
-                                    {selectedContact.name || selectedContact.phoneNumbers?.[0] || 'Unknown'}
-                                </span>
-                            </Chip>
-                        )}
-                        {startDate && (
-                            <Chip variant="soft" color="warning">
-                                From {startDate}
-                            </Chip>
-                        )}
-                        {endDate && (
-                            <Chip variant="soft" color="warning">
-                                To {endDate}
-                            </Chip>
-                        )}
-                        {hasNonDefaultSort && (
-                            <Chip variant="soft" color="default">
-                                {sortLabel}
-                            </Chip>
-                        )}
-                        {density === 'comfortable' && (
-                            <Chip variant="soft" color="default">
-                                Comfortable density
-                            </Chip>
-                        )}
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="rounded-full text-danger"
-                            onPress={resetFilters}
-                        >
-                            <X className="mr-1 h-4 w-4" />
-                            Reset
-                        </Button>
-                    </div>
-                </details>
+                            <Disclosure.Indicator className="h-4 w-4 flex-shrink-0 text-default-400" />
+                        </Disclosure.Trigger>
+                    </Disclosure.Heading>
+                    <Disclosure.Content>
+                        <Disclosure.Body className="flex flex-wrap items-center gap-2 border-t border-default-100/80 px-4 py-3">
+                            {hasTextSearch && (
+                                <Chip variant="soft" color="default">
+                                    Text: {search}
+                                </Chip>
+                            )}
+                            {semanticResultsCount !== undefined && (
+                                <Chip variant="soft" color="accent">
+                                    <Sparkles className="mr-1 h-3.5 w-3.5" />
+                                    {semanticResultsCount} AI match{semanticResultsCount === 1 ? '' : 'es'}
+                                </Chip>
+                            )}
+                            {selectedContact && (
+                                <Chip variant="soft" color="accent">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <User className="h-3.5 w-3.5" />
+                                        {selectedContact.name || selectedContact.phoneNumbers?.[0] || 'Unknown'}
+                                    </span>
+                                </Chip>
+                            )}
+                            {startDate && (
+                                <Chip variant="soft" color="warning">
+                                    From {startDate}
+                                </Chip>
+                            )}
+                            {endDate && (
+                                <Chip variant="soft" color="warning">
+                                    To {endDate}
+                                </Chip>
+                            )}
+                            {hasNonDefaultSort && (
+                                <Chip variant="soft" color="default">
+                                    {sortLabel}
+                                </Chip>
+                            )}
+                            {density === 'comfortable' && (
+                                <Chip variant="soft" color="default">
+                                    Comfortable density
+                                </Chip>
+                            )}
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="rounded-full text-danger"
+                                onPress={resetFilters}
+                            >
+                                <X className="mr-1 h-4 w-4" />
+                                Reset
+                            </Button>
+                        </Disclosure.Body>
+                    </Disclosure.Content>
+                </Disclosure>
             )}
         </div>
     );

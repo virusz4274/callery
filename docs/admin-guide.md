@@ -63,12 +63,18 @@ Each plan document can define:
 - price, currency, and interval
 - included storage and transcription limits
 - feature list
-- Stripe base price ID
-- Stripe metered storage and transcription price IDs
+- Stripe base price ID (`stripePriceId`)
+- Stripe metered storage price ID (`stripeStoragePriceId`)
+- Stripe metered transcription price ID (`stripeTranscriptionPriceId`)
 - active/default state
 
 The app does not create Stripe products for you. The admin UI is where you map existing Stripe prices to plan documents.
 The public pricing page only publishes plans that are active, non-default, and have a non-empty `stripePriceId`.
+
+> [!IMPORTANT]
+> **After a fresh `npm run db:init`, all plan price IDs are empty strings.** No user can complete checkout until you fill them in here. Go to `/admin/plans`, edit each paid plan (Standard, Pro, Lifetime), and paste the corresponding Stripe Price IDs. See [billing.md](billing.md) for step-by-step instructions on creating those prices in Stripe.
+>
+> The pricing page shows a configuration warning (rather than plan cards) when all plans have empty price IDs, so it is immediately obvious if this step was skipped.
 
 ## Global Settings
 

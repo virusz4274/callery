@@ -190,8 +190,8 @@ Before starting the app, make sure every required key in `.env` still exists and
    ADMIN_BOOTSTRAP_EMAILS=your.email@example.com
    ```
 
-   > [!WARNING]
-   > **Security Note:** Currently, anyone who signs up with an email listed here can be granted admin access, even if their email is not yet verified in Firebase. It is recommended to remove your email from this list once you have successfully signed up and confirmed your admin status.
+   > [!NOTE]
+   > The admin role is only granted when the account's email is verified in Firebase. Signing up with an unverified email address that matches a bootstrap email will create a regular user account, not an admin. Verify your email in Firebase before your first login to receive admin access. Once you have confirmed your admin account is working, you can safely remove your email from this list — it has no effect on existing admin accounts.
 2. **Initialize the Database:**
    In your terminal, run the following command to set up the default collections and settings in MongoDB:
    ```bash
@@ -382,27 +382,134 @@ If you are not using one of these transcription providers yet, leave its require
 
 ### Step 8: Stripe Billing Setup
 
-To charge users for processing time and storage, you can enable Stripe integration.
+Stripe billing is optional but requires completing all sub-steps below before any user can pay. The app validates that plan price IDs are non-empty before creating a checkout session, so skipping any sub-step means checkout returns an error for every plan.
+
+> [!NOTE]
+> For a complete technical reference on how billing works, see [billing.md](billing.md). This section covers the setup steps in order.
+
+#### 8a. Create a Stripe account and get your API keys
 
 1. Create a free account at [Stripe](https://stripe.com/).
-2. Ensure you are in "Test Mode" (toggle at the top right of the Stripe dashboard).
-3. Open the **Developers** tab and look for your **Secret key**.
-4. Keep the **Developers** tab open, switch to the **Webhooks** section, and click **Add an endpoint**.
-   - Endpoint URL: `http://localhost:9000/api/stripe/webhook` (Update this when deploying live).
-   - Events to listen to (match the app webhook handler):
-     - Checkout: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`
-     - Subscriptions: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `customer.subscription.trial_will_end`, `customer.subscription.pending_update_applied`, `customer.subscription.pending_update_expired`
-     - Invoices: `invoice.payment_failed`, `invoice.payment_action_required`, `invoice.payment_succeeded`, `invoice.paid`, `invoice.voided`, `invoice.marked_uncollectible`
-     - Customers: `customer.deleted`
-   - Once created, Stripe will reveal a **Signing secret** (it starts with `whsec_`).
+2. Make sure you are in **Test Mode** (toggle at the top right of the Stripe Dashboard). Do everything below in test mode first, then repeat in live mode when you are ready to accept real payments.
+3. Go to **Developers → API keys**.
+4. Copy your **Secret key** (starts with `sk_test_`).
 5. Update your `.env` file:
 ```env
 NEXT_PUBLIC_ENABLE_BILLING=true
 STRIPE_SECRET_KEY=sk_test_...
+```
+
+#### 8b. Create the two Billing Meters
+
+Meters are what Stripe uses to track per-user storage and transcription usage. **If you skip this step, metered overage billing will silently fail.**
+
+1. In the Stripe Dashboard, go to **Billing → Meters** (or search for "Meters").
+2. Click **Create meter**. Fill in:
+   - **Display name**: `Storage Usage`
+   - **Event name**: `storage_usage_bytes` ← must match exactly
+   - **Default aggregation formula**: **Last** (not Sum — storage is billed as the peak amount stored in a period, not the running total)
+   - Click **Create meter**.
+3. Click **Create meter** again. Fill in:
+   - **Display name**: `Transcription Usage`
+   - **Event name**: `transcription_usage_seconds` ← must match exactly
+   - **Default aggregation formula**: **Sum** (transcription is cumulative)
+   - Click **Create meter**.
+
+> [!WARNING]
+> The event names `storage_usage_bytes` and `transcription_usage_seconds` are hardcoded in the app. Do not change them. Using "Sum" for storage would cause customers to be charged for the accumulated total of all storage reports rather than their peak usage — resulting in massive over-billing.
+
+#### 8c. Create products and prices in Stripe
+
+For each plan you want to sell, you need Stripe Prices. Here is the full set for the standard plans:
+
+**For Standard (monthly recurring, $10/month):**
+1. Go to **Product Catalog → Add product**.
+2. Name: `Standard`. Click **Add a price**.
+3. Price model: **Standard pricing**, Recurring, Monthly, amount `10.00 USD`. Click **Save product**.
+4. Copy the **Price ID** (e.g. `price_abc123`). This is the `stripePriceId` for the Standard plan.
+5. Add a metered price for storage overage: on the same product, click **Add another price**.
+   - Price model: **Standard pricing**, Recurring, Monthly.
+   - Billing scheme: **Per unit**, Usage type: **Metered**, Meter: `Storage Usage`.
+   - Set your desired per-GB rate. Click **Add price**.
+   - Copy the Price ID. This is the `stripeStoragePriceId` for Standard.
+6. Repeat step 5 for transcription overage — choose Meter: `Transcription Usage`, set your per-second rate.
+   - Copy the Price ID. This is the `stripeTranscriptionPriceId` for Standard.
+
+**For Pro (monthly recurring, $20/month):**
+Repeat the same process as Standard with `20.00 USD` and your desired overage rates.
+
+**For Lifetime (one-time payment, $250):**
+1. Go to **Product Catalog → Add product**. Name: `Lifetime`. Click **Add a price**.
+2. Price model: **Standard pricing**, **One time**, amount `250.00 USD`. Click **Save product**.
+3. Copy the Price ID. This is the `stripePriceId` for the Lifetime plan.
+4. Add metered prices (same as Standard/Pro) for storage and transcription — the Lifetime plan creates a separate usage-only subscription after purchase to bill ongoing usage.
+
+> [!NOTE]
+> The `internal` and `custom` plans intentionally have no Stripe prices. They are for admin-assigned access only.
+
+#### 8d. Register the webhook endpoint
+
+1. In Stripe Dashboard, go to **Developers → Webhooks → Add endpoint**.
+2. Endpoint URL: `http://localhost:9000/api/stripe/webhook` for local testing. Change this to your live URL when deploying.
+3. Select the following events:
+   - Checkout: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`
+   - Subscriptions: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `customer.subscription.trial_will_end`, `customer.subscription.pending_update_applied`, `customer.subscription.pending_update_expired`
+   - Invoices: `invoice.payment_failed`, `invoice.payment_action_required`, `invoice.payment_succeeded`, `invoice.paid`, `invoice.voided`, `invoice.marked_uncollectible`
+   - Customers: `customer.deleted`
+4. Click **Add endpoint**. Stripe reveals a **Signing secret** (starts with `whsec_`).
+5. Update your `.env` file:
+```env
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-*Note: For a fully functioning billing cycle, you must also create Pricing Products and Meters inside Stripe for "storage_usage_bytes" and "transcription_usage_seconds". For deep details on creating pricing tiers, see our specific [billing.md](billing.md) guide.*
+For local testing, forward events with the Stripe CLI:
+```bash
+stripe listen --forward-to localhost:9000/api/stripe/webhook
+```
+
+#### 8e. Configure the Billing Portal
+
+The Billing Portal is the Stripe-hosted page where users can update their payment method, cancel, or change their subscription. Without configuring it, the "Manage Subscription" button in Settings will fail.
+
+1. In Stripe Dashboard, go to **Settings → Billing → Customer portal**.
+2. Under **Features**, enable at minimum:
+   - Update payment methods
+   - Cancel subscriptions
+   - View billing history
+3. Under **Business information**, add your business name and a support email.
+4. Click **Save**.
+
+> [!NOTE]
+> You need to do this separately for **test mode** and **live mode** — portal configuration is not shared between them.
+
+#### 8f. Map price IDs into the plan documents
+
+After running `npm run db:init`, all plans have empty `stripePriceId` values in MongoDB. **No user can check out until you fill these in.** The checkout route returns HTTP 400 for any plan with an empty price ID.
+
+1. Start the app and log in with your admin account.
+2. Go to `/admin/plans`.
+3. Click **Edit** on the Standard plan. Paste in the three Price IDs you copied in step 8c:
+   - `stripePriceId` (the fixed monthly base price)
+   - `stripeStoragePriceId` (the metered storage price)
+   - `stripeTranscriptionPriceId` (the metered transcription price)
+4. Click **Save**. Repeat for Pro and Lifetime.
+
+> [!TIP]
+> Plans will not appear on the public pricing page until they have a non-empty `stripePriceId` and `isActive` is true. This is by design — it prevents placeholder plans from being visible before you finish configuring Stripe.
+
+#### 8g. Go live (production only)
+
+When you are ready to accept real payments:
+
+1. In Stripe Dashboard, switch from **Test Mode** to **Live Mode** (toggle at top right).
+2. Go to **Developers → API keys** and copy your **live secret key** (starts with `sk_live_`).
+3. Repeat steps 8b–8f in live mode: create meters, products, prices, webhook endpoint, and portal configuration. Live and test mode do not share any objects.
+4. Update your `.env` file with the live credentials:
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # the signing secret from your LIVE webhook endpoint
+```
+5. In the live webhook endpoint settings, make sure the URL points to your production domain, not localhost.
 
 ### Step 9: Push, Email, and Cron Configuration
 

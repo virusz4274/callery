@@ -155,16 +155,27 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
         status: 'success',
       });
 
+      let lastSeen: Recording | null = null;
       for (let attempt = 0; attempt < 30; attempt++) {
         await sleep(3000);
         const latest = await refreshRecording();
         if (!latest) {
           continue;
         }
+        lastSeen = latest;
 
         if (latest.transcriptionStatus === 'completed' || latest.transcriptionStatus === 'failed') {
           break;
         }
+      }
+
+      // Polling loop exhausted — recording is still processing. Let the user know.
+      if (lastSeen && lastSeen.transcriptionStatus === 'processing') {
+        toast({
+          title: 'Still Processing',
+          description: 'Transcription is taking longer than expected. Results will appear automatically once complete.',
+          status: 'warning',
+        });
       }
     } catch (error) {
       console.error('Transcription error:', error);

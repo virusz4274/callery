@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
             firebaseUid,
             email,
             name,
-            photoURL || firebaseUser.photoURL || undefined
+            photoURL || firebaseUser.photoURL || undefined,
+            firebaseUser.emailVerified
         );
 
         return NextResponse.json({

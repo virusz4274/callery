@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
         // Verify the token to get user details
         const decodedToken = await auth.verifyIdToken(idToken);
-        const { uid, email, name, picture } = decodedToken;
+        const { uid, email, name, picture, email_verified } = decodedToken;
 
         if (!email) {
             console.error('Email is missing in ID token');
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         let profileEnsureFailed = false;
         try {
             const { ensureUserProfile } = await import('@/lib/db/users');
-            await ensureUserProfile(uid, email, name, picture);
+            await ensureUserProfile(uid, email, name, picture, email_verified);
         } catch (dbError) {
             const message = dbError instanceof Error ? dbError.message : String(dbError);
             const failurePolicy = resolveProfileEnsureFailurePolicy({
