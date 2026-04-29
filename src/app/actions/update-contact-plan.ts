@@ -2,7 +2,7 @@
 
 import { logAdminAction } from '@/app/actions/audit-log';
 import { Plan } from '@/lib/db/types';
-import { getCurrentAdmin, parseObjectId } from '@/lib/admin-auth';
+import { requireCurrentAdmin, parseObjectId } from '@/lib/admin-auth';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
 
@@ -10,10 +10,7 @@ export async function updateContactPlan(
     userId: string,
     planKey: string
 ): Promise<{ success: boolean; message?: string }> {
-    const admin = await getCurrentAdmin();
-    if (!admin) {
-        return { success: false, message: 'Unauthorized' };
-    }
+    const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');

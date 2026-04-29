@@ -402,17 +402,14 @@ export function RecordingsPage() {
     }, [redirectPath, router, user]);
 
     useEffect(() => {
-        if (!user) {
-            return;
-        }
-
-        if (!linkedRecordingId) {
-            setLinkedRecording(null);
+        if (!user || !linkedRecordingId) {
             return;
         }
 
         const recordingFromList = (recordings || []).find((recording) => recording.id === linkedRecordingId);
         if (recordingFromList) {
+            // Safe: linkedRecording is not in the dep array, so this can't loop.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLinkedRecording(recordingFromList);
             return;
         }
@@ -648,7 +645,7 @@ export function RecordingsPage() {
                 </section>
             </div>
 
-            {linkedRecording && (
+            {linkedRecordingId && linkedRecording && (
                 <RecordingDetailsDialog
                     recording={linkedRecording}
                     onOpenChange={(isOpen) => {

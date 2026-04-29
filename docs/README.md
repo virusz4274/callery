@@ -1,27 +1,21 @@
 # Documentation Index
 
-This folder contains the maintained documentation for the current Callery codebase. These docs are meant to describe the app that exists in `src/`, not historical audits or one-off investigation output.
+This folder contains the maintained documentation for the current Callery codebase.
 
 ## Start Here
 
-- [Setup Guide](setup-guide.md): local setup, environment variables, service wiring, webhooks, and cron routes
-- [User Guide](user-guide.md): the current end-user workflow across recordings, contacts, files, sharing, settings, support, and Android sync
-- [Admin Guide](admin-guide.md): admin routes, health checks, incidents, async jobs, plans, announcements, and runbook notes
+- [Setup Guide](setup-guide.md): step-by-step local setup, environment variables, service wiring (Firebase, R2, Stripe, transcription providers, push, SMTP), and first-login admin bootstrap
+- [User Guide](user-guide.md): end-user workflow across recordings, contacts, files, sharing, settings, support, and Android sync
+- [Admin Guide](admin-guide.md): admin routes, health checks, incidents, async jobs, plans, announcements, and operator runbook
 
 ## Developer Reference
 
 - [Architecture](architecture.md): system shape, async flows, security boundaries, and repository layout
-- [Firebase Cutover Runbook](firebase-cutover.md): single-project Firebase replacement flow for fresh deployments
 - [API Reference](api-reference.md): Server Actions, route handlers, signed upload flow, webhooks, and cron endpoints
 - [Data Model](data-model.md): MongoDB collections, important document fields, and index/TTL notes
-- [Billing](billing.md): seeded plans, Stripe setup, overage accounting, and billing verification notes
+- [Billing](billing.md): seeded plans, complete Stripe configuration walkthrough, overage accounting, access control matrix, and troubleshooting
+- [Cron Jobs](cron-jobs.md): background job schedule, authorization, and operational notes
 - [Android App](android-app.md): Capacitor wrapper behavior, folder sync flow, and Android-specific setup
-
-## Operations And QA
-
-- [Full Application Test Plan](full-application-test-plan.md): manual QA checklist for staging or production-like validation
-- [Stripe Billing Verification](stripe-billing-verification.md): focused Stripe re-verification map tied to the current implementation
-- [Dependency Review Register](dependency-review.md): lightweight register for deliberate dependency holds and follow-up review work
 
 ## Product Snapshot
 

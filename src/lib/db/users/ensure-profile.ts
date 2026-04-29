@@ -10,7 +10,8 @@ export async function ensureUserProfile(
     firebaseUid: string,
     email: string,
     displayName?: string,
-    photoURL?: string
+    photoURL?: string,
+    emailVerified?: boolean
 ): Promise<{ user: User; wasCreated: boolean }> {
     const existingUser = await findUserByFirebaseUid(firebaseUid);
 
@@ -39,9 +40,7 @@ export async function ensureUserProfile(
             name: displayName || email.split('@')[0],
             phoneNumber: '',
             photoURL: photoURL || '',
-            // TODO: Security: Check if the email is verified in Firebase before granting admin role.
-            // An attacker could sign up with an unverified email matching one in ADMIN_BOOTSTRAP_EMAILS.
-            role: isBootstrapAdminEmail(email) ? 'admin' : 'user',
+            role: isBootstrapAdminEmail(email) && emailVerified === true ? 'admin' : 'user',
             planKey: defaultPlan.key,
             timezone: '',
             notificationSettings: {

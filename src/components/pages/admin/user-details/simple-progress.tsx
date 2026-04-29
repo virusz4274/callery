@@ -1,4 +1,5 @@
 import React from 'react';
+import { ProgressBar } from '@heroui/react';
 
 type SimpleProgressProps = {
     value: number;
@@ -6,14 +7,17 @@ type SimpleProgressProps = {
 
 export function SimpleProgress({ value }: SimpleProgressProps) {
     const clampedValue = Math.min(Math.max(value, 0), 100);
-    const tone = clampedValue >= 90 ? 'from-danger to-danger/80' : 'from-primary to-primary/70';
-
+    const color = clampedValue >= 90 ? 'danger' : 'default';
     return (
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-default-100">
-            <div
-                className={`h-full rounded-full bg-gradient-to-r ${tone} transition-all duration-300`}
-                style={{ width: `${clampedValue}%` }}
-            />
-        </div>
+        <ProgressBar
+            aria-label="Usage"
+            value={clampedValue}
+            color={color}
+            className="w-full"
+        >
+            <ProgressBar.Track>
+                <ProgressBar.Fill />
+            </ProgressBar.Track>
+        </ProgressBar>
     );
 }
