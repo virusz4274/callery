@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button, Card, Chip, FieldError, Input, Label, Spinner, Surface, TextField } from '@heroui/react';
 import { KeyRound, Mail, UserRound } from 'lucide-react';
-import { SettingsPage } from './settings-page';
+import { SettingsSection } from './settings-section';
 import type { UseFormReturn } from 'react-hook-form';
 import type { User } from 'firebase/auth';
 
@@ -59,7 +59,7 @@ export function ProfileSettings({
 
     return (
         <div className="space-y-6">
-            <SettingsPage title="Profile" description="Update your personal information.">
+            <SettingsSection title="Profile" description="Update your personal information.">
                 <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/90 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
                     <form onSubmit={handleProfileSubmit}>
                         <Card.Content className="space-y-5 p-5 md:p-6">
@@ -135,10 +135,10 @@ export function ProfileSettings({
                         </Card.Footer>
                     </form>
                 </Card>
-            </SettingsPage>
+            </SettingsSection>
 
             {user.providerData.some(p => p.providerId === 'password') && (
-                <SettingsPage title="Password" description="Change your account password. You will be logged out after a successful change.">
+                <SettingsSection title="Password" description="Change your account password. You will be logged out after a successful change.">
                     <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/90 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
                         <form onSubmit={handlePasswordSubmit}>
                             <Card.Content className="space-y-5 p-5 md:p-6">
@@ -185,7 +185,7 @@ export function ProfileSettings({
                             </Card.Footer>
                         </form>
                     </Card>
-                </SettingsPage>
+                </SettingsSection>
             )}
         </div>
     );

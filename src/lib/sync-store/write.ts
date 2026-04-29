@@ -3,34 +3,12 @@ import { getDB } from './db';
 import { generateFingerprint } from './fingerprint';
 import type { FolderSyncMetadata, SyncedFile } from './types';
 
-async function readFolderMetadata(folderUri: string): Promise<FolderSyncMetadata | null> {
-    const db = await getDB();
-
-    return await new Promise((resolve, reject) => {
-        const transaction = db.transaction(METADATA_STORE_NAME, 'readonly');
-        const store = transaction.objectStore(METADATA_STORE_NAME);
-        const request = store.get(folderUri);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve((request.result as FolderSyncMetadata | undefined) ?? null);
-    });
-}
-
-async function writeFolderMetadata(metadata: FolderSyncMetadata): Promise<void> {
-    const db = await getDB();
-
-    await new Promise<void>((resolve, reject) => {
-        const transaction = db.transaction(METADATA_STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(METADATA_STORE_NAME);
-        const request = store.put(metadata);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
-}
-
 /**
  * Mark a file as synced after successful upload.
+ *
+ * Uses a single readwrite transaction across both stores so concurrent calls
+ * from Promise.all are serialized by IDB — preventing the syncedCount from
+ * being incremented from a stale read when multiple files finish at once.
  */
 export async function markAsSynced(
     folderUri: string,
@@ -43,40 +21,43 @@ export async function markAsSynced(
     try {
         const db = await getDB();
         const fingerprint = generateFingerprint(folderUri, filePath, fileSize, mtime);
-        const alreadySynced = await new Promise<boolean>((resolve, reject) => {
-            const transaction = db.transaction(STORE_NAME, 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(fingerprint);
-
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(!!request.result);
-        });
-
-        const syncedFile: SyncedFile = {
-            id: fingerprint,
-            fileName,
-            filePath,
-            fileSize,
-            mtime,
-            syncedAt: Date.now(),
-            recordingId,
-            folderUri,
-        };
+        const now = Date.now();
 
         await new Promise<void>((resolve, reject) => {
-            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const transaction = db.transaction([STORE_NAME, METADATA_STORE_NAME], 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.put(syncedFile);
+            const metadataStore = transaction.objectStore(METADATA_STORE_NAME);
 
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve();
-        });
+            const checkRequest = store.get(fingerprint);
+            checkRequest.onerror = () => reject(checkRequest.error);
+            checkRequest.onsuccess = () => {
+                const alreadySynced = !!checkRequest.result;
 
-        const existingMetadata = await readFolderMetadata(folderUri);
-        await writeFolderMetadata({
-            folderUri,
-            syncedCount: (existingMetadata?.syncedCount ?? 0) + (alreadySynced ? 0 : 1),
-            lastSyncTime: syncedFile.syncedAt,
+                store.put({
+                    id: fingerprint,
+                    fileName,
+                    filePath,
+                    fileSize,
+                    mtime,
+                    syncedAt: now,
+                    recordingId,
+                    folderUri,
+                } satisfies SyncedFile);
+
+                const metaRequest = metadataStore.get(folderUri);
+                metaRequest.onerror = () => reject(metaRequest.error);
+                metaRequest.onsuccess = () => {
+                    const existing = metaRequest.result as FolderSyncMetadata | undefined;
+                    metadataStore.put({
+                        folderUri,
+                        syncedCount: (existing?.syncedCount ?? 0) + (alreadySynced ? 0 : 1),
+                        lastSyncTime: now,
+                    } satisfies FolderSyncMetadata);
+                };
+            };
+
+            transaction.onerror = () => reject(transaction.error);
+            transaction.oncomplete = () => resolve();
         });
     } catch (error) {
         console.error('[SyncStore] Error marking file as synced:', error);

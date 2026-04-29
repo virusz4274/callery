@@ -39,6 +39,7 @@ export function useAndroidSync() {
     const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
     const [files, setFiles] = useState<SyncableFile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMode, setSyncMode] = useState<'background' | 'inline' | null>(null);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
@@ -87,8 +88,11 @@ export function useAndroidSync() {
         try {
             const cachedFiles = await loadCachedFolderFiles(selectedFolder);
             if (cachedFiles) {
+                // Show cached results immediately so large folders feel responsive,
+                // but keep an isRefreshing indicator while the fresh native scan runs.
                 setFiles(cachedFiles);
                 setIsLoading(false);
+                setIsRefreshing(true);
             }
 
             const syncableFiles = await loadFolderFiles(selectedFolder);
@@ -99,6 +103,7 @@ export function useAndroidSync() {
             toast({ title: 'Error', description: 'Failed to load files from folder', status: 'danger' });
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     }, [loadFolderStats, selectedFolder, toast]);
 
@@ -476,6 +481,7 @@ export function useAndroidSync() {
         selectedFolder,
         files,
         isLoading,
+        isRefreshing,
         isSyncing,
         syncMode,
         syncProgress,

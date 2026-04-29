@@ -82,6 +82,7 @@ public class FolderScanPlugin extends Plugin {
 
     private void collectAudioFiles(DocumentFile directory, String prefix, List<JSONObject> files) throws JSONException {
         DocumentFile[] entries = directory.listFiles();
+        if (entries == null) return;
         for (DocumentFile entry : entries) {
             String name = entry.getName();
             if (name == null || name.isEmpty()) {

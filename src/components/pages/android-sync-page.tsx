@@ -15,6 +15,7 @@ export function AndroidSyncPage() {
         isCapacitor,
         selectedFolder,
         isLoading,
+        isRefreshing,
         isSyncing,
         syncMode,
         syncProgress,
@@ -164,6 +165,7 @@ export function AndroidSyncPage() {
                 pendingSize={pendingSize}
                 syncedTotal={syncedCount}
                 isLoading={isLoading}
+                isRefreshing={isRefreshing}
                 isSyncing={isSyncing}
                 selectedCount={selectedRelevantCount}
                 onPickFolder={pickFolder}
