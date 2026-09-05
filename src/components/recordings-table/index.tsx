@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Card } from '@heroui/react';
 import { RecordingDetailsDialog } from '../recording-details-dialog';
 import { DeleteConfirmationModal } from './delete-confirmation-modal';
@@ -49,7 +48,7 @@ export function RecordingsTable({
                     className={`transition-all duration-300 ${
                         variant === 'flat'
                             ? 'bg-transparent border-none shadow-none'
-                            : 'rounded-[1.75rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]'
+                            : 'rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]'
                     }`}
                 >
                     <RecordingsTableHeader

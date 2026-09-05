@@ -1,5 +1,6 @@
 import { Resolver } from 'node:dns/promises';
-import { Db, MongoClient } from 'mongodb';
+import { Db, MongoClient, type MongoClientOptions } from 'mongodb';
+import { logger } from '@/lib/logger';
 
 import { env } from './env';
 
@@ -8,8 +9,7 @@ const isDevelopment = env.NODE_ENV === 'development';
 const DEFAULT_FALLBACK_DNS_SERVERS = ['8.8.8.8', '1.1.1.1'];
 type MongoConnectionMode = 'default' | 'fallback-first';
 
-// Standard options for Next.js/Serverless environments (Vercel/Docker)
-const options: any = {
+const options: MongoClientOptions = {
     maxPoolSize: 10,
     minPoolSize: 0,
     serverSelectionTimeoutMS: 5000,
@@ -146,7 +146,7 @@ async function connectClient(connectionUri: string, label: 'primary' | 'fallback
 
     if (isDevelopment) {
         const mode = label === 'primary' ? 'primary' : 'SRV fallback';
-        console.log(`MongoDB Connected (${mode}, dev)`);
+        logger.info(`MongoDB Connected (${mode}, dev)`);
     }
 
     return mongoClient;
@@ -160,18 +160,18 @@ async function createClient(): Promise<MongoClient> {
             }
 
             if (isDevelopment) {
-                console.warn('[MongoDB] Using fallback-first connection mode.');
+                logger.warn('[MongoDB] Using fallback-first connection mode.');
             }
 
             return await connectClient(cache.fallbackUri, 'fallback');
         } catch (fallbackFirstError) {
-            console.error('[MongoDB] fallback-first connection failed, retrying primary URI:', fallbackFirstError);
+            logger.error('[MongoDB] fallback-first connection failed, retrying primary URI:', fallbackFirstError);
         }
     }
 
     try {
         if (isDevelopment) {
-            console.log('Creating new MongoDB client (dev)...');
+            logger.info('Creating new MongoDB client (dev)...');
         }
         return await connectClient(uri, 'primary');
     } catch (primaryError) {
@@ -180,7 +180,7 @@ async function createClient(): Promise<MongoClient> {
         }
 
         if (isDevelopment) {
-            console.warn('[MongoDB] Primary SRV resolution failed. Attempting DNS fallback resolvers...');
+            logger.warn('[MongoDB] Primary SRV resolution failed. Attempting DNS fallback resolvers...');
         }
 
         try {
@@ -190,7 +190,7 @@ async function createClient(): Promise<MongoClient> {
 
             return await connectClient(cache.fallbackUri, 'fallback');
         } catch (fallbackError) {
-            console.error('[MongoDB] Fallback connection failed:', fallbackError);
+            logger.error('[MongoDB] Fallback connection failed:', fallbackError);
             throw primaryError;
         }
     }
@@ -203,7 +203,7 @@ function getClientPromise(): Promise<MongoClient> {
             if (isSrvDnsFailure(error)) {
                 cache.fallbackUri = undefined;
             }
-            console.error(`MongoDB Connection Error (${isDevelopment ? 'dev' : 'prod/worker'}):`, error);
+            logger.error(`MongoDB Connection Error (${isDevelopment ? 'dev' : 'prod/worker'}):`, error);
             throw error;
         });
     }

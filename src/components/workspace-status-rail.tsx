@@ -159,7 +159,7 @@ export function WorkspaceStatusRail({
                     <Surface
                         key={item.id}
                         variant="default"
-                        className={`rounded-[1.1rem] border px-4 py-3 shadow-none ${toneClasses}`}
+                        className={`rounded-xl border px-4 py-3 shadow-none ${toneClasses}`}
                     >
                         <div className="flex items-start gap-3">
                             <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-background/80">

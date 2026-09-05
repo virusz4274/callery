@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RecordingsToolbar } from '@/components/recordings/recordings-toolbar';
@@ -253,7 +253,7 @@ export function RecordingsPage() {
                     hasRecordings ? 'py-4 md:py-5' : 'py-5 md:py-6'
                 }`}>
                     <div className="space-y-3">
-                        <Chip variant="soft" color="accent" className="w-fit">Call library</Chip>
+                        <Chip variant="soft" color="accent" size="sm">Call library</Chip>
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="mr-1 text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
                                 Recordings
@@ -268,7 +268,7 @@ export function RecordingsPage() {
                         <p className="max-w-2xl text-sm leading-6 text-default-500">
                             {hasRecordings
                                 ? 'Search, filter, and open calls without leaving the main library.'
-                                : 'Bring audio into the workspace, then search, filter, and review everything from one library.'}
+                                : 'Upload recordings to start building your searchable archive.'}
                         </p>
                         {(filteredContactName || activeCollectionName) && (
                             <div className="flex flex-wrap items-center gap-2">
@@ -279,14 +279,14 @@ export function RecordingsPage() {
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
                         <Link href="/upload">
-                            <Button className="w-full rounded-full px-5 font-semibold">
+                            <Button className="w-full rounded-full px-6 font-semibold">
                                 Upload recordings
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
                         {!hasContacts && (
                             <Link href="/contacts">
-                                <Button variant="secondary" className="w-full rounded-full px-5 font-semibold">
+                                <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
                                     Review contacts
                                 </Button>
                             </Link>
@@ -296,7 +296,7 @@ export function RecordingsPage() {
             </section>
 
             {shouldShowChecklist && (
-                <Surface variant="default" className="rounded-[1.35rem] border border-default-200/80 p-3 md:p-4">
+                <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-3 md:p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="warning">Setup {completedChecklistCount}/{checklistItems.length}</Chip>

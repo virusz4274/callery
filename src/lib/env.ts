@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const requiredBooleanString = z.enum(['true', 'false']).transform((value) => value === 'true');
 const requiredNumber = z.string().min(1).transform((value, ctx) => {
@@ -165,7 +166,7 @@ const processEnv = {
 const parsed = envSchema.safeParse(processEnv);
 
 if (!parsed.success) {
-    console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
+    logger.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
     throw new Error('Invalid environment variables');
 }
 

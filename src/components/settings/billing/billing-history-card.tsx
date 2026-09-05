@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, Chip, Link, Spinner } from '@heroui/react';
 import { ReceiptText } from 'lucide-react';
 import type { Invoice } from './types';
@@ -23,7 +22,7 @@ function StatusChip({ status }: { status: Invoice['status'] }) {
 
 export function BillingHistoryCard({ invoices, isLoading, error }: BillingHistoryCardProps) {
     return (
-        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Header className="flex flex-col items-start gap-2 border-b border-default-100/80 px-5 py-5 sm:px-6">
                 <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -37,13 +36,13 @@ export function BillingHistoryCard({ invoices, isLoading, error }: BillingHistor
             </Card.Header>
             <Card.Content className="p-5 sm:p-6">
                 {isLoading ? (
-                    <div className="flex justify-center rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-8">
+                    <div className="flex justify-center rounded-xl border border-default-200/80 bg-default-50/70 p-8">
                         <Spinner />
                     </div>
                 ) : error ? (
-                    <div className="rounded-[1.3rem] bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
+                    <div className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
                 ) : invoices.length === 0 ? (
-                    <div className="rounded-[1.3rem] border border-dashed border-default-200/80 bg-default-50/70 px-6 py-10 text-center">
+                    <div className="rounded-xl border border-dashed border-default-200/80 bg-default-50/70 px-6 py-10 text-center">
                         <p className="text-lg font-semibold text-foreground">No invoices yet</p>
                         <p className="mt-2 text-sm leading-6 text-default-500">
                             Once the account starts billing, invoices and receipt links will appear here.
@@ -53,7 +52,7 @@ export function BillingHistoryCard({ invoices, isLoading, error }: BillingHistor
                     <>
                         <div className="grid gap-4 md:hidden">
                             {invoices.map((invoice) => (
-                                <article key={invoice.id} className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                                <article key={invoice.id} className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-semibold text-foreground">{invoice.id}</p>
@@ -73,7 +72,7 @@ export function BillingHistoryCard({ invoices, isLoading, error }: BillingHistor
                             ))}
                         </div>
 
-                        <div className="hidden overflow-hidden rounded-[1.3rem] border border-default-200/80 md:block">
+                        <div className="hidden overflow-hidden rounded-xl border border-default-200/80 md:block">
                             <table className="w-full text-sm">
                                 <thead className="border-b border-default-200 bg-default-50 text-default-500">
                                     <tr>

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { logAdminAction } from '@/app/actions/audit-log';
@@ -66,7 +67,7 @@ export async function getActiveAnnouncements() {
 
         return announcements.map(mapAnnouncement);
     } catch (error) {
-        console.warn('Failed to fetch active announcements, using fallback:', error);
+        logger.warn('Failed to fetch active announcements, using fallback:', error);
         return [];
     }
 }

@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
-import { Button, Card, Skeleton, Surface } from '@heroui/react';
+import { Button, Card, Skeleton } from '@heroui/react';
 import { useUser } from '@/lib/firebase/provider';
 import { authFetch } from '@/lib/api-client';
 import type { User } from 'firebase/auth';
-import { ArrowRight, FolderTree, TriangleAlert } from 'lucide-react';
+import { ArrowRight, TriangleAlert } from 'lucide-react';
 import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 const AUTH_PENDING_ERROR = 'Authentication pending';

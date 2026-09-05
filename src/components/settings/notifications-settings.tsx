@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Button, Card, Chip, Label, Radio, RadioGroup, Spinner, Surface, Switch } from '@heroui/react';
 import { BellRing, CircleCheck, TriangleAlert } from 'lucide-react';
 import { SettingsSection } from './settings-section';
@@ -23,8 +22,8 @@ interface NotificationsSettingsProps {
 export function NotificationsSettings({ settings, onSettingsChange, onSave, isSaving }: NotificationsSettingsProps) {
     return (
         <SettingsSection title="Notifications" description="Manage your email notifications and alerts.">
-            <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/90 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
-                <Card.Content className="space-y-6 p-5 md:p-6">
+            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+                <Card.Content className="space-y-5 p-5 sm:p-6">
                     <div className="flex flex-wrap items-center gap-2">
                         <Chip variant="soft" color="accent">
                             Email preferences
@@ -34,7 +33,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                         </Chip>
                     </div>
 
-                    <Surface variant="secondary" className="rounded-[1.2rem] border border-default-200/80 p-4">
+                    <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                         <div className="flex items-start gap-3">
                             <div className="rounded-2xl bg-accent/10 p-2.5 text-accent">
                                 <BellRing className="h-4 w-4" />
@@ -67,7 +66,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                         </Radio>
                     </RadioGroup>
 
-                    <div className="flex flex-col gap-4 rounded-[1.2rem] border border-default-200/80 bg-default-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 rounded-xl border border-default-200/80 bg-default-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2 text-base font-medium text-foreground">
                                 <CircleCheck className="h-4 w-4 text-success" />
@@ -86,7 +85,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                             </Switch.Control>
                         </Switch>
                     </div>
-                    <div className="flex flex-col gap-4 rounded-[1.2rem] border border-default-200/80 bg-default-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 rounded-xl border border-default-200/80 bg-default-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2 text-base font-medium text-foreground">
                                 <TriangleAlert className="h-4 w-4 text-warning" />
@@ -107,7 +106,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                     </div>
                 </Card.Content>
                 <Card.Footer className="justify-end border-t border-default-100/80 px-5 py-4 md:px-6">
-                    <Button onPress={onSave} isPending={isSaving} variant="primary" className="rounded-full px-5 font-semibold">
+                    <Button onPress={onSave} isPending={isSaving} variant="primary" className="rounded-full px-6 font-semibold">
                         {isSaving ? <Spinner color="current" size="sm" /> : "Save Notifications"}
                     </Button>
                 </Card.Footer>

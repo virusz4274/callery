@@ -49,18 +49,18 @@ export function WorkspaceLoadingState({
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: statsCount }).map((_, index) => (
-              <Skeleton key={index} className="h-24 rounded-[1.4rem]" />
+              <Skeleton key={index} className="h-24 rounded-xl" />
             ))}
           </div>
         </div>
       </section>
 
-      <div className="rounded-[1.75rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+      <div className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
         <div className="space-y-4">
-          <Skeleton className="h-12 rounded-[1rem]" />
+          <Skeleton className="h-12 rounded-xl" />
           <div className="grid gap-3">
             {Array.from({ length: listCount }).map((_, index) => (
-              <Skeleton key={index} className="h-20 rounded-[1.2rem]" />
+              <Skeleton key={index} className="h-20 rounded-xl" />
             ))}
           </div>
         </div>
@@ -87,7 +87,7 @@ export function AuthLoadingState({
             <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               Workspace preview
             </span>
-            <Skeleton className="h-12 w-full max-w-md rounded-[1.4rem]" />
+            <Skeleton className="h-12 w-full max-w-md rounded-xl" />
             <Skeleton className="h-5 w-full max-w-xl rounded-full" />
             <Skeleton className="h-5 w-full max-w-lg rounded-full" />
             <div className="grid gap-4">
@@ -100,7 +100,7 @@ export function AuthLoadingState({
 
         <div className="rounded-[2rem] border border-default-200/70 bg-background/92 p-6 shadow-2xl shadow-black/10 backdrop-blur-md sm:p-8">
           <div className="space-y-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-primary/10">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
               <Skeleton className="h-8 w-8 rounded-xl" />
             </div>
 
@@ -119,9 +119,9 @@ export function AuthLoadingState({
             </div>
 
             <div className="space-y-4">
-              <Skeleton className="h-12 rounded-[1rem]" />
-              <Skeleton className="h-12 rounded-[1rem]" />
-              <Skeleton className="h-12 rounded-[1rem]" />
+              <Skeleton className="h-12 rounded-xl" />
+              <Skeleton className="h-12 rounded-xl" />
+              <Skeleton className="h-12 rounded-xl" />
               <Skeleton className="h-12 rounded-full" />
             </div>
           </div>
@@ -151,26 +151,26 @@ export function AdminLoadingState() {
             <Skeleton className="h-5 w-full max-w-3xl rounded-full" />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-24 rounded-[1.4rem]" />
+                <Skeleton key={index} className="h-24 rounded-xl" />
               ))}
             </div>
           </div>
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start">
-          <div className="rounded-[1.9rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)]">
+          <div className="rounded-[2rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)]">
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 rounded-[1.1rem]" />
+                <Skeleton key={index} className="h-14 rounded-xl" />
               ))}
             </div>
           </div>
 
-          <div className="rounded-[1.9rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)]">
+          <div className="rounded-[2rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)]">
             <div className="space-y-4">
-              <Skeleton className="h-10 w-56 rounded-[1rem]" />
+              <Skeleton className="h-10 w-56 rounded-xl" />
               {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-20 rounded-[1.2rem]" />
+                <Skeleton key={index} className="h-20 rounded-xl" />
               ))}
             </div>
           </div>

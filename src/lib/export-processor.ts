@@ -11,9 +11,10 @@ import { ensurePartUploaded } from '@/lib/export-processor/archive';
 import { finalizeJob, persistCheckpoint } from '@/lib/export-processor/lifecycle';
 import { inferNextPartNumber, toStorageParts, upsertPart } from '@/lib/export-processor/part-metadata';
 import type { ExportPartMeta } from '@/lib/export-processor/types';
+import { logger } from '@/lib/logger';
 
 export async function processExport(jobId: string, firebaseUid: string) {
-    console.log(`[Export] Starting job ${jobId} for user ${firebaseUid}`);
+    logger.info(`[Export] Starting job ${jobId} for user ${firebaseUid}`);
     try {
         const user = await findUserByFirebaseUid(firebaseUid);
         if (!user) {
@@ -126,7 +127,7 @@ export async function processExport(jobId: string, firebaseUid: string) {
 
         await finalizeJob(jobId, firebaseUid, parts, user.email);
     } catch (error) {
-        console.error('[Export] Fatal Error:', error);
+        logger.error('[Export] Fatal Error:', error);
         await updateExportJob(jobId, firebaseUid, {
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error',

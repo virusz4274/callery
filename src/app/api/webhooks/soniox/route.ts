@@ -113,10 +113,13 @@ export async function POST(request: Request) {
         }
 
         if (recording.externalTranscriptionId !== payload.id) {
-            logger.warn(
+            logger.error(
                 `[Soniox Webhook] Correlation mismatch for ${recordingId}. Expected ${recording.externalTranscriptionId}, got ${payload.id}`
             );
-            return NextResponse.json({ success: true, status: 'ignored_correlation_mismatch' });
+            return NextResponse.json(
+                { success: false, status: 'correlation_mismatch' },
+                { status: 409 }
+            );
         }
 
         const eventId = `soniox:${recordingId}:${recording.externalTranscriptionId}:${payload.status}`;

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Label, Meter } from '@heroui/react';
 
 type UsageProgressBarProps = {

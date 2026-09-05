@@ -1,5 +1,7 @@
+import { logger } from '@/lib/logger';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
@@ -10,13 +12,13 @@ import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 import { getPublicAppOrigin } from '@/lib/public-url';
 import { env } from '@/lib/env';
 
-type CheckoutRequestBody = {
-    priceId?: string;
-    planKey?: string;
-    returnUrl?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-};
+const CheckoutBodySchema = z.object({
+    priceId: z.string().trim().max(200).optional(),
+    planKey: z.string().trim().max(100).optional(),
+    returnUrl: z.string().max(2048).optional(),
+    successUrl: z.string().max(2048).optional(),
+    cancelUrl: z.string().max(2048).optional(),
+}).strict();
 
 function resolveSafeReturnUrl(
     candidateUrl: string | undefined,
@@ -55,8 +57,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json().catch(() => ({})) as CheckoutRequestBody;
-        const { priceId, planKey, returnUrl, successUrl, cancelUrl } = body;
+        const rawBody = await req.json().catch(() => null);
+        const parsedBody = CheckoutBodySchema.safeParse(rawBody ?? {});
+        if (!parsedBody.success) {
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+        }
+        const { priceId, planKey, returnUrl, successUrl, cancelUrl } = parsedBody.data;
         const db = await getMongoDb();
 
         let selectedPlan: Plan | null = null;
@@ -181,7 +187,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ url: session.url });
 
     } catch (error) {
-        console.error('Stripe Checkout Error:', error);
+        logger.error('Stripe Checkout Error:', error);
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Internal Server Error' },
             { status: 500 }

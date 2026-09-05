@@ -1,4 +1,5 @@
 import { MAX_RETRIES, RETRY_BASE_MS } from './constants';
+import { logger } from '@/lib/logger';
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -21,7 +22,7 @@ export async function withRetry<T>(
             }
 
             const delayMs = RETRY_BASE_MS * Math.pow(2, attempt - 1);
-            console.warn(`[Export] ${label} failed (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms`);
+            logger.warn(`[Export] ${label} failed (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms`);
             await sleep(delayMs);
         }
     }

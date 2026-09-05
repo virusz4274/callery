@@ -3,16 +3,9 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { getOAuth2Client } from '@/services/google/oauth';
-import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import { env } from '@/lib/env';
 
-// These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
-
-function getBaseUrl() {
-  return getConfiguredPublicAppOrigin();
-}
-
 
 export async function getGoogleAuthUrl() {
   const redirectUri = env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;

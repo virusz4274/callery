@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Chip, Skeleton } from '@heroui/react';
 import { ContactsPage } from '@/components/pages/contacts-page';
 import { useContacts } from '@/hooks/use-contacts';
@@ -21,18 +20,18 @@ function ContactsLoadingState() {
                     </div>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                         {[1, 2, 3, 4].map((item) => (
-                            <Skeleton key={item} className="h-24 rounded-[1.4rem]" />
+                            <Skeleton key={item} className="h-24 rounded-xl" />
                         ))}
                     </div>
                 </div>
             </section>
 
-            <div className="rounded-[1.75rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+            <div className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <div className="space-y-4">
                     <Skeleton className="h-10 rounded-2xl" />
                     <div className="grid gap-3">
                         {[1, 2, 3, 4].map((item) => (
-                            <Skeleton key={item} className="h-20 rounded-[1.2rem]" />
+                            <Skeleton key={item} className="h-20 rounded-xl" />
                         ))}
                     </div>
                 </div>

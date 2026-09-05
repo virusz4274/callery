@@ -7,6 +7,7 @@ import { reportUsage } from '@/lib/stripe/usage';
 import { isLifetimePlanKey } from '@/lib/plans';
 import { safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 type SubscriptionStatus = NonNullable<User['stripeSubscriptionStatus']>;
 
@@ -103,7 +104,7 @@ export async function syncSubscription(subscriptionId: string) {
     const db = await getMongoDb();
     const customerId = getCustomerIdFromSubscription(subscription);
     if (!customerId) {
-        console.warn(`[Sync] Subscription ${subscriptionId} has no customer ID`);
+        logger.warn(`[Sync] Subscription ${subscriptionId} has no customer ID`);
         return;
     }
 
@@ -111,7 +112,7 @@ export async function syncSubscription(subscriptionId: string) {
     const user = await db.collection<User>(Collections.USERS).findOne({ stripeCustomerId: customerId });
 
     if (!user) {
-        console.warn(`[Sync] No user found for Stripe Customer ID: ${customerId}`);
+        logger.warn(`[Sync] No user found for Stripe Customer ID: ${customerId}`);
         return;
     }
 
@@ -159,7 +160,7 @@ export async function syncSubscription(subscriptionId: string) {
             if (req.id) {
                 const hasItem = currentPriceIds.has(req.id);
                 if (!hasItem) {
-                    console.log(`[Sync] Missing required metered item (${req.type}) for plan ${plan.name}. Adding...`);
+                    logger.info(`[Sync] Missing required metered item (${req.type}) for plan ${plan.name}. Adding...`);
                     try {
                         await stripe.subscriptionItems.create({
                             subscription: subscription.id,
@@ -167,10 +168,11 @@ export async function syncSubscription(subscriptionId: string) {
                         });
                         currentPriceIds.add(req.id);
                         subscriptionUpdated = true;
-                    } catch (err: any) {
+                    } catch (err) {
                         // Ignore 'already exists' errors (race condition with other webhooks)
-                        if (err?.code !== 'resource_already_exists' && !err?.message?.includes('already using that Price')) {
-                            console.error(`[Sync] Failed to add missing metered item ${req.id}:`, err);
+                        const stripeErr = err as { code?: string; message?: string } | undefined;
+                        if (stripeErr?.code !== 'resource_already_exists' && !stripeErr?.message?.includes('already using that Price')) {
+                            logger.error(`[Sync] Failed to add missing metered item ${req.id}:`, err);
                         }
                     }
                 }
@@ -245,7 +247,7 @@ export async function syncSubscription(subscriptionId: string) {
     // Call the existing updateUser to handle the update
     await updateUser(user.firebaseUid, updateData);
 
-    console.log(`[Sync] Updated subscription for user ${user.firebaseUid} (${user.email}) to ${status}`);
+    logger.info(`[Sync] Updated subscription for user ${user.firebaseUid} (${user.email}) to ${status}`);
 
     // If a new billing period started, report the current stored bytes so Stripe has a baseline for this period.
     if (periodChanged) {
@@ -264,7 +266,7 @@ export async function linkCustomerToUser(stripeCustomerId: string, firebaseUid: 
         stripeCustomerId: stripeCustomerId
     });
 
-    console.log(`[Sync] Linked Customer ${stripeCustomerId} to User ${firebaseUid}`);
+    logger.info(`[Sync] Linked Customer ${stripeCustomerId} to User ${firebaseUid}`);
 }
 
 /**
@@ -289,19 +291,19 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
     }
 
     if (!user) {
-        console.warn(`[Sync] Could not resolve user for one-time checkout session ${session.id}`);
+        logger.warn(`[Sync] Could not resolve user for one-time checkout session ${session.id}`);
         return;
     }
 
     const selectedPriceId = await resolveCheckoutPriceId(session);
     if (!selectedPriceId) {
-        console.warn(`[Sync] Missing selected price for one-time checkout session ${session.id}`);
+        logger.warn(`[Sync] Missing selected price for one-time checkout session ${session.id}`);
         return;
     }
 
     const plan = await db.collection<Plan>(Collections.PLANS).findOne({ stripePriceId: selectedPriceId });
     if (!plan) {
-        console.warn(`[Sync] No plan found for one-time checkout price ${selectedPriceId}`);
+        logger.warn(`[Sync] No plan found for one-time checkout price ${selectedPriceId}`);
         return;
     }
 
@@ -355,7 +357,7 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
                             : paymentIntent.payment_method?.id ?? null;
                     }
                 } catch (error) {
-                    console.warn(`[Sync] Failed to resolve payment method for lifetime checkout session ${session.id}`, error);
+                    logger.warn(`[Sync] Failed to resolve payment method for lifetime checkout session ${session.id}`, error);
                 }
 
                 if (paymentMethodId) {
@@ -364,7 +366,7 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
                             invoice_settings: { default_payment_method: paymentMethodId },
                         });
                     } catch (error) {
-                        console.warn(`[Sync] Failed to set default payment method for customer ${customerId}`, error);
+                        logger.warn(`[Sync] Failed to set default payment method for customer ${customerId}`, error);
                     }
                 }
 
@@ -448,5 +450,5 @@ export async function applyOneTimeCheckoutPlan(session: Stripe.Checkout.Session)
         });
     }
 
-    console.log(`[Sync] Applied one-time checkout session ${session.id} to user ${user.firebaseUid} (${plan.name})`);
+    logger.info(`[Sync] Applied one-time checkout session ${session.id} to user ${user.firebaseUid} (${plan.name})`);
 }

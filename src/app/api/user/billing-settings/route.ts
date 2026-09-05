@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
@@ -42,7 +43,7 @@ export async function PATCH(req: NextRequest) {
             try {
                 await ensureStripeCustomerId(user);
             } catch (error) {
-                console.error('Error creating Stripe customer before enabling overage:', error);
+                logger.error('Error creating Stripe customer before enabling overage:', error);
                 return NextResponse.json(
                     { error: 'Unable to enable Pay Per Usage right now. Please try again in a moment.' },
                     { status: 503 }
@@ -79,7 +80,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ success: true, allowOverage });
 
     } catch (error) {
-        console.error('Error updating billing settings:', error);
+        logger.error('Error updating billing settings:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

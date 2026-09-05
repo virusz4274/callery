@@ -23,7 +23,8 @@ const supportMessageSchema = z.object({
     email: z.string().trim().email().max(200),
     subject: z.string().trim().min(3).max(200),
     message: z.string().trim().min(10).max(5000),
-    companyWebsite: z.string().trim().max(200).optional(),
+    // Honeypot: must be present and empty. Bots either omit the field or fill it.
+    companyWebsite: z.string().max(0),
 });
 
 export async function POST(request: NextRequest) {
@@ -48,10 +49,6 @@ export async function POST(request: NextRequest) {
                 },
                 { status: 400 }
             );
-        }
-
-        if (parsed.data.companyWebsite?.trim()) {
-            return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
         }
 
         let firebaseUid = await getUserFromRequest(request);

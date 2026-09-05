@@ -115,7 +115,7 @@ export function SharePopover({ recordingId }: SharePopoverProps) {
                     <span className="hidden sm:inline">Share</span>
                 </Button>
             </Popover.Trigger>
-            <Popover.Content className="w-[360px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[1.6rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom">
+            <Popover.Content className="w-[360px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom">
                 <Popover.Dialog className="flex flex-col gap-4 p-4">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export function SharePopover({ recordingId }: SharePopoverProps) {
 
                     {!link ? (
                         <div className="space-y-4">
-                            <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-4">
+                            <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                     <Clock className="size-4 text-primary" />
                                     Expiration window
@@ -207,7 +207,7 @@ export function SharePopover({ recordingId }: SharePopoverProps) {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-4">
+                            <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                     <Link2 className="size-4 text-primary" />
                                     Link ready to share

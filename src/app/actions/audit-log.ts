@@ -2,6 +2,7 @@ import { AdminLog, AdminLogResponse } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { logger } from '@/lib/logger';
 
 export type LogActionType =
     | 'USER_BAN'
@@ -50,7 +51,7 @@ export async function logAdminAction(
 
         await db.collection(Collections.ADMIN_LOGS).insertOne(logEntry);
     } catch (error) {
-        console.error('Failed to log admin action:', error);
+        logger.error('Failed to log admin action:', error);
     }
 }
 

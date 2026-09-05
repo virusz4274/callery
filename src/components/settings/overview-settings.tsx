@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Button, Chip, Skeleton, Surface } from '@heroui/react';
 import { ArrowRight, DatabaseZap, ShieldCheck, Sparkles } from 'lucide-react';
@@ -25,7 +24,7 @@ export function OverviewSettings() {
                 </div>
                 <div className="grid gap-4 xl:grid-cols-2">
                     {[1, 2].map((i) => (
-                        <Skeleton key={i} className="h-56 rounded-[1.75rem]" />
+                        <Skeleton key={i} className="h-56 rounded-[1.5rem]" />
                     ))}
                 </div>
             </div>
@@ -49,7 +48,7 @@ export function OverviewSettings() {
         <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="space-y-3">
-                    <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                    <Chip variant="soft" color="accent" size="sm">
                         Overview
                     </Chip>
                     <div className="space-y-2">
@@ -64,12 +63,12 @@ export function OverviewSettings() {
 
                 <div className="flex flex-wrap gap-2">
                     <Link href="/recordings">
-                        <Button variant="secondary" className="rounded-full px-5 font-semibold">
+                        <Button variant="secondary" className="rounded-full px-6 font-semibold">
                             Review library
                         </Button>
                     </Link>
                     <Link href="/upload">
-                        <Button className="rounded-full px-5 font-semibold">
+                        <Button className="rounded-full px-6 font-semibold">
                             Upload recordings
                             <ArrowRight className="h-4 w-4" />
                         </Button>
@@ -80,7 +79,7 @@ export function OverviewSettings() {
             <StatsGrid stats={stats} />
 
             <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                <Surface variant="secondary" className="rounded-[1.75rem] border border-default-200/80 p-5">
+                <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-5">
                     <div className="space-y-4">
                         <div className="space-y-1">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
@@ -92,7 +91,7 @@ export function OverviewSettings() {
                         </div>
 
                         <div className="space-y-3">
-                            <div className="flex items-start gap-3 rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4">
+                            <div className="flex items-start gap-3 rounded-xl border border-default-200/80 bg-background/80 p-4">
                                 <div className="rounded-full bg-success/10 p-2 text-success">
                                     <ShieldCheck className="h-4 w-4" />
                                 </div>
@@ -104,7 +103,7 @@ export function OverviewSettings() {
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4">
+                            <div className="flex items-start gap-3 rounded-xl border border-default-200/80 bg-background/80 p-4">
                                 <div className="rounded-full bg-accent/10 p-2 text-accent">
                                     <DatabaseZap className="h-4 w-4" />
                                 </div>
@@ -121,7 +120,7 @@ export function OverviewSettings() {
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4">
+                            <div className="flex items-start gap-3 rounded-xl border border-default-200/80 bg-background/80 p-4">
                                 <div className="rounded-full bg-warning/10 p-2 text-warning">
                                     <Sparkles className="h-4 w-4" />
                                 </div>
@@ -138,7 +137,7 @@ export function OverviewSettings() {
                     </div>
                 </Surface>
 
-                <Surface variant="secondary" className="rounded-[1.75rem] border border-default-200/80 p-5">
+                <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-5">
                     <div className="space-y-4">
                         <div className="space-y-1">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
@@ -152,7 +151,7 @@ export function OverviewSettings() {
                         <div className="space-y-3">
                             <Link
                                 href="/contacts"
-                                className="block rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
+                                className="block rounded-xl border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
@@ -167,7 +166,7 @@ export function OverviewSettings() {
 
                             <Link
                                 href="/upload"
-                                className="block rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
+                                className="block rounded-xl border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
@@ -182,7 +181,7 @@ export function OverviewSettings() {
 
                             <Link
                                 href="/recordings"
-                                className="block rounded-[1.25rem] border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
+                                className="block rounded-xl border border-default-200/80 bg-background/80 p-4 transition-colors hover:border-accent/20 hover:bg-accent/5"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <div>

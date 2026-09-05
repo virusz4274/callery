@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import React from 'react';
 import { Button, Popover } from '@heroui/react';
 import { ExternalLink, PlayCircle } from 'lucide-react';
 
@@ -45,7 +44,7 @@ export function QuickStartPopover({
                             {steps.map((step, index) => (
                                 <div
                                     key={step.title}
-                                    className="rounded-[1rem] border border-default-200/80 bg-default-50/70 p-3"
+                                    className="rounded-xl border border-default-200/80 bg-default-50/70 p-3"
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

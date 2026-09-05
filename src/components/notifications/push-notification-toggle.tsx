@@ -67,12 +67,12 @@ export function PushNotificationToggle() {
     };
 
     if (isLoading) {
-        return <div className="h-24 animate-pulse rounded-[1.4rem] border border-default-200/80 bg-default-100/70" />;
+        return <div className="h-24 animate-pulse rounded-xl border border-default-200/80 bg-default-100/70" />;
     }
 
     if (!isSupported) {
         return (
-            <div className="rounded-[1.4rem] border border-default-200/80 bg-default-50/70 p-4">
+            <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                 <div className="flex items-start gap-3 text-default-500">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-default-100">
                         <BellOff className="size-5" />
@@ -90,7 +90,7 @@ export function PushNotificationToggle() {
 
     if (permission === 'denied') {
         return (
-            <div className="rounded-[1.4rem] border border-warning/20 bg-warning/5 p-4">
+            <div className="rounded-xl border border-warning/20 bg-warning/5 p-4">
                 <div className="flex items-start gap-3 text-warning">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-warning/10">
                         <BellOff className="size-5" />
@@ -107,7 +107,7 @@ export function PushNotificationToggle() {
     }
 
     return (
-        <div className="rounded-[1.4rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.35)]">
+        <div className="rounded-xl border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isEnabled ? 'bg-success/10 text-success' : 'bg-default-100 text-default-400'}`}>

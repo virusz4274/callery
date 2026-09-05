@@ -1,4 +1,3 @@
-import React from 'react';
 import { Chip, Surface } from '@heroui/react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -42,7 +41,7 @@ export function StatsCard({
     return (
         <Surface
             variant="secondary"
-            className="rounded-[1.5rem] border border-default-200/80 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]"
+            className="rounded-[1.5rem] border border-default-200/80 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]"
         >
             <div className="flex h-full flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
@@ -54,7 +53,7 @@ export function StatsCard({
 
                     <div
                         className={cn(
-                            'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[1.1rem]',
+                            'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl',
                             toneClasses.icon
                         )}
                     >

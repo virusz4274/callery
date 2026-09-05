@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { printAtlasIndexInstructions } from '@/lib/db/init/atlas';
 import { createCoreIndexes } from '@/lib/db/init/indexes';
 import { seedPlans, seedSystemSettings } from '@/lib/db/init/seed';
+import { logger } from '@/lib/logger';
 
 dotenv.config();
 
@@ -14,13 +15,13 @@ export async function initializeDatabase(): Promise<void> {
     const { Collections, getMongoDb } = await import('@/lib/mongodb');
     const db = await getMongoDb();
 
-    console.log('🔧 Initializing database indexes...');
+    logger.info('🔧 Initializing database indexes...');
 
     await createCoreIndexes(db, Collections);
     await seedPlans(db, Collections);
     await seedSystemSettings(db, Collections);
 
-    console.log('🎉 Database initialization complete!');
+    logger.info('🎉 Database initialization complete!');
     printAtlasIndexInstructions();
 }
 
@@ -32,10 +33,10 @@ export async function testConnection(): Promise<boolean> {
         const { getMongoDb } = await import('@/lib/mongodb');
         const db = await getMongoDb();
         await db.command({ ping: 1 });
-        console.log('✅ MongoDB connection successful');
+        logger.info('✅ MongoDB connection successful');
         return true;
     } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        logger.error('❌ MongoDB connection failed:', error);
         return false;
     }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use client';
 
 import { signOut, type Auth, type User } from 'firebase/auth';
@@ -53,7 +54,7 @@ export async function syncFirebaseSession(
         try {
             await signOut(options.auth);
         } catch (signOutError) {
-            console.error('Failed to sign out after session sync error:', signOutError);
+            logger.error('Failed to sign out after session sync error:', signOutError);
         }
     }
 

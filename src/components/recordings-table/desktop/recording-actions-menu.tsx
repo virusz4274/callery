@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Dropdown } from '@heroui/react';
 import { FileText, MoreHorizontal, Play, RefreshCcw, Trash2 } from 'lucide-react';
 import type { Recording } from '@/lib/types';

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Button,
     Calendar,
@@ -383,7 +383,7 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                                             </Select>
                                         </div>
 
-                                        <div className="rounded-[1.25rem] border border-default-200/80 bg-background px-4 py-3">
+                                        <div className="rounded-xl border border-default-200/80 bg-background px-4 py-3">
                                             <div className="flex items-center justify-between gap-4">
                                                 <div className="space-y-1">
                                                     <p className="text-sm font-medium text-foreground">Visibility</p>

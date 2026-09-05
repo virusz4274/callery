@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 
 import { getMobileSyncUserFromRequest } from '@/lib/auth-utils';
-import {
-    completeDirectUploadForUser,
-    type CompleteDirectUploadInput,
-} from '@/lib/direct-upload-service';
+import { completeDirectUploadForUser } from '@/lib/direct-upload-service';
 import { logger } from '@/lib/logger';
 import { startAutoTranscriptionForRecording } from '@/app/actions/upload/transcription';
+import { CompleteDirectUploadBodySchema } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
     const firebaseUid = await getMobileSyncUserFromRequest(request);
@@ -14,14 +12,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
 
-    let body: CompleteDirectUploadInput;
-    try {
-        body = (await request.json()) as CompleteDirectUploadInput;
-    } catch {
+    const rawBody = await request.json().catch(() => null);
+    const parsed = CompleteDirectUploadBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
         return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { shouldStartAutoTranscription, ...result } = await completeDirectUploadForUser(firebaseUid, body);
+    const { shouldStartAutoTranscription, ...result } = await completeDirectUploadForUser(firebaseUid, parsed.data);
 
     if (result.success && result.recordingId && shouldStartAutoTranscription) {
         after(async () => {

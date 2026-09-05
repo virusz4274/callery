@@ -1,4 +1,5 @@
 import { DB_NAME, DB_VERSION, METADATA_STORE_NAME, STORE_NAME } from './constants';
+import { logger } from '@/lib/logger';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -11,7 +12,7 @@ export function getDB(): Promise<IDBDatabase> {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onerror = () => {
-            console.error('[SyncStore] Failed to open database:', request.error);
+            logger.error('[SyncStore] Failed to open database:', request.error);
             reject(request.error);
         };
 

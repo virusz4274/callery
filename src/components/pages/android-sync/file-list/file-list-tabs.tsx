@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Chip } from '@heroui/react';
 
 type FileListTabsProps = {

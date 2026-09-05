@@ -68,7 +68,7 @@ export function AdminPageShell({ eyebrow, title, description, actions, stats, ch
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
                     <div className="space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                        <Chip variant="soft" color="accent" size="sm">
                             {eyebrow}
                         </Chip>
                         <div className="space-y-3">

@@ -5,6 +5,7 @@ import type { User } from '@/lib/db/types';
 import { buildUserSearchQuery, serializeUser, toInvoiceStatus } from './shared';
 import { env } from '@/lib/env';
 import { getPlanNameMap } from '@/lib/db/users';
+import { logger } from '@/lib/logger';
 
 export async function getUsersQuery(page: number = 1, limit: number = 10, search?: string) {
     await requireCurrentAdmin();
@@ -49,7 +50,7 @@ export async function getUserByIdQuery(userId: string) {
         const planNameMap = await getPlanNameMap([user.planKey]);
         return serializeUser(user, planNameMap.get(user.planKey));
     } catch (error) {
-        console.error('Error fetching user:', error);
+        logger.error('Error fetching user:', error);
         return null;
     }
 }

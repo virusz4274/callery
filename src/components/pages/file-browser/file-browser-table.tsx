@@ -29,7 +29,7 @@ export function FileBrowserTable({
     const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
 
     return (
-        <Card className="overflow-visible rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+        <Card className="overflow-visible rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 px-6 py-6">
                 <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-2">
@@ -71,7 +71,7 @@ export function FileBrowserTable({
             </Card.Header>
 
             <Card.Content className="px-0 pb-8 sm:px-6">
-                <div className="mt-6 overflow-hidden rounded-[1.4rem] border border-default-200/80 bg-background/60 shadow-sm">
+                <div className="mt-6 overflow-hidden rounded-xl border border-default-200/80 bg-background/60 shadow-sm">
                     <table className="w-full text-sm text-left table-fixed sm:table-auto">
                         <thead className="border-b border-default-100/70 bg-default-50/70 text-default-500 font-medium">
                             <tr>
@@ -183,7 +183,7 @@ export function FileBrowserTable({
                                 <tr>
                                     <td colSpan={5} className="p-16 text-center text-default-500">
                                         <div className="flex flex-col items-center gap-3">
-                                            <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-default-100 text-default-300">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-default-100 text-default-300">
                                                 <Folder className="h-7 w-7" />
                                             </div>
                                             <div>

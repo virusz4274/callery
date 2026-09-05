@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button, Chip, Modal } from '@heroui/react';
 import { Layers3 } from 'lucide-react';
 import { useRouter } from 'next/navigation';

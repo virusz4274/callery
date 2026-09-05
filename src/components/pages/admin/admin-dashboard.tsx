@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useTransition } from 'react';
-import { AdminStatsCard } from '@/components/admin/admin-stats-card';
+import { useTransition } from 'react';
 import { HealthDashboard } from '@/components/admin/health-dashboard';
 import { Users, Phone, HardDrive, FileAudio, AlertTriangle, Trash2, ArrowRight } from 'lucide-react';
 import { Button, Card, Spinner } from '@heroui/react';
@@ -95,7 +94,7 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
                 <HealthDashboard />
 
                 {orphanedCount > 0 && (
-                    <Card className="border border-warning/50 bg-warning/5 rounded-[1.75rem] shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
+                    <Card className="border border-warning/50 bg-warning/5 rounded-[1.5rem] shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <Card.Header className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="rounded-2xl bg-warning/10 p-2 text-warning">

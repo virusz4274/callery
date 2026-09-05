@@ -1,15 +1,16 @@
-import { google } from 'googleapis';
+import { google, type people_v1 } from 'googleapis';
 import { saveContactsToMongoDB } from '@/app/actions/save-contacts';
 import { normalizeContactPhoneNumbers } from '@/lib/db/contacts/normalize';
 import type { GoogleSyncDuplicatePhoneIssue } from '@/lib/db/types';
+import { logger } from '@/lib/logger';
 
-function errorLog(userId: string, message: string, error?: any) {
+function errorLog(userId: string, message: string, error?: unknown) {
     const timestamp = new Date().toISOString();
     const prefix = `[GoogleSync][ERROR][${userId}][${timestamp}]`;
     if (error instanceof Error) {
-        console.error(`${prefix} ${message}`, { message: error.message, stack: error.stack });
+        logger.error(`${prefix} ${message}`, { message: error.message, stack: error.stack });
     } else {
-        console.error(`${prefix} ${message}`, error);
+        logger.error(`${prefix} ${message}`, error);
     }
 }
 
@@ -20,43 +21,51 @@ function errorLog(userId: string, message: string, error?: any) {
  * @param userId - The Firebase UID of the user.
  * @param authClient - The authenticated OAuth2Client.
  */
+type ContactRecord = {
+    googleContactId: string;
+    name: string;
+    phoneNumbers: string[];
+    email: string | null;
+    jobTitle?: string;
+    company?: string;
+};
+
+// `googleapis` and `google-auth-library` ship duplicate copies of OAuth2Client across nested
+// node_modules; their types are nominally distinct even though structurally identical. Accept
+// any authenticated OAuth2-like client and let `google.people()` handle runtime compatibility.
 export async function syncContactsBackground(
     userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     authClient: any
 ): Promise<{ importedCount: number; duplicatePhoneIssues: GoogleSyncDuplicatePhoneIssue[] }> {
     try {
-        const peopleService = google.people({ version: 'v1', auth: authClient });
+        const peopleService: people_v1.People = google.people({ version: 'v1', auth: authClient });
 
         let nextPageToken: string | undefined = undefined;
-        const contactsToSave: Array<{
-            googleContactId: string;
-            name: string;
-            phoneNumbers: string[];
-            email: string | null;
-            jobTitle?: string;
-            company?: string;
-        }> = [];
+        const contactsToSave: ContactRecord[] = [];
 
         do {
-            const response = await peopleService.people.connections.list({
-                resourceName: 'people/me',
-                personFields: 'names,emailAddresses,phoneNumbers,organizations',
-                pageSize: 100, // Process in chunks of 100
-                pageToken: nextPageToken,
-            }) as any;
+            const response: { data: people_v1.Schema$ListConnectionsResponse } =
+                await peopleService.people.connections.list({
+                    resourceName: 'people/me',
+                    personFields: 'names,emailAddresses,phoneNumbers,organizations',
+                    pageSize: 100,
+                    pageToken: nextPageToken,
+                });
 
-            const connections = response.data.connections || [];
+            const connections: people_v1.Schema$Person[] = response.data.connections || [];
             nextPageToken = response.data.nextPageToken || undefined;
 
             if (connections.length > 0) {
-                // Transform to our internal format
                 const pageContacts = connections
-                    .map((person: any) => {
+                    .map((person): ContactRecord | null => {
                         const name = person.names?.[0]?.displayName;
-                        const phoneNumbers = person.phoneNumbers?.map((p: any) => p.value).filter(Boolean) as string[];
+                        const phoneNumbers = (person.phoneNumbers
+                            ?.map((p) => p.value)
+                            .filter((value): value is string => Boolean(value))) || [];
                         const googleContactId = person.resourceName;
 
-                        if (name && phoneNumbers && phoneNumbers.length > 0 && googleContactId) {
+                        if (name && phoneNumbers.length > 0 && googleContactId) {
                             const organization = person.organizations?.[0];
                             return {
                                 googleContactId,
@@ -69,7 +78,7 @@ export async function syncContactsBackground(
                         }
                         return null;
                     })
-                    .filter((c: any) => c !== null);
+                    .filter((c): c is ContactRecord => c !== null);
 
                 contactsToSave.push(...pageContacts);
             }
@@ -120,7 +129,7 @@ function logDuplicateNormalizedPhones(
         };
 
         issues.push(issue);
-        console.warn(`[GoogleSync][WARN][${userId}] Duplicate normalized phone across Google contacts`, issue);
+        logger.warn(`[GoogleSync][WARN][${userId}] Duplicate normalized phone across Google contacts`, issue);
     }
 
     return issues.sort((left, right) => left.phoneNumber.localeCompare(right.phoneNumber));

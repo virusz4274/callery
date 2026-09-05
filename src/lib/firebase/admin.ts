@@ -2,6 +2,7 @@ import { getApps, getApp, initializeApp, cert, type App } from 'firebase-admin/a
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { existsSync } from 'fs';
 import path from 'path';
+import { logger } from '@/lib/logger';
 
 /**
  * Get the fully initialized Firebase Admin app.
@@ -21,7 +22,7 @@ export function getFirebaseAdminApp(): App {
                 credential: cert(localServiceAccountPath),
             });
         } catch (error) {
-            console.error('[Firebase Admin] Failed to load local service-account.json:', error);
+            logger.error('[Firebase Admin] Failed to load local service-account.json:', error);
             // Fallthrough to env var
         }
     }
@@ -34,7 +35,7 @@ export function getFirebaseAdminApp(): App {
                 credential: cert(serviceAccount),
             });
         } catch (error) {
-            console.error('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', error);
+            logger.error('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', error);
             throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT environment variable');
         }
     }

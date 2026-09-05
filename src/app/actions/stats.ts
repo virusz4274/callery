@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
@@ -13,7 +14,7 @@ export async function getStatsAction() {
         const stats = await getDashboardStats(firebaseUid);
         return { stats };
     } catch (error) {
-        console.error('Error fetching stats:', error);
+        logger.error('Error fetching stats:', error);
         return { error: 'Failed to fetch statistics' };
     }
 }

@@ -3,6 +3,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Notification, NotificationResponse, User } from '@/lib/db/types';
 import { sendWebPushNotification } from '@/lib/web-push';
 import { normalizeNotificationLink } from '@/lib/notification-links';
+import { logger } from '@/lib/logger';
 
 /**
  * Create a new in-app notification for a user.
@@ -59,12 +60,12 @@ export async function createNotification(
             // Log any failures (but don't remove subscriptions automatically here)
             results.forEach((result, index) => {
                 if (result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)) {
-                    console.warn('[Push] Failed to send to:', user.pushSubscriptions?.[index]?.endpoint);
+                    logger.warn('[Push] Failed to send to:', user.pushSubscriptions?.[index]?.endpoint);
                 }
             });
         }
     } catch (pushError) {
-        console.error('[Push] Error sending push notifications:', pushError);
+        logger.error('[Push] Error sending push notifications:', pushError);
         // Don't throw - in-app notification was saved successfully
     }
 }

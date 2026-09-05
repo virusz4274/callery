@@ -1,4 +1,3 @@
-import React from 'react';
 import { Avatar, Button, Card, Chip } from '@heroui/react';
 import { RotateCcw, Trash2 } from 'lucide-react';
 import type { User } from '@/lib/types';
@@ -15,7 +14,7 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
     const isSoftDeleted = user.softDelete?.isDeleted;
 
     return (
-        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Header className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-start">
                 <div className="flex items-start gap-4">
                 <Avatar className="h-16 w-16">
@@ -34,14 +33,14 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                         )}
                     </div>
                     <div>
-                        <h2 className="text-3xl font-bold tracking-[-0.03em] text-foreground">{user.name}</h2>
+                        <h2 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">{user.name}</h2>
                         <p className="text-default-500">{user.phoneNumber || 'No phone number on file'}</p>
                     </div>
                 </div>
                 </div>
                 <div className="flex gap-2 md:ml-auto">
                     {isSoftDeleted ? (
-                        <Button variant="secondary" className="rounded-full px-5 font-semibold" isDisabled={isRestoring} onPress={onRestoreUser}>
+                        <Button variant="secondary" className="rounded-full px-6 font-semibold" isDisabled={isRestoring} onPress={onRestoreUser}>
                             {isRestoring ? (
                                 'Restoring...'
                             ) : (
@@ -52,7 +51,7 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                             )}
                         </Button>
                     ) : (
-                        <Button variant="danger-soft" className="rounded-full px-5 font-semibold" isDisabled={isDeleting} onPress={onDeleteUser}>
+                        <Button variant="danger-soft" className="rounded-full px-6 font-semibold" isDisabled={isDeleting} onPress={onDeleteUser}>
                             {isDeleting ? (
                                 'Deleting...'
                             ) : (

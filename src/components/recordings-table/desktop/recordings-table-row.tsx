@@ -1,5 +1,4 @@
-import React from 'react';
-import { Avatar, Checkbox } from '@heroui/react';
+import { Avatar, Checkbox, Chip } from '@heroui/react';
 import type { Recording } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import { ExpandableSummary } from '@/components/expandable-summary';
@@ -74,9 +73,9 @@ export function RecordingsTableRow({
             <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-default-100 text-[10px] font-bold text-default-600 uppercase tracking-wide">
+                        <Chip variant="soft" color="default" size="sm">
                             {formatDuration(recording.duration)}
-                        </span>
+                        </Chip>
                     </div>
                     <div className="opacity-80 group-hover:opacity-100 transition-opacity max-w-[200px] lg:max-w-xs text-wrap">
                         <ExpandableSummary

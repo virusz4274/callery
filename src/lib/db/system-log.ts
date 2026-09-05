@@ -1,6 +1,7 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { AdminLog } from '@/lib/db/types';
 import { ObjectId } from 'mongodb';
+import { logger } from '@/lib/logger';
 
 /**
  * Log a system-level event to the Admin Logs.
@@ -27,8 +28,8 @@ export async function logSystemEvent(
         };
 
         await db.collection(Collections.ADMIN_LOGS).insertOne(logEntry);
-        console.log(`[SystemLog] Logged action: ${action} - ${JSON.stringify(details)}`);
+        logger.info(`[SystemLog] Logged action: ${action} - ${JSON.stringify(details)}`);
     } catch (error) {
-        console.error('Failed to log system event:', error);
+        logger.error('Failed to log system event:', error);
     }
 }

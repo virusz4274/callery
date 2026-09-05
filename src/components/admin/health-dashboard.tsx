@@ -174,7 +174,7 @@ export function HealthDashboard() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {statuses.map((service) => (
-                    <Card key={service.name} className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+                    <Card key={service.name} className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <div className="flex items-start justify-between mb-2">
                             <div className="rounded-2xl bg-default-100 p-2 text-default-600">
                                 {getIcon(service.name)}
@@ -219,7 +219,7 @@ export function HealthDashboard() {
                 )}
             </div>
 
-            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <div className="flex items-center gap-3">
@@ -258,14 +258,14 @@ export function HealthDashboard() {
 
                 <div className="mt-4 space-y-3">
                     {incidents.length === 0 ? (
-                        <div className="rounded-[1.25rem] border border-success/20 bg-success/5 p-4 text-sm text-success-700">
+                        <div className="rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-success-700">
                             No active external-service incidents right now.
                         </div>
                     ) : (
                         incidents.map((incident) => (
                             <div
                                 key={incident.id}
-                                className={`rounded-[1.25rem] border p-4 ${
+                                className={`rounded-xl border p-4 ${
                                     incident.severity === 'down'
                                         ? 'border-danger/30 bg-danger/5'
                                         : 'border-warning/30 bg-warning/5'
@@ -312,7 +312,7 @@ export function HealthDashboard() {
                 </div>
             </Card>
 
-            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <div className="space-y-4">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">Email test</h3>

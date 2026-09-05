@@ -15,8 +15,8 @@ export function SyncProgressOverlay({ progress, onCancel }: SyncProgressOverlayP
 
     return createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-background/45 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] backdrop-blur-sm sm:items-center sm:p-6">
-            <Card className="w-full max-w-lg rounded-[1.75rem] border border-default-200/80 bg-background/96 p-5 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)] sm:p-6">
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground sm:text-xl">
+            <Card className="w-full max-w-lg rounded-[1.5rem] border border-default-200/80 bg-background/96 p-5 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)] sm:p-6">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground sm:text-xl">
                     <RefreshCw className="h-5 w-5 animate-spin text-primary" />
                     Syncing files
                 </h3>

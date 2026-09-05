@@ -11,6 +11,7 @@ import {
     readStoredGoogleRefreshToken,
 } from '@/services/google/refresh-token-crypto';
 import type { GoogleSyncDuplicatePhoneIssue } from '@/lib/db/types';
+import { logger } from '@/lib/logger';
 
 const GOOGLE_SYNC_STALE_AFTER_MS = 15 * 60 * 1000;
 const STALE_SYNC_ERROR_MESSAGE = 'Previous sync did not finish. Please try again.';
@@ -19,11 +20,6 @@ type GoogleCredentialState = {
     refreshToken?: string;
     expiryDate?: number;
     scopes?: string[];
-};
-
-type GoogleContactsSyncResult = {
-    importedCount: number;
-    duplicatePhoneIssues: GoogleSyncDuplicatePhoneIssue[];
 };
 
 type RunGoogleContactsSyncDependencies = {
@@ -262,7 +258,7 @@ export async function disconnectGoogleContactsWithDependencies(
             const client = dependencies.getOAuth2Client();
             await client.revokeToken(refreshToken);
         } catch (error) {
-            console.warn('Failed to revoke Google refresh token during disconnect:', error);
+            logger.warn('Failed to revoke Google refresh token during disconnect:', error);
         }
     }
 
@@ -306,7 +302,7 @@ export function scheduleGoogleContactsSyncInBackground(firebaseUid: string) {
     waitUntil(
         runGoogleContactsSync(firebaseUid).catch(async (error) => {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-            console.error('Error running Google contacts sync in background:', error);
+            logger.error('Error running Google contacts sync in background:', error);
             await markGoogleContactsSyncFailed(firebaseUid, errorMessage);
         })
     );
@@ -355,7 +351,7 @@ export async function startGoogleContactsSyncWithDependencies(
 
         return { success: true, message: 'Sync started in background.' };
     } catch (error) {
-        console.error('Error initiating Google contacts sync:', error);
+        logger.error('Error initiating Google contacts sync:', error);
         if (error instanceof Error && error.message === getGoogleTokenEncryptionErrorMessage()) {
             return {
                 success: false,

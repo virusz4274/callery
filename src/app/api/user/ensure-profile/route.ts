@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ensureUserProfile } from '@/lib/db/users';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { getAdminAuth } from '@/lib/firebase/admin';
+import { EnsureProfileBodySchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/user/ensure-profile
- * 
+ *
  * Ensures a user profile exists in MongoDB.
  * Called after successful Firebase authentication.
  */
@@ -20,13 +22,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { displayName, firstName, lastName, photoURL } = body as {
-            displayName?: string;
-            firstName?: string;
-            lastName?: string;
-            photoURL?: string;
-        };
+        const rawBody = await request.json().catch(() => null);
+        const parsed = EnsureProfileBodySchema.safeParse(rawBody ?? {});
+        if (!parsed.success) {
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+        }
+        const { displayName, firstName, lastName, photoURL } = parsed.data;
 
         const auth = getAdminAuth();
         const firebaseUser = await auth.getUser(firebaseUid);
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
             userId: user._id.toString(),
         });
     } catch (error) {
-        console.error('Error ensuring user profile:', error);
+        logger.error('Error ensuring user profile:', error);
         const message = error instanceof Error ? error.message : String(error);
 
         if (message.includes('New signups are currently disabled')) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { ProgressBar } from '@heroui/react';
 
 type SimpleProgressProps = {

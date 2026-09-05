@@ -33,7 +33,6 @@ async function runManualTranscriptionJob({
     recordingId,
     firebaseUid,
     userId,
-    fileName,
     displayName,
     r2Key,
     duration,
@@ -44,7 +43,6 @@ async function runManualTranscriptionJob({
     recordingId: string;
     firebaseUid: string;
     userId: Parameters<typeof createNotification>[0];
-    fileName: string;
     displayName: string;
     r2Key: string;
     duration: number;
@@ -213,7 +211,6 @@ export async function transcribeRecordingAction(recordingId: string, options?: M
                     recordingId: validatedRecordingId,
                     firebaseUid: uid,
                     userId: user._id,
-                    fileName: recording.fileName,
                     displayName: recording.standardizedDisplayName,
                     r2Key: recording.r2Key,
                     duration: recording.duration,

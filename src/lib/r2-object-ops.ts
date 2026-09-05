@@ -8,6 +8,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'node:stream';
 import { ALLOWED_AUDIO_MIME_TYPES, R2_BUCKET, r2Client } from './r2-config';
+import { logger } from '@/lib/logger';
 
 export function validateAudioMimeType(mimeType: string): boolean {
     return ALLOWED_AUDIO_MIME_TYPES.has(mimeType.toLowerCase());
@@ -61,7 +62,7 @@ export async function getR2ObjectMetadata(key: string): Promise<Record<string, s
 
         return response.Metadata || {};
     } catch (error) {
-        console.error(`Failed to get metadata for ${key}:`, error);
+        logger.error(`Failed to get metadata for ${key}:`, error);
         return null;
     }
 }
@@ -113,7 +114,7 @@ export async function getR2ObjectDurationSeconds(
         const duration = metadata.format.duration || 0;
         return Number.isFinite(duration) && duration > 0 ? duration : 0;
     } catch (error) {
-        console.error(`Failed to extract duration from ${key}:`, error);
+        logger.error(`Failed to extract duration from ${key}:`, error);
         return 0;
     }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useEffect, useRef, type ReactNode } from 'react';
+import { useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
 import { initializeFirebase } from './client';
 import { clearPrivatePwaCaches } from '@/lib/pwa-cache';

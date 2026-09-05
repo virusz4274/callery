@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Button, Card, Input, Label, TextArea, TextField } from '@heroui/react';
+import { Alert, Button, Card, Input, Label, TextArea, TextField } from '@heroui/react';
 import { authFetch } from '@/lib/api-client';
 
 export function SupportFormCard() {
@@ -72,13 +72,13 @@ export function SupportFormCard() {
   };
 
   return (
-    <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+    <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
       <Card.Content className="p-6 sm:p-7">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
             Contact the team
           </div>
-          <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
             Send a support message
           </h2>
           <p className="text-sm leading-6 text-default-500">
@@ -131,19 +131,16 @@ export function SupportFormCard() {
           </TextField>
 
           {submitStatus && (
-            <div
-              className={
-                submitStatus.type === 'success'
-                  ? 'rounded-2xl border border-success/20 bg-success/5 px-4 py-3 text-sm text-success'
-                  : 'rounded-2xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger'
-              }
-            >
-              {submitStatus.message}
-            </div>
+            <Alert status={submitStatus.type === 'success' ? 'success' : 'danger'}>
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>{submitStatus.message}</Alert.Description>
+              </Alert.Content>
+            </Alert>
           )}
 
           <div className="flex justify-end pt-2">
-            <Button className="rounded-full px-5 font-semibold" type="submit" isPending={isSubmitting}>
+            <Button className="rounded-full px-6 font-semibold" type="submit" isPending={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send message'}
             </Button>
           </div>

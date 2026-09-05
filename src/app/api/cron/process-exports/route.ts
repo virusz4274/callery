@@ -3,6 +3,7 @@ import { claimNextExportJob, getExportJob } from '@/lib/db/export-jobs';
 import { processExport } from '@/lib/export-processor';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 export const maxDuration = 300;
 
@@ -13,11 +14,7 @@ export const maxDuration = 300;
  * `Authorization: Bearer ${CRON_SECRET}` header
  */
 export async function GET(request: NextRequest) {
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = env.CRON_SECRET;
-
-    const providedToken = authHeader?.replace('Bearer ', '').trim();
-    if (providedToken !== cronSecret) {
+    if (!isAuthorizedCronRequest(request.headers.get('authorization'), env.CRON_SECRET)) {
         logger.warn('[process-exports] Unauthorized cron request');
         return NextResponse.json(
             { success: false, error: 'Unauthorized' },

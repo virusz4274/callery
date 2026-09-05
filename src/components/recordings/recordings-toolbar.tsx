@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Surface } from '@heroui/react';
 import { SearchSortRow } from './toolbar/search-sort-row';
 import { SavedViewsRow } from './toolbar/saved-views-row';
@@ -25,7 +24,7 @@ export function RecordingsToolbar(props: RecordingsToolbarProps) {
     return (
         <Surface
             variant="default"
-            className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 rounded-[1.5rem] border border-default-200/80 bg-background/92 p-3 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:top-4 md:rounded-[1.75rem] md:bg-linear-to-r md:from-primary/6 md:via-background md:to-secondary/6 md:p-4"
+            className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 rounded-[1.5rem] border border-default-200/80 bg-background/95 p-3 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:top-4 md:rounded-[2rem] md:bg-linear-to-r md:from-primary/6 md:via-background md:to-secondary/6 md:p-4"
         >
             <div className="space-y-3 md:space-y-4">
                 <SearchSortRow

@@ -4,6 +4,7 @@ import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils'
 import { getRecordingById } from '@/lib/db/recordings';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { getSignedR2Url } from '@/lib/r2';
+import { logger } from '@/lib/logger';
 
 export async function GET(
     request: NextRequest,
@@ -33,14 +34,14 @@ export async function GET(
         try {
             playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
         } catch (error) {
-            console.error('Failed to generate playback URL for recording route:', error);
+            logger.error('Failed to generate playback URL for recording route:', error);
         }
 
         return NextResponse.json({
             recording: toRecordingResponse(recording, playbackUrl),
         });
     } catch (error) {
-        console.error('Error fetching recording details:', error);
+        logger.error('Error fetching recording details:', error);
         return NextResponse.json({ error: 'Failed to fetch recording' }, { status: 500 });
     }
 }

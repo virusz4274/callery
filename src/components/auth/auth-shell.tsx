@@ -94,7 +94,7 @@ export function AuthShell({
                 <Surface
                   key={item.title}
                   variant="default"
-                  className="grid grid-cols-[auto_1fr] gap-3 rounded-[1.25rem] border border-default-200/60 bg-background/70 px-4 py-4 shadow-sm"
+                  className="grid grid-cols-[auto_1fr] gap-3 rounded-xl border border-default-200/60 bg-background/70 px-4 py-4 shadow-sm"
                 >
                   <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <item.icon className="size-4.5" />
@@ -109,9 +109,9 @@ export function AuthShell({
           </div>
         </Surface>
 
-        <Card className={`w-full border border-default-200/70 bg-background/92 shadow-2xl shadow-black/10 backdrop-blur-md ${useCompactLayout ? 'rounded-[1.75rem]' : 'rounded-[2rem]'}`}>
+        <Card className={`w-full border border-default-200/70 bg-background/95 shadow-2xl shadow-black/10 backdrop-blur-md ${useCompactLayout ? 'rounded-[1.5rem]' : 'rounded-[2rem]'}`}>
           <Card.Header className={`flex flex-col ${useCompactLayout ? 'gap-4 px-5 pt-5 sm:px-6 sm:pt-6' : 'gap-5 px-6 pt-6 sm:px-8 sm:pt-8'}`}>
-            <div className={`flex items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary ring-1 ring-primary/10 ${useCompactLayout ? 'size-12' : 'size-14'}`}>
+            <div className={`flex items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10 ${useCompactLayout ? 'size-12' : 'size-14'}`}>
               <BrandLogo className={useCompactLayout ? 'size-7' : 'size-8'} />
             </div>
 

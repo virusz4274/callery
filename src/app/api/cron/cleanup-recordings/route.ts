@@ -5,6 +5,7 @@ import { decrementStorageUsed } from '@/lib/db/users';
 import { purgeExpiredSoftDeletedUsers } from '@/lib/db/users/soft-delete';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 /**
  * Cron endpoint to enforce automatic deletion policies.
@@ -19,14 +20,7 @@ import { env } from '@/lib/env';
  * - Manual: curl -X GET http://localhost:9000/api/cron/cleanup-recordings -H "Authorization: Bearer YOUR_SECRET"
  */
 export async function GET(request: NextRequest) {
-    // Verify authorization
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = env.CRON_SECRET;
-
-    // Accept both "Bearer TOKEN" and just "TOKEN"
-    const providedToken = authHeader?.replace('Bearer ', '').trim();
-
-    if (providedToken !== cronSecret) {
+    if (!isAuthorizedCronRequest(request.headers.get('authorization'), env.CRON_SECRET)) {
         logger.warn('[cleanup-recordings] Unauthorized cron request');
         return NextResponse.json(
             { success: false, error: 'Unauthorized' },

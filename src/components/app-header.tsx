@@ -1,6 +1,5 @@
 "use client";
 
-import React from 'react';
 import Link from 'next/link';
 import { Button } from "@heroui/react";
 import { Logo } from './icons';
@@ -66,7 +65,7 @@ export function AppHeader({
                 Login
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="font-medium rounded-full px-6 bg-primary text-white">
+                <Button size="sm" variant="primary" className="rounded-full px-6 font-semibold">
                   Sign Up
                 </Button>
               </Link>

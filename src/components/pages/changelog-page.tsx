@@ -20,7 +20,7 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
       <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
         <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_320px] xl:items-start">
           <div className="space-y-4">
-            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+            <Chip variant="soft" color="accent" size="sm">
               Product updates
             </Chip>
             <div className="space-y-3">
@@ -68,13 +68,13 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
         {changes.map((change) => (
           <Card
             key={change.version}
-            className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]"
+            className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]"
           >
             <Card.Content className="space-y-6 p-6 md:p-7">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                    <div className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
                       {change.version}
                     </div>
                     <Chip size="sm" color="accent" variant="soft">
@@ -87,7 +87,7 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
                   <p className="max-w-2xl text-sm leading-6 text-default-500">{change.summary}</p>
                 </div>
 
-                <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4 md:max-w-[260px]">
+                <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4 md:max-w-[260px]">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                       <Sparkles className="h-3.5 w-3.5" />
@@ -105,7 +105,7 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
                   <Surface
                     key={item}
                     variant="secondary"
-                    className="rounded-[1.35rem] border border-default-200/80 p-4"
+                    className="rounded-xl border border-default-200/80 p-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="rounded-full bg-accent/10 p-2 text-accent">
@@ -121,7 +121,7 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
         ))}
       </div>
 
-      <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+      <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
         <Card.Content className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between md:p-7">
           <div>
             <div className="text-xl font-bold tracking-[-0.03em] text-foreground">Need context on a specific change?</div>
@@ -130,7 +130,7 @@ export function ChangelogPage({ changes }: { changes: ChangelogEntry[] }) {
             </p>
           </div>
           <Link href="/support">
-            <Button className="rounded-full px-5 font-semibold">
+            <Button className="rounded-full px-6 font-semibold">
               Contact support
               <ArrowRight className="h-4 w-4" />
             </Button>

@@ -11,6 +11,12 @@ const config = [
             "node_modules/"
         ],
     },
+    {
+        files: ["src/**/*.{ts,tsx}"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "warn",
+        },
+    },
 ];
 
 export default config;

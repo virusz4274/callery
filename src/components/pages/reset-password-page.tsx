@@ -133,7 +133,7 @@ export function ResetPasswordPage() {
           </TextField>
 
           {codeVerified === false ? (
-            <div className="rounded-[1.25rem] border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+            <div className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
               Reset code is invalid or expired. Request a new reset email to continue.
             </div>
           ) : null}

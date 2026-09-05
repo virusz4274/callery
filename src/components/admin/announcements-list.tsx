@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Card, Button, Chip } from '@heroui/react';
 import { Edit, Trash2, Calendar } from 'lucide-react';
 import { AnnouncementResponse } from '@/lib/db/types';
@@ -56,7 +56,7 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
                 )}
 
                 {announcements.map((ann) => (
-                    <Card key={ann.id} className="rounded-[1.75rem] border border-default-200/80 p-4 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.4)]">
+                    <Card key={ann.id} className="rounded-[1.5rem] border border-default-200/80 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <div className="flex justify-between items-start gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">

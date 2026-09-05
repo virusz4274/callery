@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use client';
 
 import { Capacitor } from '@capacitor/core';
@@ -115,6 +116,6 @@ export async function signOutNativeGoogle(user: User | null): Promise<void> {
         await ensureGooglePluginInitialized();
         await SocialLogin.logout({ provider: 'google' });
     } catch (error) {
-        console.warn('Failed to clear native Google session:', error);
+        logger.warn('Failed to clear native Google session:', error);
     }
 }

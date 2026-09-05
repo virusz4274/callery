@@ -33,7 +33,7 @@ export function FolderSelectionCard({
     onSync
 }: FolderSelectionCardProps) {
     return (
-        <Card className="mb-4 shrink-0 rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+        <Card className="mb-4 shrink-0 rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             {!selectedFolder ? (
                 <Card.Content className="space-y-5 p-6 text-center">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-default-100 text-default-400">
@@ -63,7 +63,7 @@ export function FolderSelectionCard({
                                 </Chip>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-accent/10 text-accent">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
                                     <FolderOpen className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
@@ -104,7 +104,7 @@ export function FolderSelectionCard({
                                     onPress={onSync}
                                     isIconOnly={isSyncing}
                                     isDisabled={isSyncing}
-                                    className="flex-1 rounded-full px-5 font-semibold lg:flex-none"
+                                    className="flex-1 rounded-full px-6 font-semibold lg:flex-none"
                                 >
                                     {!isSyncing && <Upload className="mr-2 h-4 w-4" />}
                                     {isSyncing ? <Spinner size="sm" color="current" /> : `Sync ${selectedCount} files`}
@@ -114,17 +114,17 @@ export function FolderSelectionCard({
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-3">
-                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                        <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Pending</div>
                             <div className="mt-1 text-2xl font-bold text-foreground">{pendingFilesCount}</div>
                             <div className="text-sm text-default-500">Files still waiting in this folder</div>
                         </Surface>
-                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                        <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Payload</div>
                             <div className="mt-1 text-2xl font-bold text-foreground">{formatFileSize(pendingSize)}</div>
                             <div className="text-sm text-default-500">Estimated size for files still waiting to sync</div>
                         </Surface>
-                        <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                        <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Already synced</div>
                             <div className="mt-1 text-2xl font-bold text-foreground">{syncedTotal}</div>
                             <div className="text-sm text-default-500">Historical files copied from this device</div>

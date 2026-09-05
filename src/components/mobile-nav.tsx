@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button, Modal } from "@heroui/react";
@@ -135,7 +135,7 @@ export function MobileNav() {
                       href={item.href}
                       onClick={() => setIsMoreOpen(false)}
                       className={cn(
-                        "flex items-center gap-3 rounded-[1rem] border px-4 py-3 text-sm font-medium transition-colors",
+                        "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
                         pathname.startsWith(item.href)
                           ? "border-primary/25 bg-primary/10 text-primary"
                           : "border-default-200 text-default-700 hover:bg-default-50"

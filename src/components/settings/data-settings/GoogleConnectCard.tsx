@@ -1,5 +1,5 @@
 import { Button, Card, Chip, Spinner } from '@heroui/react';
-import { AlertTriangle, CloudDownload, ContactRound, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ContactRound, ExternalLink } from 'lucide-react';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import type { User } from '@/lib/types';
 
@@ -31,7 +31,7 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
     const duplicatePhoneIssueCount = googleSync?.duplicatePhoneIssueCount || 0;
 
     return (
-        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Directory sync</Chip>
@@ -91,25 +91,8 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <CloudDownload className="h-4 w-4 text-primary" />
-                            Import matching data
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-default-500">
-                            Pull names and numbers into your workspace so uploads and call history attach to the right contact records.
-                        </p>
-                    </div>
-                    <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-4">
-                        <p className="text-sm font-medium text-foreground">What changes after sync</p>
-                        <p className="mt-2 text-sm leading-6 text-default-500">
-                            Contacts become easier to search, filter, and review across recordings, uploads, and follow-up workflows.
-                        </p>
-                    </div>
-                </div>
                 {duplicatePhoneIssueCount > 0 ? (
-                    <div className="rounded-[1.2rem] border border-warning/30 bg-warning/8 p-4">
+                    <div className="rounded-xl border border-warning/30 bg-warning/8 p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

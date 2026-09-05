@@ -1,5 +1,6 @@
 import webpush, { PushSubscription as WebPushSubscription } from 'web-push';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 let vapidConfigured = false;
 
@@ -42,7 +43,7 @@ export async function sendWebPushNotification(
         );
         return { success: true, endpoint: subscription.endpoint };
     } catch (error: unknown) {
-        console.error('[Web Push] Failed to send notification:', error);
+        logger.error('[Web Push] Failed to send notification:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return { success: false, endpoint: subscription.endpoint, error: errorMessage };
     }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { logAdminAction } from '@/app/actions/audit-log';
@@ -18,7 +19,7 @@ export async function updateContactPlan(
     const plan = await db.collection<Plan>(Collections.PLANS).findOne({ key: planKey });
 
     if (!plan) {
-        console.error(`Plan ${planKey} not found`);
+        logger.error(`Plan ${planKey} not found`);
         return { success: false, message: 'Plan not found' };
     }
 
@@ -58,7 +59,7 @@ export async function updateContactPlan(
 
         return { success: true };
     } catch (error) {
-        console.error('Failed to update user plan', error);
+        logger.error('Failed to update user plan', error);
         return { success: false, message: 'Database update failed' };
     }
 }

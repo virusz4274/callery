@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
 import { PushSubscriptionEntry } from '@/lib/db/types';
+import { PushSubscribeBodySchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/notifications/subscribe
@@ -19,12 +22,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        const body = await request.json();
-        const { endpoint, keys, userAgent } = body;
-
-        if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        const SubscribePayload = PushSubscribeBodySchema.extend({
+            userAgent: z.string().max(512).optional(),
+        });
+        const rawBody = await request.json().catch(() => null);
+        const parsed = SubscribePayload.safeParse(rawBody);
+        if (!parsed.success) {
             return NextResponse.json({ error: 'Invalid subscription payload' }, { status: 400 });
         }
+
+        const { endpoint, keys, userAgent } = parsed.data;
 
         const newSubscription: PushSubscriptionEntry = {
             type: 'web',
@@ -50,7 +57,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, message: 'Subscription saved' });
     } catch (error) {
-        console.error('[Push Subscribe] Error:', error);
+        logger.error('[Push Subscribe] Error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
@@ -71,12 +78,15 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        const body = await request.json();
-        const { endpoint } = body;
-
-        if (!endpoint) {
+        const UnsubscribePayload = z.object({
+            endpoint: z.string().url().max(1024),
+        });
+        const rawBody = await request.json().catch(() => null);
+        const parsed = UnsubscribePayload.safeParse(rawBody);
+        if (!parsed.success) {
             return NextResponse.json({ error: 'Endpoint required' }, { status: 400 });
         }
+        const { endpoint } = parsed.data;
 
         const existingSubscriptions = user.pushSubscriptions || [];
         const filteredSubscriptions = existingSubscriptions.filter(
@@ -89,7 +99,7 @@ export async function DELETE(request: NextRequest) {
 
         return NextResponse.json({ success: true, message: 'Subscription removed' });
     } catch (error) {
-        console.error('[Push Unsubscribe] Error:', error);
+        logger.error('[Push Unsubscribe] Error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

@@ -1,7 +1,7 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Recording, Contact } from '@/lib/types';
 import Link from 'next/link';
-import { Avatar, Button, Dropdown, Checkbox } from '@heroui/react';
+import { Avatar, Button, Chip, Dropdown, Checkbox } from '@heroui/react';
 import { MoreHorizontal, FileText, RefreshCcw, Play } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
@@ -148,9 +148,9 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                     />
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="px-2 py-0.5 rounded-full bg-default-100 text-[10px] font-bold text-default-600 uppercase tracking-wide">
+                                    <Chip variant="soft" color="default" size="sm">
                                         {formatDurationLocal(rec.duration)}
-                                    </span>
+                                    </Chip>
                                     <span className="text-[10px] text-default-400">
                                         <ClientFormattedDate date={rec.recordedAt} formatString="h:mm a" />
                                     </span>

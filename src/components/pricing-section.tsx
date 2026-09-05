@@ -295,7 +295,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
   return (
     <div className="space-y-10">
       <div className="mx-auto max-w-3xl text-center">
-        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+        <Chip variant="soft" color="accent" size="sm">
           Pricing
         </Chip>
         <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-foreground md:text-5xl">
@@ -319,7 +319,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
             <Card
               key={plan.id}
               variant={plan.featured ? 'tertiary' : 'default'}
-              className={`flex h-full flex-col rounded-[1.9rem] border p-6 shadow-none ${
+              className={`flex h-full flex-col rounded-[2rem] border p-6 shadow-none ${
                 plan.featured
                   ? 'border-primary/30 bg-background ring-1 ring-primary/20'
                   : 'border-default-200/80 bg-background/90'
@@ -421,7 +421,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
         })}
       </div>
 
-      <Surface variant="secondary" className="rounded-[1.9rem] border border-default-200/80 p-6 md:p-7">
+      <Surface variant="secondary" className="rounded-[2rem] border border-default-200/80 p-6 md:p-7">
         <div className="space-y-5">
           <div className="max-w-3xl space-y-3">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
@@ -450,7 +450,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
                   {plans.map((plan) => (
                     <div
                       key={`${row.label}-${plan.id}`}
-                      className={`rounded-[1.25rem] border p-3 ${
+                      className={`rounded-xl border p-3 ${
                         plan.featured
                           ? 'border-primary/20 bg-primary/5'
                           : 'border-default-200/70 bg-default-50/60'
@@ -472,7 +472,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
       </Surface>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr_0.9fr]">
-        <Surface variant="secondary" className="rounded-[1.75rem] border border-default-200/80 p-6">
+        <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-6">
           <div className="space-y-3">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
               Billing notes
@@ -487,7 +487,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
         </Surface>
 
         {addOns.map((item) => (
-          <Card key={item.title} className="rounded-[1.75rem] border border-default-200/80 p-6">
+          <Card key={item.title} className="rounded-[1.5rem] border border-default-200/80 p-6">
             <Card.Header className="flex flex-row items-start justify-between gap-4 px-0 pt-0">
               <div className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
@@ -507,7 +507,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
 
       <Surface
         variant="secondary"
-        className="rounded-[1.9rem] border border-default-200/80 p-6 md:p-7"
+        className="rounded-[2rem] border border-default-200/80 p-6 md:p-7"
       >
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="space-y-3">

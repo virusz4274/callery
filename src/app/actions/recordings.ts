@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { ObjectId } from 'mongodb';
@@ -8,6 +9,7 @@ import { decrementStorageUsed } from '@/lib/db/users';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { revalidatePath } from 'next/cache';
 import { GetRecordingsOptionsSchema, RecordingIdSchema, UpdateRecordingSchema, GetRecordingsOptionsInput } from '@/lib/schemas';
+import type { UpdateRecordingInput } from '@/lib/db/types';
 
 // Re-export specific input type if needed by client, or just use the schema inferred type
 export type GetRecordingsOptions = GetRecordingsOptionsInput;
@@ -21,7 +23,7 @@ export async function getRecordingsAction(options: GetRecordingsOptions = {}) {
     // 1. Validate Input
     const parseResult = GetRecordingsOptionsSchema.safeParse(options);
     if (!parseResult.success) {
-        console.error('Validation failed for getRecordingsAction:', parseResult.error);
+        logger.error('Validation failed for getRecordingsAction:', parseResult.error);
         return { error: 'Invalid parameters' };
     }
     const validatedOptions = parseResult.data;
@@ -52,7 +54,7 @@ export async function getRecordingsAction(options: GetRecordingsOptions = {}) {
             limit
         };
     } catch (error) {
-        console.error('Error fetching recordings:', error);
+        logger.error('Error fetching recordings:', error);
         return { error: 'Failed to fetch recordings' };
     }
 }
@@ -77,7 +79,7 @@ export async function deleteRecordingAction(id: string) {
         try {
             await deleteFromR2(recording.r2Key);
         } catch (r2Error) {
-            console.error('Error deleting from R2:', r2Error);
+            logger.error('Error deleting from R2:', r2Error);
             return { success: false, error: 'Failed to delete audio from storage. Recording was not removed.' };
         }
 
@@ -91,7 +93,7 @@ export async function deleteRecordingAction(id: string) {
         revalidateRecordingPages();
         return { success: true };
     } catch (error) {
-        console.error('Error deleting recording:', error);
+        logger.error('Error deleting recording:', error);
         return { success: false, error: 'Failed to delete recording' };
     }
 }
@@ -113,10 +115,11 @@ export async function updateRecordingAction(id: string, data: { isStarred?: bool
     }
 
     try {
-        const updateData: any = { ...dataParse.data };
-        if (updateData.contactId) {
-            updateData.contactId = new ObjectId(updateData.contactId);
-        }
+        const { contactId, ...rest } = dataParse.data;
+        const updateData: UpdateRecordingInput = {
+            ...rest,
+            ...(contactId ? { contactId: new ObjectId(contactId) } : {}),
+        };
 
         const recording = await updateRecording(idParse.data, firebaseUid, updateData);
 
@@ -127,7 +130,7 @@ export async function updateRecordingAction(id: string, data: { isStarred?: bool
         revalidateRecordingPages();
         return { success: true, recording: toRecordingResponse(recording) };
     } catch (error) {
-        console.error('Error updating recording:', error);
+        logger.error('Error updating recording:', error);
         return { success: false, error: 'Failed to update recording' };
     }
 }
@@ -152,7 +155,7 @@ export async function getPlaybackUrlAction(id: string) {
         const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
         return { playbackUrl };
     } catch (error) {
-        console.error('Error generating playback URL:', error);
+        logger.error('Error generating playback URL:', error);
         return { error: 'Failed to generate playback URL' };
     }
 }
@@ -177,7 +180,7 @@ export async function getRecordingDetailsAction(id: string) {
         const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
         return { recording: toRecordingResponse(recording, playbackUrl) };
     } catch (error) {
-        console.error('Error fetching recording details:', error);
+        logger.error('Error fetching recording details:', error);
         return { error: 'Failed to fetch recording details' };
     }
 }

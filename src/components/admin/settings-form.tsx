@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Card, Button, Switch, Select, ListBox, Label } from '@heroui/react';
 import { SystemSettingsResponse, PlanResponse } from '@/lib/db/types';
 import { updateSystemSettings } from '@/app/actions/admin-settings';
@@ -48,7 +48,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
 
     return (
         <div className="max-w-3xl space-y-6">
-            <Card className="space-y-6 rounded-[1.9rem] border border-default-200/80 p-6 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card className="space-y-6 rounded-[2rem] border border-default-200/80 p-6 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <div>
                     <h3 className="text-lg font-semibold mb-4">Access Control</h3>
                     <div className="flex flex-col gap-4">
@@ -157,7 +157,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                 <div className="flex justify-end pt-4">
                     <Button
                         onPress={handleSave}
-                        className="bg-primary text-white"
+                        variant="primary" className="rounded-full px-6 font-semibold"
                         isDisabled={isPending}
                     >
                         {isPending ? 'Saving...' : 'Save Changes'}

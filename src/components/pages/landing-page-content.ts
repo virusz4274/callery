@@ -1,8 +1,8 @@
 export const landingPageFeatureList = [
-  'Import call recordings from Samsung devices and other phones that save audio into folders',
-  'Keep the original audio file attached to every call record',
-  'Generate transcripts, summaries, timestamps, and speaker labels',
-  'Search call history by phrase, meaning, contact, or date',
+  'Folder import from Samsung & any phone',
+  'Original audio preserved',
+  'Transcripts, summaries & speaker labels',
+  'Search by phrase, contact, or meaning',
   'Export organized archives with an offline viewer',
 ];
 

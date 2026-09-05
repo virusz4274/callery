@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { RecordingsPage } from '@/components/pages/recordings-page';
 import { Metadata } from 'next';
 import { WorkspaceLoadingState } from '@/components/loading-shells';
