@@ -2,6 +2,7 @@ import { METADATA_STORE_NAME, STORE_NAME } from './constants';
 import { getDB } from './db';
 import { generateFingerprint } from './fingerprint';
 import type { FolderSyncMetadata, SyncedFile } from './types';
+import { logger } from '@/lib/logger';
 
 /**
  * Mark a file as synced after successful upload.
@@ -60,7 +61,7 @@ export async function markAsSynced(
             transaction.oncomplete = () => resolve();
         });
     } catch (error) {
-        console.error('[SyncStore] Error marking file as synced:', error);
+        logger.error('[SyncStore] Error marking file as synced:', error);
         throw error;
     }
 }
@@ -84,7 +85,7 @@ export async function clearSyncHistory(): Promise<void> {
             transaction.oncomplete = () => resolve();
         });
     } catch (error) {
-        console.error('[SyncStore] Error clearing sync history:', error);
+        logger.error('[SyncStore] Error clearing sync history:', error);
         throw error;
     }
 }
@@ -121,7 +122,7 @@ export async function clearFolderSyncHistory(folderUri: string): Promise<void> {
             transaction.oncomplete = () => resolve();
         });
     } catch (error) {
-        console.error('[SyncStore] Error clearing folder sync history:', error);
+        logger.error('[SyncStore] Error clearing folder sync history:', error);
         throw error;
     }
 }

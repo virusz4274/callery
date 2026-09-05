@@ -5,18 +5,17 @@ import { CheckCircle2, File, HardDriveUpload, Sparkles } from 'lucide-react';
 
 export function UploadEmptyState() {
     return (
-        <Card className="min-h-[360px] rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+        <Card className="min-h-[360px] rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Content className="flex h-full flex-col justify-center p-6 sm:p-8">
                 <div className="mx-auto max-w-2xl text-center">
-                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-3xl bg-default-100 mb-4">
+                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-default-100 mb-4">
                         <File className="w-8 h-8 text-default-300" />
                     </div>
                     <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
-                        No files in the queue yet
+                        No files added yet
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-default-500">
-                        Start from the dropzone to build an upload batch. Once files are staged, this
-                        area becomes your queue, status board, and retry surface.
+                        Add files from the dropzone to see them here before uploading.
                     </p>
                 </div>
 
@@ -24,18 +23,18 @@ export function UploadEmptyState() {
                     {[
                         {
                             icon: HardDriveUpload,
-                            title: '1. Stage files',
-                            description: 'Drop one file or a full batch before you upload anything.',
+                            title: '1. Add files',
+                            description: 'Drop or select audio files to stage them.',
                         },
                         {
                             icon: CheckCircle2,
                             title: '2. Review the queue',
-                            description: 'Confirm file names, sizes, and any failed items before retrying.',
+                            description: 'Check names, sizes, and any flagged duplicates.',
                         },
                         {
                             icon: Sparkles,
-                            title: '3. Send to workspace',
-                            description: 'Uploaded files move toward recordings, transcript, and AI processing.',
+                            title: '3. Upload',
+                            description: 'Send the batch and track progress in the queue.',
                         },
                     ].map((item) => {
                         const Icon = item.icon;

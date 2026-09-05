@@ -1,17 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
+import type { User as FirebaseUser } from 'firebase/auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
-import type { User as UserProfile } from '@/lib/types'; // Assuming User type is here or passed in
+import type { User as UserProfile } from '@/lib/types';
 
 const profileFormSchema = z.object({
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
 });
 
-export function useProfileSettings(user: any, userProfile: UserProfile | null) {
+export function useProfileSettings(user: FirebaseUser | null, userProfile: UserProfile | null) {
     const { toast } = useToast();
     const [isSavingProfile, setSavingProfile] = useState(false);
 

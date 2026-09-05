@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Checkbox, Input, Surface } from '@heroui/react';
 import { Search, SortAsc, SortDesc, Trash2, X } from 'lucide-react';
 import type { SortDirection, SortField } from '../types';
@@ -32,7 +31,7 @@ export function FileListToolbar({
 }: FileListToolbarProps) {
     return (
         <div className="min-w-0 border-b border-default-100/70 bg-background/90 p-4">
-            <Surface variant="secondary" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-default-200/80 p-3">
+            <Surface variant="secondary" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-default-200/80 p-3">
                 <div className="relative min-w-0 flex-1 basis-full sm:max-w-72">
                     <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
                         <Search className="h-4 w-4 text-default-400" />

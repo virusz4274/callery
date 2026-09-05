@@ -1,4 +1,3 @@
-import React from 'react';
 import { Checkbox, Input, Label, ListBox, Select, TextArea } from '@heroui/react';
 import type { PlanFormValues } from './types';
 import { INTERVALS } from './types';
@@ -90,7 +89,7 @@ export function PlanFormBody({ values, setField }: PlanFormBodyProps) {
 
                     <div className="flex flex-col gap-2">
                         <Label className="text-sm font-medium">Visibility</Label>
-                        <div className="rounded-[1.25rem] border border-default-200/80 bg-default-50/70 px-4 py-3">
+                        <div className="rounded-xl border border-default-200/80 bg-default-50/70 px-4 py-3">
                             <div className="flex flex-col gap-3">
                                 <Checkbox
                                     aria-label="Plan active"

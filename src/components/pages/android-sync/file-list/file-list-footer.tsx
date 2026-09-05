@@ -1,4 +1,3 @@
-import React from 'react';
 import { CustomPagination } from '@/components/recordings/pagination';
 
 type FileListFooterProps = {

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Button, Card, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
+import { Alert, Button, Card, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
 import type { Contact } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
@@ -36,11 +36,11 @@ function ContactsShellLoadingState() {
                     </div>
                 </div>
             </section>
-            <Card className="rounded-[1.75rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)]">
+            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <div className="space-y-4">
                     <Skeleton className="h-10 rounded-2xl" />
-                    <Skeleton className="h-24 rounded-[1.25rem]" />
-                    <Skeleton className="h-24 rounded-[1.25rem]" />
+                    <Skeleton className="h-24 rounded-xl" />
+                    <Skeleton className="h-24 rounded-xl" />
                 </div>
             </Card>
         </div>
@@ -116,7 +116,7 @@ export function ContactsPage({
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid min-w-0 gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="min-w-0 space-y-4">
-                        <Chip variant="soft" color="accent" className="w-fit rounded-full px-3 py-1 text-xs font-medium">
+                        <Chip variant="soft" color="accent" size="sm">
                             Contact directory
                         </Chip>
                         <div className="flex flex-wrap items-center gap-2">
@@ -125,39 +125,39 @@ export function ContactsPage({
                             </h1>
                         </div>
                         <p className="max-w-2xl text-sm leading-6 text-default-500">
-                            Search people, companies, and phone numbers, then jump straight into the call history tied to that contact.
+                            Browse and search people, companies, and phone numbers.
                         </p>
                         {!userProfile?.googleSync?.hasRefreshToken ? (
-                            <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
-                                <p className="text-sm font-semibold text-foreground">Want Google Contacts here?</p>
-                                <p className="mt-1 max-w-2xl text-sm leading-6 text-default-500">
-                                    Connect Google Contacts in Settings &gt; Sources to import names and numbers into your workspace.
-                                </p>
-                                <div className="mt-3">
-                                    <Link href="/settings?tab=sources">
-                                        <Button variant="secondary" className="rounded-full">
+                            <Alert status="accent">
+                                <Alert.Indicator />
+                                <Alert.Content>
+                                    <Alert.Title>Want Google Contacts here?</Alert.Title>
+                                    <Alert.Description>
+                                        Connect Google Contacts in Settings › Sources to import names and numbers.
+                                    </Alert.Description>
+                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
+                                        <Button size="sm" variant="secondary" className="rounded-full">
                                             Go to Sources
                                         </Button>
                                     </Link>
-                                </div>
-                            </div>
+                                </Alert.Content>
+                            </Alert>
                         ) : null}
                         {(userProfile?.googleSync?.duplicatePhoneIssueCount || 0) > 0 ? (
-                            <div className="rounded-[1.25rem] border border-warning/20 bg-warning/8 p-4">
-                                <p className="text-sm font-semibold text-foreground">
-                                    Review duplicate numbers in Google Contacts
-                                </p>
-                                <p className="mt-1 max-w-2xl text-sm leading-6 text-default-500">
-                                    {userProfile?.googleSync?.duplicatePhoneIssueCount} phone number{userProfile?.googleSync?.duplicatePhoneIssueCount === 1 ? '' : 's'} currently appear on multiple Google contacts. Vosift keeps them separate until you fix them in Google Contacts.
-                                </p>
-                                <div className="mt-3">
-                                    <Link href="/settings?tab=sources">
-                                        <Button variant="secondary" className="rounded-full">
+                            <Alert status="warning">
+                                <Alert.Indicator />
+                                <Alert.Content>
+                                    <Alert.Title>Review duplicate numbers in Google Contacts</Alert.Title>
+                                    <Alert.Description>
+                                        {userProfile?.googleSync?.duplicatePhoneIssueCount} phone number{userProfile?.googleSync?.duplicatePhoneIssueCount === 1 ? '' : 's'} currently appear on multiple Google contacts. Vosift keeps them separate until you fix them in Google Contacts.
+                                    </Alert.Description>
+                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
+                                        <Button size="sm" variant="secondary" className="rounded-full">
                                             Review sync issues
                                         </Button>
                                     </Link>
-                                </div>
-                            </div>
+                                </Alert.Content>
+                            </Alert>
                         ) : null}
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -189,7 +189,7 @@ export function ContactsPage({
 
             <Surface
                 variant="default"
-                className="-mt-6 sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.45)] backdrop-blur md:-mt-8 md:top-4"
+                className="-mt-6 sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:-mt-8 md:top-4 md:rounded-[2rem]"
             >
                 <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { User } from 'firebase/auth';
 import { Alert, Button, Spinner } from '@heroui/react';
 

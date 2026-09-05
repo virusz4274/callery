@@ -1,4 +1,3 @@
-import React from 'react';
 import { parseDate, type DateValue } from '@internationalized/date';
 import { Button, Chip, DateField, DateRangePicker, Disclosure, FieldError, ListBox, Popover, RangeCalendar, SearchField, Select } from '@heroui/react';
 import { ContextHelp } from '@/components/context-help';
@@ -451,7 +450,7 @@ export function SearchSortRow({
             </div>
 
             {(summaryParts.length > 0 || density === 'comfortable') && (
-                <Disclosure className="rounded-[1rem] border border-default-200/80 bg-background/70">
+                <Disclosure className="rounded-xl border border-default-200/80 bg-background/70">
                     <Disclosure.Heading>
                         <Disclosure.Trigger className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-2.5">
                             <div className="min-w-0">

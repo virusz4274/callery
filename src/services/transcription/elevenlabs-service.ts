@@ -5,6 +5,15 @@ import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } f
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
+interface ElevenLabsWord {
+    text: string;
+    start: number;
+    end: number;
+    speaker_id?: string;
+    type?: string;
+    logprob?: number;
+}
+
 export class ElevenLabsService implements ITranscriptionService {
     private apiKey: string;
     private baseUrl: string;
@@ -120,7 +129,6 @@ export class ElevenLabsService implements ITranscriptionService {
             });
             throw configError;
         }
-        const webhookSecret = env.ELEVENLABS_WEBHOOK_SECRET;
 
         const modelToUse = options?.model || this.model;
 
@@ -199,7 +207,7 @@ export class ElevenLabsService implements ITranscriptionService {
         return speakerId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()); // "speaker_1" -> "Speaker 1"
     }
 
-    private processWordsIntoSegments(words: any[]): TranscriptionSegment[] {
+    private processWordsIntoSegments(words: ElevenLabsWord[]): TranscriptionSegment[] {
         const segments: TranscriptionSegment[] = [];
         if (!words || words.length === 0) return segments;
 

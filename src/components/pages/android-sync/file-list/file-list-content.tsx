@@ -1,4 +1,3 @@
-import React from 'react';
 import { Spinner } from '@heroui/react';
 import { Search } from 'lucide-react';
 import type { SyncableFile } from '../types';
@@ -25,7 +24,7 @@ export function FileListContent({
                 </div>
             ) : filteredFiles.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-default-100 text-default-300">
+                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-default-100 text-default-300">
                         <Search className="h-7 w-7" />
                     </div>
                     <p className="font-semibold text-foreground">No files found</p>

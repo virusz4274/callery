@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Checkbox } from '@heroui/react';
 import type { Recording } from '@/lib/types';
 import type { TableSelectionState } from './types';

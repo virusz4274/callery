@@ -1,4 +1,5 @@
-import type { Db } from 'mongodb';
+import type { Db, IndexDescription } from 'mongodb';
+import { logger } from '@/lib/logger';
 
 type CollectionsMap = {
     USERS: string;
@@ -18,7 +19,7 @@ type CollectionsMap = {
 type IndexTask = {
     label: string;
     collection: string;
-    indexes: Array<Record<string, unknown>>;
+    indexes: IndexDescription[];
     errorMessage: string;
 };
 
@@ -145,10 +146,10 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
 
     for (const task of tasks) {
         try {
-            await db.collection(task.collection).createIndexes(task.indexes as any);
-            console.log(`✅ ${task.label} indexes created`);
+            await db.collection(task.collection).createIndexes(task.indexes);
+            logger.info(`✅ ${task.label} indexes created`);
         } catch (error) {
-            console.error(task.errorMessage, error);
+            logger.error(task.errorMessage, error);
         }
     }
 }

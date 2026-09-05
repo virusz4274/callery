@@ -3,6 +3,7 @@ import { getUserFromRequest } from '@/lib/auth-utils';
 import { getRecordingsByUser } from '@/lib/db/recordings';
 import type { FileSystemNode } from '@/lib/types';
 import type { Recording } from '@/lib/db/types';
+import { logger } from '@/lib/logger';
 
 /**
  * Converts a file size in bytes to a human-readable string.
@@ -188,7 +189,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ fileSystem: fileSystemTree });
     } catch (error) {
-        console.error('Error building file system:', error);
+        logger.error('Error building file system:', error);
         return NextResponse.json(
             { error: 'Failed to build file system' },
             { status: 500 }

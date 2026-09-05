@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { searchRecordingsByVector, type SemanticFallbackReason, type SemanticSearchMode } from '@/lib/db/search';
@@ -27,7 +28,7 @@ export async function searchRecordingsAction(query: string, page: number = 1, pa
 
         return { success: true, results: formattedResults, totalCount, mode, fallbackReason };
     } catch (error) {
-        console.error('Search action error:', error);
+        logger.error('Search action error:', error);
         return { success: false, results: [], error: 'Search failed' };
     }
 }

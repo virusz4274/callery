@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { NextRequest } from 'next/server';
@@ -31,7 +32,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<string |
         return decodedToken.uid;
     } catch (error) {
         // Token verification failed (expired, invalid, etc.)
-        console.error('Token verification failed:', error instanceof Error ? error.message : error);
+        logger.error('Token verification failed:', error instanceof Error ? error.message : error);
         return null;
     }
 }
@@ -62,7 +63,7 @@ export async function getMobileSyncUserFromRequest(request: NextRequest): Promis
         const decodedToken = await auth.verifyIdToken(token);
         return decodedToken.uid;
     } catch (error) {
-        console.error('Mobile token verification failed:', error instanceof Error ? error.message : error);
+        logger.error('Mobile token verification failed:', error instanceof Error ? error.message : error);
         return null;
     }
 }
@@ -84,7 +85,7 @@ export async function getFirebaseUidFromSession(): Promise<string | null> {
         const decodedToken = await auth.verifySessionCookie(sessionCookie.value, true);
         return decodedToken.uid;
     } catch (error) {
-        console.error('Error verifying session:', error);
+        logger.error('Error verifying session:', error);
         return null;
     }
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Modal, Spinner } from '@heroui/react';
 import { Check } from 'lucide-react';
 import type { PublicPlan } from '@/app/actions/plans';
@@ -20,7 +19,7 @@ export function UpgradePlanModal({
 }: UpgradePlanModalProps) {
     return (
         <Modal>
-            <Button variant="primary" className="mt-4 sm:mt-0 font-medium" onPress={onOpen}>
+            <Button variant="primary" className="mt-4 rounded-full px-6 font-semibold sm:mt-0" onPress={onOpen}>
                 Upgrade Plan
             </Button>
             <Modal.Backdrop>
@@ -40,13 +39,13 @@ export function UpgradePlanModal({
                                     {plans.map((plan) => (
                                         <div
                                             key={plan.id}
-                                            className={`rounded-lg border p-4 transition-colors ${
+                                            className={`rounded-xl border p-4 transition-colors ${
                                                 plan.isPurchasable
                                                     ? 'border-default-200 hover:border-primary'
                                                     : 'border-default-200/80 bg-default-50/60'
                                             }`}
                                         >
-                                            <h3 className="font-bold text-xl">{plan.name}</h3>
+                                            <h3 className="font-semibold text-xl">{plan.name}</h3>
                                             <div className="text-2xl font-bold my-2">
                                                 ${plan.price}{' '}
                                                 <span className="text-sm font-normal text-default-500">/{plan.interval}</span>
@@ -60,7 +59,7 @@ export function UpgradePlanModal({
                                                 ))}
                                             </ul>
                                             <Button
-                                                className="w-full"
+                                                className="w-full rounded-full font-semibold"
                                                 variant="primary"
                                                 onPress={() => onCheckout(plan.stripePriceId)}
                                                 isDisabled={isCheckingOut || !plan.isPurchasable}

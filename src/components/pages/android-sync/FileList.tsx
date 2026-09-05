@@ -57,7 +57,7 @@ export function FileList({
     onCancelSync,
 }: FileListProps) {
     return (
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <FileListTabs
                 activeTab={activeTab}
                 pendingCount={pendingCount}

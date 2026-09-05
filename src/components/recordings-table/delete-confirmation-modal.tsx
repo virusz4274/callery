@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { AlertDialog, Button } from '@heroui/react';
 import { Trash2 } from 'lucide-react';
 

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
@@ -41,8 +42,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json().catch(() => ({})) as { returnUrl?: string };
-        const { returnUrl } = body;
+        let returnUrl: string | undefined;
+        if (req.headers.get('content-length') !== '0' && req.headers.get('content-type')?.includes('json')) {
+            const body = await req.json().catch(() => null);
+            if (body !== null && (typeof body !== 'object' || Array.isArray(body))) {
+                return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+            }
+            if (body && typeof body.returnUrl !== 'undefined' && typeof body.returnUrl !== 'string') {
+                return NextResponse.json({ error: 'Invalid returnUrl' }, { status: 400 });
+            }
+            returnUrl = body?.returnUrl;
+        }
 
         // 2. Get User from DB
         const user = await findUserByFirebaseUid(uid);
@@ -63,7 +73,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ url: session.url });
     } catch (error) {
-        console.error('Stripe Portal Error:', error);
+        logger.error('Stripe Portal Error:', error);
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Internal Server Error' },
             { status: 500 }

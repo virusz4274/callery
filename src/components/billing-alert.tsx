@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Alert } from '@heroui/react';
 import { UserResponse } from '@/lib/db/types';
 import Link from 'next/link';

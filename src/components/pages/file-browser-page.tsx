@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Chip, Spinner } from '@heroui/react';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
@@ -53,7 +52,7 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="space-y-3">
-                        <Chip variant="soft" color="accent" className="w-fit rounded-full px-3 py-1 text-xs font-medium">
+                        <Chip variant="soft" color="accent" size="sm">
                             File library
                         </Chip>
                         <div className="flex items-center gap-2">
@@ -62,7 +61,7 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
                             </h1>
                         </div>
                         <p className="max-w-2xl text-sm leading-6 text-default-500">
-                            Inspect what is stored, move through folders, and open recording details when you need to check or clean up the archive.
+                            Browse your stored files and folders.
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -127,7 +126,7 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
 
             {isLoadingDetails && (
                 <div className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[200] flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 rounded-[1.5rem] border border-default-200 bg-background p-6 shadow-xl">
+                    <div className="flex flex-col items-center gap-4 rounded-[1.5rem] border border-default-200 bg-background p-6 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <Spinner size="lg" />
                         <p className="text-default-500 font-medium">Loading recording...</p>
                     </div>

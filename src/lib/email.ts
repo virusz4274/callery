@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 /**
  * Send an email using SMTP.
@@ -32,10 +33,10 @@ export async function sendEmail({
             html,
         });
 
-        console.log(`Email sent: ${info.messageId}`);
+        logger.info(`Email sent: ${info.messageId}`);
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('Error sending email:', error);
+        logger.error('Error sending email:', error);
         return { success: false, error };
     }
 }

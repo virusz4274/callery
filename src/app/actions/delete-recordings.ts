@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { deleteRecordings as deleteRecordingsFromDb, getRecordingsByIds } from '@/lib/db/recordings';
@@ -21,7 +22,7 @@ async function getFirebaseUidFromSession(): Promise<string | null> {
     const decodedToken = await auth.verifySessionCookie(sessionCookie.value, true);
     return decodedToken.uid;
   } catch (error) {
-    console.error('Error verifying session:', error);
+    logger.error('Error verifying session:', error);
     return null;
   }
 }
@@ -56,7 +57,7 @@ export async function deleteRecordings(
         await deleteFromR2(recording.r2Key);
         successfulDeleteIds.push(recording._id.toString());
       } catch (r2Error) {
-        console.error(`Error deleting ${recording.r2Key} from R2:`, r2Error);
+        logger.error(`Error deleting ${recording.r2Key} from R2:`, r2Error);
         r2Errors.push(recording.r2Key);
       }
     });
@@ -89,7 +90,7 @@ export async function deleteRecordings(
       message: `${deletedRecordings.length} recording(s) deleted successfully.`,
     };
   } catch (error) {
-    console.error('Error deleting recordings:', error);
+    logger.error('Error deleting recordings:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'An unknown error occurred',

@@ -88,7 +88,7 @@ export function AuditLogsTable({
     };
 
     return (
-        <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] sm:p-5">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">System audit logs</h3>

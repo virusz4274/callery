@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Phone, Clock, Users, BarChart } from 'lucide-react';
 import { StatsCard } from '@/components/settings/stats-card';
 

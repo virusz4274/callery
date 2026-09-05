@@ -18,7 +18,7 @@ export function ExportDataCard({
     const isBusy = isExportStarting || isQueued || isProcessing;
 
     return (
-        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Portable archive</Chip>
@@ -60,7 +60,7 @@ export function ExportDataCard({
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                             <FolderArchive className="h-4 w-4 text-primary" />
                             What you get
@@ -69,7 +69,7 @@ export function ExportDataCard({
                             Audio files, transcripts, metadata, and a standalone viewer so your team can browse history without logging into the app.
                         </p>
                     </div>
-                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                             <Hourglass className="h-4 w-4 text-primary" />
                             Delivery
@@ -81,7 +81,7 @@ export function ExportDataCard({
                 </div>
 
                 {exportJob && (
-                    <div className="rounded-[1.4rem] border border-default-200/80 bg-background p-4 sm:p-5">
+                    <div className="rounded-xl border border-default-200/80 bg-background p-4 sm:p-5">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-foreground">Latest export job</p>

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 'use server';
 
 import { Recording, User } from '@/lib/db/types';
@@ -106,7 +107,7 @@ export async function cleanupOrphanedRecordings() {
                 await deleteFromR2(rec.r2Key);
                 deletedR2++;
             } catch (error) {
-                console.error(`Failed to delete orphan R2 file ${rec.r2Key}`, error);
+                logger.error(`Failed to delete orphan R2 file ${rec.r2Key}`, error);
             }
         })
     );

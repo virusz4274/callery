@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Button, Popover, Tooltip } from '@heroui/react';
 import { CircleHelp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';

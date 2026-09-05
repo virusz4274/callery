@@ -3,7 +3,7 @@
 import { useToast } from '@/components/toast-provider';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
+import { Alert, Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { GoogleIcon } from '@/components/icons/google-icon';
@@ -156,13 +156,16 @@ export function LoginPage() {
     >
       <form onSubmit={handleSignIn} className="space-y-5">
         {authMessage && (
-          <div className="rounded-[1.25rem] border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
-            {authMessage}
-          </div>
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>{authMessage}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
         {preferCompactLogin && (
-          <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-default-600">
+          <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-default-600">
             {isCapacitor
               ? 'Google sign-in is the quickest path in the app. Use email only if you need a different account.'
               : 'On mobile, start with Google for the fastest sign-in. Email is still available below when needed.'}
@@ -192,7 +195,7 @@ export function LoginPage() {
         </div>
 
         {preferCompactLogin ? (
-          <div className="space-y-4 rounded-[1.25rem] border border-default-200/80 bg-default-50/60 p-4">
+          <div className="space-y-4 rounded-xl border border-default-200/80 bg-default-50/60 p-4">
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-default-400">
                 Or use email

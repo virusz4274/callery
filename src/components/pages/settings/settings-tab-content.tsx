@@ -1,8 +1,5 @@
-import React from 'react';
-import { Chip } from '@heroui/react';
 import { cn } from '@/lib/utils';
 import { ClientOnly } from '@/components/client-only';
-import { ContextHelp } from '@/components/context-help';
 import { BillingSettings } from '@/components/settings/billing-settings';
 import { DataSettings } from '@/components/settings/data-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
@@ -21,13 +18,6 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
     const activeTabConfig = state.tabs.find((tab) => tab.id === state.activeTab) || state.tabs[0];
     const ActiveTabIcon = activeTabConfig?.icon;
 
-    const panelLabel =
-        state.activeTab === 'billing'
-            ? 'Plan and invoices'
-            : state.activeTab === 'export'
-                ? 'Portable archive'
-                : 'Editable preferences';
-
     return (
         <div
             className={cn(
@@ -35,40 +25,17 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                 isMobileDetailView ? 'block' : 'hidden lg:block'
             )}
         >
-            <div className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col">
+            <div className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col">
                 <div className="border-b border-default-100/70 px-5 py-5 md:px-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="flex items-start gap-4">
-                            {ActiveTabIcon && (
-                                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[1.1rem] bg-accent/10 text-accent">
-                                    <ActiveTabIcon className="h-5 w-5" />
-                                </div>
-                            )}
-
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    Active section
-                                    {activeTabConfig?.description && (
-                                        <ContextHelp
-                                            title={activeTabConfig.label}
-                                            description={activeTabConfig.description}
-                                            points={[
-                                                'Changes in this section stay scoped to the current task.',
-                                                'Use the left rail to switch panels without losing context.',
-                                            ]}
-                                            placement="right"
-                                        />
-                                    )}
-                                </div>
-                                <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
-                                    {activeTabConfig?.label}
-                                </h2>
+                    <div className="flex items-center gap-4">
+                        {ActiveTabIcon && (
+                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                                <ActiveTabIcon className="h-5 w-5" />
                             </div>
-                        </div>
-
-                        <Chip variant="soft" color="default" className="rounded-full self-start">
-                            {panelLabel}
-                        </Chip>
+                        )}
+                        <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                            {activeTabConfig?.label}
+                        </h2>
                     </div>
                 </div>
 

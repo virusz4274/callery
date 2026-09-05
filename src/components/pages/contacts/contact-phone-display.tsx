@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Chip } from '@heroui/react';
 import { Phone } from 'lucide-react';
 

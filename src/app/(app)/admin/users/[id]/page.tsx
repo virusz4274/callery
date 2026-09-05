@@ -27,6 +27,11 @@ export default async function UserPage({
         getUserInvoices(id),
     ]);
 
+    // The admin queries return raw MongoDB documents while UserDetailsPage expects the API
+    // response shapes from `@/lib/types`. The shapes are structurally compatible at runtime
+    // (ObjectId → string, Date → ISO string serialization happens via Next.js RSC). Until the
+    // queries are switched to return response converters, cast at the boundary.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     return (
         <UserDetailsPage
             user={user as any}
@@ -35,4 +40,5 @@ export default async function UserPage({
             defaultTab={tab}
         />
     );
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 }

@@ -45,11 +45,11 @@ export function ContactDetailsPage() {
     if (isUserLoading || isContactsLoading || (isRecordingsLoading && !recordings)) {
         return (
             <div className="space-y-6">
-                <Skeleton className="h-40 rounded-[1.8rem]" />
+                <Skeleton className="h-40 rounded-[2rem]" />
                 <div className="grid gap-4 lg:grid-cols-3">
-                    <Skeleton className="h-56 rounded-[1.6rem]" />
-                    <Skeleton className="h-56 rounded-[1.6rem]" />
-                    <Skeleton className="h-56 rounded-[1.6rem]" />
+                    <Skeleton className="h-56 rounded-[2rem]" />
+                    <Skeleton className="h-56 rounded-[2rem]" />
+                    <Skeleton className="h-56 rounded-[2rem]" />
                 </div>
             </div>
         );
@@ -58,8 +58,8 @@ export function ContactDetailsPage() {
     const contact = contacts?.find((item) => item.id === contactId);
     if (!contact) {
         return (
-            <Surface variant="default" className="rounded-[1.8rem] border border-default-200/80 p-6">
-                <h1 className="text-2xl font-bold tracking-[-0.03em] text-foreground">Contact not found</h1>
+            <Surface variant="default" className="rounded-[2rem] border border-default-200/80 p-6">
+                <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Contact not found</h1>
                 <p className="mt-2 text-sm text-default-500">
                     We could not find that contact in your workspace. It may have been merged or removed.
                 </p>
@@ -220,22 +220,22 @@ export function ContactDetailsPage() {
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <Surface variant="default" className="rounded-[1.75rem] border border-default-200/80 p-5">
+                <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
                     <div className="space-y-4">
                         <div>
                             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 Timeline
                             </div>
-                            <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">Recent call timeline</h2>
+                            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Recent call timeline</h2>
                         </div>
                         <div className="space-y-3">
                             {timeline.length === 0 && (
-                                <div className="rounded-[1rem] border border-default-200 bg-default-50/70 px-4 py-5 text-sm text-default-500">
+                                <div className="rounded-xl border border-default-200 bg-default-50/70 px-4 py-5 text-sm text-default-500">
                                     No recordings linked to this contact yet.
                                 </div>
                             )}
                             {timeline.map((recording) => (
-                                <article key={recording.id} className="rounded-[1rem] border border-default-200 bg-background px-4 py-4">
+                                <article key={recording.id} className="rounded-xl border border-default-200 bg-background px-4 py-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div>
                                             <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
@@ -255,17 +255,17 @@ export function ContactDetailsPage() {
                 </Surface>
 
                 <div className="space-y-6">
-                    <Surface variant="default" className="rounded-[1.75rem] border border-default-200/80 p-5">
+                    <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
                         <div className="space-y-4">
                             <div>
                                 <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                     Recent calls
                                 </div>
-                                <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">Recent call summaries</h2>
+                                <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Recent call summaries</h2>
                             </div>
                             <div className="space-y-3">
                                 {recentRecordings.map((recording) => (
-                                    <div key={recording.id} className="rounded-[1rem] border border-default-200 bg-default-50/60 px-4 py-3">
+                                    <div key={recording.id} className="rounded-xl border border-default-200 bg-default-50/60 px-4 py-3">
                                         <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
                                         <div className="mt-1 text-xs text-default-500">
                                             {new Date(recording.recordedAt).toLocaleDateString()} · {formatDuration(recording.duration)}
@@ -276,7 +276,7 @@ export function ContactDetailsPage() {
                         </div>
                     </Surface>
 
-                    <Surface variant="default" className="rounded-[1.75rem] border border-default-200/80 p-5">
+                    <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                                 <Tag className="h-3.5 w-3.5" />

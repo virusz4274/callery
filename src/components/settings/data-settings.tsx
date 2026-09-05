@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Spinner } from '@heroui/react';
 import { GoogleConnectDialog } from './google-connect-dialog';
 import { SettingsSection } from './settings-section';

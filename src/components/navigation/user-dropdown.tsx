@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Dropdown, Avatar } from '@heroui/react';
 import { Settings, LogOut, HelpCircle, FileText, Shield } from 'lucide-react';
 import { User } from 'firebase/auth';
@@ -27,9 +26,8 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
             </Dropdown.Trigger>
             <Dropdown.Popover placement="bottom end">
                 <Dropdown.Menu aria-label="Profile Actions">
-                    <Dropdown.Item key="profile" className="h-14 gap-2" textValue={`Signed in as ${user.email}`}>
-                        <p className="font-semibold">Signed in as</p>
-                        <p className="font-semibold">{user.email}</p>
+                    <Dropdown.Item key="profile" className="gap-2" textValue={`Signed in as ${user.email}`}>
+                        <p className="text-xs text-default-500 truncate max-w-[200px]">{user.email}</p>
                     </Dropdown.Item>
                     <Dropdown.Item key="settings" href="/settings" textValue="Settings">
                         <div className="flex items-center gap-2">
@@ -40,7 +38,7 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
                     <Dropdown.Item key="support" href="/support" textValue="Help & Feedback">
                         <div className="flex items-center gap-2">
                             <HelpCircle className="h-4 w-4" />
-                            <p>Help & Support</p>
+                            <p>Help & Feedback</p>
                         </div>
                     </Dropdown.Item>
                     <Dropdown.Item key="terms" href="/terms-of-service" textValue="Terms">

@@ -1,6 +1,7 @@
 import { METADATA_STORE_NAME, STORE_NAME } from './constants';
 import { getDB } from './db';
 import type { FolderSyncMetadata, SyncedFile } from './types';
+import { logger } from '@/lib/logger';
 
 /**
  * Check if a file has already been synced.
@@ -18,7 +19,7 @@ export async function isSynced(fingerprint: string): Promise<boolean> {
             request.onsuccess = () => resolve(!!request.result);
         });
     } catch (error) {
-        console.error('[SyncStore] Error checking sync status:', error);
+        logger.error('[SyncStore] Error checking sync status:', error);
         return false;
     }
 }
@@ -50,7 +51,7 @@ export async function getSyncedFingerprints(fingerprints: string[]): Promise<Set
             )
         );
     } catch (error) {
-        console.error('[SyncStore] Error getting synced fingerprints:', error);
+        logger.error('[SyncStore] Error getting synced fingerprints:', error);
     }
 
     return synced;
@@ -69,7 +70,7 @@ async function getFolderMetadata(folderUri: string): Promise<FolderSyncMetadata 
             request.onsuccess = () => resolve((request.result as FolderSyncMetadata | undefined) ?? null);
         });
     } catch (error) {
-        console.error('[SyncStore] Error getting folder metadata:', error);
+        logger.error('[SyncStore] Error getting folder metadata:', error);
         return null;
     }
 }
@@ -87,7 +88,7 @@ export async function getSyncedCount(folderUri: string): Promise<number> {
         const files = await getSyncedFiles(folderUri);
         return files.length;
     } catch (error) {
-        console.error('[SyncStore] Error getting synced count:', error);
+        logger.error('[SyncStore] Error getting synced count:', error);
         return 0;
     }
 }
@@ -109,7 +110,7 @@ export async function getSyncedFiles(folderUri: string): Promise<SyncedFile[]> {
             request.onsuccess = () => resolve((request.result as SyncedFile[]) || []);
         });
     } catch (error) {
-        console.error('[SyncStore] Error getting synced files:', error);
+        logger.error('[SyncStore] Error getting synced files:', error);
         return [];
     }
 }
@@ -139,7 +140,7 @@ export async function getLastSyncTime(folderUri: string): Promise<number | null>
 
         return Math.max(...files.map((file) => file.syncedAt));
     } catch (error) {
-        console.error('[SyncStore] Error getting last sync time:', error);
+        logger.error('[SyncStore] Error getting last sync time:', error);
         return null;
     }
 }

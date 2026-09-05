@@ -54,7 +54,7 @@ export function UploadPage() {
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="space-y-3">
-                        <Chip variant="soft" color="accent" className="w-fit rounded-full px-3 py-1 text-xs font-medium">
+                        <Chip variant="soft" color="accent" size="sm">
                             Upload intake
                         </Chip>
                         <div className="flex flex-wrap items-center gap-2">
@@ -63,7 +63,7 @@ export function UploadPage() {
                             </h1>
                         </div>
                         <p className="max-w-2xl text-sm leading-6 text-default-500">
-                            Stage files, confirm the queue, and send clean batches into the recordings workspace.
+                            Drop files to add them to your archive.
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">

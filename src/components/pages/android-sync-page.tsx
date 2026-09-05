@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Button, Card, Chip, Spinner, Surface } from '@heroui/react';
 import { ArrowRight, CheckCircle2, Clock3, FolderSync, Smartphone, Upload } from 'lucide-react';
@@ -66,13 +65,13 @@ export function AndroidSyncPage() {
             <div className="relative mx-auto max-w-5xl space-y-8">
                 <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.10),transparent_28%)]" />
 
-                <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                     <Card.Content className="space-y-6 p-6 md:p-8">
                         <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-accent/10 text-accent">
                             <Smartphone className="h-8 w-8" />
                         </div>
                         <div className="space-y-3">
-                            <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                            <Chip variant="soft" color="accent" size="sm">
                                 Android only
                             </Chip>
                             <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
@@ -99,7 +98,7 @@ export function AndroidSyncPage() {
                         </div>
 
                         <Link href="/upload">
-                            <Button className="rounded-full px-5 font-semibold">
+                            <Button className="rounded-full px-6 font-semibold">
                                 Go to upload
                                 <ArrowRight className="h-4 w-4" />
                             </Button>

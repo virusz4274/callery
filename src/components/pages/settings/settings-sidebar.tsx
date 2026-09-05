@@ -1,5 +1,4 @@
-import React from 'react';
-import { Card, Chip } from '@heroui/react';
+import { Card } from '@heroui/react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -22,7 +21,7 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                 view === 'detail' ? 'hidden lg:block' : 'block'
             )}
         >
-            <Card className="overflow-hidden rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)] lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col xl:rounded-[1.9rem]">
+            <Card className="overflow-hidden rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col xl:rounded-[2rem]">
                 <Card.Content className="space-y-2 p-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto xl:p-3">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
@@ -33,9 +32,9 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                 key={tab.id}
                                 onClick={() => onSelectTab(tab.id)}
                                 className={cn(
-                                    'w-full rounded-[1.15rem] border px-3 py-3 text-left transition-all duration-200 xl:rounded-[1.35rem] xl:px-4 xl:py-4',
+                                    'w-full rounded-xl border px-3 py-3 text-left transition-all duration-200 xl:px-4 xl:py-4',
                                     isActive
-                                        ? 'border-accent/20 bg-accent/8 shadow-[0_20px_44px_-36px_rgba(38,132,255,0.45)]'
+                                        ? 'border-accent/20 bg-accent/8 shadow-[0_4px_12px_-4px_rgba(38,132,255,0.25)]'
                                         : 'border-transparent hover:border-default-200 hover:bg-default-50/80'
                                 )}
                             >
@@ -50,21 +49,14 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                     </div>
 
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-3">
-                                            <span
-                                                className={cn(
-                                                    'text-base font-semibold',
-                                                    isActive ? 'text-foreground' : 'text-foreground/90'
-                                                )}
-                                            >
-                                                {tab.label}
-                                            </span>
-                                            {isActive && !isMobile && (
-                                                <Chip size="sm" variant="soft" color="accent">
-                                                    Open
-                                                </Chip>
+                                        <span
+                                            className={cn(
+                                                'text-base font-semibold',
+                                                isActive ? 'text-foreground' : 'text-foreground/90'
                                             )}
-                                        </div>
+                                        >
+                                            {tab.label}
+                                        </span>
                                         {!isMobile && (
                                             <p className="mt-1 text-sm leading-6 text-default-500">{tab.description}</p>
                                         )}

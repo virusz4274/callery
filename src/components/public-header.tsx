@@ -66,7 +66,7 @@ export function PublicHeader() {
             Log in
           </Link>
           <Link href="/signup">
-            <Button size="sm" className="rounded-full px-5 font-medium">
+            <Button size="sm" variant="primary" className="rounded-full px-6 font-semibold">
               Start free
             </Button>
           </Link>

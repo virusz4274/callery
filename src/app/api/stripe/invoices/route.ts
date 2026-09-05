@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe';
 import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 type InvoiceStatus = 'Paid' | 'Pending' | 'Failed';
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
             })),
         });
     } catch (error) {
-        console.error('Stripe invoices fetch error:', error);
+        logger.error('Stripe invoices fetch error:', error);
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Internal Server Error' },
             { status: 500 }

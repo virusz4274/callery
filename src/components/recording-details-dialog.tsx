@@ -21,8 +21,22 @@ type RecordingDetailsDialogProps = {
   onRecordingUpdated?: (recording: Recording) => Promise<void> | void;
 };
 
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
@@ -37,11 +51,14 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
   const [availableProviders, setAvailableProviders] = useState<TranscriptionProviderId[]>([]);
   const [isProviderPickerOpen, setIsProviderPickerOpen] = useState(false);
   const mountedRef = useRef(true);
+  const transcribePollAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      transcribePollAbortRef.current?.abort();
+      transcribePollAbortRef.current = null;
     };
   }, []);
 
@@ -131,6 +148,14 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
   };
 
   const handleTranscribe = async (provider: TranscriptionProviderId) => {
+    if (isTranscribing) {
+      return;
+    }
+    transcribePollAbortRef.current?.abort();
+    const controller = new AbortController();
+    transcribePollAbortRef.current = controller;
+    const { signal } = controller;
+
     setIsTranscribing(true);
     setActiveTranscriptionProvider(provider);
     setIsProviderPickerOpen(false);
@@ -144,6 +169,9 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
       await pushRecordingUpdate(optimisticRecording);
 
       const result = await transcribeRecordingAction(currentRecording.id, { provider });
+      if (signal.aborted) {
+        return;
+      }
 
       if ('error' in result) {
         throw new Error(result.error);
@@ -157,8 +185,14 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
 
       let lastSeen: Recording | null = null;
       for (let attempt = 0; attempt < 30; attempt++) {
-        await sleep(3000);
+        await sleep(3000, signal);
+        if (signal.aborted) {
+          return;
+        }
         const latest = await refreshRecording();
+        if (signal.aborted) {
+          return;
+        }
         if (!latest) {
           continue;
         }
@@ -169,7 +203,6 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
         }
       }
 
-      // Polling loop exhausted — recording is still processing. Let the user know.
       if (lastSeen && lastSeen.transcriptionStatus === 'processing') {
         toast({
           title: 'Still Processing',
@@ -178,6 +211,9 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
         });
       }
     } catch (error) {
+      if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        return;
+      }
       console.error('Transcription error:', error);
       await pushRecordingUpdate(previousRecording);
       toast({
@@ -186,7 +222,10 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
         status: 'danger',
       });
     } finally {
-      if (mountedRef.current) {
+      if (transcribePollAbortRef.current === controller) {
+        transcribePollAbortRef.current = null;
+      }
+      if (mountedRef.current && !signal.aborted) {
         setIsTranscribing(false);
       }
     }
@@ -259,9 +298,9 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
               </div>
               <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-default-500">
                 <ClientFormattedDate date={currentRecording.recordedAt} formatString="PPP p" />
-                <span className="bg-default-100 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                <Chip variant="soft" color="default" size="sm">
                   {formatDuration(currentRecording.duration)}
-                </span>
+                </Chip>
               </div>
             </div>
 

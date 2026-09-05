@@ -13,7 +13,7 @@ export function FileItem({ file, onToggle }: FileItemProps) {
 
     return (
         <div
-            className={`flex min-w-0 items-start gap-3 overflow-hidden rounded-[1.1rem] border p-3 transition-colors ${file.selected
+            className={`flex min-w-0 items-start gap-3 overflow-hidden rounded-xl border p-3 transition-colors ${file.selected
                 ? 'border-primary/30 bg-primary/10'
                 : 'border-default-100 bg-default-50/40 hover:bg-default-100/60'
                 }`}

@@ -1,6 +1,7 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { GeminiService } from '@/services/ai/gemini-service';
 import { Recording } from '@/lib/db/types';
+import { logger } from '@/lib/logger';
 
 const aiService = new GeminiService();
 const VECTOR_SEARCH_INDEX = 'recordings_vector_search';
@@ -153,7 +154,7 @@ export async function searchRecordingsByVector(
         let fallbackReason: SemanticFallbackReason | undefined;
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
-            console.warn('Empty embedding generated for query, falling back to keyword search:', query);
+            logger.warn('Empty embedding generated for query, falling back to keyword search:', query);
             mode = 'fallback';
             fallbackReason = 'embedding_unavailable';
         } else {
@@ -189,7 +190,7 @@ export async function searchRecordingsByVector(
                     .aggregate<SearchResult>(aggregation)
                     .toArray();
             } catch (error) {
-                console.error('Vector search unavailable, returning keyword results only:', error);
+                logger.error('Vector search unavailable, returning keyword results only:', error);
                 mode = 'fallback';
                 fallbackReason = 'vector_unavailable';
             }
@@ -207,7 +208,7 @@ export async function searchRecordingsByVector(
             fallbackReason,
         };
     } catch (error) {
-        console.error('Vector search error:', error);
+        logger.error('Vector search error:', error);
         throw new Error('Failed to perform vector search');
     }
 }

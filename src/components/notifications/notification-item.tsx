@@ -41,7 +41,7 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
         <button
             type="button"
             className={cn(
-                'group w-full rounded-[1.2rem] border border-transparent p-3 text-left transition-all hover:border-default-200/80 hover:bg-background',
+                'group w-full rounded-xl border border-transparent p-3 text-left transition-all hover:border-default-200/80 hover:bg-background',
                 notification.isRead ? 'bg-background/50' : meta.unreadTone
             )}
             onClick={() => !notification.isRead && onRead(notification.id)}

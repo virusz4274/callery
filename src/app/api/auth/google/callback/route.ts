@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.redirect(redirectUrl);
     } catch (error) {
-      console.error('Error exchanging code for tokens:', error);
+      logger.error('Error exchanging code for tokens:', error);
       const redirectUrl = buildAppUrl('/settings?tab=sources', request);
       redirectUrl.searchParams.set('error', 'Authentication failed');
       return NextResponse.redirect(redirectUrl);

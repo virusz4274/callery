@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Card, Input, Spinner } from '@heroui/react';
 import type { PlanResponse, UserResponse } from '@/lib/db/types';
 import { EditLimitsDialog } from './edit-limits-dialog';
@@ -31,7 +30,7 @@ export function UserManagementTable({
 
     return (
         <>
-            <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+            <Card className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                 <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 p-5">
                     <div className="flex justify-between w-full items-center">
                         <div>

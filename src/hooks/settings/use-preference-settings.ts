@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { User as FirebaseUser } from 'firebase/auth';
 import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
@@ -12,7 +13,7 @@ async function getErrorMessage(response: Response, fallback: string): Promise<st
     }
 }
 
-export function usePreferenceSettings(user: any, userProfile: UserProfile | null) {
+export function usePreferenceSettings(user: FirebaseUser | null, userProfile: UserProfile | null) {
     const { toast } = useToast();
 
     // General State
@@ -39,10 +40,11 @@ export function usePreferenceSettings(user: any, userProfile: UserProfile | null
                     deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never',
                     transcriptionSettings: {
                         autoTranscribe: userProfile.transcriptionSettings?.autoTranscribe ?? true,
-                        defaultProvider: (['soniox', 'elevenlabs'].includes((userProfile as any).transcriptionSettings?.defaultProvider)
-                            ? (userProfile as any).transcriptionSettings?.defaultProvider
-                            : 'soniox')
-                    }
+                        defaultProvider:
+                            userProfile.transcriptionSettings?.defaultProvider === 'elevenlabs'
+                                ? 'elevenlabs'
+                                : 'soniox',
+                    },
                 });
             }
         }

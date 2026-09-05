@@ -3,7 +3,7 @@
 import { useToast } from '@/components/toast-provider';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
+import { Alert, Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { GoogleIcon } from '@/components/icons/google-icon';
@@ -173,9 +173,12 @@ export function SignupPage() {
     >
       <form onSubmit={handleSignUp} className="space-y-5">
         {authMessage && (
-          <div className="rounded-[1.25rem] border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
-            {authMessage}
-          </div>
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>{authMessage}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
         <div className="grid gap-3">

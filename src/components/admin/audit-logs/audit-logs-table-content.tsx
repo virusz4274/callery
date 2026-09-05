@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Chip, Table } from '@heroui/react';
 import type { AdminLogResponse } from '@/lib/db/types';
 
@@ -32,7 +31,7 @@ export function AuditLogsTableContent({ logs }: { logs: AdminLogResponse[] }) {
         <>
             <div className="grid gap-4 lg:hidden">
                 {logs.map((log) => (
-                    <article key={log.id} className="rounded-[1.4rem] border border-default-200/80 bg-background p-4 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)]">
+                    <article key={log.id} className="rounded-xl border border-default-200/80 bg-background p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <div className="flex items-start justify-between gap-3">
                             <div className="space-y-1">
                                 <p className="text-sm font-semibold text-foreground">{log.adminEmail}</p>

@@ -1,6 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { ScopedStorage, type FolderRef } from '@daniele-rolli/capacitor-scoped-storage';
 import { getAudioMimeType, isSupportedAudioFile, type AudioFileInfo } from './capacitor-audio';
+import { logger } from '@/lib/logger';
 
 export type Folder = FolderRef;
 
@@ -22,7 +23,7 @@ export async function pickSyncFolder(): Promise<Folder | null> {
         const result = await ScopedStorage.pickFolder();
         return result.folder;
     } catch (error) {
-        console.error('Error picking folder:', error);
+        logger.error('Error picking folder:', error);
         return null;
     }
 }
@@ -72,7 +73,7 @@ export async function getCachedAudioFiles(folder: Folder): Promise<{ scannedAt: 
             files: result.scan.files || [],
         };
     } catch (error) {
-        console.error('[Capacitor] Error loading cached folder scan:', error);
+        logger.error('[Capacitor] Error loading cached folder scan:', error);
         return null;
     }
 }
@@ -95,7 +96,7 @@ export async function listDirectories(folder: Folder, subPath?: string): Promise
         const result = await ScopedStorage.readdir(options);
         return result.entries.filter((entry) => entry.isDir).map((entry) => entry.name);
     } catch (error) {
-        console.error('[Capacitor] Error listing directories:', error);
+        logger.error('[Capacitor] Error listing directories:', error);
         throw error;
     }
 }
@@ -109,7 +110,7 @@ export async function getFileUri(folder: Folder, filePath: string): Promise<stri
 
         return result.uri || null;
     } catch (error) {
-        console.error('[Capacitor] Error resolving file URI:', error);
+        logger.error('[Capacitor] Error resolving file URI:', error);
         return null;
     }
 }
@@ -132,7 +133,7 @@ export async function readFileAsBlob(folder: Folder, filePath: string): Promise<
 
         return new Blob([bytes], { type: getAudioMimeType(filePath) });
     } catch (error) {
-        console.error('Error reading file:', error);
+        logger.error('Error reading file:', error);
         throw error;
     }
 }

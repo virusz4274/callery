@@ -3,6 +3,8 @@ import { getUserFromRequest } from '@/lib/auth-utils';
 import { findUserByFirebaseUid, getPlanByKey, updateUser } from '@/lib/db/users';
 import { toUserResponse } from '@/lib/db/converters';
 import { getPlanDisplayName } from '@/lib/plans';
+import { UpdateProfileBodySchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 
 /**
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
         if (!user.lastLoginAt || (now.getTime() - user.lastLoginAt.getTime() > 60 * 60 * 1000)) {
             // we don't await this to keep the response fast (fire & forget-ish)
             updateUser(firebaseUid, { lastLoginAt: now }).catch(err =>
-                console.error('Failed to update lastLoginAt:', err)
+                logger.error('Failed to update lastLoginAt:', err)
             );
             // Update local user object for current response correctness
             user.lastLoginAt = now;
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ profile });
     } catch (error) {
-        console.error('Error fetching user profile:', error);
+        logger.error('Error fetching user profile:', error);
         return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
     }
 }
@@ -58,25 +60,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     try {
-        const body = await request.json();
-
-        // Only allow updating specific fields
-        const allowedFields = [
-            'firstName',
-            'lastName',
-            'phoneNumber',
-            'timezone',
-            'notificationSettings',
-            'storageSettings',
-            'transcriptionSettings',
-        ];
-
-        const updateData: Record<string, unknown> = {};
-        for (const field of allowedFields) {
-            if (field in body) {
-                updateData[field] = body[field];
-            }
+        const rawBody = await request.json().catch(() => null);
+        const parsed = UpdateProfileBodySchema.safeParse(rawBody ?? {});
+        if (!parsed.success) {
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
         }
+
+        const updateData: Record<string, unknown> = { ...parsed.data };
 
         // Update name if firstName or lastName changed
         if (updateData.firstName || updateData.lastName) {
@@ -96,7 +86,7 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error updating user profile:', error);
+        logger.error('Error updating user profile:', error);
         return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
     }
 }

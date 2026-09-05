@@ -8,6 +8,8 @@ import { Logo } from '@/components/icons';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import Link from 'next/link';
 import { Recording } from '@/lib/db/types';
+import { toRecordingResponse } from '@/lib/db/converters';
+import { logger } from '@/lib/logger';
 
 interface SharedPageProps {
     params: Promise<{
@@ -52,16 +54,10 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
             playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
         }
     } catch (e) {
-        console.error('Failed to generate playback URL for shared page', e);
+        logger.error('Failed to generate playback URL for shared page', e);
     }
 
-    // 4. Convert to Client Type (RecordingResponse)
-    // We need to cast or convert because the component expects specific types
-    // reusing the converter from db
-    const recordingResponse = {
-        ...recording,
-        id: recording._id.toString(),
-    } as any;
+    const recordingResponse = toRecordingResponse(recording, playbackUrl ?? undefined);
 
     return (
         <div className="min-h-screen bg-default-50 flex flex-col">

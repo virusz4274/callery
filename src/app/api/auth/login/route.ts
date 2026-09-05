@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 // import { getAdminAuth } from '@/lib/firebase/admin';
 import { cookies } from 'next/headers';
 import { findUserByFirebaseUid } from '@/lib/db/users';
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
         const { uid, email, name, picture, email_verified } = decodedToken;
 
         if (!email) {
-            console.error('Email is missing in ID token');
+            logger.error('Email is missing in ID token');
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
             if (failurePolicy.kind === 'reject') {
                 if (failurePolicy.status === 503) {
-                    console.error('Failed to provision user profile during first login:', dbError);
+                    logger.error('Failed to provision user profile during first login:', dbError);
                 }
 
                 return NextResponse.json(
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
             }
 
             profileEnsureFailed = failurePolicy.profileEnsureFailed;
-            console.error('Failed to ensure user profile during login (session will still be created):', dbError);
+            logger.error('Failed to ensure user profile during login (session will still be created):', dbError);
         }
 
         // Create the session cookie. This will also verify the ID token.
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
             { status: 200 }
         );
     } catch (error: unknown) {
-        console.error('Error creating session:', error);
+        logger.error('Error creating session:', error);
         if (typeof error === 'object' && error !== null && 'code' in error) {
             const code = (error as { code?: unknown }).code;
             if (typeof code === 'string' && code.startsWith('auth/')) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const requiredBooleanString = z.enum(['true', 'false']).transform((value) => value === 'true');
 
@@ -27,7 +28,7 @@ const parsed = publicEnvSchema.safeParse({
 });
 
 if (!parsed.success) {
-    console.error('Invalid public environment variables:', parsed.error.flatten().fieldErrors);
+    logger.error('Invalid public environment variables:', parsed.error.flatten().fieldErrors);
     throw new Error('Invalid public environment variables');
 }
 

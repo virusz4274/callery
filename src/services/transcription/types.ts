@@ -43,14 +43,22 @@ export interface ITranscriptionService {
     deleteTranscript(transcriptionId: string): Promise<void>;
 }
 
+export interface SonioxPollWord {
+    text?: string;
+    speaker?: number | string;
+    start_ms?: number;
+    end_ms?: number;
+    confidence?: number;
+}
+
 export interface SonioxPollResponse {
     status: string;
     id: string;
     created_at: string;
     text?: string;
-    words?: any[];
-    tokens?: any[];
-    speakers?: any[];
+    words?: SonioxPollWord[];
+    tokens?: SonioxPollWord[];
+    speakers?: unknown[];
     error_message?: string;
     detected_language?: string;
 }

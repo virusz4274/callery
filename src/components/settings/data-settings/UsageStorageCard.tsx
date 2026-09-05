@@ -18,9 +18,9 @@ function UsageMeter({ label, value, description, percent, icon: Icon }: {
     const tone = percent > 90 ? 'bg-danger' : 'bg-primary';
 
     return (
-        <div className="rounded-[1.3rem] border border-default-200/80 bg-background p-4">
+        <div className="rounded-xl border border-default-200/80 bg-background p-4">
             <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                 </div>
                 <div className="w-full space-y-3">
@@ -57,7 +57,7 @@ export function UsageStorageCard({
     const transcriptionPercentage = (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100;
 
     return (
-        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Usage overview</Chip>
@@ -68,29 +68,29 @@ export function UsageStorageCard({
                     <UsageMeter
                         label="Transcription usage"
                         value={`${transcriptionUsedMinutes.toFixed(1)} min / ${transcriptionAllocationMinutes} min`}
-                        description="Track how much automated and manual transcription time has been consumed this cycle."
+                        description="Minutes used this billing cycle."
                         percent={transcriptionPercentage}
                         icon={FileAudio2}
                     />
                     <UsageMeter
                         label="Storage usage"
                         value={`${(storageUsed / (1024 * 1024 * 1024)).toFixed(2)} GB / ${(storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB`}
-                        description="Monitor cloud storage consumption so your library and uploads stay within plan limits."
+                        description="Cloud storage used across your archive."
                         percent={storagePercentage}
                         icon={Database}
                     />
                 </div>
 
-                <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4 sm:p-5">
+                <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4 sm:p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-start gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                                 <ShieldEllipsis className="h-5 w-5" />
                             </div>
                             <div className="space-y-1">
                                 <p className="text-base font-semibold text-foreground">Automatic deletion policy</p>
                                 <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                    Choose how aggressively the system should remove older recordings to keep storage predictable.
+                                    Auto-delete older recordings after a set period.
                                 </p>
                             </div>
                         </div>

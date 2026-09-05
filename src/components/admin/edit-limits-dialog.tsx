@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Modal,
     Button,
@@ -64,7 +64,7 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
         <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
             <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog className="w-full max-w-xl rounded-[1.75rem] border border-default-200/80 bg-background p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]">
+                    <Modal.Dialog className="w-full max-w-xl rounded-[2rem] border border-default-200/80 bg-background p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]">
                         <Modal.CloseTrigger />
                         <Modal.Header className="border-b border-default-100/80 px-6 py-5">
                             <div className="space-y-2">
@@ -83,7 +83,7 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
                         <Modal.Body className="px-6 py-5">
                             <div className="space-y-5">
                                 <div className="grid gap-3 md:grid-cols-2">
-                                    <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                                    <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                                         <div className="flex items-start gap-3">
                                             <div className="rounded-2xl bg-accent/10 p-2.5 text-accent">
                                                 <HardDrive className="h-4 w-4" />
@@ -96,7 +96,7 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
                                             </div>
                                         </div>
                                     </Surface>
-                                    <Surface variant="secondary" className="rounded-[1.25rem] border border-default-200/80 p-4">
+                                    <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
                                         <div className="flex items-start gap-3">
                                             <div className="rounded-2xl bg-success/10 p-2.5 text-success">
                                                 <Waves className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
                         </Modal.Body>
                         <Modal.Footer className="border-t border-default-100/80 px-6 py-4">
                             <Button variant="ghost" className="rounded-full" onPress={onClose}>Cancel</Button>
-                            <Button variant="primary" className="rounded-full px-5 font-semibold" onPress={handleSave} isPending={loading}>
+                            <Button variant="primary" className="rounded-full px-6 font-semibold" onPress={handleSave} isPending={loading}>
                                 Save Changes
                             </Button>
                         </Modal.Footer>

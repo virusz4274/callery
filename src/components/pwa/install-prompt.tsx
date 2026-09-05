@@ -98,7 +98,7 @@ export function InstallPwaPrompt() {
                 transition={{ type: 'spring', damping: 25, stiffness: 500 }}
                 className="fixed bottom-24 left-4 right-4 z-[60] md:bottom-4 md:left-auto md:right-4 md:w-[24rem]"
             >
-                <div className="overflow-hidden rounded-[1.6rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_24px_64px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+                <div className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_24px_64px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl">
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
@@ -130,13 +130,13 @@ export function InstallPwaPrompt() {
                     </div>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-3">
+                        <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-3">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Why install</p>
                             <p className="mt-2 text-sm leading-6 text-default-500">
                                 Faster returning sessions, cleaner fullscreen feel, and easier access while reviewing calls on mobile.
                             </p>
                         </div>
-                        <div className="rounded-[1.2rem] border border-default-200/80 bg-default-50/70 p-3">
+                        <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-3">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Prompt timing</p>
                             <p className="mt-2 text-sm leading-6 text-default-500">
                                 If you dismiss this, we will wait a week before asking again.
@@ -145,7 +145,7 @@ export function InstallPwaPrompt() {
                     </div>
 
                     {isIOS && showIosSteps && (
-                        <div className="mt-4 rounded-[1.2rem] border border-default-200/80 bg-background p-4">
+                        <div className="mt-4 rounded-xl border border-default-200/80 bg-background p-4">
                             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                 <Share2 className="size-4 text-primary" />
                                 Install on iPhone or iPad
@@ -162,7 +162,7 @@ export function InstallPwaPrompt() {
                         <Button variant="ghost" className="flex-1 rounded-full" onPress={handleDismiss}>
                             Not now
                         </Button>
-                        <Button size="sm" variant="primary" onPress={handleInstallClick} className="flex-1 rounded-full font-medium">
+                        <Button size="sm" variant="primary" onPress={handleInstallClick} className="flex-1 rounded-full font-semibold">
                             {isIOS ? <Smartphone className="mr-2 size-4" /> : <Download className="mr-2 size-4" />}
                             {isIOS ? (showIosSteps ? 'Hide steps' : 'Show steps') : 'Install app'}
                         </Button>

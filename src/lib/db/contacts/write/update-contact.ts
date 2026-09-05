@@ -6,7 +6,7 @@ import type { Contact, UpdateContactInput } from '../../types';
 export async function updateContact(
     contactId: string,
     firebaseUid: string,
-    data: UpdateContactInput
+    _data: UpdateContactInput
 ): Promise<Contact | null> {
     throw new Error(`Manual contact updates are disabled for ${firebaseUid}:${contactId}.`);
 }

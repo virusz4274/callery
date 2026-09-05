@@ -1,4 +1,3 @@
-import React from 'react';
 import Link from 'next/link';
 import { Button, Card } from '@heroui/react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
@@ -76,7 +75,7 @@ export function RecordingsTableHeader({
                 </div>
 
                 <Link href="/upload">
-                    <Button size="sm" variant="secondary" className="rounded-full font-medium">
+                    <Button size="sm" variant="secondary" className="rounded-full font-semibold">
                         <Plus className="mr-2 h-4 w-4" />
                         Upload
                     </Button>

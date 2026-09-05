@@ -1,6 +1,7 @@
 import type { Db } from 'mongodb';
 import type { Plan } from '@/lib/db/types';
 import { PLAN_KEYS } from '@/lib/plans';
+import { logger } from '@/lib/logger';
 
 type CollectionsMap = {
     PLANS: string;
@@ -103,7 +104,7 @@ const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
 ];
 
 export async function seedPlans(db: Db, collections: CollectionsMap): Promise<void> {
-    console.log('🌱 Seeding/Updating plans...');
+    logger.info('🌱 Seeding/Updating plans...');
     const now = new Date();
 
     for (const definition of PLAN_DEFINITIONS) {
@@ -132,7 +133,7 @@ export async function seedPlans(db: Db, collections: CollectionsMap): Promise<vo
         );
     }
 
-    console.log('✅ Plans seeded/updated');
+    logger.info('✅ Plans seeded/updated');
 }
 
 export async function seedSystemSettings(db: Db, collections: CollectionsMap): Promise<void> {
@@ -175,8 +176,8 @@ export async function seedSystemSettings(db: Db, collections: CollectionsMap): P
             );
         }
 
-        console.log('✅ System Settings seeded');
+        logger.info('✅ System Settings seeded');
     } catch (error) {
-        console.error('⚠️ System Settings seeding failed:', error);
+        logger.error('⚠️ System Settings seeding failed:', error);
     }
 }

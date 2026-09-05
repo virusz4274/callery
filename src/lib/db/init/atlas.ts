@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 const ATLAS_SEARCH_INDEX_CONFIG = {
     mappings: {
         dynamic: false,
@@ -52,18 +53,18 @@ const ATLAS_VECTOR_INDEX_CONFIG = {
 };
 
 export function printAtlasIndexInstructions() {
-    console.log('');
-    console.log('📝 Note: For Atlas Search and Vector Search, create indexes manually in MongoDB Atlas UI:');
-    console.log('');
-    console.log('1. Atlas Search Index (for keyword/full-text search):');
-    console.log('   - Index name: recordings_text_search');
-    console.log('   - Collection: recordings');
-    console.log('   - JSON Configuration:');
-    console.log(JSON.stringify(ATLAS_SEARCH_INDEX_CONFIG, null, 2));
-    console.log('');
-    console.log('2. Atlas Vector Search Index (for semantic search):');
-    console.log('   - Index name: recordings_vector_search');
-    console.log('   - Collection: recordings');
-    console.log('   - JSON Configuration:');
-    console.log(JSON.stringify(ATLAS_VECTOR_INDEX_CONFIG, null, 2));
+    logger.info('');
+    logger.info('📝 Note: For Atlas Search and Vector Search, create indexes manually in MongoDB Atlas UI:');
+    logger.info('');
+    logger.info('1. Atlas Search Index (for keyword/full-text search):');
+    logger.info('   - Index name: recordings_text_search');
+    logger.info('   - Collection: recordings');
+    logger.info('   - JSON Configuration:');
+    logger.info(JSON.stringify(ATLAS_SEARCH_INDEX_CONFIG, null, 2));
+    logger.info('');
+    logger.info('2. Atlas Vector Search Index (for semantic search):');
+    logger.info('   - Index name: recordings_vector_search');
+    logger.info('   - Collection: recordings');
+    logger.info('   - JSON Configuration:');
+    logger.info(JSON.stringify(ATLAS_VECTOR_INDEX_CONFIG, null, 2));
 }

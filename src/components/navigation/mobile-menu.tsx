@@ -82,7 +82,7 @@ export function MobileMenu({
                                             <Button variant="ghost" fullWidth size="lg">Login</Button>
                                         </Link>
                                         <Link href="/signup" className="w-full" onClick={handleClose}>
-                                            <Button fullWidth size="lg" className="bg-primary text-white">Sign Up</Button>
+                                            <Button fullWidth size="lg" variant="primary">Sign Up</Button>
                                         </Link>
                                     </div>
                                 )}

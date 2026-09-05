@@ -3,7 +3,6 @@
 import { getFirebaseUidFromSession } from '@/lib/auth-utils';
 import { findUserByFirebaseUid } from '@/lib/db/users';
 import { getNotifications, markAsRead, markAllAsRead, createNotification, deleteAllNotifications } from '@/lib/notifications';
-import { revalidatePath } from 'next/cache';
 
 /**
  * Fetch notifications for the current user.
@@ -29,7 +28,6 @@ export async function readNotification(id: string) {
     if (!user) return;
 
     await markAsRead(id, user._id);
-    revalidatePath('/', 'layout');
 }
 
 /**
@@ -43,7 +41,6 @@ export async function readAllNotifications() {
     if (!user) return;
 
     await markAllAsRead(user._id);
-    revalidatePath('/', 'layout');
 }
 
 /**
@@ -57,7 +54,6 @@ export async function clearAllNotifications() {
     if (!user) return;
 
     await deleteAllNotifications(user._id);
-    revalidatePath('/', 'layout');
 }
 
 /**
@@ -77,5 +73,4 @@ export async function sendTestNotification() {
         'This is a test notification triggered manually.',
         '/settings'
     );
-    revalidatePath('/', 'layout');
 }

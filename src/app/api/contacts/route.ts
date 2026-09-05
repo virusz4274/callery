@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { getContactsByUser } from '@/lib/db/contacts';
 import type { ContactResponse } from '@/lib/db/types';
+import { ContactsListQuerySchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 
 /**
@@ -44,8 +46,15 @@ export async function GET(request: NextRequest) {
 
     try {
         const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit') || '20', 10);
-        const skip = parseInt(searchParams.get('skip') || '0', 10);
+        const queryParsed = ContactsListQuerySchema.safeParse({
+            limit: searchParams.get('limit') ?? undefined,
+            skip: searchParams.get('skip') ?? undefined,
+            search: searchParams.get('search') ?? undefined,
+        });
+        if (!queryParsed.success) {
+            return NextResponse.json({ error: 'Invalid query' }, { status: 400 });
+        }
+        const { limit, skip } = queryParsed.data;
 
         const contacts = await getContactsByUser(firebaseUid, { limit, skip });
 
@@ -71,7 +80,7 @@ export async function GET(request: NextRequest) {
             skip
         });
     } catch (error) {
-        console.error('Error fetching contacts:', error);
+        logger.error('Error fetching contacts:', error);
         return NextResponse.json(
             { error: 'Failed to fetch contacts' },
             { status: 500 }

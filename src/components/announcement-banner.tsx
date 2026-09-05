@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getActiveAnnouncements } from '@/app/actions/admin-announcements';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { Alert, CloseButton } from '@heroui/react';

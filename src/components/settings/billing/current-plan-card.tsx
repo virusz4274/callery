@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Card, Chip, Spinner, Switch, Tooltip } from '@heroui/react';
 import { CreditCard, Info, Sparkles, WalletCards } from 'lucide-react';
 import { UpgradePlanModal } from './upgrade-plan-modal';
@@ -52,8 +51,8 @@ export function CurrentPlanCard({
     onToggleOverage,
 }: CurrentPlanCardProps) {
     return (
-        <Card className="rounded-[1.6rem] border border-default-200/80 bg-background/95 shadow-[0_20px_56px_-44px_rgba(15,23,42,0.45)]">
-            <Card.Content className="space-y-6 p-5 sm:p-6">
+        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+            <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Subscription</Chip>
                     <Chip size="sm" variant="soft" color={isTrial ? 'warning' : 'success'}>
@@ -98,7 +97,7 @@ export function CurrentPlanCard({
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                         <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
                             <Sparkles className="h-4 w-4 text-primary" />
                             Included usage
@@ -117,7 +116,7 @@ export function CurrentPlanCard({
                         </div>
                     </div>
 
-                    <div className="rounded-[1.3rem] border border-default-200/80 bg-default-50/70 p-4">
+                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
                         <p className="text-sm font-medium text-foreground">Billing notes</p>
                         <p className="mt-2 text-sm leading-6 text-default-500">
                             Usage bars update against your current allocation. The billing portal handles payment methods, invoices, and subscription changes.
@@ -126,7 +125,7 @@ export function CurrentPlanCard({
                 </div>
 
                 {!isFree && !isTrial && (
-                    <div className="rounded-[1.3rem] border border-default-200/80 bg-background p-4 sm:p-5">
+                    <div className="rounded-xl border border-default-200/80 bg-background p-4 sm:p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">

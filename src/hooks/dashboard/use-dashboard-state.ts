@@ -4,6 +4,7 @@ import { searchRecordingsAction } from '@/app/actions/search-actions';
 import type { Recording } from '@/lib/types';
 import { useToast } from '@/components/toast-provider';
 import { transcribeRecordingAction } from '@/app/actions/transcription';
+import { logger } from '@/lib/logger';
 
 export type SortConfig = {
     by: 'date' | 'duration';
@@ -63,11 +64,11 @@ export function useDashboardState(itemsPerPage: number = 10) {
 
             const response = await searchRecordingsAction(semanticQuery, targetPage, itemsPerPage);
             if (response.success) {
-                setSemanticResults(response.results as any[]); // Type cast if needed, or ensure searchRecordingsAction returns compatible types
+                setSemanticResults(response.results);
                 setSemanticTotalCount(response.totalCount || response.results.length);
                 setPage(targetPage);
             } else {
-                console.error('Search failed:', response.error);
+                logger.error('Search failed:', response.error);
                 toast({
                     title: 'Search failed',
                     description: response.error,
@@ -100,7 +101,7 @@ export function useDashboardState(itemsPerPage: number = 10) {
                 status: 'success',
             });
         } catch (error) {
-            console.error('Retry failed:', error);
+            logger.error('Retry failed:', error);
             toast({
                 title: 'Transcription failed',
                 description: error instanceof Error ? error.message : 'Unknown error',

@@ -21,7 +21,7 @@ export function LegalDocumentPage({ title, sections, lastUpdated }: LegalDocumen
             <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
                 <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_320px] xl:items-start">
                     <div className="space-y-4">
-                        <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
+                        <Chip variant="soft" color="accent" size="sm">
                             Legal
                         </Chip>
                         <div className="space-y-3">
@@ -80,7 +80,7 @@ export function LegalDocumentPage({ title, sections, lastUpdated }: LegalDocumen
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-                <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] xl:sticky xl:top-6">
+                <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] xl:sticky xl:top-6">
                     <Card.Content className="space-y-3 p-5">
                         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             On this page
@@ -90,7 +90,7 @@ export function LegalDocumentPage({ title, sections, lastUpdated }: LegalDocumen
                                 <a
                                     key={section.title}
                                     href={`#legal-section-${index + 1}`}
-                                    className="block rounded-[1rem] border border-default-200/80 bg-default-50/70 px-4 py-3 text-sm text-default-600 transition-colors hover:border-accent/20 hover:bg-accent/5 hover:text-foreground"
+                                    className="block rounded-xl border border-default-200/80 bg-default-50/70 px-4 py-3 text-sm text-default-600 transition-colors hover:border-accent/20 hover:bg-accent/5 hover:text-foreground"
                                 >
                                     {section.title}
                                 </a>
@@ -99,7 +99,7 @@ export function LegalDocumentPage({ title, sections, lastUpdated }: LegalDocumen
                     </Card.Content>
                 </Card>
 
-                <Card className="rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                     <Card.Content className="space-y-5 p-6 md:p-8">
                         {sections.map((section, index) => (
                             <section

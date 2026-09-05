@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, Card } from '@heroui/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 

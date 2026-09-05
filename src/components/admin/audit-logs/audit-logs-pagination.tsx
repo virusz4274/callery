@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Chip } from '@heroui/react';
 import { CustomPagination } from '@/components/recordings/pagination';
 
@@ -21,7 +20,7 @@ export function AuditLogsPagination({ currentPage, totalPages, onPageChange }: A
                 Review adjacent pages to verify who changed what and when.
             </p>
             <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-                <Chip variant="soft" color="default" className="rounded-full px-3 py-1 text-xs font-semibold">
+                <Chip variant="soft" color="default" size="sm">
                     Page {currentPage} of {totalPages}
                 </Chip>
                 <CustomPagination page={currentPage} total={totalPages} onChange={onPageChange} />
