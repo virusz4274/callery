@@ -13,11 +13,11 @@ async function main() {
         return;
     }
 
-    console.log(`Checking contacts for user: ${user.name} (${user.firebaseUid})`);
+    console.log(`Checking contacts for user: ${user.name} (${user.authSubject})`);
 
     const contacts = await db
         .collection<Contact>(Collections.CONTACTS)
-        .find({ firebaseUid: user.firebaseUid })
+        .find({ authSubject: user.authSubject })
         .collation({ locale: 'en', strength: 2 })
         .sort({ name: 1 })
         .toArray();

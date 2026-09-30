@@ -4,31 +4,7 @@ import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings'
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 import { reportUsage } from '@/lib/stripe/usage';
-import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
-
-// Initialize Firebase Admin
-getFirebaseAdminApp();
-
-/**
- * Get the Firebase UID from the session cookie.
- */
-async function getFirebaseUidFromSession(): Promise<string | null> {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-
-    if (!sessionCookie || !sessionCookie.value) {
-      return null;
-    }
-    const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
-    return decodedToken.uid;
-  } catch (error) {
-    console.error('Error verifying session:', error);
-    return null;
-  }
-}
+import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 
 /**
  * Delete recordings from MongoDB and R2.
@@ -36,9 +12,9 @@ async function getFirebaseUidFromSession(): Promise<string | null> {
 export async function deleteRecordings(
   recordingIds: string[]
 ): Promise<{ success: boolean; message: string }> {
-  const firebaseUid = await getFirebaseUidFromSession();
+  const authSubject = await getAuthSubjectFromSession();
 
-  if (!firebaseUid) {
+  if (!authSubject) {
     return { success: false, message: 'Not authenticated' };
   }
 
@@ -48,7 +24,7 @@ export async function deleteRecordings(
 
   try {
     // Delete from MongoDB and get the deleted recordings (for R2 keys and file sizes)
-    const deletedRecordings = await deleteRecordingsFromDb(recordingIds, firebaseUid);
+    const deletedRecordings = await deleteRecordingsFromDb(recordingIds, authSubject);
 
     if (deletedRecordings.length === 0) {
       return { success: false, message: 'No recordings found to delete' };
@@ -77,11 +53,11 @@ export async function deleteRecordings(
 
     // Update user's storage usage
     if (totalSizeDeleted > 0) {
-      await decrementStorageUsed(firebaseUid, totalSizeDeleted);
+      await decrementStorageUsed(authSubject, totalSizeDeleted);
       // Report negative usage (refund/decrement) to Stripe
       // Convert bytes to GB and negate
       const refundGb = -(totalSizeDeleted / (1024 * 1024 * 1024));
-      await reportUsage(firebaseUid, 'storage', refundGb);
+      await reportUsage(authSubject, 'storage', refundGb);
     }
 
     if (r2Errors.length > 0) {

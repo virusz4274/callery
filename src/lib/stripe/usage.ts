@@ -1,5 +1,6 @@
 
-import { stripe } from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
+import { billingEnabled } from '@/lib/config';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User, Plan } from '@/lib/db/types';
 
@@ -7,21 +8,25 @@ import { User, Plan } from '@/lib/db/types';
  * Reports metered usage to Stripe for a specific user.
  */
 export async function reportUsage(
-    firebaseUid: string,
+    authSubject: string,
     type: 'storage' | 'transcription',
     quantity: number
 ) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+    if (!billingEnabled()) return;
     if (quantity === 0) return;
 
     try {
         const db = await getMongoDb();
-        const user = await db.collection<User>(Collections.USERS).findOne({ firebaseUid });
+        const user = await db.collection<User>(Collections.USERS).findOne({ authSubject });
 
         if (!user || !user.stripeCustomerId || !user.billingSettings?.allowOverage) {
             // User not eligible for overage billing (or disabled)
             return;
         }
+
+        // Only require the key when a real API call will happen — this runs
+        // opportunistically from upload flows that must survive without Stripe.
+        const stripe = getStripe();
 
         // Event Names must match what you configured in Stripe Dashboard
         const eventName = type === 'storage' ? 'storage_usage_gb' : 'transcription_usage_min';
@@ -38,10 +43,10 @@ export async function reportUsage(
             timestamp: Math.floor(Date.now() / 1000),
         });
 
-        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${quantity}) for user ${firebaseUid}`);
+        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${quantity}) for user ${authSubject}`);
 
     } catch (error) {
-        console.error(`[Usage] Failed to report usage for ${firebaseUid}:`, error);
+        console.error(`[Usage] Failed to report usage for ${authSubject}:`, error);
         // Don't throw, just log.
     }
 }

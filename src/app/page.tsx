@@ -2,7 +2,7 @@
 
 import React, { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 import { useRecordings } from '@/hooks/use-recordings';
 import { useContacts } from '@/hooks/use-contacts';
 import { useStats } from '@/hooks/use-stats';

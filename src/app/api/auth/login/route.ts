@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { getAdminAuth } from '@/lib/firebase/admin';
 import { cookies } from 'next/headers';
+import { authProvider } from '@/lib/config';
 
+/**
+ * Firebase-mode login: exchanges a Firebase ID token for a session cookie.
+ * Returns 404 unless AUTH_PROVIDER=firebase (local mode uses better-auth
+ * endpoints under /api/auth/* instead).
+ */
 export async function POST(request: NextRequest) {
+    if (authProvider() !== 'firebase') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
     try {
         const { idToken } = await request.json();
 

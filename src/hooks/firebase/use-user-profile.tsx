@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import type { User as FirebaseUser } from 'firebase/auth';
+import type { AppUser } from '@/lib/auth/types';
 import type { User } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
 
@@ -16,9 +16,9 @@ interface UseUserProfileResult {
 
 /**
  * Hook to fetch the user profile from MongoDB via API.
- * @param user The Firebase Auth user object.
+ * @param user The provider-agnostic auth user object.
  */
-export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult {
+export function useUserProfile(user: AppUser | null): UseUserProfileResult {
     const [userProfile, setUserProfile] = useState<User | null>(null);
     const [isProfileLoading, setIsProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState<Error | null>(null);
@@ -78,7 +78,7 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
         retryCount.current = 0; // Reset retry count when user changes
         fetchProfile();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.uid]);
+    }, [user?.id]);
 
     // Bounded retry logic - only retry if under max attempts
     useEffect(() => {
@@ -107,10 +107,10 @@ export function useUserProfile(user: FirebaseUser | null): UseUserProfileResult 
 
 /**
  * Ensure user profile exists in MongoDB.
- * Called after Firebase Auth login.
+ * Called after auth login (any provider).
  */
 export async function ensureUserProfile(
-    user: { uid: string; email: string | null; displayName: string | null },
+    user: { id: string; email: string | null; name?: string | null },
     additionalData?: { firstName?: string; lastName?: string }
 ): Promise<boolean> {
     try {
@@ -118,9 +118,9 @@ export async function ensureUserProfile(
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                firebaseUid: user.uid,
+                authSubject: user.id,
                 email: user.email,
-                displayName: user.displayName,
+                displayName: user.name ?? null,
                 firstName: additionalData?.firstName,
                 lastName: additionalData?.lastName,
             }),

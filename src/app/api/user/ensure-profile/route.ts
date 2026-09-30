@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureUserProfile } from '@/lib/db/users';
+import { authProvider } from '@/lib/config';
 
 /**
  * POST /api/user/ensure-profile
@@ -11,11 +12,11 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        const { firebaseUid, email, displayName, firstName, lastName, photoURL } = body;
+        const { authSubject, email, displayName, firstName, lastName, photoURL } = body;
 
-        if (!firebaseUid || !email) {
+        if (!authSubject || !email) {
             return NextResponse.json(
-                { error: 'firebaseUid and email are required' },
+                { error: 'authSubject and email are required' },
                 { status: 400 }
             );
         }
@@ -30,10 +31,11 @@ export async function POST(request: NextRequest) {
         }
 
         const { user, wasCreated } = await ensureUserProfile(
-            firebaseUid,
+            authSubject,
             email,
             name,
-            photoURL
+            photoURL,
+            authProvider()
         );
 
         return NextResponse.json({

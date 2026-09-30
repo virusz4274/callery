@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useRouter, usePathname } from 'next/navigation';
 import { Spinner, Card, Button } from '@/components/ui-primitives';

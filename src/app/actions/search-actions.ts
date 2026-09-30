@@ -1,7 +1,7 @@
 'use server';
 
 import { searchRecordingsByVector } from '@/lib/db/search';
-import { getFirebaseUidFromSession } from '@/lib/auth-utils';
+import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { RecordingResponse } from '@/lib/db/types';
 
 export interface SearchResponse {
@@ -12,7 +12,7 @@ export interface SearchResponse {
 
 export async function searchRecordingsAction(query: string): Promise<SearchResponse> {
     try {
-        const uid = await getFirebaseUidFromSession();
+        const uid = await getAuthSubjectFromSession();
         if (!uid) {
             return { success: false, results: [], error: 'Unauthorized' };
         }
@@ -22,7 +22,7 @@ export async function searchRecordingsAction(query: string): Promise<SearchRespo
         // Convert to response type (serialize dates/IDs)
         const formattedResults: RecordingResponse[] = searchResults.map(rec => ({
             id: rec._id.toString(),
-            firebaseUid: rec.firebaseUid,
+            authSubject: rec.authSubject,
             contactId: rec.contactId?.toString() || null,
             contactName: rec.contactName,
             phoneNumber: rec.phoneNumber,

@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
+import { billingEnabled } from '@/lib/config';
 import { linkCustomerToUser, syncSubscription } from '@/lib/stripe/sync';
 import Stripe from 'stripe';
 import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
+    if (!billingEnabled()) {
+        return new NextResponse('Billing is disabled on this instance.', { status: 404 });
+    }
     const body = await req.text();
     const sig = req.headers.get('stripe-signature') as string;
 
     let event: Stripe.Event;
 
     try {
+        const stripe = getStripe();
         if (!process.env.STRIPE_WEBHOOK_SECRET) {
             throw new Error('STRIPE_WEBHOOK_SECRET is not set');
         }
@@ -25,14 +30,14 @@ export async function POST(req: NextRequest) {
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
                 // We use client_reference_id to pass the Firebase UID from the frontend
-                const firebaseUid = session.client_reference_id || session.metadata?.firebaseUid;
+                const authSubject = session.client_reference_id || session.metadata?.authSubject;
 
-                if (!session.customer || !firebaseUid) {
-                    logger.error('Missing customer or firebaseUid (client_reference_id) in session');
+                if (!session.customer || !authSubject) {
+                    logger.error('Missing customer or authSubject (client_reference_id) in session');
                     break;
                 }
 
-                await linkCustomerToUser(session.customer as string, firebaseUid);
+                await linkCustomerToUser(session.customer as string, authSubject);
 
                 // Immediately sync the subscription too if present (avoids race condition)
                 if (session.subscription) {

@@ -1,13 +1,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
-import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid } from '@/lib/db/users';
+import { getStripe } from '@/lib/stripe';
+import { billingEnabled } from '@/lib/config';
+import { getAuthSubjectFromSession, getUserFromRequest } from '@/lib/auth-utils';
+import { findUserByAuthSubject } from '@/lib/db/users';
 
 export async function POST(req: NextRequest) {
+    if (!billingEnabled()) {
+        return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 404 });
+    }
     try {
+        const stripe = getStripe();
         // 1. Authenticate
-        let uid = await getFirebaseUidFromSession();
+        let uid = await getAuthSubjectFromSession();
         if (!uid) {
             uid = await getUserFromRequest(req);
         }
@@ -22,7 +27,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Get User
-        const user = await findUserByFirebaseUid(uid);
+        const user = await findUserByAuthSubject(uid);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -55,7 +60,7 @@ export async function POST(req: NextRequest) {
             allow_promotion_codes: true,
             billing_address_collection: 'required',
             metadata: {
-                firebaseUid: uid,
+                authSubject: uid,
                 userId: user._id.toString(),
             },
         });

@@ -8,33 +8,67 @@ import {
 } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { storageConfig } from './config';
 
-if (!process.env.R2_ENDPOINT) {
-    throw new Error('Please define the R2_ENDPOINT environment variable');
-}
-if (!process.env.R2_ACCESS_KEY_ID) {
-    throw new Error('Please define the R2_ACCESS_KEY_ID environment variable');
-}
-if (!process.env.R2_SECRET_ACCESS_KEY) {
-    throw new Error('Please define the R2_SECRET_ACCESS_KEY environment variable');
-}
-if (!process.env.R2_BUCKET_NAME) {
-    throw new Error('Please define the R2_BUCKET_NAME environment variable');
-}
+let client: S3Client | undefined;
 
 /**
- * Cloudflare R2 client (S3-compatible)
+ * Lazily create (and cache) the shared S3-compatible storage client.
+ * Works with MinIO, Cloudflare R2, AWS S3, or any S3-compatible backend
+ * via endpoint/region/path-style settings. Env is read here — never at
+ * import time — so builds and unrelated routes don't require storage
+ * credentials to merely import this module.
  */
-export const r2Client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.R2_ENDPOINT,
-    credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    },
-});
+export function getStorageClient(): S3Client {
+    if (!client) {
+        const cfg = storageConfig();
+        client = new S3Client({
+            region: cfg.region,
+            endpoint: cfg.endpoint,
+            forcePathStyle: cfg.forcePathStyle,
+            credentials: {
+                accessKeyId: cfg.accessKeyId,
+                secretAccessKey: cfg.secretAccessKey,
+            },
+        });
+    }
+    return client;
+}
 
-export const R2_BUCKET = process.env.R2_BUCKET_NAME;
+function storageBucket(): string {
+    return storageConfig().bucket;
+}
+
+let presignClient: S3Client | undefined;
+let presignEndpoint: string | undefined;
+
+/**
+ * Client used ONLY for presigning browser-facing playback URLs. SigV4 signs
+ * the request host, so when S3_PUBLIC_ENDPOINT differs from the server-side
+ * endpoint (e.g. MinIO reachable as minio:9000 from the app but as
+ * localhost:9000 from the browser) the URL must be SIGNED with the public
+ * host — string-replacing the host after signing would invalidate it.
+ */
+function getPresignClient(): S3Client {
+    const cfg = storageConfig();
+    const endpoint = cfg.publicEndpoint || cfg.endpoint;
+    if (!presignClient || presignEndpoint !== endpoint) {
+        presignEndpoint = endpoint;
+        presignClient =
+            endpoint === cfg.endpoint
+                ? getStorageClient()
+                : new S3Client({
+                      region: cfg.region,
+                      endpoint,
+                      forcePathStyle: cfg.forcePathStyle,
+                      credentials: {
+                          accessKeyId: cfg.accessKeyId,
+                          secretAccessKey: cfg.secretAccessKey,
+                      },
+                  });
+    }
+    return presignClient;
+}
 
 /**
  * Allowed audio MIME types for recording uploads.
@@ -88,17 +122,17 @@ export function sanitizePhoneNumber(phoneNumber: string): string {
 }
 
 /**
- * Generate the R2 object key for a recording with new metadata-rich structure.
- * Format: {firebaseUid}/{contactId}/{year}/{month}/{timestamp}_{randomHash}.{extension}
- * 
- * @param firebaseUid - User's Firebase UID
+ * Generate the storage object key for a recording with new metadata-rich structure.
+ * Format: {authSubject}/{contactId}/{year}/{month}/{timestamp}_{randomHash}.{extension}
+ *
+ * @param authSubject - User's opaque auth subject (stable across auth providers)
  * @param contactId - Contact ID (MongoDB ObjectId as string) or null for unknown contacts
  * @param phoneNumber - Phone number (used for fallback when contactId is null)
  * @param recordedAt - Recording timestamp
  * @param extension - File extension (e.g., "mp3", "m4a")
  */
 export function generateRecordingKey(
-    firebaseUid: string,
+    authSubject: string,
     contactId: string | null,
     phoneNumber: string,
     recordedAt: Date,
@@ -112,13 +146,13 @@ export function generateRecordingKey(
 
     const filename = generateTimestampedFilename(recordedAt, extension);
 
-    return `${firebaseUid}/${folderName}/${year}/${month}/${filename}`;
+    return `${authSubject}/${folderName}/${year}/${month}/${filename}`;
 }
 
 /**
- * Upload a file to R2 with custom metadata.
- * 
- * @param key - R2 object key
+ * Upload a file to storage with custom metadata.
+ *
+ * @param key - Object key
  * @param body - File content
  * @param contentType - MIME type
  * @param metadata - Custom metadata (keys will be prefixed with x-amz-meta-)
@@ -130,50 +164,51 @@ export async function uploadToR2WithMetadata(
     metadata: Record<string, string> = {}
 ): Promise<void> {
     const command = new PutObjectCommand({
-        Bucket: R2_BUCKET,
+        Bucket: storageBucket(),
         Key: key,
         Body: body,
         ContentType: contentType,
         Metadata: metadata,
     });
 
-    await r2Client.send(command);
+    await getStorageClient().send(command);
 }
 
 
 
 /**
- * Delete a file from R2.
+ * Delete a file from storage.
  */
 export async function deleteFromR2(key: string): Promise<void> {
     const command = new DeleteObjectCommand({
-        Bucket: R2_BUCKET,
+        Bucket: storageBucket(),
         Key: key,
     });
 
-    await r2Client.send(command);
+    await getStorageClient().send(command);
 }
 
 /**
- * Get a signed URL for accessing a file in R2.
+ * Get a signed URL for accessing a file in storage.
  * URLs expire after the specified duration (default: 1 hour).
+ * Signed against S3_PUBLIC_ENDPOINT when set (see getPresignClient).
  */
 export async function getSignedR2Url(
     key: string,
     expiresInSeconds: number = 3600
 ): Promise<string> {
     const command = new GetObjectCommand({
-        Bucket: R2_BUCKET,
+        Bucket: storageBucket(),
         Key: key,
     });
 
-    return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(getPresignClient(), command, { expiresIn: expiresInSeconds });
 }
 
 /**
- * Get metadata for an R2 object.
- * 
- * @param key - R2 object key
+ * Get metadata for a storage object.
+ *
+ * @param key - Object key
  * @returns Metadata object or null if object doesn't exist
  */
 export async function getR2ObjectMetadata(
@@ -181,11 +216,11 @@ export async function getR2ObjectMetadata(
 ): Promise<Record<string, string> | null> {
     try {
         const command = new HeadObjectCommand({
-            Bucket: R2_BUCKET,
+            Bucket: storageBucket(),
             Key: key,
         });
 
-        const response = await r2Client.send(command);
+        const response = await getStorageClient().send(command);
         return response.Metadata || {};
     } catch (error) {
         console.error(`Failed to get metadata for ${key}:`, error);
@@ -194,10 +229,10 @@ export async function getR2ObjectMetadata(
 }
 
 /**
- * Copy an R2 object to a new key with optional metadata updates.
- * 
- * @param sourceKey - Source R2 object key
- * @param destinationKey - Destination R2 object key
+ * Copy a storage object to a new key with optional metadata updates.
+ *
+ * @param sourceKey - Source object key
+ * @param destinationKey - Destination object key
  * @param metadata - New metadata (if provided, replaces existing metadata)
  */
 export async function copyR2Object(
@@ -205,15 +240,15 @@ export async function copyR2Object(
     destinationKey: string,
     metadata?: Record<string, string>
 ): Promise<void> {
-    const copySource = `${R2_BUCKET}/${sourceKey}`;
+    const copySource = `${storageBucket()}/${sourceKey}`;
 
     const command = new CopyObjectCommand({
-        Bucket: R2_BUCKET,
+        Bucket: storageBucket(),
         CopySource: copySource,
         Key: destinationKey,
         Metadata: metadata,
         MetadataDirective: metadata ? 'REPLACE' : 'COPY',
     });
 
-    await r2Client.send(command);
+    await getStorageClient().send(command);
 }

@@ -12,7 +12,7 @@ async function createTestRecording() {
 
     try {
         const testRecording = await createRecording({
-            firebaseUid: 'test-user-123',
+            authSubject: 'test-user-123',
             contactId: null,
             contactName: 'John Doe',
             phoneNumber: '+1-555-0123',

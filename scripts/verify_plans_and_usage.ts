@@ -12,7 +12,7 @@ async function runVerification() {
 
     const testUidBase = 'test_verify_user_';
     const cleanUp = async () => {
-        await users.deleteMany({ firebaseUid: { $regex: `^${testUidBase}` } });
+        await users.deleteMany({ authSubject: { $regex: `^${testUidBase}` } });
     };
 
     try {
@@ -21,7 +21,7 @@ async function runVerification() {
         // --- Scenario 1: New Trial User (Should Work) ---
         console.log('\n--- Scenario 1: Active Trial User ---');
         const user1 = await createUser({
-            firebaseUid: `${testUidBase}1`,
+            authSubject: `${testUidBase}1`,
             email: 'test1@example.com',
             name: 'Test Trial',
             firstName: 'Test',
@@ -55,7 +55,7 @@ async function runVerification() {
         // --- Scenario 2: Expired Trial User (Should Block) ---
         console.log('\n--- Scenario 2: Expired Trial User ---');
         const user2 = await createUser({
-            firebaseUid: `${testUidBase}2`,
+            authSubject: `${testUidBase}2`,
             email: 'test2@example.com',
             name: 'Test Expired',
             firstName: 'Test',
@@ -83,7 +83,7 @@ async function runVerification() {
         // --- Scenario 3: Trial User Limit Exceeded (Should Block) ---
         console.log('\n--- Scenario 3: Trial User Over Limit ---');
         const user3 = await createUser({
-            firebaseUid: `${testUidBase}3`,
+            authSubject: `${testUidBase}3`,
             email: 'test3@example.com',
             name: 'Test Full',
             firstName: 'Test',
@@ -115,7 +115,7 @@ async function runVerification() {
         // --- Scenario 4: Paid User - Overage DISABLED (Should BLOCK) ---
         console.log('\n--- Scenario 4a: Paid User - Overage DISABLED (Defaults) ---');
         const user4 = await createUser({
-            firebaseUid: `${testUidBase}4`,
+            authSubject: `${testUidBase}4`,
             email: 'test4@example.com',
             name: 'Test Pro Strict',
             firstName: 'Test',
@@ -155,7 +155,7 @@ async function runVerification() {
         // Paid user with overdue cycle
         console.log('\n--- Scenario 5: Usage Cycle Reset ---');
         const user5 = await createUser({
-            firebaseUid: `${testUidBase}5`,
+            authSubject: `${testUidBase}5`,
             email: 'test5@example.com',
             name: 'Test Reset',
             firstName: 'Test',

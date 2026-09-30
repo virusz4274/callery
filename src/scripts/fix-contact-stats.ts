@@ -12,18 +12,18 @@ async function main() {
     console.log(`Found ${users.length} users to process.`);
 
     for (const user of users) {
-        console.log(`Processing user: ${user.email} (${user.firebaseUid})`);
+        console.log(`Processing user: ${user.email} (${user.authSubject})`);
 
         // Get all contacts for this user
         // We use the raw collection to avoid any helper logic overhead/filtering
-        const contacts = await db.collection(Collections.CONTACTS).find({ firebaseUid: user.firebaseUid }).toArray();
+        const contacts = await db.collection(Collections.CONTACTS).find({ authSubject: user.authSubject }).toArray();
         console.log(`  - Found ${contacts.length} contacts.`);
 
         let updatedCount = 0;
 
         for (const contact of contacts) {
             if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-                await linkRecordingsToContact(contact._id, contact.phoneNumbers, user.firebaseUid);
+                await linkRecordingsToContact(contact._id, contact.phoneNumbers, user.authSubject);
                 updatedCount++;
             }
         }

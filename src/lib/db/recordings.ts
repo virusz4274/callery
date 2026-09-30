@@ -13,7 +13,7 @@ import { toRecordingResponse } from './converters';
  * Get all recordings for a user.
  */
 export async function getRecordingsByUser(
-    firebaseUid: string,
+    authSubject: string,
     options?: {
         limit?: number;
         skip?: number;
@@ -27,7 +27,7 @@ export async function getRecordingsByUser(
 ): Promise<Recording[]> {
     const db = await getMongoDb();
 
-    const query: Record<string, unknown> = { firebaseUid };
+    const query: Record<string, unknown> = { authSubject };
     if (!options?.includeArchived) {
         query.isArchived = { $ne: true };
     }
@@ -84,13 +84,13 @@ export async function getRecordingsByUser(
  */
 export async function getRecordingById(
     recordingId: string,
-    firebaseUid: string
+    authSubject: string
 ): Promise<Recording | null> {
     const db = await getMongoDb();
 
     return db.collection<Recording>(Collections.RECORDINGS).findOne({
         _id: new ObjectId(recordingId),
-        firebaseUid,
+        authSubject,
     });
 }
 
@@ -113,7 +113,7 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
 
     // Update user stats
     const { updateUserRecordingStats } = await import('./users');
-    await updateUserRecordingStats(data.firebaseUid, {
+    await updateUserRecordingStats(data.authSubject, {
         count: 1,
         duration: data.duration,
     });
@@ -121,7 +121,7 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
     // Update contact stats if linked
     if (data.contactId) {
         const { incrementContactRecordings } = await import('./contacts');
-        await incrementContactRecordings(data.contactId.toString(), data.firebaseUid, now, 1);
+        await incrementContactRecordings(data.contactId.toString(), data.authSubject, now, 1);
     }
 
     return {
@@ -135,13 +135,13 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
  */
 export async function updateRecording(
     recordingId: string,
-    firebaseUid: string,
+    authSubject: string,
     data: UpdateRecordingInput
 ): Promise<Recording | null> {
     const db = await getMongoDb();
 
     const result = await db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate(
-        { _id: new ObjectId(recordingId), firebaseUid },
+        { _id: new ObjectId(recordingId), authSubject },
         {
             $set: {
                 ...data,
@@ -160,19 +160,19 @@ export async function updateRecording(
  */
 export async function deleteRecording(
     recordingId: string,
-    firebaseUid: string
+    authSubject: string
 ): Promise<Recording | null> {
     const db = await getMongoDb();
 
     const result = await db.collection<Recording>(Collections.RECORDINGS).findOneAndDelete({
         _id: new ObjectId(recordingId),
-        firebaseUid,
+        authSubject,
     });
 
     if (result) {
         // Update user stats
         const { updateUserRecordingStats } = await import('./users');
-        await updateUserRecordingStats(firebaseUid, {
+        await updateUserRecordingStats(authSubject, {
             count: -1,
             duration: -result.duration,
         });
@@ -181,7 +181,7 @@ export async function deleteRecording(
         if (result.contactId) {
             const { incrementContactRecordings } = await import('./contacts');
             // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
-            await incrementContactRecordings(result.contactId.toString(), firebaseUid, new Date(), -1);
+            await incrementContactRecordings(result.contactId.toString(), authSubject, new Date(), -1);
         }
     }
 
@@ -194,7 +194,7 @@ export async function deleteRecording(
  */
 export async function deleteRecordings(
     recordingIds: string[],
-    firebaseUid: string
+    authSubject: string
 ): Promise<Recording[]> {
     const db = await getMongoDb();
 
@@ -205,21 +205,21 @@ export async function deleteRecordings(
         .collection<Recording>(Collections.RECORDINGS)
         .find({
             _id: { $in: objectIds },
-            firebaseUid,
+            authSubject,
         })
         .toArray();
 
     // Then delete them
     await db.collection<Recording>(Collections.RECORDINGS).deleteMany({
         _id: { $in: objectIds },
-        firebaseUid,
+        authSubject,
     });
 
     if (recordings.length > 0) {
         // Update user stats
         const totalDuration = recordings.reduce((sum, r) => sum + r.duration, 0);
         const { updateUserRecordingStats } = await import('./users');
-        await updateUserRecordingStats(firebaseUid, {
+        await updateUserRecordingStats(authSubject, {
             count: -recordings.length,
             duration: -totalDuration,
         });
@@ -231,7 +231,7 @@ export async function deleteRecordings(
         for (const recording of recordings) {
             if (recording.contactId) {
                 // We pass new Date() as recordingDate but since amount is -1 it won't be used to set lastRecordingAt
-                await incrementContactRecordings(recording.contactId.toString(), firebaseUid, new Date(), -1);
+                await incrementContactRecordings(recording.contactId.toString(), authSubject, new Date(), -1);
             }
         }
     }
@@ -243,7 +243,7 @@ export async function deleteRecordings(
  * Get recordings for API response (without signed URLs).
  */
 export async function getRecordingsForApi(
-    firebaseUid: string,
+    authSubject: string,
     options?: {
         limit?: number;
         skip?: number;
@@ -255,7 +255,7 @@ export async function getRecordingsForApi(
         endDate?: string;
     }
 ): Promise<RecordingResponse[]> {
-    const recordings = await getRecordingsByUser(firebaseUid, options);
+    const recordings = await getRecordingsByUser(authSubject, options);
 
     return recordings.map(recording => toRecordingResponse(recording));
 }
@@ -264,7 +264,7 @@ export async function getRecordingsForApi(
  * Count recordings for a user.
  */
 export async function countRecordingsByUser(
-    firebaseUid: string,
+    authSubject: string,
     options?: {
         includeArchived?: boolean;
         contactName?: string;
@@ -275,7 +275,7 @@ export async function countRecordingsByUser(
     // If filtering, we must query the collection
     if (options?.contactName || options?.startDate || options?.endDate) {
         const db = await getMongoDb();
-        const query: Record<string, unknown> = { firebaseUid };
+        const query: Record<string, unknown> = { authSubject };
 
         if (!options.includeArchived) {
             query.isArchived = { $ne: true };
@@ -304,8 +304,8 @@ export async function countRecordingsByUser(
     }
 
     // Default optimization: use user profile stats
-    const { findUserByFirebaseUid } = await import('./users');
-    const user = await findUserByFirebaseUid(firebaseUid);
+    const { findUserByAuthSubject } = await import('./users');
+    const user = await findUserByAuthSubject(authSubject);
 
     return user?.totalRecordings || 0;
 }
@@ -313,10 +313,10 @@ export async function countRecordingsByUser(
 /**
  * Get total duration of all recordings for a user.
  */
-export async function getTotalDurationByUser(firebaseUid: string): Promise<number> {
+export async function getTotalDurationByUser(authSubject: string): Promise<number> {
     // We rely on the user profile to store the total duration.
-    const { findUserByFirebaseUid } = await import('./users');
-    const user = await findUserByFirebaseUid(firebaseUid);
+    const { findUserByAuthSubject } = await import('./users');
+    const user = await findUserByAuthSubject(authSubject);
 
     return user?.totalDuration || 0;
 }
@@ -328,13 +328,13 @@ export type DashboardStats = {
     avgDuration: number;
 };
 
-export async function getDashboardStats(firebaseUid: string): Promise<DashboardStats> {
+export async function getDashboardStats(authSubject: string): Promise<DashboardStats> {
     const db = await getMongoDb();
     const now = new Date();
     const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
 
-    const { findUserByFirebaseUid } = await import('./users');
-    const user = await findUserByFirebaseUid(firebaseUid);
+    const { findUserByAuthSubject } = await import('./users');
+    const user = await findUserByAuthSubject(authSubject);
 
     const totalRecordings = user?.totalRecordings || 0;
     const totalDuration = user?.totalDuration || 0;
@@ -343,12 +343,12 @@ export async function getDashboardStats(firebaseUid: string): Promise<DashboardS
     // optimized to avoid full collection scan if possible (depends on indexes)
     const [monthCount, unknownCount] = await Promise.all([
         db.collection<Recording>(Collections.RECORDINGS).countDocuments({
-            firebaseUid,
+            authSubject,
             isArchived: { $ne: true },
             recordedAt: { $gte: oneMonthAgo }
         }),
         db.collection<Recording>(Collections.RECORDINGS).countDocuments({
-            firebaseUid,
+            authSubject,
             isArchived: { $ne: true },
             $or: [{ contactName: { $exists: false } }, { contactName: null }]
         })

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useUser } from "@/lib/firebase/provider";
+import { useUser } from "@/lib/auth/client";
 import { useUserProfile } from "@/hooks/firebase/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
 

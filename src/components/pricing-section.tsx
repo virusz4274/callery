@@ -10,10 +10,16 @@ import { authFetch } from "@/lib/api-client";
 // Use a known plan name that matches your DB Plan 'name' field
 const PRO_PLAN_NAME = 'Pro';
 
+const BILLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
+
 export function PricingSection() {
     const { toast } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState<string | null>(null);
+
+    // Self-hosted mode: no plans to sell. The dedicated /pricing page renders
+    // its own notice; embedded uses (landing page) render nothing.
+    if (!BILLING_ENABLED) return null;
 
 
 

@@ -8,7 +8,7 @@ import { useToast } from '@/components/toast-provider'; // Correct import path
 import { RecordingsTable } from '@/components/recordings-table'; // Resolves to /index.tsx
 import { Users, Phone, Clock, BarChart, Search, Sparkles, Filter, Calendar, ArrowUpAz, ArrowDownAz, SlidersHorizontal } from 'lucide-react';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
-import { initializeFirebase } from '@/lib/firebase/client';
+import { authFetch } from '@/lib/api-client';
 import { StatsCard } from './dashboard/stats-card';
 import { DashboardBackground } from './dashboard/background';
 
@@ -86,18 +86,10 @@ export function RecordingsDashboard({
         });
 
         try {
-            const { auth } = initializeFirebase();
-            const token = await auth.currentUser?.getIdToken();
-
-            if (!token) {
-                throw new Error('You must be logged in to transcribe recordings.');
-            }
-
-            const response = await fetch('/api/transcribe', {
+            const response = await authFetch('/api/transcribe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ recordingId: recording.id }),
             });

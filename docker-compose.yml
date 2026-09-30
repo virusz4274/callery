@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     container_name: call-memo-app
@@ -13,3 +11,21 @@ services:
     env_file:
       - .env
 
+  # Self-hosted MongoDB. Only starts with the selfhost profile:
+  #   docker compose --profile selfhost up -d
+  # then set MONGODB_URI=mongodb://mongo:27017/vosift in .env.
+  # Managed deployments use an external MongoDB (Atlas) and skip this.
+  mongo:
+    profiles: [selfhost]
+    image: mongo:8
+    container_name: vosift-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  # NOTE: object storage is NOT bundled here. Point R2_ENDPOINT at any
+  # S3-compatible backend (external MinIO container, Cloudflare R2, AWS S3,
+  # ...) — see docs/setup-guide.md for recipes.
+
+volumes:
+  mongo-data:

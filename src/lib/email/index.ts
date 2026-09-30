@@ -1,0 +1,38 @@
+import { emailProvider } from '../config';
+import { ResendEmailService } from './resend-service';
+import { SmtpEmailService } from './smtp-service';
+import type { IEmailService, SendEmailInput } from './types';
+
+export type { IEmailService, SendEmailInput };
+
+let cached: IEmailService | null | undefined;
+
+/** Email backend selected by EMAIL_PROVIDER. Null when EMAIL_PROVIDER=none. */
+export function getEmailService(): IEmailService | null {
+    if (cached === undefined) {
+        const provider = emailProvider();
+        cached =
+            provider === 'resend'
+                ? new ResendEmailService()
+                : provider === 'smtp'
+                  ? new SmtpEmailService()
+                  : null;
+    }
+    return cached;
+}
+
+/**
+ * Send an auth email (verification / password reset). With EMAIL_PROVIDER=none
+ * the send is skipped — local dev auto-verifies instead (requireEmailVerification
+ * is off in that mode), so callers never need to branch.
+ */
+export async function sendAuthEmail(input: SendEmailInput): Promise<void> {
+    const service = getEmailService();
+    if (!service) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[email:none] to=${input.to} subject=${JSON.stringify(input.subject)}`);
+        }
+        return;
+    }
+    await service.send(input);
+}

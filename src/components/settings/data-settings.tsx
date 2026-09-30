@@ -7,16 +7,17 @@ import { GoogleIcon } from '@/components/icons/google-icon';
 import { GoogleConnectDialog } from './google-connect-dialog';
 import { SettingsPage } from './settings-page';
 import type { User } from '@/lib/types';
+import type { TranscriptionProvider } from '@/lib/config';
 
 interface DataSettingsProps {
     userProfile: User | null;
     settings: {
         deletionPolicy: string;
-        transcriptionSettings: { autoTranscribe: boolean };
+        transcriptionSettings: { autoTranscribe: boolean; provider?: TranscriptionProvider };
     };
     onSettingsChange: (newSettings: {
         deletionPolicy: string;
-        transcriptionSettings: { autoTranscribe: boolean };
+        transcriptionSettings: { autoTranscribe: boolean; provider?: TranscriptionProvider };
     }) => void;
     onSave: () => Promise<void>;
     isSaving: boolean;
@@ -58,6 +59,7 @@ export function DataSettings({
     return (
         <>
             <div className="space-y-6">
+                {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
                 <SettingsPage title="Data Sources" description="Manage where your call data comes from. Connect your Google account or manually upload recordings.">
                     <Card className="bg-card/70 border-default-200">
                         <Card.Content className="space-y-4">
@@ -86,6 +88,7 @@ export function DataSettings({
                         </Card.Content>
                     </Card>
                 </SettingsPage>
+                )}
 
                 <SettingsPage title="Data Processing" description="Manage how your recordings are transcribed and analyzed.">
                     <Card className="bg-card/70 border-default-200">
@@ -111,6 +114,47 @@ export function DataSettings({
                                         <Switch.Thumb />
                                     </Switch.Control>
                                 </Switch>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <h4 className="text-base font-medium">Transcription Provider</h4>
+                                    <p className="text-sm text-default-500">
+                                        Which service transcribes your recordings. Providers bill usage at different rates.
+                                    </p>
+                                </div>
+                                <div className="w-full sm:w-auto sm:min-w-56">
+                                    <Select
+                                        placeholder="Select a provider"
+                                        selectedKey={settings.transcriptionSettings.provider ?? 'default'}
+                                        onSelectionChange={(key) => {
+                                            if (key) {
+                                                onSettingsChange({
+                                                    ...settings,
+                                                    transcriptionSettings: {
+                                                        ...settings.transcriptionSettings,
+                                                        provider: (key === 'default' ? undefined : key) as TranscriptionProvider | undefined,
+                                                    },
+                                                });
+                                            }
+                                        }}
+                                        aria-label="Transcription Provider"
+                                    >
+                                        <Select.Trigger>
+                                            <Select.Value />
+                                            <Select.Indicator />
+                                        </Select.Trigger>
+                                        <Select.Popover>
+                                            <ListBox>
+                                                <ListBox.Item key="default" id="default" textValue="Instance default">Instance default</ListBox.Item>
+                                                <ListBox.Item key="soniox" id="soniox" textValue="Soniox">Soniox</ListBox.Item>
+                                                <ListBox.Item key="elevenlabs" id="elevenlabs" textValue="ElevenLabs">ElevenLabs</ListBox.Item>
+                                                <ListBox.Item key="gemini" id="gemini" textValue="Gemini">Gemini</ListBox.Item>
+                                                <ListBox.Item key="openai_compat" id="openai_compat" textValue="OpenAI compatible">OpenAI compatible</ListBox.Item>
+                                            </ListBox>
+                                        </Select.Popover>
+                                    </Select>
+                                </div>
                             </div>
 
 

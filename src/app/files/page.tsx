@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileBrowserPage } from '@/components/pages/file-browser-page';
 import type { FileSystemNode } from '@/lib/types';
 import { Skeleton, Card } from '@/components/ui-primitives';
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 import { LandingPage } from '@/components/pages/landing-page';
 import { authFetch } from '@/lib/api-client';
-import type { User } from 'firebase/auth';
+import type { AppUser as User } from '@/lib/auth/types';
 
 function FilesBrowserContent({ user }: { user: User }) {
   const [fileSystem, setFileSystem] = useState<FileSystemNode | null>(null);
@@ -59,7 +59,7 @@ function FilesBrowserContent({ user }: { user: User }) {
   useEffect(() => {
     retryCount.current = 0; // Reset retry count on user change
     fetchFileSystem();
-  }, [fetchFileSystem, user.uid]);
+  }, [fetchFileSystem, user?.id]);
 
   // Bounded retry for auth pending errors - max 3 attempts with exponential backoff
   useEffect(() => {

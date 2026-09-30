@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
+import { findUserByAuthSubject, updateUser } from '@/lib/db/users';
 
 
 /**
@@ -9,14 +9,14 @@ import { findUserByFirebaseUid, updateUser } from '@/lib/db/users';
  * Get the current user's profile from MongoDB.
  */
 export async function GET(request: NextRequest) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {
-        const user = await findUserByFirebaseUid(firebaseUid);
+        const user = await findUserByAuthSubject(authSubject);
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         const now = new Date();
         if (!user.lastLoginAt || (now.getTime() - user.lastLoginAt.getTime() > 60 * 60 * 1000)) {
             // we don't await this to keep the response fast (fire & forget-ish)
-            updateUser(firebaseUid, { lastLoginAt: now }).catch(err =>
+            updateUser(authSubject, { lastLoginAt: now }).catch(err =>
                 console.error('Failed to update lastLoginAt:', err)
             );
             // Update local user object for current response correctness
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         // Convert to response format
         const profile = {
             id: user._id.toString(),
-            firebaseUid: user.firebaseUid,
+            authSubject: user.authSubject,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
  * Update the current user's profile.
  */
 export async function PATCH(request: NextRequest) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -105,7 +105,7 @@ export async function PATCH(request: NextRequest) {
 
         // Update name if firstName or lastName changed
         if (updateData.firstName || updateData.lastName) {
-            const user = await findUserByFirebaseUid(firebaseUid);
+            const user = await findUserByAuthSubject(authSubject);
             if (user) {
                 const firstName = (updateData.firstName as string) || user.firstName;
                 const lastName = (updateData.lastName as string) || user.lastName;
@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest) {
             }
         }
 
-        const updatedUser = await updateUser(firebaseUid, updateData);
+        const updatedUser = await updateUser(authSubject, updateData);
 
         if (!updatedUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });

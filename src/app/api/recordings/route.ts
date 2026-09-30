@@ -13,9 +13,9 @@ import { getRecordingsForApi, countRecordingsByUser } from '@/lib/db/recordings'
  * - includeArchived: boolean (default false)
  */
 export async function GET(request: NextRequest) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }
@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
         };
 
         const [recordings, totalCount] = await Promise.all([
-            getRecordingsForApi(firebaseUid, options),
-            countRecordingsByUser(firebaseUid, {
+            getRecordingsForApi(authSubject, options),
+            countRecordingsByUser(authSubject, {
                 includeArchived,
                 contactName,
                 startDate,

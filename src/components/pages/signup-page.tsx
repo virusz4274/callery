@@ -9,8 +9,7 @@ import { Button, Card, Input, Label, Spinner, TextField, Separator } from '@hero
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/lib/firebase/provider';
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { useAuthActions, useUser } from '@/lib/auth/client';
 import { ensureUserProfile } from '@/hooks/firebase/use-user-profile';
 
 export function SignupPage() {
@@ -24,7 +23,7 @@ export function SignupPage() {
   const [isGoogleLoading, setGoogleLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
-  const auth = useAuth();
+  const actions = useAuthActions();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
@@ -49,8 +48,8 @@ export function SignupPage() {
     }
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await ensureUserProfile(userCredential.user, { firstName, lastName });
+      const newUser = await actions.signUpEmail(`${firstName} ${lastName}`.trim(), email, password);
+      await ensureUserProfile(newUser, { firstName, lastName });
       router.push('/');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -62,22 +61,18 @@ export function SignupPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account'
-    });
 
     try {
-      if (auth.currentUser) {
-        await signOut(auth);
+      const newUser = await actions.signInGoogle();
+      // Local Google sign-in redirects away (null here); Firebase returns the user.
+      if (newUser) {
+        await ensureUserProfile(newUser);
       }
-      const result = await signInWithPopup(auth, provider);
-      await ensureUserProfile(result.user);
       router.push('/');
     } catch (error: unknown) {
-      const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code !== 'auth/popup-closed-by-user') {
-        toast({ title: 'Google Sign-In Failed', description: firebaseError.message || "Could not sign in with Google.", status: 'danger' });
+      const authError = error as { code?: string; message?: string };
+      if (authError.code !== 'auth/popup-closed-by-user') {
+        toast({ title: 'Google Sign-In Failed', description: authError.message || "Could not sign in with Google.", status: 'danger' });
       }
     } finally {
       setGoogleLoading(false);
@@ -111,15 +106,17 @@ export function SignupPage() {
         <Card.Content className="pt-6">
           <form onSubmit={handleSignUp} className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
-              <Button
-                variant="ghost"
-                className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
-                onPress={handleGoogleSignIn}
-                isDisabled={isGoogleLoading || isLoading}
-              >
-                {isGoogleLoading ? <Spinner color="current" size="sm" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
-                Sign up with Google
-              </Button>
+              {actions.googleEnabled && (
+                <Button
+                  variant="ghost"
+                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
+                  onPress={handleGoogleSignIn}
+                  isDisabled={isGoogleLoading || isLoading}
+                >
+                  {isGoogleLoading ? <Spinner color="current" size="sm" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
+                  Sign up with Google
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"

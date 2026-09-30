@@ -7,13 +7,13 @@ import { copyR2Object, deleteFromR2, sanitizePhoneNumber } from '@/lib/r2';
  * Migrate recordings from unknown_{phoneNumber} folder to proper {contactId} folder
  * when a contact is saved.
  * 
- * @param firebaseUid - User's Firebase UID
+ * @param authSubject - User's Firebase UID
  * @param contactId - The newly created/saved contact ID
  * @param phoneNumbers - Array of phone numbers for the contact
  * @param contactName - Optional contact name for name-based matching
  */
 export async function migrateUnknownRecordingsToContact(
-    firebaseUid: string,
+    authSubject: string,
     contactId: string,
     phoneNumbers: string[],
     contactName?: string
@@ -31,11 +31,11 @@ export async function migrateUnknownRecordingsToContact(
     if (phoneNumbers && phoneNumbers.length > 0) {
         for (const phoneNumber of phoneNumbers) {
             const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
-            const unknownFolderPrefix = `${firebaseUid}/unknown_${sanitizedPhone}/`;
+            const unknownFolderPrefix = `${authSubject}/unknown_${sanitizedPhone}/`;
 
             // Find all recordings in the unknown_{phoneNumber} folder
             const unknownRecordings = await recordingsCollection.find({
-                firebaseUid,
+                authSubject,
                 r2Key: { $regex: `^${unknownFolderPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}` },
             }).toArray();
 
@@ -44,10 +44,10 @@ export async function migrateUnknownRecordingsToContact(
             for (const recording of unknownRecordings) {
                 try {
                     // Extract the file path after the unknown folder
-                    // Old key: {firebaseUid}/unknown_{phoneNumber}/{year}/{month}/{filename}
-                    // New key: {firebaseUid}/{contactId}/{year}/{month}/{filename}
+                    // Old key: {authSubject}/unknown_{phoneNumber}/{year}/{month}/{filename}
+                    // New key: {authSubject}/{contactId}/{year}/{month}/{filename}
                     const pathAfterUnknown = recording.r2Key.substring(unknownFolderPrefix.length);
-                    const newR2Key = `${firebaseUid}/${contactId}/${pathAfterUnknown}`;
+                    const newR2Key = `${authSubject}/${contactId}/${pathAfterUnknown}`;
 
                     // Copy R2 object to new location (preserving metadata)
                     await copyR2Object(recording.r2Key, newR2Key);
@@ -84,7 +84,7 @@ export async function migrateUnknownRecordingsToContact(
 
         try {
             const unknownNameRecordings = await recordingsCollection.find({
-                firebaseUid,
+                authSubject,
                 contactId: null,
                 contactName: { $regex: nameRegex }
             }).toArray();
@@ -107,7 +107,7 @@ export async function migrateUnknownRecordingsToContact(
                     const year = parts.pop();
                     // what remains is the prefix path, likely just uid and folder
 
-                    const newR2Key = `${firebaseUid}/${contactId}/${year}/${month}/${filename}`;
+                    const newR2Key = `${authSubject}/${contactId}/${year}/${month}/${filename}`;
 
                     // Copy R2 object to new location (preserving metadata)
                     await copyR2Object(recording.r2Key, newR2Key);

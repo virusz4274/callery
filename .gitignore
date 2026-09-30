@@ -21,10 +21,11 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
-# local env files
-#.env*.local
-#.env
-#service-account.json
+# local env files (never commit secrets; see .env.example)
+.env*.local
+.env
+!.env.example
+service-account.json
 
 # vercel
 .vercel

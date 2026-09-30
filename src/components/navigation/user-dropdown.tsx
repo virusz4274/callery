@@ -3,7 +3,7 @@
 import React from 'react';
 import { Dropdown, Avatar } from '@heroui/react';
 import { Settings, LogOut, HelpCircle, FileText, Shield } from 'lucide-react';
-import { User } from 'firebase/auth';
+import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
 
 interface UserDropdownProps {
@@ -21,8 +21,8 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
                     color="accent"
                     size="sm"
                 >
-                    <Avatar.Image src={user.photoURL || undefined} />
-                    <Avatar.Fallback>{(user.displayName || user.email || "U").charAt(0).toUpperCase()}</Avatar.Fallback>
+                    <Avatar.Image src={user.image || undefined} />
+                    <Avatar.Fallback>{(user.name || user.email || "U").charAt(0).toUpperCase()}</Avatar.Fallback>
                 </Avatar>
             </Dropdown.Trigger>
             <Dropdown.Popover placement="bottom end">

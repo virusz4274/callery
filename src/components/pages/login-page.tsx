@@ -9,8 +9,7 @@ import { Button, Card, Input, Label, Spinner, TextField, Separator } from '@hero
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AppleIcon } from '@/components/icons/apple-icon';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/lib/firebase/provider';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { useAuthActions, useUser } from '@/lib/auth/client';
 
 
 export function LoginPage() {
@@ -20,7 +19,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleLoading] = useState(false);
 
-  const auth = useAuth();
+  const actions = useAuthActions();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
@@ -34,8 +33,8 @@ export function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Session and profile syncing is now handled by FirebaseProvider
+      await actions.signInEmail(email, password);
+      // Session and profile syncing is handled by AuthProvider
       router.push('/');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -47,22 +46,15 @@ export function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account'
-    });
 
     try {
-      if (auth.currentUser) {
-        await signOut(auth);
-      }
-      await signInWithPopup(auth, provider);
-      // Session and profile syncing is now handled by FirebaseProvider
+      await actions.signInGoogle();
+      // Session and profile syncing is handled by AuthProvider
       router.push('/');
     } catch (error: unknown) {
-      const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code !== 'auth/popup-closed-by-user') {
-        toast({ title: 'Google Sign-In Failed', description: firebaseError.message || "Could not sign in with Google.", status: 'danger' });
+      const authError = error as { code?: string; message?: string };
+      if (authError.code !== 'auth/popup-closed-by-user') {
+        toast({ title: 'Google Sign-In Failed', description: authError.message || "Could not sign in with Google.", status: 'danger' });
       }
     } finally {
       setGoogleLoading(false);
@@ -97,15 +89,17 @@ export function LoginPage() {
         <Card.Content className="pt-6">
           <form onSubmit={handleSignIn} className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
-              <Button
-                variant="ghost"
-                className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
-                onPress={handleGoogleSignIn}
-                isDisabled={isGoogleLoading || isLoading}
-              >
-                {isGoogleLoading ? <Spinner color="current" size="sm" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
-                Continue with Google
-              </Button>
+              {actions.googleEnabled && (
+                <Button
+                  variant="ghost"
+                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
+                  onPress={handleGoogleSignIn}
+                  isDisabled={isGoogleLoading || isLoading}
+                >
+                  {isGoogleLoading ? <Spinner color="current" size="sm" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
+                  Continue with Google
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"

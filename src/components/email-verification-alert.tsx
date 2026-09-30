@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { User } from 'firebase/auth';
+import type { AppUser } from '@/lib/auth/types';
 import { Alert, Button, Spinner } from '@heroui/react';
 
 type EmailVerificationAlertProps = {
-  user: User | null;
+  user: AppUser | null;
   onResend: () => Promise<void>;
 };
 
@@ -19,13 +19,10 @@ export function EmailVerificationAlert({ user, onResend }: EmailVerificationAler
     setIsSending(false);
   };
 
-  const isEmailPasswordProvider = user?.providerData.some(
-    (provider) => provider.providerId === 'password'
-  );
-
-  // Only show the alert if the user is logged in, their email is not verified,
-  // and they used email/password to sign up.
-  if (!user || user.emailVerified || !isEmailPasswordProvider) {
+  // Only show the alert if the user is logged in and their email is not
+  // verified. Social (Google) accounts are verified by their provider in
+  // both auth modes, so no provider check is needed.
+  if (!user || user.emailVerified) {
     return null;
   }
 

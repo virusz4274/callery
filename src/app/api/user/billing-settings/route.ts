@@ -1,13 +1,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { billingEnabled } from '@/lib/config';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid } from '@/lib/db/users'; // updateUser generic function?
+import { findUserByAuthSubject } from '@/lib/db/users'; // updateUser generic function?
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+    if (!billingEnabled()) {
         return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
     }
 
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid value for allowOverage' }, { status: 400 });
         }
 
-        const user = await findUserByFirebaseUid(uid);
+        const user = await findUserByAuthSubject(uid);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -37,7 +38,7 @@ export async function PATCH(req: NextRequest) {
         // Use direct update since our generic `updateUser` might not deep merge 'billingSettings' if it's new
         const db = await getMongoDb();
         await db.collection<User>(Collections.USERS).updateOne(
-            { firebaseUid: uid },
+            { authSubject: uid },
             {
                 $set: {
                     'billingSettings.allowOverage': allowOverage,

@@ -1,14 +1,28 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
+import { billingEnabled, transcriptionMultiplier, type TranscriptionProvider } from '@/lib/config';
+import { calculateBilledDuration } from '@/lib/utils/billing';
 import { logger } from '@/lib/logger';
 import type { User, CreateUserInput, UpdateUserInput, SystemSettings, Plan } from './types';
 
 /**
  * Find a user by their Firebase UID.
  */
-export async function findUserByFirebaseUid(firebaseUid: string): Promise<User | null> {
+export async function findUserByAuthSubject(authSubject: string): Promise<User | null> {
     const db = await getMongoDb();
-    const user = await db.collection<User>(Collections.USERS).findOne({ firebaseUid });
+    const user = await db.collection<User>(Collections.USERS).findOne({ authSubject });
     return user;
+}
+
+/**
+ * Set a user's role directly. Used for auth bootstrap (e.g. ADMIN_EMAILS);
+ * admin-initiated changes go through the audited admin action instead.
+ */
+export async function setUserRole(authSubject: string, role: 'user' | 'admin'): Promise<void> {
+    const db = await getMongoDb();
+    await db.collection<User>(Collections.USERS).updateOne(
+        { authSubject },
+        { $set: { role, updatedAt: new Date() } }
+    );
 }
 
 /**
@@ -37,13 +51,13 @@ export async function createUser(data: CreateUserInput): Promise<User> {
  * Update an existing user profile.
  */
 export async function updateUser(
-    firebaseUid: string,
+    authSubject: string,
     data: UpdateUserInput
 ): Promise<User | null> {
     const db = await getMongoDb();
 
     const result = await db.collection<User>(Collections.USERS).findOneAndUpdate(
-        { firebaseUid },
+        { authSubject },
         {
             $set: {
                 ...data,
@@ -63,7 +77,7 @@ export async function updateUser(
  */
 async function ensureStripeCustomer(user: User): Promise<User> {
     // 1. Check if billing is enabled
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') {
+    if (!billingEnabled()) {
         return user;
     }
 
@@ -74,7 +88,8 @@ async function ensureStripeCustomer(user: User): Promise<User> {
 
     try {
         // 3. Import Stripe (lazy load to avoid init issues if disabled)
-        const { stripe } = await import('@/lib/stripe');
+        const { getStripe } = await import('@/lib/stripe');
+        const stripe = getStripe();
         const db = await getMongoDb();
 
         logger.info(`[ensureStripeCustomer] Creating Stripe Customer for ${user._id}`);
@@ -84,7 +99,7 @@ async function ensureStripeCustomer(user: User): Promise<User> {
             email: user.email,
             name: `${user.firstName} ${user.lastName}`.trim() || user.name,
             metadata: {
-                firebaseUid: user.firebaseUid,
+                authSubject: user.authSubject,
                 userId: user._id.toString(),
             },
         });
@@ -112,16 +127,17 @@ async function ensureStripeCustomer(user: User): Promise<User> {
 
 /**
  * Ensure a user profile exists, creating one if necessary.
- * This is called after Firebase Auth login.
+ * This is called after auth login (any provider).
  * Returns true if a new profile was created, false if it already existed.
  */
 export async function ensureUserProfile(
-    firebaseUid: string,
+    authSubject: string,
     email: string,
     displayName?: string,
-    photoURL?: string
+    photoURL?: string,
+    authProvider: 'firebase' | 'local' = 'firebase'
 ): Promise<{ user: User; wasCreated: boolean }> {
-    const existingUser = await findUserByFirebaseUid(firebaseUid);
+    const existingUser = await findUserByAuthSubject(authSubject);
 
     if (existingUser) {
         // Ensure Stripe ID exists (BACKFILL for existing users)
@@ -160,7 +176,8 @@ export async function ensureUserProfile(
 
     try {
         let newUser = await createUser({
-            firebaseUid,
+            authSubject,
+            authProvider,
             email,
             firstName,
             lastName,
@@ -203,7 +220,7 @@ export async function ensureUserProfile(
         // Handle race condition: Duplicate key error (E11000) means user was created by another request
         const err = error as { code?: number; message?: string };
         if (err.code === 11000 || err.message?.includes('E11000') || err.message?.includes('duplicate key')) {
-            const user = await findUserByFirebaseUid(firebaseUid);
+            const user = await findUserByAuthSubject(authSubject);
             if (user) {
                 // Determine if we need to backfill the racer too
                 const updatedUser = await ensureStripeCustomer(user);
@@ -218,13 +235,13 @@ export async function ensureUserProfile(
  * Increment the user's storage used counter.
  */
 export async function incrementStorageUsed(
-    firebaseUid: string,
+    authSubject: string,
     bytes: number
 ): Promise<void> {
     const db = await getMongoDb();
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { firebaseUid },
+        { authSubject },
         {
             $inc: { storageUsed: bytes },
             $set: { updatedAt: new Date() }
@@ -236,13 +253,13 @@ export async function incrementStorageUsed(
  * Decrement the user's storage used counter.
  */
 export async function decrementStorageUsed(
-    firebaseUid: string,
+    authSubject: string,
     bytes: number
 ): Promise<void> {
     const db = await getMongoDb();
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { firebaseUid },
+        { authSubject },
         {
             $inc: { storageUsed: -bytes },
             $set: { updatedAt: new Date() }
@@ -255,13 +272,13 @@ export async function decrementStorageUsed(
  * @param seconds - The number of seconds to add (should be the billed duration)
  */
 export async function incrementTranscriptionUsed(
-    firebaseUid: string,
+    authSubject: string,
     seconds: number
 ): Promise<void> {
     const db = await getMongoDb();
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { firebaseUid },
+        { authSubject },
         {
             $inc: { transcriptionUsed: seconds },
             $set: { updatedAt: new Date() }
@@ -269,17 +286,74 @@ export async function incrementTranscriptionUsed(
     );
 }
 
+export interface RecordTranscriptionUsageInput {
+    /** Provider that performed the transcription (drives the multiplier). */
+    provider: TranscriptionProvider;
+    /** Raw audio seconds (pre-rounding). */
+    rawSeconds: number;
+    recordingId?: string;
+}
+
+export interface UsageEvent {
+    authSubject: string;
+    type: 'transcription';
+    provider: TranscriptionProvider;
+    rawSeconds: number;
+    billedSeconds: number;
+    multiplier: number;
+    billedUnits: number;
+    recordingId?: string;
+    createdAt: Date;
+}
+
+/**
+ * Meter one transcription: round up to 15s blocks, apply the provider
+ * multiplier, bump the user's counter, and append a usage_events ledger row.
+ * The ledger is written in every profile (self-host included) so operators
+ * can always see what was consumed; enforcement happens in access-control.
+ */
+export async function recordTranscriptionUsage(
+    authSubject: string,
+    input: RecordTranscriptionUsageInput,
+): Promise<{ billedSeconds: number; multiplier: number; billedUnits: number }> {
+    const billedSeconds = calculateBilledDuration(input.rawSeconds);
+    const multiplier = transcriptionMultiplier(input.provider);
+    const billedUnits = billedSeconds * multiplier;
+    const db = await getMongoDb();
+
+    await db.collection<User>(Collections.USERS).updateOne(
+        { authSubject },
+        {
+            $inc: { transcriptionUsed: billedUnits },
+            $set: { updatedAt: new Date() },
+        },
+    );
+    await db.collection<UsageEvent>(Collections.USAGE_EVENTS).insertOne({
+        authSubject,
+        type: 'transcription',
+        provider: input.provider,
+        rawSeconds: input.rawSeconds,
+        billedSeconds,
+        multiplier,
+        billedUnits,
+        recordingId: input.recordingId,
+        createdAt: new Date(),
+    });
+
+    return { billedSeconds, multiplier, billedUnits };
+}
+
 /**
  * Increment the user's contact count.
  */
 export async function incrementContactCount(
-    firebaseUid: string,
+    authSubject: string,
     count: number
 ): Promise<void> {
     const db = await getMongoDb();
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { firebaseUid },
+        { authSubject },
         {
             $inc: { totalContacts: count },
             $set: { updatedAt: new Date() }
@@ -291,13 +365,13 @@ export async function incrementContactCount(
  * Update the user's recording statistics.
  */
 export async function updateUserRecordingStats(
-    firebaseUid: string,
+    authSubject: string,
     change: { count: number; duration: number }
 ): Promise<void> {
     const db = await getMongoDb();
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { firebaseUid },
+        { authSubject },
         {
             $inc: {
                 totalRecordings: change.count,

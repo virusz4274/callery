@@ -143,9 +143,9 @@ function buildFileSystemTree(recordings: Recording[]): FileSystemNode {
  * Returns a file system tree structure for the authenticated user's recordings.
  */
 export async function GET(request: NextRequest) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
 
     try {
         // Fetch all recordings for the user (no pagination for file tree)
-        const recordings = await getRecordingsByUser(firebaseUid, {
+        const recordings = await getRecordingsByUser(authSubject, {
             limit: 1000, // Reasonable limit for file browser
             includeArchived: false,
         });

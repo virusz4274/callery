@@ -5,36 +5,7 @@ import { getOAuth2Client } from '@/services/google/oauth';
 import { after } from 'next/server';
 import { syncContactsBackground } from '@/services/google/contacts-sync';
 import { saveContactsToMongoDB } from './save-contacts';
-import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
-
-/**
- * Securely gets the user ID from the session cookie passed in the headers.
- * This function MUST be called from a Server Action or Route Handler.
- * @returns The user's UID or null if the cookie is invalid or not present.
- */
-async function getUserIdFromSessionCookie() {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-
-    if (!sessionCookie || !sessionCookie.value) {
-      console.error('Session cookie not found.');
-      return null;
-    }
-
-    // Initialize admin app (safe to call multiple times)
-    const adminApp = getFirebaseAdminApp();
-    // Verify the cookie and get the user's decoded token
-    const decodedIdToken = await getAuth(adminApp).verifySessionCookie(sessionCookie.value, true);
-    return decodedIdToken.uid;
-  } catch (error) {
-    // This will catch invalid/expired cookies
-    console.error('Error verifying session cookie in server action:', error);
-    return null;
-  }
-}
+import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 
 
 export async function syncGoogleContacts(code: string) {
@@ -46,7 +17,7 @@ export async function syncGoogleContacts(code: string) {
     oAuth2Client.setCredentials(tokens);
 
     // Get the user ID securely on the server
-    const userId = await getUserIdFromSessionCookie();
+    const userId = await getAuthSubjectFromSession();
     if (!userId) {
       return { success: false, error: 'User not authenticated' };
     }
