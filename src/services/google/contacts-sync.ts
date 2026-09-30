@@ -1,4 +1,5 @@
-import { google } from 'googleapis'; // OAuth2Client type is inferred from googleapis
+import { people } from '@googleapis/people';
+import type { OAuth2Client } from 'google-auth-library';
 import { saveContactsToMongoDB } from '@/app/actions/save-contacts';
 
 function errorLog(userId: string, message: string, error?: any) {
@@ -18,10 +19,9 @@ function errorLog(userId: string, message: string, error?: any) {
  * @param userId - The Firebase UID of the user.
  * @param authClient - The authenticated OAuth2Client.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function syncContactsBackground(userId: string, authClient: any) { // Relax type to allow google.auth.OAuth2
+export async function syncContactsBackground(userId: string, authClient: OAuth2Client) {
     try {
-        const peopleService = google.people({ version: 'v1', auth: authClient });
+        const peopleService = people({ version: 'v1', auth: authClient });
 
         let nextPageToken: string | undefined = undefined;
         let totalSynced = 0;

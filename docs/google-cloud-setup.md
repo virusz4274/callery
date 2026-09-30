@@ -90,6 +90,6 @@ You need to update two places in your code: the `.env` file (frontend/public con
 ## 6. Verification
 
 1.  Stop your development server (`Ctrl+C`).
-2.  Run `npm run dev`.
+2.  Run `pnpm run dev`.
 3.  Try logging in (Tests Firebase Auth).
 4.  Try syncing contacts (Tests People API & OAuth Scopes).
