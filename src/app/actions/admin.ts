@@ -114,33 +114,8 @@ export async function getUserById(userId: string) {
     }
 }
 
-import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
+import { getCurrentAdmin } from '@/lib/admin-auth';
 import { logAdminAction } from './audit-log';
-
-// Initialize Firebase Admin
-getFirebaseAdminApp();
-
-/**
- * Helper: Get current authenticated admin user from session.
- */
-async function getCurrentAdmin() {
-    try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('session');
-        if (!sessionCookie?.value) return null;
-
-        const decodedToken = await getAuth().verifySessionCookie(sessionCookie.value, true);
-        const db = await getMongoDb();
-        const admin = await db.collection<User>(Collections.USERS).findOne({ firebaseUid: decodedToken.uid });
-
-        if (!admin || admin.role !== 'admin') return null;
-        return admin;
-    } catch {
-        return null;
-    }
-}
 
 /**
  * Update user role.
@@ -257,7 +232,7 @@ export async function updateUserLimits(
 export async function getUserRecordings(userId: string) {
     const db = await getMongoDb();
 
-    // First get the user to find their firebaseUid
+    // First get the user to find their authSubject
     const user = await db.collection<User>(Collections.USERS).findOne({
         _id: new ObjectId(userId)
     });
@@ -265,7 +240,7 @@ export async function getUserRecordings(userId: string) {
     if (!user) return [];
 
     const recordings = await db.collection(Collections.RECORDINGS)
-        .find({ firebaseUid: user.firebaseUid })
+        .find({ authSubject: user.authSubject })
         .sort({ recordedAt: -1 })
         .toArray();
 
@@ -304,7 +279,7 @@ export async function deleteUser(userId: string) {
 
     // 1. Get all user recordings to delete files from R2
     const recordings = await db.collection<Recording>(Collections.RECORDINGS)
-        .find({ firebaseUid: user.firebaseUid })
+        .find({ authSubject: user.authSubject })
         .toArray();
 
     // 2. Delete files from R2 (in parallel)
@@ -320,10 +295,10 @@ export async function deleteUser(userId: string) {
     }));
 
     // 3. Delete Recordings from MongoDB
-    await db.collection(Collections.RECORDINGS).deleteMany({ firebaseUid: user.firebaseUid });
+    await db.collection(Collections.RECORDINGS).deleteMany({ authSubject: user.authSubject });
 
     // 4. Delete Contacts from MongoDB
-    await db.collection(Collections.CONTACTS).deleteMany({ firebaseUid: user.firebaseUid });
+    await db.collection(Collections.CONTACTS).deleteMany({ authSubject: user.authSubject });
 
     // 5. Delete User from MongoDB
     await db.collection(Collections.USERS).deleteOne({ _id: new ObjectId(userId) });
@@ -345,13 +320,13 @@ export async function deleteUser(userId: string) {
 export async function getOrphanedRecordingsCount() {
     const db = await getMongoDb();
 
-    // Find recordings where the firebaseUid does not exist in the users collection
+    // Find recordings where the authSubject does not exist in the users collection
     const orphans = await db.collection(Collections.RECORDINGS).aggregate([
         {
             $lookup: {
                 from: Collections.USERS,
-                localField: 'firebaseUid',
-                foreignField: 'firebaseUid',
+                localField: 'authSubject',
+                foreignField: 'authSubject',
                 as: 'user'
             }
         },
@@ -379,8 +354,8 @@ export async function cleanupOrphanedRecordings() {
         {
             $lookup: {
                 from: Collections.USERS,
-                localField: 'firebaseUid',
-                foreignField: 'firebaseUid',
+                localField: 'authSubject',
+                foreignField: 'authSubject',
                 as: 'user'
             }
         },

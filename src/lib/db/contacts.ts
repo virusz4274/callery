@@ -5,7 +5,7 @@ import type { Contact, CreateContactInput, UpdateContactInput } from './types';
  * Get all contacts for a user.
  */
 export async function getContactsByUser(
-    firebaseUid: string,
+    authSubject: string,
     options?: {
         limit?: number;
         skip?: number;
@@ -15,7 +15,7 @@ export async function getContactsByUser(
 
     const contacts = await db
         .collection<Contact>(Collections.CONTACTS)
-        .find({ firebaseUid })
+        .find({ authSubject })
         .collation({ locale: 'en', strength: 2 })
         .sort({ name: 1 })
         .skip(options?.skip || 0)
@@ -29,13 +29,13 @@ export async function getContactsByUser(
  * Find a contact by phone number for a specific user.
  */
 export async function findContactByPhone(
-    firebaseUid: string,
+    authSubject: string,
     phoneNumber: string
 ): Promise<Contact | null> {
     const db = await getMongoDb();
 
     return db.collection<Contact>(Collections.CONTACTS).findOne({
-        firebaseUid,
+        authSubject,
         phoneNumbers: phoneNumber,
     });
 }
@@ -44,14 +44,14 @@ export async function findContactByPhone(
  * Find a contact by name for a specific user.
  */
 export async function findContactByName(
-    firebaseUid: string,
+    authSubject: string,
     name: string
 ): Promise<Contact | null> {
     const db = await getMongoDb();
 
     return db.collection<Contact>(Collections.CONTACTS).findOne(
         {
-            firebaseUid,
+            authSubject,
             name,
         },
         { collation: { locale: 'en', strength: 2 } }
@@ -72,7 +72,7 @@ export async function createContact(data: CreateContactInput): Promise<Contact> 
     // Check for existing contact with same phone number
     if (data.phoneNumbers && data.phoneNumbers.length > 0) {
         const existing = await db.collection<Contact>(Collections.CONTACTS).findOne({
-            firebaseUid: data.firebaseUid,
+            authSubject: data.authSubject,
             phoneNumbers: { $in: data.phoneNumbers }
         });
 
@@ -108,12 +108,12 @@ export async function createContact(data: CreateContactInput): Promise<Contact> 
 
     // Increment user's contact count
     const { incrementContactCount } = await import('./users');
-    await incrementContactCount(data.firebaseUid, 1);
+    await incrementContactCount(data.authSubject, 1);
 
     // Link any existing recordings to this new contact
     let stats: { totalRecordings: number; lastRecordingAt: Date | null } = { totalRecordings: 0, lastRecordingAt: null };
     if (data.phoneNumbers && data.phoneNumbers.length > 0) {
-        stats = await linkRecordingsToContact(result.insertedId, data.phoneNumbers, data.firebaseUid);
+        stats = await linkRecordingsToContact(result.insertedId, data.phoneNumbers, data.authSubject);
     }
 
     return {
@@ -128,14 +128,14 @@ export async function createContact(data: CreateContactInput): Promise<Contact> 
  */
 export async function updateContact(
     contactId: string,
-    firebaseUid: string,
+    authSubject: string,
     data: UpdateContactInput
 ): Promise<Contact | null> {
     const db = await getMongoDb();
     const { ObjectId } = await import('mongodb');
 
     const result = await db.collection<Contact>(Collections.CONTACTS).findOneAndUpdate(
-        { _id: new ObjectId(contactId), firebaseUid },
+        { _id: new ObjectId(contactId), authSubject },
         {
             $set: {
                 ...data,
@@ -155,7 +155,7 @@ export async function updateContact(
  * Uses sequential processing with in-memory tracking to handle intra-batch duplicates and prevent E11000 errors.
  */
 export async function upsertContacts(
-    firebaseUid: string,
+    authSubject: string,
     contacts: Array<{
         googleContactId?: string;
         name: string;
@@ -175,7 +175,7 @@ export async function upsertContacts(
     let updated = 0;
 
     // 1. Pre-fetch existing contacts
-    const existingContacts = await collection.find({ firebaseUid }).toArray();
+    const existingContacts = await collection.find({ authSubject }).toArray();
     const googleIdMap = new Map<string, Contact>();
     const phoneMap = new Map<string, Contact>();
 
@@ -269,7 +269,7 @@ export async function upsertContacts(
                 // Clean maps
                 if (phoneMatchDoc.phoneNumbers) phoneMatchDoc.phoneNumbers.forEach(p => phoneMap.delete(p));
                 const { incrementContactCount } = await import('./users');
-                await incrementContactCount(firebaseUid, -1);
+                await incrementContactCount(authSubject, -1);
             }
             targetId = googleMatchId;
         } else if (googleMatchId) {
@@ -293,13 +293,13 @@ export async function upsertContacts(
             updated++;
 
             if (finalPhoneNumbers.length > 0) {
-                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
+                await linkRecordingsToContact(targetId, finalPhoneNumbers, authSubject);
             }
         } else {
             // New Insert
             const res = await collection.insertOne({
                 ...contactData,
-                firebaseUid,
+                authSubject,
                 createdAt: now,
                 phoneNumbers: finalPhoneNumbers,
                 totalRecordings: 0,
@@ -309,7 +309,7 @@ export async function upsertContacts(
             created++;
 
             if (finalPhoneNumbers.length > 0) {
-                await linkRecordingsToContact(targetId, finalPhoneNumbers, firebaseUid);
+                await linkRecordingsToContact(targetId, finalPhoneNumbers, authSubject);
             }
         }
 
@@ -322,7 +322,7 @@ export async function upsertContacts(
 
     if (created > 0) {
         const { incrementContactCount } = await import('./users');
-        await incrementContactCount(firebaseUid, created);
+        await incrementContactCount(authSubject, created);
     }
 
     return { created, updated };
@@ -333,7 +333,7 @@ export async function upsertContacts(
  */
 export async function incrementContactRecordings(
     contactId: string,
-    firebaseUid: string,
+    authSubject: string,
     recordingDate: Date,
     amount: number = 1
 ): Promise<void> {
@@ -353,7 +353,7 @@ export async function incrementContactRecordings(
     }
 
     await db.collection<Contact>(Collections.CONTACTS).updateOne(
-        { _id: new ObjectId(contactId), firebaseUid },
+        { _id: new ObjectId(contactId), authSubject },
         update
     );
 }
@@ -361,11 +361,11 @@ export async function incrementContactRecordings(
 /**
  * Count all contacts for a user.
  */
-export async function countContactsByUser(firebaseUid: string): Promise<number> {
+export async function countContactsByUser(authSubject: string): Promise<number> {
     // We rely on the user profile to store the total count of contacts.
     // This is maintained by incrementContactCount in createContact/upsertContacts.
-    const { findUserByFirebaseUid } = await import('./users');
-    const user = await findUserByFirebaseUid(firebaseUid);
+    const { findUserByAuthSubject } = await import('./users');
+    const user = await findUserByAuthSubject(authSubject);
 
     return user?.totalContacts || 0;
 }
@@ -378,7 +378,7 @@ export async function countContactsByUser(firebaseUid: string): Promise<number> 
 export async function linkRecordingsToContact(
     contactId: string | import('mongodb').ObjectId,
     phoneNumbers: string[],
-    firebaseUid: string
+    authSubject: string
 ): Promise<{ totalRecordings: number; lastRecordingAt: Date | null }> {
     const db = await getMongoDb();
     const { ObjectId } = await import('mongodb');
@@ -393,7 +393,7 @@ export async function linkRecordingsToContact(
     // We prioritize this contact.
     await db.collection(Collections.RECORDINGS).updateMany(
         {
-            firebaseUid,
+            authSubject,
             phoneNumber: { $in: phoneNumbers },
             contactId: { $ne: cId }
         },
@@ -410,7 +410,7 @@ export async function linkRecordingsToContact(
     const stats = await db.collection(Collections.RECORDINGS).aggregate([
         {
             $match: {
-                firebaseUid,
+                authSubject,
                 contactId: cId
             }
         },

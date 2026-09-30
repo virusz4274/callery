@@ -10,7 +10,7 @@ import { ThemeSwitcher } from './theme-switcher';
 import { UserDropdown } from './navigation/user-dropdown';
 import { MainNav } from './navigation/main-nav';
 import { MobileMenu } from './navigation/mobile-menu';
-import type { User } from 'firebase/auth';
+import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
 
 type AppHeaderProps = {

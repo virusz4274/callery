@@ -1,12 +1,18 @@
 'use client';
 
 import { getAuth } from 'firebase/auth';
+import { clientAuthProvider } from './auth/client';
 
 /**
- * Get the current user's Firebase ID token.
- * Returns null if no user is logged in.
+ * Get the current user's access token for API requests.
+ * Firebase mode returns the Firebase ID token. Local mode returns null —
+ * the session cookie (sent via credentials: 'include') authenticates
+ * requests instead. Returns null if no user is logged in.
  */
 export async function getIdToken(): Promise<string | null> {
+    if (clientAuthProvider() === 'local') {
+        return null;
+    }
     const auth = getAuth();
     const user = auth.currentUser;
 

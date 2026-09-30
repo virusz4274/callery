@@ -2,14 +2,16 @@ import { Stripe } from 'stripe';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User, Plan } from '@/lib/db/types';
 import { updateUser } from '@/lib/db/users';
-import { stripe } from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
+import { billingEnabled } from '@/lib/config';
 
 /**
  * Syncs a Stripe Subscription to the MongoDB User document.
  * This is idempotent and can be called from webhooks or the frontend.
  */
 export async function syncSubscription(subscriptionId: string) {
-    if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'false') return;
+    if (!billingEnabled()) return;
+    const stripe = getStripe();
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
@@ -127,19 +129,19 @@ export async function syncSubscription(subscriptionId: string) {
     }
 
     // Call the existing updateUser to handle the update
-    await updateUser(user.firebaseUid, updateData);
+    await updateUser(user.authSubject, updateData);
 
-    console.log(`[Sync] Updated subscription for user ${user.firebaseUid} (${user.email}) to ${status}`);
+    console.log(`[Sync] Updated subscription for user ${user.authSubject} (${user.email}) to ${status}`);
 }
 
 /**
  * Links a Stripe Customer ID to a Firebase User ID.
  * Called when a Checkout Session is completed.
  */
-export async function linkCustomerToUser(stripeCustomerId: string, firebaseUid: string) {
-    await updateUser(firebaseUid, {
+export async function linkCustomerToUser(stripeCustomerId: string, authSubject: string) {
+    await updateUser(authSubject, {
         stripeCustomerId: stripeCustomerId
     });
 
-    console.log(`[Sync] Linked Customer ${stripeCustomerId} to User ${firebaseUid}`);
+    console.log(`[Sync] Linked Customer ${stripeCustomerId} to User ${authSubject}`);
 }

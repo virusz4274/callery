@@ -9,7 +9,7 @@ import { UploadCloud, File, X } from 'lucide-react';
 import { uploadRecordings } from '@/app/actions/upload-recordings';
 import { useRouter } from 'next/navigation';
 
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 
 export function UploadPage() {
     const { toast } = useToast();

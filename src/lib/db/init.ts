@@ -24,7 +24,7 @@ export async function initializeDatabase(): Promise<void> {
     // Users collection indexes
     try {
         await db.collection(Collections.USERS).createIndexes([
-            { key: { firebaseUid: 1 }, unique: true, name: 'firebaseUid_unique' },
+            { key: { authSubject: 1 }, unique: true, name: 'authSubject_unique' },
             { key: { email: 1 }, name: 'email' },
         ]);
         console.log('✅ Users indexes created');
@@ -35,10 +35,10 @@ export async function initializeDatabase(): Promise<void> {
     // Recordings collection indexes
     try {
         await db.collection(Collections.RECORDINGS).createIndexes([
-            { key: { firebaseUid: 1, recordedAt: -1 }, name: 'firebaseUid_recordedAt' },
-            { key: { firebaseUid: 1, contactId: 1 }, name: 'firebaseUid_contactId' },
+            { key: { authSubject: 1, recordedAt: -1 }, name: 'authSubject_recordedAt' },
+            { key: { authSubject: 1, contactId: 1 }, name: 'authSubject_contactId' },
             { key: { r2Key: 1 }, unique: true, name: 'r2Key_unique' },
-            { key: { firebaseUid: 1, isArchived: 1 }, name: 'firebaseUid_isArchived' },
+            { key: { authSubject: 1, isArchived: 1 }, name: 'authSubject_isArchived' },
         ]);
         console.log('✅ Recordings indexes created');
     } catch (e) {
@@ -48,8 +48,8 @@ export async function initializeDatabase(): Promise<void> {
     // Contacts collection indexes
     try {
         await db.collection(Collections.CONTACTS).createIndexes([
-            { key: { firebaseUid: 1, phoneNumbers: 1 }, unique: true, name: 'firebaseUid_phoneNumbers_unique' },
-            { key: { firebaseUid: 1, name: 1 }, name: 'firebaseUid_name' },
+            { key: { authSubject: 1, phoneNumbers: 1 }, unique: true, name: 'authSubject_phoneNumbers_unique' },
+            { key: { authSubject: 1, name: 1 }, name: 'authSubject_name' },
         ]);
         console.log('✅ Contacts indexes created');
     } catch (e) {
@@ -222,7 +222,7 @@ export async function initializeDatabase(): Promise<void> {
         "mappings": {
             "dynamic": false,
             "fields": {
-                "firebaseUid": {
+                "authSubject": {
                     "type": "string"
                 },
                 "summary": {
@@ -265,7 +265,7 @@ export async function initializeDatabase(): Promise<void> {
                 "type": "vector"
             },
             {
-                "path": "firebaseUid",
+                "path": "authSubject",
                 "type": "filter"
             }
         ]

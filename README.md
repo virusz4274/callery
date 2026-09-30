@@ -10,6 +10,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 *   [**Project Structure**](docs/project-structure.md): Codebase organization and key files.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
 *   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
+*   [**Launch Checklist**](docs/launch-checklist.md): Pre-launch steps and owed verifications.
 
 ## Quick Start
 
@@ -31,4 +32,26 @@ A modern web application for managing, transcribing, and organizing phone call r
     pnpm run dev
     ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:9000](http://localhost:9000) with your browser to see the result.
+
+## Deployment Profiles
+
+One image, two personalities, switched purely by env (see `.env.example`):
+
+| | Self-host | Managed (SaaS) |
+|---|---|---|
+| Auth (`AUTH_PROVIDER`) | `local` (built-in email/password) or `firebase` | `firebase` |
+| Billing | Off (`NEXT_PUBLIC_ENABLE_BILLING=false`) | On (Stripe) |
+| Email (`EMAIL_PROVIDER`) | `smtp` / `resend` / `none` | `resend` |
+| Transcription | Your Soniox / ElevenLabs / Gemini key | Same, metered with multipliers |
+| Storage | Any S3-compatible (MinIO, R2, AWS) | Same |
+| Database | Your MongoDB (compose includes one) | Same |
+
+Self-host quickstart:
+
+```bash
+cp .env.example .env   # fill in Mongo, S3, one transcription key
+docker compose --profile selfhost up
+```
+
+See the [Setup Guide](docs/setup-guide.md) for every variable.

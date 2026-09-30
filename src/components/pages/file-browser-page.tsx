@@ -12,7 +12,7 @@ type FileBrowserPageProps = {
   rootNode: FileSystemNode;
 };
 
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 import { Spinner } from '@heroui/react';
 
 export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {

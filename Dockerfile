@@ -36,8 +36,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.env ./
-COPY --from=builder /app/service-account.json ./
+# Secrets are NOT baked into the image. Provide them at runtime
+# (compose env_file, -e flags, or a secrets manager). Firebase Admin also
+# accepts a service-account.json file mounted at /app for local dev.
 
 # Set the correct permission for prerender cache
 RUN mkdir -p .next && chown nextjs:nodejs .next

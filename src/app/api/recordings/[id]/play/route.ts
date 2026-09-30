@@ -8,15 +8,15 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {
         const { id } = await params;
-        const recording = await getRecordingById(id, firebaseUid);
+        const recording = await getRecordingById(id, authSubject);
 
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });

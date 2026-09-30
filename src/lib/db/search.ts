@@ -1,11 +1,39 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { GeminiService } from '@/services/ai/gemini-service';
+import { getAiService } from '@/services/ai';
 import { Recording } from '@/lib/db/types';
 
-const aiService = new GeminiService();
+const aiService = getAiService();
 
 export interface SearchResult extends Recording {
     searchScore: number;
+}
+
+// Cached stored-vector width. Embedding models each emit a fixed dimension;
+// switching models (or AI providers) without re-embedding breaks vector
+// search, so the first search per process learns the stored width and every
+// search after that fails fast with an actionable error on mismatch.
+let knownStoredDims: number | undefined;
+
+async function assertEmbeddingDimsMatch(
+    db: Awaited<ReturnType<typeof getMongoDb>>,
+    queryDims: number,
+): Promise<void> {
+    if (knownStoredDims === undefined) {
+        const sample = await db
+            .collection<Recording>(Collections.RECORDINGS)
+            .findOne(
+                { summaryEmbedding: { $exists: true, $ne: [] } },
+                { projection: { summaryEmbedding: 1 } },
+            );
+        if (!sample?.summaryEmbedding?.length) return; // nothing stored yet — nothing to compare
+        knownStoredDims = sample.summaryEmbedding.length;
+    }
+    if (queryDims !== knownStoredDims) {
+        throw new Error(
+            `Embedding dimension mismatch: query has ${queryDims} dims but stored vectors have ${knownStoredDims}. ` +
+                'The embedding model changed — restore the previous model or re-embed existing recordings.',
+        );
+    }
 }
 
 /**
@@ -13,19 +41,21 @@ export interface SearchResult extends Recording {
  */
 export async function searchRecordingsByVector(
     query: string,
-    firebaseUid: string,
+    authSubject: string,
     limit: number = 20
 ): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
         const db = await getMongoDb();
-        const queryEmbedding = await aiService.generateEmbedding(query);
+        const queryEmbedding = await aiService.generateEmbedding(query, { authSubject });
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
             console.warn('Empty embedding generated for query:', query);
             return [];
         }
+
+        await assertEmbeddingDimsMatch(db, queryEmbedding.length);
 
         const aggregation = [
             {
@@ -36,8 +66,8 @@ export async function searchRecordingsByVector(
                     numCandidates: 100, // Number of nearest neighbors to examine
                     limit: limit, // Number of results to return
                     filter: {
-                        firebaseUid: {
-                            $eq: firebaseUid
+                        authSubject: {
+                            $eq: authSubject
                         }
                     }
                 }
@@ -45,7 +75,7 @@ export async function searchRecordingsByVector(
             {
                 $project: {
                     _id: 1,
-                    firebaseUid: 1,
+                    authSubject: 1,
                     contactId: 1,
                     contactName: 1,
                     phoneNumber: 1,

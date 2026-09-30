@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, Button, Input, Spinner, TextField, Label, FieldError } from '@heroui/react';
 import { SettingsPage } from './settings-page';
 import type { UseFormReturn } from 'react-hook-form';
-import type { User } from 'firebase/auth';
+import type { AppUser as User } from '@/lib/auth/types';
 
 type ProfileFormValues = {
     firstName: string;
@@ -99,7 +99,7 @@ export function ProfileSettings({
                 </Card>
             </SettingsPage>
 
-            {user.providerData.some(p => p.providerId === 'password') && (
+            {user.canChangePassword && (
                 <SettingsPage title="Password" description="Change your account password. You will be logged out after a successful change.">
                     <Card className="bg-card/70 border-default-200">
                         <form onSubmit={handlePasswordSubmit}>

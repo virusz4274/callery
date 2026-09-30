@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
+import type { TranscriptionProvider } from '@/lib/config';
 
 export function usePreferenceSettings(user: any, userProfile: UserProfile | null) {
     const { toast } = useToast();
@@ -12,7 +13,10 @@ export function usePreferenceSettings(user: any, userProfile: UserProfile | null
     const generalDirtyRef = useRef(false);
 
     // Data State
-    const [dataState, setDataState] = useState({
+    const [dataState, setDataState] = useState<{
+        deletionPolicy: string;
+        transcriptionSettings: { autoTranscribe: boolean; provider?: TranscriptionProvider };
+    }>({
         deletionPolicy: 'never',
         transcriptionSettings: { autoTranscribe: true }
     });

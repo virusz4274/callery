@@ -1,12 +1,14 @@
 import { ObjectId } from 'mongodb';
+import type { TranscriptionProvider } from '../config';
 
 /**
  * User document stored in MongoDB.
- * Links to Firebase Auth via firebaseUid.
+ * Links to Firebase Auth via authSubject.
  */
 export interface User {
     _id: ObjectId;
-    firebaseUid: string;
+    authSubject: string;
+    authProvider: 'firebase' | 'local';
     email: string;
     firstName: string;
     lastName: string;
@@ -26,6 +28,8 @@ export interface User {
     };
     transcriptionSettings: {
         autoTranscribe: boolean;
+        /** Per-user provider override. Absent = instance TRANSCRIPTION_PROVIDER default. */
+        provider?: TranscriptionProvider;
     };
     storageSettings: {
         deletionPolicy: 'never' | '3m' | '6m' | '1y';
@@ -63,7 +67,7 @@ export interface User {
  */
 export interface Recording {
     _id: ObjectId;
-    firebaseUid: string;
+    authSubject: string;
     contactId: ObjectId | null;
     contactName: string | null;
     phoneNumber: string;
@@ -110,7 +114,7 @@ export interface Recording {
  */
 export interface Contact {
     _id: ObjectId;
-    firebaseUid: string;
+    authSubject: string;
     googleContactId?: string;
     name: string;
     phoneNumbers: string[];
@@ -196,13 +200,13 @@ export interface AdminLog {
 // Input types for creating new documents (without _id and timestamps)
 
 export type CreateUserInput = Omit<User, '_id' | 'createdAt' | 'updatedAt'>;
-export type UpdateUserInput = Partial<Omit<User, '_id' | 'firebaseUid' | 'createdAt'>>;
+export type UpdateUserInput = Partial<Omit<User, '_id' | 'authSubject' | 'authProvider' | 'createdAt'>>;
 
 export type CreateRecordingInput = Omit<Recording, '_id' | 'createdAt' | 'updatedAt'>;
-export type UpdateRecordingInput = Partial<Omit<Recording, '_id' | 'firebaseUid' | 'createdAt'>>;
+export type UpdateRecordingInput = Partial<Omit<Recording, '_id' | 'authSubject' | 'createdAt'>>;
 
 export type CreateContactInput = Omit<Contact, '_id' | 'createdAt' | 'updatedAt'>;
-export type UpdateContactInput = Partial<Omit<Contact, '_id' | 'firebaseUid' | 'createdAt'>>;
+export type UpdateContactInput = Partial<Omit<Contact, '_id' | 'authSubject' | 'createdAt'>>;
 
 export type CreatePlanInput = Omit<Plan, '_id' | 'createdAt' | 'updatedAt'>;
 export type UpdatePlanInput = Partial<Omit<Plan, '_id' | 'createdAt' | 'updatedAt'>>;
@@ -216,7 +220,7 @@ export type UpdateAnnouncementInput = Partial<Omit<Announcement, '_id' | 'create
 
 export interface RecordingResponse {
     id: string;
-    firebaseUid: string;
+    authSubject: string;
     contactId: string | null;
     contactName: string | null;
     phoneNumber: string;
@@ -241,7 +245,7 @@ export interface RecordingResponse {
 
 export interface ContactResponse {
     id: string;
-    firebaseUid: string;
+    authSubject: string;
     googleContactId?: string;
     name: string;
     phoneNumbers: string[];
@@ -287,6 +291,8 @@ export interface UserResponse {
     transcriptionAllocation: number;
     transcriptionSettings: {
         autoTranscribe: boolean;
+        /** Per-user provider override. Absent = instance TRANSCRIPTION_PROVIDER default. */
+        provider?: TranscriptionProvider;
     };
     billingSettings: {
         allowOverage: boolean;

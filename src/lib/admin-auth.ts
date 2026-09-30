@@ -1,21 +1,17 @@
-import { cookies } from 'next/headers';
-import { getAdminAuth } from '@/lib/firebase/admin';
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { User } from '@/lib/db/types';
+import { getAuthSubjectFromSession } from './auth-utils';
+import { findUserByAuthSubject } from '@/lib/db/users';
 
 /**
  * Helper: Get current authenticated admin user from session.
+ * Provider-agnostic: identity comes from the auth seam, the admin
+ * flag from the app user record.
  */
 export async function getCurrentAdmin() {
     try {
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('session');
-        if (!sessionCookie?.value) return null;
+        const subject = await getAuthSubjectFromSession();
+        if (!subject) return null;
 
-        const auth = getAdminAuth();
-        const decodedToken = await auth.verifySessionCookie(sessionCookie.value, true);
-        const db = await getMongoDb();
-        const admin = await db.collection<User>(Collections.USERS).findOne({ firebaseUid: decodedToken.uid });
+        const admin = await findUserByAuthSubject(subject);
 
         if (!admin || admin.role !== 'admin') return null;
         return admin;

@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useTransition, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast-provider';
-import { useUser, useAuth } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { useAuthActions } from '@/lib/auth/client';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { syncGoogleContacts } from '@/app/actions/contacts';
@@ -29,12 +29,12 @@ export function useSettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'false';
+    const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
     const defaultTab = searchParams.get('tab') || 'profile';
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
-    const auth = useAuth();
+    const actions = useAuthActions();
 
     // Extracted Hooks Usage
     const {
@@ -173,14 +173,12 @@ export function useSettingsPage() {
         if (!user || !user.email) return;
         setSavingPassword(true);
         try {
-            const credential = EmailAuthProvider.credential(user.email, values.currentPassword);
-            await reauthenticateWithCredential(user, credential);
-            await updatePassword(user, values.newPassword);
+            await actions.changePassword(values.currentPassword, values.newPassword);
             toast({ title: 'Password Changed', description: 'Please log in again.', status: 'success' });
-            setTimeout(() => auth.signOut(), 3000);
+            setTimeout(() => actions.signOut(), 3000);
         } catch (error: unknown) {
-            const firebaseError = error as { code?: string; message?: string };
-            const msg = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
+            const authError = error as { code?: string; message?: string };
+            const msg = authError.code === 'auth/wrong-password' ? 'Incorrect password.' : authError.message;
             toast({ title: 'Password Change Failed', description: msg, status: 'danger' });
         } finally {
             setSavingPassword(false);

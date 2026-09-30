@@ -10,7 +10,7 @@ import { AppLayout } from '@/components/app-layout';
 import { ToastProvider } from '@/components/toast-provider';
 import { ServiceWorkerUnregister } from '@/components/service-worker-unregister';
 
-import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
+import { AuthProvider } from '@/lib/auth/client';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -62,13 +62,13 @@ export default async function RootLayout({
           {process.env.NODE_ENV === 'development' && <ServiceWorkerUnregister />}
 
 
-          <FirebaseClientProvider>
+          <AuthProvider>
             <Suspense>
               <ToastProvider>
                 <AppLayout systemSettings={settings}>{children}</AppLayout>
               </ToastProvider>
             </Suspense>
-          </FirebaseClientProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,10 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
-
-if (!process.env.MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable');
-}
-
-const uri = process.env.MONGODB_URI;
+import { mongoUri } from './config';
 
 // Standard options for Next.js/Serverless environments (Vercel/Docker)
 const options: any = {
@@ -15,43 +10,51 @@ const options: any = {
     socketTimeoutMS: 45000,
 };
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+type GlobalWithMongo = typeof globalThis & {
+    _mongoClientPromise?: Promise<MongoClient>;
+};
 
-if (process.env.NODE_ENV === 'development') {
-    // In development mode, use a global variable so that the value
-    // is preserved across module reloads caused by HMR (Hot Module Replacement).
-    const globalWithMongo = globalThis as typeof globalThis & {
-        _mongoClientPromise?: Promise<MongoClient>;
-    };
+let clientPromise: Promise<MongoClient> | undefined;
 
-    if (!globalWithMongo._mongoClientPromise) {
-        client = new MongoClient(uri, options);
-        console.log('Creating new MongoDB client (dev)...');
-        globalWithMongo._mongoClientPromise = client.connect()
+/**
+ * Lazily create (and cache) the shared client promise. Env is read here —
+ * never at import time — so builds and unrelated routes don't require
+ * MONGODB_URI to merely import this module.
+ */
+function getClientPromise(): Promise<MongoClient> {
+    if (process.env.NODE_ENV === 'development') {
+        // In development mode, use a global variable so that the value
+        // is preserved across module reloads caused by HMR (Hot Module Replacement).
+        const globalWithMongo = globalThis as GlobalWithMongo;
+
+        if (!globalWithMongo._mongoClientPromise) {
+            const client = new MongoClient(mongoUri(), options);
+            console.log('Creating new MongoDB client (dev)...');
+            globalWithMongo._mongoClientPromise = client.connect()
+                .then(c => {
+                    console.log('MongoDB Connected (dev)');
+                    return c;
+                })
+                .catch(err => {
+                    console.error('MongoDB Connection Error (dev):', err);
+                    throw err;
+                });
+        }
+        return globalWithMongo._mongoClientPromise;
+    }
+
+    if (!clientPromise) {
+        const client = new MongoClient(mongoUri(), options);
+        clientPromise = client.connect()
             .then(c => {
-                console.log('MongoDB Connected (dev)');
                 return c;
             })
             .catch(err => {
-                console.error('MongoDB Connection Error (dev):', err);
+                console.error('MongoDB Connection Error (prod/worker):', err);
                 throw err;
             });
     }
-    clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-    // In production mode, it's best to not use a global variable.
-    client = new MongoClient(uri, options);
-    // console.log('Creating new MongoDB client (prod/worker)...');
-    clientPromise = client.connect()
-        .then(c => {
-            // console.log('MongoDB Connected (prod/worker)');
-            return c;
-        })
-        .catch(err => {
-            console.error('MongoDB Connection Error (prod/worker):', err);
-            throw err;
-        });
+    return clientPromise;
 }
 
 /**
@@ -59,7 +62,7 @@ if (process.env.NODE_ENV === 'development') {
  * This is connection-pooled and reused across requests.
  */
 export async function getMongoClient(): Promise<MongoClient> {
-    return clientPromise;
+    return getClientPromise();
 }
 
 /**
@@ -67,7 +70,7 @@ export async function getMongoClient(): Promise<MongoClient> {
  * The database name is extracted from the MONGODB_URI connection string.
  */
 export async function getMongoDb(): Promise<Db> {
-    const client = await clientPromise;
+    const client = await getClientPromise();
     return client.db();
 }
 
@@ -82,6 +85,5 @@ export const Collections = {
     SYSTEM_SETTINGS: 'system_settings',
     ANNOUNCEMENTS: 'announcements',
     ADMIN_LOGS: 'admin_logs',
+    USAGE_EVENTS: 'usage_events',
 } as const;
-
-export default clientPromise;

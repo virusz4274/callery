@@ -30,8 +30,8 @@
  * 'use server';
  * 
  * export async function actionName(data: InputType): Promise<ResultType> {
- *     const firebaseUid = await getFirebaseUidFromSession();
- *     if (!firebaseUid) {
+ *     const authSubject = await getAuthSubjectFromSession();
+ *     if (!authSubject) {
  *         return { success: false, error: 'Not authenticated' };
  *     }
  *     

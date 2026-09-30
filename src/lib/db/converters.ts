@@ -34,7 +34,7 @@ import type { Recording, RecordingResponse, Contact, ContactResponse, User, User
 export function toRecordingResponse(recording: Recording, playbackUrl?: string): RecordingResponse {
     return {
         id: recording._id.toString(),
-        firebaseUid: recording.firebaseUid,
+        authSubject: recording.authSubject,
         contactId: recording.contactId?.toString() || null,
         contactName: recording.contactName,
         phoneNumber: recording.phoneNumber,
@@ -70,7 +70,7 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
 export function toContactResponse(contact: Contact): ContactResponse {
     return {
         id: contact._id.toString(),
-        firebaseUid: contact.firebaseUid,
+        authSubject: contact.authSubject,
         googleContactId: contact.googleContactId,
         name: contact.name,
         phoneNumbers: contact.phoneNumbers,

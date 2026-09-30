@@ -2,7 +2,6 @@
 
 import { ObjectId } from 'mongodb';
 import { after } from 'next/server';
-import { getFirebaseAdminApp } from '@/lib/firebase/admin';
 import {
   uploadToR2WithMetadata,
   generateRecordingKey,
@@ -11,11 +10,13 @@ import {
   getSignedR2Url
 } from '@/lib/r2';
 import { createRecording, updateRecording } from '@/lib/db/recordings';
-import { incrementStorageUsed, incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
-import { getFirebaseUidFromSession } from '@/lib/auth-utils';
+import { incrementStorageUsed, recordTranscriptionUsage, findUserByAuthSubject, checkAndResetUsageCycle } from '@/lib/db/users';
+import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { findContactByPhone, findContactByName } from '@/lib/db/contacts';
-import { GeminiService } from '@/services/ai/gemini-service';
-import { SonioxService } from '@/services/transcription/soniox-service';
+import { getAiService } from '@/services/ai';
+import { getTranscriptionService, transcriptionMultiplier } from '@/services/transcription';
+import { toBlockedDetails, toFailureDetails } from '@/services/transcription/failure-events';
+import { logSystemEvent } from '@/lib/db/system-log';
 import { parseContactFromFilename } from '@/lib/utils/filename-parser';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 
@@ -23,11 +24,7 @@ import { checkUserAccess, checkStorageAccess, checkTranscriptionAccess } from '@
 import { reportUsage } from '@/lib/stripe/usage';
 import { logger } from '@/lib/logger';
 
-// Initialize Firebase Admin
-getFirebaseAdminApp();
-
-const aiService = new GeminiService();
-const transcriptionService = new SonioxService();
+const aiService = getAiService();
 
 
 
@@ -39,13 +36,13 @@ import pLimit from 'p-limit';
 export async function uploadRecordings(
   formData: FormData
 ): Promise<{ success: boolean; count: number; error?: string }> {
-  const firebaseUid = await getFirebaseUidFromSession();
+  const authSubject = await getAuthSubjectFromSession();
 
-  if (!firebaseUid) {
+  if (!authSubject) {
     return { success: false, count: 0, error: 'Not authenticated' };
   }
 
-  const user = await findUserByFirebaseUid(firebaseUid);
+  const user = await findUserByAuthSubject(authSubject);
   if (!user) {
     return { success: false, count: 0, error: 'User not found' };
   }
@@ -123,7 +120,7 @@ export async function uploadRecordings(
           let googleContactId: string | undefined;
 
           if (contactInfo.phoneNumber) {
-            const contact = await findContactByPhone(firebaseUid, contactInfo.phoneNumber);
+            const contact = await findContactByPhone(authSubject, contactInfo.phoneNumber);
             if (contact) {
               contactId = contact._id.toString();
               contactName = contact.name;
@@ -131,7 +128,7 @@ export async function uploadRecordings(
               googleContactId = contact.googleContactId;
             }
           } else if (contactInfo.name) {
-            const contact = await findContactByName(firebaseUid, contactInfo.name);
+            const contact = await findContactByName(authSubject, contactInfo.name);
             if (contact) {
               contactId = contact._id.toString();
               contactName = contact.name;
@@ -150,7 +147,7 @@ export async function uploadRecordings(
 
           // Generate R2 key with new structure
           const r2Key = generateRecordingKey(
-            firebaseUid,
+            authSubject,
             contactId,
             phoneNumber,
             contactInfo.date || recordedAt,
@@ -175,7 +172,7 @@ export async function uploadRecordings(
 
           // Create recording in MongoDB
           const recordingData = {
-            firebaseUid,
+            authSubject,
             contactId: contactId ? new ObjectId(contactId) : null,
             contactName,
             phoneNumber,
@@ -199,40 +196,50 @@ export async function uploadRecordings(
           logger.info(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
 
           // Update user's storage usage
-          await incrementStorageUsed(firebaseUid, buffer.length);
-          await reportUsage(firebaseUid, 'storage', buffer.length / (1024 * 1024 * 1024)); // Convert bytes to GB for Stripe
+          await incrementStorageUsed(authSubject, buffer.length);
+          await reportUsage(authSubject, 'storage', buffer.length / (1024 * 1024 * 1024)); // Convert bytes to GB for Stripe
 
           // Auto-transcription
-          const user = await findUserByFirebaseUid(firebaseUid);
+          const user = await findUserByAuthSubject(authSubject);
           if (user?.transcriptionSettings?.autoTranscribe) {
+            // Resolve the provider once (user override aware); the closure below reuses it.
+            const { service: transcriptionService, provider } = getTranscriptionService(user);
             // Use after() to run transcription in the background after the response is sent
             // This prevents the upload request from timing out
             after(async () => {
               try {
                 // Re-fetch user to get latest usage
-                const freshUser = await findUserByFirebaseUid(firebaseUid);
+                const freshUser = await findUserByAuthSubject(authSubject);
                 if (!freshUser) return;
 
-                // Check Transcription Access
-                const transcriptionAccess = await checkTranscriptionAccess(freshUser, duration);
+                // Check Transcription Access (in billed units for the resolved provider)
+                const previewUnits = calculateBilledDuration(duration) * transcriptionMultiplier(provider);
+                const transcriptionAccess = await checkTranscriptionAccess(freshUser, previewUnits);
                 if (!transcriptionAccess.allowed) {
-                  logger.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${transcriptionAccess.reason}`);
-                  // We don't fail the recording (it's uploaded), just the transcription status?
-                  // Or keep it 'pending' so they can try manually later?
-                  // 'failed' implies it broke. 'pending' implies waiting. 
-                  // If we set 'failed', we can show "Quota exceeded" if we store error message.
-                  // Recording schema doesn't have error message field easily viewable.
-                  // Let's set to 'failed' for now to stop it from looking like it's stuck.
-                  await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                  const reason = transcriptionAccess.reason || 'Transcription limit exceeded';
+                  logger.warn(`[uploadRecordings] Auto-transcription skipped for ${createdRecording._id}: ${reason}`);
+                  // The user just sees 'failed'; the quota verdict goes to the
+                  // admin audit log (deliberately not on the recording — model
+                  // errors stay admin-side).
+                  await updateRecording(createdRecording._id.toString(), authSubject, {
                     transcriptionStatus: 'failed',
-                    // TODO: Add errorReason field to Recording schema if needed
                   });
+                  await logSystemEvent(
+                    'TRANSCRIPTION_BLOCKED',
+                    toBlockedDetails(reason, {
+                      provider,
+                      recordingId: createdRecording._id.toString(),
+                      authSubject,
+                      durationSeconds: duration,
+                    }),
+                    createdRecording._id.toString(),
+                  );
                   return;
                 }
 
                 logger.info(`[uploadRecordings] Background: Auto-transcribing recording ${createdRecording._id.toString()}...`);
 
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                await updateRecording(createdRecording._id.toString(), authSubject, {
                   transcriptionStatus: 'processing',
                 });
 
@@ -241,8 +248,8 @@ export async function uploadRecordings(
 
                 // CRITICAL FIX: Save raw transcript IMMEDIATELY
                 // This ensures the user sees the text even if AI summary/transliteration takes time or fails
-                logger.info(`[uploadRecordings] Soniox finished. Saving raw transcript for ${createdRecording._id}...`);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                logger.info(`[uploadRecordings] ${provider} finished. Saving raw transcript for ${createdRecording._id}...`);
+                await updateRecording(createdRecording._id.toString(), authSubject, {
                   fullTranscript: result.segments, // Save raw segments first
                   languageCode: result.languageCode,
                   // Keep status as 'processing' so UI knows we are still working on summary/AI
@@ -258,9 +265,10 @@ export async function uploadRecordings(
                   logger.info(`[uploadRecordings] AI Processing Start for ${createdRecording._id}...`);
 
                   // Run generation in parallel
+                  const aiContext = { recordingId: createdRecording._id.toString(), authSubject };
                   const [summaryResult, translitResult] = await Promise.all([
-                    aiService.generateSummary(result.text, result.languageCode),
-                    aiService.generateTransliteration(result.segments, result.languageCode)
+                    aiService.generateSummary(result.text, result.languageCode, aiContext),
+                    aiService.generateTransliteration(result.segments, result.languageCode, aiContext)
                   ]);
 
                   summary = summaryResult;
@@ -268,12 +276,12 @@ export async function uploadRecordings(
 
                   // Generate embedding from summary
                   if (summary) {
-                    summaryEmbedding = await aiService.generateEmbedding(summary);
+                    summaryEmbedding = await aiService.generateEmbedding(summary, aiContext);
                   }
                 }
 
                 logger.info(`[uploadRecordings] Finalizing recording ${createdRecording._id}...`);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                await updateRecording(createdRecording._id.toString(), authSubject, {
                   transcriptionStatus: 'completed',
                   fullTranscript: transliteratedSegments, // Update with transliterated version
                   languageCode: result.languageCode,
@@ -282,19 +290,32 @@ export async function uploadRecordings(
                 });
 
                 // Calculate and record billed usage
-                const billedDuration = calculateBilledDuration(duration);
-                await incrementTranscriptionUsed(firebaseUid, billedDuration);
-                await reportUsage(firebaseUid, 'transcription', billedDuration / 60); // Convert seconds to minutes for Stripe
-                logger.info(`[uploadRecordings] Recorded usage: ${billedDuration}s (Actual: ${duration}s)`);
+                const { billedSeconds, billedUnits } = await recordTranscriptionUsage(authSubject, {
+                  provider,
+                  rawSeconds: duration,
+                  recordingId: createdRecording._id.toString(),
+                });
+                await reportUsage(authSubject, 'transcription', billedUnits / 60); // Convert units to minutes for Stripe
+                logger.info(`[uploadRecordings] Recorded usage: ${billedUnits}u (${billedSeconds}s x provider ${provider}; actual: ${duration}s)`);
 
-                // Delete from Soniox
+                // Delete from provider
                 await transcriptionService.deleteTranscript(result.transcriptionId);
                 logger.info(`[uploadRecordings] Background: Transcription & AI Complete for ${createdRecording._id.toString()}`);
               } catch (transcriptionError) {
                 logger.error(`[uploadRecordings] Background: Transcription failed for ${createdRecording._id.toString()}:`, transcriptionError);
-                await updateRecording(createdRecording._id.toString(), firebaseUid, {
+                await updateRecording(createdRecording._id.toString(), authSubject, {
                   transcriptionStatus: 'failed',
                 });
+                await logSystemEvent(
+                  'TRANSCRIPTION_FAILED',
+                  toFailureDetails(transcriptionError, {
+                    provider,
+                    recordingId: createdRecording._id.toString(),
+                    authSubject,
+                    durationSeconds: duration,
+                  }),
+                  createdRecording._id.toString(),
+                );
               }
             });
           }

@@ -1,13 +1,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
-import { getFirebaseUidFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByFirebaseUid } from '@/lib/db/users';
+import { getStripe } from '@/lib/stripe';
+import { billingEnabled } from '@/lib/config';
+import { getAuthSubjectFromSession, getUserFromRequest } from '@/lib/auth-utils';
+import { findUserByAuthSubject } from '@/lib/db/users';
 
 export async function POST(req: NextRequest) {
+    if (!billingEnabled()) {
+        return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 404 });
+    }
     try {
+        const stripe = getStripe();
         // 1. Authenticate User
-        let uid = await getFirebaseUidFromSession();
+        let uid = await getAuthSubjectFromSession();
         if (!uid) {
             uid = await getUserFromRequest(req);
         }
@@ -19,7 +24,7 @@ export async function POST(req: NextRequest) {
         const { returnUrl } = await req.json();
 
         // 2. Get User from DB
-        const user = await findUserByFirebaseUid(uid);
+        const user = await findUserByAuthSubject(uid);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }

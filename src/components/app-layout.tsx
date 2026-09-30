@@ -8,9 +8,8 @@ import { MobileNav } from './mobile-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ClientOnly } from './client-only';
 import { EmailVerificationAlert } from './email-verification-alert';
-import { useUser, useAuth } from '@/lib/firebase/provider';
+import { useUser, useAuthActions } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
-import { signOut, sendEmailVerification } from 'firebase/auth';
 import { Spinner } from '@heroui/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
 import { BillingAlert } from '@/components/billing-alert';
@@ -34,7 +33,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   // Data fetching and auth logic is now in the layout container
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
-  const auth = useAuth();
+  const actions = useAuthActions();
 
   // Maintenance Mode Check
   useEffect(() => {
@@ -88,9 +87,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
 
   const handleLogout = async () => {
     try {
-      // Clear session cookie on server
-      await fetch('/api/auth/logout', { method: 'POST' });
-      await signOut(auth);
+      await actions.signOut();
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -101,7 +98,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const handleResendVerification = async () => {
     if (!user) return;
     try {
-      await sendEmailVerification(user);
+      await actions.sendVerificationEmail();
       toast({ title: 'Verification Email Sent', description: 'Please check your inbox for the verification link.', status: 'success' });
     } catch (error: unknown) {
       toast({ title: 'Error', description: (error as Error).message || 'Failed to send verification email. Please try again.', status: 'danger' });

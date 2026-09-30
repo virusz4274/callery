@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRecordingById, updateRecording } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
-import { GeminiService } from '@/services/ai/gemini-service';
-import { SonioxService } from '@/services/transcription/soniox-service';
+import { getAiService } from '@/services/ai';
+import { getTranscriptionService, transcriptionMultiplier } from '@/services/transcription';
+import { toBlockedDetails, toFailureDetails } from '@/services/transcription/failure-events';
+import { logSystemEvent } from '@/lib/db/system-log';
 import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { calculateBilledDuration } from '@/lib/utils/billing';
-import { incrementTranscriptionUsed, findUserByFirebaseUid, checkAndResetUsageCycle } from '@/lib/db/users';
+import { recordTranscriptionUsage, findUserByAuthSubject, checkAndResetUsageCycle } from '@/lib/db/users';
 import { logger } from '@/lib/logger';
 
 // export const maxDuration = parseInt(process.env.TRANSCRIPTION_MAX_DURATION_SECONDS || '300'); // 5 minutes timeout for Vercel/Next.js functions
 export const maxDuration = 300; // 5 minutes
 
-const aiService = new GeminiService();
-const transcriptionService = new SonioxService();
+const aiService = getAiService();
 
 export async function POST(req: NextRequest) {
     try {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const user = await findUserByFirebaseUid(uid);
+        const user = await findUserByAuthSubject(uid);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -53,10 +54,26 @@ export async function POST(req: NextRequest) {
         await updateRecording(recordingId, uid, { transcriptionStatus: 'processing' });
         logger.info(`[API/Transcribe] Starting background job for ${recordingId}`);
 
-        // 3. Check Transcription Access
-        const transcriptionAccess = checkTranscriptionAccess(currentUser, recording.duration);
+        // 3. Resolve provider (user override aware) and check access in billed units.
+        const { service: transcriptionService, provider } = getTranscriptionService(currentUser);
+        const previewUnits = calculateBilledDuration(recording.duration) * transcriptionMultiplier(provider);
+        const transcriptionAccess = checkTranscriptionAccess(currentUser, previewUnits);
         if (!transcriptionAccess.allowed) {
-            return NextResponse.json({ error: transcriptionAccess.reason || 'Transcription limit exceeded' }, { status: 403 });
+            const reason = transcriptionAccess.reason || 'Transcription limit exceeded';
+            // Don't leave the recording stuck in 'processing'; the user just
+            // sees 'failed' while the reason goes to the admin audit log.
+            await updateRecording(recordingId, uid, { transcriptionStatus: 'failed' });
+            await logSystemEvent(
+                'TRANSCRIPTION_BLOCKED',
+                toBlockedDetails(reason, {
+                    provider,
+                    recordingId,
+                    authSubject: uid,
+                    durationSeconds: recording.duration,
+                }),
+                recordingId,
+            );
+            return NextResponse.json({ error: reason }, { status: 403 });
         }
 
         // 5. Trigger Background Transcription
@@ -74,13 +91,14 @@ export async function POST(req: NextRequest) {
 
                 if (result.text && result.text.trim()) {
                     logger.info(`[API/Transcribe] Running AI summary and transliteration for ${recordingId}`);
+                    const aiContext = { recordingId, authSubject: uid };
                     [summary, transliteratedSegments] = await Promise.all([
-                        aiService.generateSummary(result.text, result.languageCode),
-                        aiService.generateTransliteration(result.segments, result.languageCode)
+                        aiService.generateSummary(result.text, result.languageCode, aiContext),
+                        aiService.generateTransliteration(result.segments, result.languageCode, aiContext)
                     ]);
 
                     // Generate embedding from summary
-                    summaryEmbedding = summary ? await aiService.generateEmbedding(summary) : [];
+                    summaryEmbedding = summary ? await aiService.generateEmbedding(summary, aiContext) : [];
                 }
 
                 // Save Result
@@ -94,21 +112,34 @@ export async function POST(req: NextRequest) {
                 });
 
                 // Calculate and record billed usage
-                const billedDuration = calculateBilledDuration(recording.duration);
-                await incrementTranscriptionUsed(uid, billedDuration);
-                logger.info(`[API/Transcribe] Job completed for ${recordingId}`);
+                const { billedUnits } = await recordTranscriptionUsage(uid, {
+                    provider,
+                    rawSeconds: recording.duration,
+                    recordingId,
+                });
+                logger.info(`[API/Transcribe] Job completed for ${recordingId} (${billedUnits} units via ${provider})`);
 
-                // Delete from Soniox
+                // Delete from provider
                 try {
                     await transcriptionService.deleteTranscript(result.transcriptionId);
                 } catch (deleteError) {
-                    logger.error('Failed to delete transcript from Soniox:', deleteError);
+                    logger.error(`Failed to delete transcript from ${provider}:`, deleteError);
                 }
             } catch (error) {
                 logger.error('[API/Transcribe] Background job failed:', error);
                 await updateRecording(recordingId, uid, {
                     transcriptionStatus: 'failed',
                 });
+                await logSystemEvent(
+                    'TRANSCRIPTION_FAILED',
+                    toFailureDetails(error, {
+                        provider,
+                        recordingId,
+                        authSubject: uid,
+                        durationSeconds: recording.duration,
+                    }),
+                    recordingId,
+                );
             }
         });
 

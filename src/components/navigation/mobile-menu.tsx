@@ -9,7 +9,7 @@ import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
 import type { User as UserProfile } from '@/lib/types';
-import type { User } from 'firebase/auth';
+import type { AppUser as User } from '@/lib/auth/types';
 
 interface MobileMenuProps {
     user: User | null;

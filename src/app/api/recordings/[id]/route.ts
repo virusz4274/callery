@@ -16,15 +16,15 @@ interface RouteParams {
  * Get a single recording with a fresh signed URL.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     try {
         const { id } = await params;
-        const recording = await getRecordingById(id, firebaseUid);
+        const recording = await getRecordingById(id, authSubject);
 
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
@@ -45,9 +45,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * Update a recording (e.g., star, archive, tags).
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             }
         }
 
-        const recording = await updateRecording(id, firebaseUid, updateData);
+        const recording = await updateRecording(id, authSubject, updateData);
 
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
@@ -84,9 +84,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * Delete a recording from MongoDB and R2.
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         const { id } = await params;
 
         // Delete from MongoDB first (to get the R2 key)
-        const deletedRecording = await deleteRecording(id, firebaseUid);
+        const deletedRecording = await deleteRecording(id, authSubject);
 
         if (!deletedRecording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         }
 
         // Update user's storage usage
-        await decrementStorageUsed(firebaseUid, deletedRecording.fileSize);
+        await decrementStorageUsed(authSubject, deletedRecording.fileSize);
 
         return NextResponse.json({ success: true, id });
     } catch (error) {

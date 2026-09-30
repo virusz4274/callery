@@ -11,6 +11,7 @@ import { BillingSettings } from '@/components/settings/billing-settings';
 import { ClientOnly } from '@/components/client-only';
 import { Skeleton } from '@heroui/react';
 import { useSettingsPage } from '@/hooks/use-settings-page';
+import type { TranscriptionProvider } from '@/lib/config';
 
 export function SettingsPage() {
     const {
@@ -167,7 +168,7 @@ export function SettingsPage() {
                                 <DataSettings
                                     userProfile={userProfile}
                                     settings={dataState}
-                                    onSettingsChange={(newSettings: { deletionPolicy: string; transcriptionSettings: { autoTranscribe: boolean } }) => {
+                                    onSettingsChange={(newSettings: { deletionPolicy: string; transcriptionSettings: { autoTranscribe: boolean; provider?: TranscriptionProvider } }) => {
                                         dataDirtyRef.current = true;
                                         setDataState(newSettings);
                                     }}

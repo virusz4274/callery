@@ -10,7 +10,7 @@ import type { ContactResponse } from '@/lib/db/types';
 function toContactResponse(contact: Awaited<ReturnType<typeof getContactsByUser>>[number]): ContactResponse {
     return {
         id: contact._id.toString(),
-        firebaseUid: contact.firebaseUid,
+        authSubject: contact.authSubject,
         name: contact.name,
 
         phoneNumbers: contact.phoneNumbers || [],
@@ -33,9 +33,9 @@ function toContactResponse(contact: Awaited<ReturnType<typeof getContactsByUser>
  * Fetch all contacts for the authenticated user.
  */
 export async function GET(request: NextRequest) {
-    const firebaseUid = await getUserFromRequest(request);
+    const authSubject = await getUserFromRequest(request);
 
-    if (!firebaseUid) {
+    if (!authSubject) {
         return NextResponse.json(
             { error: 'Unauthorized' },
             { status: 401 }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '20', 10);
         const skip = parseInt(searchParams.get('skip') || '0', 10);
 
-        const contacts = await getContactsByUser(firebaseUid, { limit, skip });
+        const contacts = await getContactsByUser(authSubject, { limit, skip });
 
         // We probably want the total count of contacts for this user too, 
         // effectively another query if we want "real" total vs "fetched" length.
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         // Wait, looking at getContactsByUser, it sorts by name. 
         // Let's just do a count here.
         const { countContactsByUser } = await import('@/lib/db/contacts');
-        const totalCount = await countContactsByUser(firebaseUid);
+        const totalCount = await countContactsByUser(authSubject);
 
         return NextResponse.json({
             contacts: contacts.map(toContactResponse),

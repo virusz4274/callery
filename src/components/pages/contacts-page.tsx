@@ -15,7 +15,7 @@ type ContactsPageProps = {
   totalCount?: number;
 };
 
-import { useUser } from '@/lib/firebase/provider';
+import { useUser } from '@/lib/auth/client';
 
 function ContactPhoneDisplay({ phoneNumbers }: { phoneNumbers?: string[] }) {
   const [isExpanded, setIsExpanded] = useState(false);

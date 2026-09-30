@@ -6,7 +6,8 @@ import { init, replayIntegration, captureRouterTransitionStart } from "@sentry/n
 
 if (typeof window !== "undefined") {
   init({
-    dsn: "https://5506dac56dc73db49dde64aedf34944d@o4510817425817600.ingest.us.sentry.io/4510817435123712",
+    // Optional: when SENTRY_DSN is unset the SDK stays a no-op client.
+    dsn: process.env.SENTRY_DSN,
 
     // Add optional integrations for additional features
     integrations: [replayIntegration()],
