@@ -6,7 +6,7 @@ CallOrganizer is a modern web application for managing, transcribing, and organi
 
 ### **Tech Stack**
 
-*   **Frontend**: Next.js 15+ (App Router), React 19, HeroUI, Tailwind CSS v4.
+*   **Frontend**: Next.js 16 (App Router), React 19, HeroUI, Tailwind CSS v4.
 *   **Backend**: Next.js API Routes (Serverless functions).
 *   **Database**: MongoDB (via `mongodb` driver).
 *   **Storage**: Cloudflare R2 (S3-compatible object storage) for audio files.

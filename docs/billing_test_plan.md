@@ -5,7 +5,7 @@ This document outlines manual tests to verify all billing features work correctl
 ## Prerequisites
 
 - [ ] Stripe CLI running: `stripe listen --forward-to localhost:9002/api/stripe/webhook`
-- [ ] Dev server running: `npm run dev`
+- [ ] Dev server running: `pnpm run dev`
 - [ ] Admin Panel configured with Price IDs (see previous steps)
 - [ ] Test card numbers ready (see Stripe docs)
 
@@ -167,7 +167,7 @@ This document outlines manual tests to verify all billing features work correctl
 | 11.2 | Go to `/admin/plans` | See list of plans |
 | 11.3 | Edit Pro plan: Change Stripe Price ID | Save succeeds |
 | 11.4 | Check MongoDB | Plan document updated |
-| 11.5 | Run `npx tsx src/lib/db/init.ts` | Confirm it does NOT overwrite the change |
+| 11.5 | Run `pnpm dlx tsx src/lib/db/init.ts` | Confirm it does NOT overwrite the change |
 
 ---
 

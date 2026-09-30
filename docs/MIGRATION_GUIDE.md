@@ -44,8 +44,8 @@ docker run -p 3000:3000 call-memo
 ### Option C: Local Development
 Standard Next.js workflow applies:
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 (Access at http://localhost:9000)
 

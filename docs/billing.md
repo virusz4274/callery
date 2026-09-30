@@ -178,5 +178,5 @@ Copy the Price IDs into `src/lib/db/init.ts`...
 }
 ```
 
-Then re-run: `npx tsx src/lib/db/init.ts`
+Then re-run: `pnpm dlx tsx src/lib/db/init.ts`
 

@@ -4,7 +4,7 @@ This guide will help you set up the VoSift application locally.
 
 ## Prerequisites
 
-*   **Node.js**: v18 or later.
+*   **Node.js**: v22 or later (v24 LTS recommended).
 *   **MongoDB**: v6.0 or later (or MongoDB Atlas).
 *   **Firebase Project**: With Authentication enabled.
 *   **Cloudflare R2**: Bucket for file storage.
@@ -65,13 +65,13 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 2.  Install dependencies:
     ```bash
-    npm install
+    pnpm install
     ```
 
 3.  **Initialize the Database**:
     This creates necessary indexes and seeds default plans.
     ```bash
-    npx tsx src/lib/db/init.ts
+    pnpm dlx tsx src/lib/db/init.ts
     ```
 
 ## Running Locally
@@ -79,16 +79,16 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 Start the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The application will be available at `http://localhost:9002`.
 
 ## Scripts
 
-*   `npm run dev`: Start dev server.
-*   `npm run build`: Build for production.
-*   `npm run start`: Start production server.
-*   `npm run lint`: Run ESLint.
-*   `npm run typecheck`: Run TypeScript compiler check.
+*   `pnpm run dev`: Start dev server.
+*   `pnpm run build`: Build for production.
+*   `pnpm run start`: Start production server.
+*   `pnpm run lint`: Run ESLint.
+*   `pnpm run typecheck`: Run TypeScript compiler check.
 

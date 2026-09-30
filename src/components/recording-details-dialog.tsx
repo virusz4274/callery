@@ -12,7 +12,7 @@ import {
 } from '@heroui/react';
 import { ClientFormattedDate } from './client-formatted-date';
 import { Loader2, Wand2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
