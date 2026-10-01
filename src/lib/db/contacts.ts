@@ -9,13 +9,14 @@ export async function getContactsByUser(
     options?: {
         limit?: number;
         skip?: number;
+        search?: string;
     }
 ): Promise<Contact[]> {
     const db = await getMongoDb();
 
     const contacts = await db
         .collection<Contact>(Collections.CONTACTS)
-        .find({ authSubject })
+        .find(buildContactsQuery(authSubject, options))
         .collation({ locale: 'en', strength: 2 })
         .sort({ name: 1 })
         .skip(options?.skip || 0)
@@ -23,6 +24,29 @@ export async function getContactsByUser(
         .toArray();
 
     return contacts;
+}
+
+/**
+ * Build the shared MongoDB filter for contacts so the list query and the
+ * count query always agree.
+ */
+export function buildContactsQuery(
+    authSubject: string,
+    options?: { search?: string }
+): Record<string, unknown> {
+    const query: Record<string, unknown> = { authSubject };
+    const search = options?.search?.trim();
+    if (search) {
+        const regex = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        query.$or = [
+            { name: regex },
+            { phoneNumbers: regex },
+            { company: regex },
+            { jobTitle: regex },
+            { email: regex },
+        ];
+    }
+    return query;
 }
 
 /**
@@ -94,7 +118,10 @@ export async function createContact(data: CreateContactInput): Promise<Contact> 
                 { returnDocument: 'after' }
             );
 
-            return result as Contact;
+            // Newly added numbers may match unlinked recordings.
+            const stats = await linkRecordingsToContact(existing._id, data.phoneNumbers, data.authSubject);
+
+            return { ...result, ...stats } as Contact;
         }
     }
 
@@ -328,6 +355,59 @@ export async function upsertContacts(
     return { created, updated };
 }
 
+export type SyncedContactData = {
+    googleContactId?: string;
+    name: string;
+    phoneNumbers: string[];
+    email: string | null;
+    jobTitle?: string;
+    company?: string;
+};
+
+/**
+ * Persist synced contacts (Google import) and kick off background migration
+ * of unknown recordings to the newly saved contacts. Server-trusted core
+ * used by both the session-guarded server action and the background sync
+ * worker (which runs outside request scope and can't check a session).
+ */
+export async function persistSyncedContacts(
+    authSubject: string,
+    contacts: SyncedContactData[]
+): Promise<{ created: number; updated: number }> {
+    if (!contacts || contacts.length === 0) {
+        return { created: 0, updated: 0 };
+    }
+
+    const result = await upsertContacts(authSubject, contacts);
+
+    // Asynchronously migrate any unknown recordings to the newly saved contacts
+    if (result.created > 0) {
+        void (async () => {
+            try {
+                const { migrateUnknownRecordingsToContact } = await import('./migrate-unknown-recordings');
+                await Promise.all(
+                    contacts.map(async (contact) => {
+                        if (!contact.phoneNumbers || contact.phoneNumbers.length === 0) return;
+                        const foundContact = await findContactByPhone(authSubject, contact.phoneNumbers[0]);
+                        if (foundContact) {
+                            await migrateUnknownRecordingsToContact(
+                                authSubject,
+                                foundContact._id.toString(),
+                                contact.phoneNumbers,
+                                contact.name
+                            );
+                        }
+                    })
+                );
+            } catch (err) {
+                console.error('Failed to migrate unknown recordings:', err);
+            }
+        })();
+    }
+
+    return result;
+}
+
 /**
  * Increment the recording count for a contact.
  */
@@ -361,7 +441,12 @@ export async function incrementContactRecordings(
 /**
  * Count all contacts for a user.
  */
-export async function countContactsByUser(authSubject: string): Promise<number> {
+export async function countContactsByUser(authSubject: string, options?: { search?: string }): Promise<number> {
+    if (options?.search?.trim()) {
+        const db = await getMongoDb();
+        return db.collection(Collections.CONTACTS).countDocuments(buildContactsQuery(authSubject, options));
+    }
+
     // We rely on the user profile to store the total count of contacts.
     // This is maintained by incrementContactCount in createContact/upsertContacts.
     const { findUserByAuthSubject } = await import('./users');

@@ -2,21 +2,27 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import type { FileSystemNode } from '@/lib/types';
+import type { FileSystemNode, Recording } from '@/lib/types';
 import { Card, Button } from '@heroui/react';
 import { Folder, FileText, ChevronRight } from 'lucide-react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
+import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
+import { useToast } from '@/components/toast-provider';
+import { authFetch } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 
 type FileBrowserPageProps = {
   rootNode: FileSystemNode;
+  truncated?: boolean;
 };
 
 import { useUser } from '@/lib/auth/client';
 import { Spinner } from '@heroui/react';
 
-export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
+export function FileBrowserPage({ rootNode, truncated }: FileBrowserPageProps) {
   const [path, setPath] = useState<string[]>([]);
+  const [activeRecording, setActiveRecording] = useState<Recording | null>(null);
+  const { toast } = useToast();
   const router = useRouter(); // Use explicit router import if not present, checking imports...
 
   const { user, isUserLoading } = useUser();
@@ -45,9 +51,22 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
     return { currentNode, breadcrumbItems };
   }, [rootNode, path]);
 
-  const handleNodeClick = (node: FileSystemNode) => {
+  const handleNodeClick = async (node: FileSystemNode) => {
     if (node.type === 'folder') {
       setPath([...path, node.name]);
+      return;
+    }
+    if (!node.recordingId) return;
+    try {
+      const response = await authFetch(`/api/recordings/${node.recordingId}`);
+      if (!response.ok) {
+        throw new Error('Recording not found');
+      }
+      const recording = await response.json();
+      setActiveRecording(recording as Recording);
+    } catch (error) {
+      console.error('Failed to open recording:', error);
+      toast({ title: 'Could not open recording', description: 'Please try again.', status: 'danger' });
     }
   };
 
@@ -56,11 +75,12 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
   }
 
   const items = useMemo(() => {
-    return currentNode.children?.sort((a, b) => {
+    // Copy before sorting: sort() is in-place and must not mutate props.
+    return [...(currentNode.children || [])].sort((a, b) => {
       if (a.type === 'folder' && b.type !== 'folder') return -1;
       if (a.type !== 'folder' && b.type === 'folder') return 1;
       return a.name.localeCompare(b.name);
-    }) || [];
+    });
   }, [currentNode]);
 
 
@@ -83,6 +103,11 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
         <p className="text-default-500 text-lg">
           Explore and manage your recordings
         </p>
+        {truncated && (
+          <p className="text-sm text-warning">
+            Showing the 1,000 most recent recordings. Use search on the dashboard to find older ones.
+          </p>
+        )}
       </div>
 
       <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl overflow-visible transition-all duration-300">
@@ -123,7 +148,7 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
                   items.map((item) => (
                     <tr
                       key={item.id}
-                      className={`transition-colors group ${item.type === 'folder' ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-default-50'}`}
+                      className={`transition-colors group ${item.type === 'folder' ? 'cursor-pointer hover:bg-primary/5' : 'cursor-pointer hover:bg-default-50'}`}
                       onClick={() => handleNodeClick(item)}
                     >
                       <td className="p-4 align-middle pl-6">
@@ -160,6 +185,14 @@ export function FileBrowserPage({ rootNode }: FileBrowserPageProps) {
           </div>
         </Card.Content>
       </Card>
+
+      {activeRecording && (
+        <RecordingDetailsDialog
+          key={activeRecording.id}
+          recording={activeRecording}
+          onOpenChange={(isOpen) => !isOpen && setActiveRecording(null)}
+        />
+      )}
     </div>
   );
 }

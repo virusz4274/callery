@@ -37,24 +37,35 @@ function AuthenticatedDashboard() {
   // State for new filters
   const [currentSort, setCurrentSort] = useState<{ by: 'date' | 'duration'; order: 'asc' | 'desc' }>({ by: 'date', order: 'desc' });
   const [currentDateFilter, setCurrentDateFilter] = useState<{ start?: string; end?: string }>({});
+  const [showArchived, setShowArchived] = useState(false);
 
   const contactName = filter.type === 'contact' ? filter.value || undefined : undefined;
+  const searchQuery = searchParams.get('q') || '';
 
-  // Fetch recordings with pagination
+  // Any filter change targets a new result set, so restart at page 1.
+  const filterKey = `${contactName || ''}|${searchQuery}|${currentSort.by}|${currentSort.order}|${currentDateFilter.start || ''}|${currentDateFilter.end || ''}|${showArchived}`;
+  const prevFilterKey = React.useRef(filterKey);
+  React.useEffect(() => {
+    if (prevFilterKey.current !== filterKey) {
+      prevFilterKey.current = filterKey;
+      setPage(1);
+    }
+  }, [filterKey]);
+
+  // Fetch recordings with pagination (search + filters run server-side)
   const { data: recordingsData, isLoading: isLoadingRecordings, totalCount, refetch: refetchRecordings } = useRecordings({
     limit: LIMIT,
-    skip: (page - 1) * LIMIT,
-    includeArchived: false,
+    page,
+    includeArchived: showArchived,
     contactName,
     sortBy: currentSort.by,
     sortOrder: currentSort.order,
     startDate: currentDateFilter.start,
-    endDate: currentDateFilter.end
+    endDate: currentDateFilter.end,
+    search: searchQuery || undefined
   });
 
   const allRecordings = recordingsData ?? [];
-
-  const searchQuery = searchParams.get('q') || '';
 
   if (isLoadingRecordings || isLoadingContacts || isLoadingStats) {
     return (
@@ -85,8 +96,10 @@ function AuthenticatedDashboard() {
         onRecordingsChange={refetchRecordings}
         onSortChange={(by, order) => setCurrentSort({ by, order })}
         onDateFilterChange={(start, end) => setCurrentDateFilter({ start, end })}
+        onArchivedChange={setShowArchived}
         currentSort={currentSort}
         currentDateFilter={currentDateFilter}
+        showArchived={showArchived}
       />
     </Suspense>
   );

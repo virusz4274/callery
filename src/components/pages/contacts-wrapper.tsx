@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useContacts } from '@/hooks/use-contacts';
 import { ContactsPage } from '@/components/pages/contacts-page';
 
 export function ContactsWrapper() {
-    const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, isLoadingMore, totalCount } = useContacts();
+    const searchParams = useSearchParams();
+    const searchQuery = searchParams.get('q') || '';
+    const { data: contactsData, isLoading: isLoadingContacts, loadMore, hasMore, isLoadingMore, totalCount } = useContacts(searchQuery);
 
     // Use API response directly (no transformation needed)
     const allContacts = contactsData ?? [];

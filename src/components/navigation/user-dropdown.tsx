@@ -27,7 +27,7 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
             </Dropdown.Trigger>
             <Dropdown.Popover placement="bottom end">
                 <Dropdown.Menu aria-label="Profile Actions">
-                    <Dropdown.Item key="profile" className="h-14 gap-2" textValue={`Signed in as ${user.email}`}>
+                    <Dropdown.Item key="profile" className="h-14 gap-2 cursor-default" textValue={`Signed in as ${user.email}`} isDisabled>
                         <p className="font-semibold">Signed in as</p>
                         <p className="font-semibold">{user.email}</p>
                     </Dropdown.Item>

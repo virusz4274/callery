@@ -6,6 +6,7 @@ import { Users, Phone, HardDrive, FileAudio, AlertTriangle, Trash2 } from 'lucid
 import { Button, Card, Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { cleanupOrphanedRecordings } from '@/app/actions/admin';
+import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
 
 type AdminDashboardProps = {
@@ -22,6 +23,7 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
     const { totalUsers, totalRecordings, totalStorageUsed, totalTranscriptionUsed } = stats;
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
+    const { toast } = useToast();
 
     const handleCleanup = () => {
         if (!confirm(`Are you sure you want to delete ${orphanedCount} orphaned recordings?`)) {
@@ -29,9 +31,22 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
         }
 
         startTransition(async () => {
-            const result = await cleanupOrphanedRecordings();
-            alert(`Cleanup complete: Removed ${result.deletedDb} database records and ${result.deletedR2} files.`);
-            router.refresh();
+            try {
+                const result = await cleanupOrphanedRecordings();
+                toast({
+                    title: 'Cleanup complete',
+                    description: `Removed ${result.deletedDb} database records and ${result.deletedR2} files.`,
+                    status: 'success',
+                });
+                router.refresh();
+            } catch (error) {
+                console.error('Cleanup failed:', error);
+                toast({
+                    title: 'Cleanup failed',
+                    description: error instanceof Error ? error.message : 'Please try again.',
+                    status: 'danger',
+                });
+            }
         });
     };
 

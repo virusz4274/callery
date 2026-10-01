@@ -9,6 +9,7 @@ import {
     CreditCard,
     Settings,
     Megaphone,
+    ScrollText,
     Briefcase
 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export const navigationConfig = {
         { href: '/admin/users', name: 'Users', icon: Users },
         { href: '/admin/plans', name: 'Plans', icon: CreditCard },
         { href: '/admin/announcements', name: 'Announcements', icon: Megaphone },
+        { href: '/admin/audit', name: 'Audit', icon: ScrollText },
         { href: '/admin/settings', name: 'Settings', icon: Settings },
     ],
     public: [

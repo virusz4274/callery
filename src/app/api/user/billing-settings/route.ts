@@ -30,8 +30,9 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Trial users cannot enable overage
-        if (user.plan === 'Free Trial' || user.plan === 'Free') {
+        // Free plans cannot enable overage (disabling is always allowed so
+        // downgraded users can never get stuck with it on).
+        if (allowOverage === true && (user.plan === 'Free Trial' || user.plan === 'Free')) {
             return NextResponse.json({ error: 'Pay Per Usage cannot be enabled on Free Trial.' }, { status: 403 });
         }
 

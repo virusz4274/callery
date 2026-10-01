@@ -15,6 +15,7 @@ import {
 import { MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ManagePlanDialog } from './manage-plan-dialog';
 import { EditLimitsDialog } from './edit-limits-dialog';
+import { useToast } from '@/components/toast-provider';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   toggleUserStatus,
@@ -46,6 +47,23 @@ export function UserManagementTable({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
+  const runAdminAction = (label: string, action: () => Promise<void>) => {
+    startTransition(async () => {
+      try {
+        await action();
+        router.refresh();
+      } catch (error) {
+        console.error(`${label} failed:`, error);
+        toast({
+          title: `${label} failed`,
+          description: error instanceof Error ? error.message : 'Please try again.',
+          status: 'danger',
+        });
+      }
+    });
+  };
 
   // Better approach without external lib for now:
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -79,14 +97,14 @@ export function UserManagementTable({
   };
 
   const handleToggleStatus = (userId: string, currentStatus?: boolean) => {
-    startTransition(async () => {
+    runAdminAction('Status update', async () => {
       await toggleUserStatus(userId, !currentStatus);
     });
   };
 
   const handleToggleRole = (userId: string, currentRole: 'user' | 'admin') => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    startTransition(async () => {
+    runAdminAction('Role update', async () => {
       await updateUserRole(userId, newRole);
     });
   };
@@ -94,7 +112,7 @@ export function UserManagementTable({
   const handleResetLimits = (userId: string) => {
     // Reset to defaults: 5GB storage, 60 mins transcription
     if (confirm('Are you sure you want to reset this users limits to default (5GB, 60min)?')) {
-      startTransition(async () => {
+      runAdminAction('Limits reset', async () => {
         await updateUserLimits(userId, {
           storageAllocation: 5 * 1024 * 1024 * 1024,
           transcriptionAllocation: 60 * 60
@@ -120,10 +138,14 @@ export function UserManagementTable({
     setIsDeleting(userId);
     try {
       await deleteUser(userId);
-      // router.refresh(); // Server action revalidates, but router.refresh ensures client updates
+      router.refresh();
     } catch (error) {
-      alert('Failed to delete user');
       console.error(error);
+      toast({
+        title: 'Failed to delete user',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        status: 'danger',
+      });
     } finally {
       setIsDeleting(null);
     }

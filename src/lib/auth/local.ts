@@ -10,12 +10,18 @@ import { ensureUserProfile, setUserRole } from '@/lib/db/users';
 import { sendAuthEmail } from '@/lib/email';
 import type { SessionUser } from './types';
 
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
 function verifyEmailTemplate(name: string, url: string): string {
-    return `<p>Hi ${name},</p><p>Thanks for signing up for Vosift. Please verify your email address:</p><p><a href="${url}">Verify email</a></p><p>If you didn't create this account, you can ignore this email.</p>`;
+    const safeName = escapeHtml(name);
+    return `<p>Hi ${safeName},</p><p>Thanks for signing up for Vosift. Please verify your email address:</p><p><a href="${url}">Verify email</a></p><p>If you didn't create this account, you can ignore this email.</p>`;
 }
 
 function resetPasswordTemplate(name: string, url: string): string {
-    return `<p>Hi ${name},</p><p>We received a request to reset your Vosift password:</p><p><a href="${url}">Reset password</a></p><p>If you didn't request this, you can ignore this email.</p>`;
+    const safeName = escapeHtml(name);
+    return `<p>Hi ${safeName},</p><p>We received a request to reset your Vosift password:</p><p><a href="${url}">Reset password</a></p><p>If you didn't request this, you can ignore this email.</p>`;
 }
 
 /**

@@ -2,6 +2,7 @@
 'use client';
 
 import type { User, Recording, Invoice } from '@/lib/types';
+import type { PlanResponse } from '@/lib/db/types';
 
 import { Avatar, Card, Tabs, Chip, Button } from '@heroui/react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
@@ -9,12 +10,15 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteUser } from '@/app/actions/admin';
+import { ManagePlanDialog } from '@/components/admin/manage-plan-dialog';
+import { useToast } from '@/components/toast-provider';
 import { useState } from 'react';
 
 type UserDetailsPageProps = {
     user: User;
     recordings: Recording[];
     invoices: Invoice[];
+    plans: PlanResponse[];
     defaultTab?: string;
 };
 
@@ -26,10 +30,12 @@ function SimpleProgress({ value }: { value: number }) {
     );
 }
 
-export function UserDetailsPage({ user, recordings, invoices, defaultTab }: UserDetailsPageProps) {
+export function UserDetailsPage({ user, recordings, invoices, plans, defaultTab }: UserDetailsPageProps) {
     const [selectedTab, setSelectedTab] = useState<string>(defaultTab || "info");
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
     const router = useRouter();
+    const { toast } = useToast();
 
     const handleDeleteUser = async () => {
         if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
@@ -42,7 +48,7 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
             router.push('/admin/users');
         } catch (error) {
             console.error('Failed to delete user:', error);
-            alert('Failed to delete user');
+            toast({ title: 'Error', description: 'Failed to delete user', status: 'danger' });
             setIsDeleting(false);
         }
     };
@@ -71,8 +77,12 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                         <p className="text-default-500">{user.phoneNumber || 'No phone number'}</p>
                     </div>
                     <div className="flex gap-2 ml-auto">
-                        {/* Placeholder for Manage Plan - can be connected later */}
-                        {/* <Button variant="flat">Manage Plan</Button> */}
+                        <Button
+                            variant="secondary"
+                            onPress={() => setIsPlanDialogOpen(true)}
+                        >
+                            Manage Plan
+                        </Button>
                         <Button
                             variant="danger-soft"
                             isDisabled={isDeleting}
@@ -220,6 +230,15 @@ export function UserDetailsPage({ user, recordings, invoices, defaultTab }: User
                     </Card>
                 </Tabs.Panel>
             </Tabs>
+
+            {isPlanDialogOpen && (
+                <ManagePlanDialog
+                    user={user}
+                    isOpen={isPlanDialogOpen}
+                    onClose={() => setIsPlanDialogOpen(false)}
+                    plans={plans}
+                />
+            )}
         </div>
     );
 }

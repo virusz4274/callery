@@ -36,3 +36,20 @@ export async function sendAuthEmail(input: SendEmailInput): Promise<void> {
     }
     await service.send(input);
 }
+
+/**
+ * Send a notification email (ingest results, activity digests). Null-safe:
+ * with EMAIL_PROVIDER=none the send is skipped and the caller never fails.
+ * Returns false when skipped so callers can log accurately.
+ */
+export async function sendNotificationEmail(input: SendEmailInput): Promise<boolean> {
+    const service = getEmailService();
+    if (!service) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[email:none] to=${input.to} subject=${JSON.stringify(input.subject)}`);
+        }
+        return false;
+    }
+    await service.send(input);
+    return true;
+}

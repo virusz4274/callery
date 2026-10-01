@@ -10,6 +10,7 @@ import { ClientOnly } from './client-only';
 import { EmailVerificationAlert } from './email-verification-alert';
 import { useUser, useAuthActions } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { setDisplayTimeZone } from '@/lib/timezone';
 import { Spinner } from '@heroui/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
 import { BillingAlert } from '@/components/billing-alert';
@@ -34,6 +35,11 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
   const actions = useAuthActions();
+
+  // Publish the profile timezone for all ClientFormattedDate renders.
+  useEffect(() => {
+    setDisplayTimeZone(userProfile?.timezone);
+  }, [userProfile?.timezone]);
 
   // Maintenance Mode Check
   useEffect(() => {
@@ -64,26 +70,35 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
 
-  // Effect to update URL when searchQuery changes
+  // Effect to update URL when searchQuery changes (debounced so each
+  // keystroke doesn't trigger a server-side search + navigation).
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (searchQuery) {
-      params.set('q', searchQuery);
-    } else {
-      params.delete('q');
-    }
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (searchQuery) {
+        params.set('q', searchQuery);
+      } else {
+        params.delete('q');
+      }
 
-    const newPath = `${pathname}?${params.toString()}`;
+      const queryString = params.toString();
+      const newPath = queryString ? `${pathname}?${queryString}` : pathname;
 
-    startTransition(() => {
-      router.replace(newPath, { scroll: false });
-    });
+      startTransition(() => {
+        router.replace(newPath, { scroll: false });
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchQuery, pathname, router]);
 
-  // Effect to clear search when navigating to a new page
-  useEffect(() => {
+  // Clear search when navigating to a new page (render-time state
+  // adjustment, the endorsed alternative to setState inside an effect).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setSearchQuery('');
-  }, [pathname]);
+  }
 
   const handleLogout = async () => {
     try {

@@ -41,16 +41,13 @@ export function useUserProfile(user: AppUser | null): UseUserProfileResult {
             // Handle 404 (User not found in MongoDB) by attempting to create it
             if (response.status === 404) {
                 console.log('User profile not found in MongoDB. Attempting to ensure profile...');
-                const created = await ensureUserProfile(user);
+                // Throws the server's message (e.g. signups disabled) on failure.
+                await ensureUserProfile(user);
 
-                if (created) {
-                    // Small delay to ensure DB write propagation
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    // Retry fetching the profile
-                    response = await authFetch('/api/user/profile');
-                } else {
-                    throw new Error('Failed to create user profile');
-                }
+                // Small delay to ensure DB write propagation
+                await new Promise(resolve => setTimeout(resolve, 500));
+                // Retry fetching the profile
+                response = await authFetch('/api/user/profile');
             }
 
             if (!response.ok) {
@@ -76,13 +73,19 @@ export function useUserProfile(user: AppUser | null): UseUserProfileResult {
 
     useEffect(() => {
         retryCount.current = 0; // Reset retry count when user changes
-        fetchProfile();
+        // Deferred to a macrotask: calling the component-scope fetch (which
+        // sets state synchronously) directly here trips set-state-in-effect.
+        const timer = setTimeout(() => {
+            void fetchProfile();
+        }, 0);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
-    // Bounded retry logic - only retry if under max attempts
+    // Bounded retry logic - only retry if under max attempts. A disabled-signups
+    // refusal is permanent for this session, so don't spin on it.
     useEffect(() => {
-        if (profileError && retryCount.current < MAX_RETRIES) {
+        if (profileError && retryCount.current < MAX_RETRIES && profileError.message !== 'New signups are currently disabled.') {
             const delay = 500 * Math.pow(2, retryCount.current); // Exponential backoff
             const timer = setTimeout(() => {
                 retryCount.current += 1;
@@ -107,35 +110,32 @@ export function useUserProfile(user: AppUser | null): UseUserProfileResult {
 
 /**
  * Ensure user profile exists in MongoDB.
- * Called after auth login (any provider).
+ * Called after auth login (any provider). Resolves true when the profile
+ * exists; throws the server's message otherwise so callers can surface it.
  */
 export async function ensureUserProfile(
     user: { id: string; email: string | null; name?: string | null },
     additionalData?: { firstName?: string; lastName?: string }
 ): Promise<boolean> {
-    try {
-        const response = await authFetch('/api/user/ensure-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                authSubject: user.id,
-                email: user.email,
-                displayName: user.name ?? null,
-                firstName: additionalData?.firstName,
-                lastName: additionalData?.lastName,
-            }),
-        });
+    const response = await authFetch('/api/user/ensure-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            authSubject: user.id,
+            email: user.email,
+            displayName: user.name ?? null,
+            firstName: additionalData?.firstName,
+            lastName: additionalData?.lastName,
+        }),
+    });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('Failed to ensure user profile:', errorData.details || errorData.error || response.statusText);
-            return false;
-        }
-
-        const data = await response.json();
-        return data.wasCreated;
-    } catch (error) {
-        console.error('Error ensuring user profile:', error);
-        return false;
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Failed to create user profile');
     }
+
+    // Any 2xx means the profile now exists (created now or by a
+    // concurrent request) — wasCreated is informational only.
+    await response.json().catch(() => ({}));
+    return true;
 }

@@ -10,6 +10,7 @@ import { useAuthActions } from '@/lib/auth/client';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { getGoogleAuthUrl } from '@/app/actions/google-auth';
 import { syncGoogleContacts } from '@/app/actions/contacts';
+import { deleteOwnAccount } from '@/app/actions/delete-account';
 
 // Extracted Hooks
 import { useProfileSettings } from '@/hooks/settings/use-profile-settings';
@@ -25,12 +26,20 @@ const passwordFormSchema = z.object({
     path: ['confirmPassword'],
 });
 
+const VALID_TABS = ['profile', 'general', 'data', 'notifications', 'billing'] as const;
+
+/** Clamps a ?tab= param to a known tab id so bad values can't blank the page. */
+function clampTab(tab: string | null, showBilling: boolean): string {
+    if (tab === 'billing' && !showBilling) return 'profile';
+    return (tab && (VALID_TABS as readonly string[]).includes(tab)) ? tab : 'profile';
+}
+
 export function useSettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
     const showBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true';
-    const defaultTab = searchParams.get('tab') || 'profile';
+    const defaultTab = clampTab(searchParams.get('tab'), showBilling);
 
     const { user, isUserLoading } = useUser();
     const { userProfile, isProfileLoading } = useUserProfile(user);
@@ -48,7 +57,6 @@ export function useSettingsPage() {
         setNotificationsState,
         isSavingNotifications,
         handleSaveNotifications,
-        notificationsDirtyRef
     } = useNotificationSettings(userProfile);
 
     const {
@@ -56,12 +64,10 @@ export function useSettingsPage() {
         setGeneralState,
         isSavingGeneral,
         handleSaveGeneral,
-        generalDirtyRef,
         dataState,
         setDataState,
         isSavingData,
         handleSaveData,
-        dataDirtyRef
     } = usePreferenceSettings(user, userProfile);
 
     // Password State
@@ -160,14 +166,39 @@ export function useSettingsPage() {
         }
     }, [searchParams, isSyncing, router, toast]);
 
-    // View Logic
-    useEffect(() => {
-        const tab = searchParams.get('tab');
-        if (tab) {
-            setActiveTab(tab);
+    // View Logic: sync tab state when the URL param changes (render-time
+    // state adjustment, the endorsed alternative to setState in an effect).
+    const tabParam = searchParams.get('tab');
+    const [prevTabParam, setPrevTabParam] = useState(tabParam);
+    if (prevTabParam !== tabParam) {
+        setPrevTabParam(tabParam);
+        if (tabParam) {
+            setActiveTab(clampTab(tabParam, showBilling));
             setView('detail');
         }
-    }, [searchParams]);
+    }
+
+    // Stripe checkout return: toast the outcome once, then clean the URL.
+    const checkoutStatus = searchParams.get('success') === 'true'
+        ? 'success'
+        : searchParams.get('canceled') === 'true'
+            ? 'canceled'
+            : null;
+    const handledCheckoutStatus = useRef<string | null>(null);
+    useEffect(() => {
+        if (!checkoutStatus || handledCheckoutStatus.current === checkoutStatus) return;
+        handledCheckoutStatus.current = checkoutStatus;
+        if (checkoutStatus === 'success') {
+            toast({ title: 'Subscription updated', description: 'Your plan change is being processed.', status: 'success' });
+        } else {
+            toast({ title: 'Checkout canceled', description: 'No changes were made to your subscription.', status: 'warning' });
+        }
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete('success');
+        newParams.delete('canceled');
+        const query = newParams.toString();
+        router.replace(query ? `/settings?${query}` : '/settings', { scroll: false });
+    }, [checkoutStatus, searchParams, router, toast]);
 
     const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
         if (!user || !user.email) return;
@@ -188,7 +219,7 @@ export function useSettingsPage() {
 
     const handleConnectGoogle = () => {
         if (hasConsented) {
-            getGoogleAuthUrl().then(({ url }) => window.location.href = url);
+            getGoogleAuthUrl().then(({ url }) => window.location.assign(url));
         } else {
             setShowConnectDialog(true);
         }
@@ -197,7 +228,7 @@ export function useSettingsPage() {
     const onDialogConfirm = () => {
         setHasConsented(true);
         setShowConnectDialog(false);
-        getGoogleAuthUrl().then(({ url }) => window.location.href = url);
+        getGoogleAuthUrl().then(({ url }) => window.location.assign(url));
     };
 
     const handleTabSelect = (tabId: string) => {
@@ -209,6 +240,31 @@ export function useSettingsPage() {
     };
 
     const handleBack = () => setView('list');
+
+    // Account deletion
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+    const handleDeleteAccount = async () => {
+        setIsDeletingAccount(true);
+        try {
+            const result = await deleteOwnAccount();
+            if (!result.success) {
+                toast({ title: 'Deletion failed', description: result.message, status: 'danger' });
+                return;
+            }
+            toast({ title: 'Account deleted', description: result.message, status: 'success' });
+            await actions.signOut();
+            router.push('/');
+        } catch (error) {
+            toast({
+                title: 'Deletion failed',
+                description: error instanceof Error ? error.message : 'Unexpected error',
+                status: 'danger',
+            });
+        } finally {
+            setIsDeletingAccount(false);
+        }
+    };
 
     const tabs = useMemo(() => [
         { id: 'profile', label: 'Profile', icon: '👤' },
@@ -238,6 +294,7 @@ export function useSettingsPage() {
         isSyncing,
         showConnectDialog,
         setShowConnectDialog,
+        isDeletingAccount,
 
         // Saving States
         isSavingProfile,
@@ -245,11 +302,6 @@ export function useSettingsPage() {
         isSavingGeneral,
         isSavingNotifications,
         isSavingData,
-
-        // Refs
-        generalDirtyRef,
-        notificationsDirtyRef,
-        dataDirtyRef,
 
         // Handlers
         handleUpdateProfile,
@@ -260,6 +312,7 @@ export function useSettingsPage() {
         handleConnectGoogle,
         onDialogConfirm,
         handleTabSelect,
-        handleBack
+        handleBack,
+        handleDeleteAccount
     };
 }

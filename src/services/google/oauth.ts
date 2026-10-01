@@ -1,5 +1,8 @@
 import { OAuth2Client } from 'google-auth-library';
 
+/** Cookie holding the OAuth state token between redirect and callback. */
+export const GOOGLE_OAUTH_STATE_COOKIE = 'g_oauth_state';
+
 export function getOAuth2Client(redirectUri?: string) {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

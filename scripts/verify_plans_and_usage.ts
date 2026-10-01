@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import 'dotenv/config'; // Load .env file
 import { getMongoDb, Collections } from '../src/lib/mongodb';
 import { createUser, checkAndResetUsageCycle } from '../src/lib/db/users';

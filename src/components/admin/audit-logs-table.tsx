@@ -24,9 +24,12 @@ type AuditLogsTableProps = {
 
 const ACTION_TYPES = [
     'USER_BAN', 'USER_UNBAN', 'USER_ROLE_UPDATE', 'USER_LIMITS_UPDATE', 'USER_DELETE',
+    'USER_SELF_DELETE',
     'PLAN_CREATE', 'PLAN_UPDATE', 'PLAN_DELETE',
     'SETTINGS_UPDATE',
-    'ANNOUNCEMENT_CREATE', 'ANNOUNCEMENT_UPDATE', 'ANNOUNCEMENT_DELETE'
+    'ANNOUNCEMENT_CREATE', 'ANNOUNCEMENT_UPDATE', 'ANNOUNCEMENT_DELETE',
+    'TRANSCRIPTION_FAILED', 'TRANSCRIPTION_BLOCKED', 'SONIOX_BILLING_ERROR',
+    'AI_STEP_FAILED', 'GOOGLE_SYNC_FAILED',
 ];
 
 export function AuditLogsTable({
@@ -123,6 +126,9 @@ export function AuditLogsTable({
                         </Select.Trigger>
                         <Select.Popover>
                             <ListBox>
+                                <ListBox.Item key="" textValue="All Actions">
+                                    All Actions
+                                </ListBox.Item>
                                 {ACTION_TYPES.map((action) => (
                                     <ListBox.Item key={action} textValue={action}>
                                         {action}

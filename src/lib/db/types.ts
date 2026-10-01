@@ -211,7 +211,10 @@ export type UpdateContactInput = Partial<Omit<Contact, '_id' | 'authSubject' | '
 export type CreatePlanInput = Omit<Plan, '_id' | 'createdAt' | 'updatedAt'>;
 export type UpdatePlanInput = Partial<Omit<Plan, '_id' | 'createdAt' | 'updatedAt'>>;
 
-export type UpdateSystemSettingsInput = Partial<Omit<SystemSettings, '_id' | 'updatedAt'>>;
+export type UpdateSystemSettingsInput = Partial<Omit<SystemSettings, '_id' | 'updatedAt' | 'defaultPlanId'>> & {
+    /** Hex string from the admin UI; the action converts it to an ObjectId. */
+    defaultPlanId?: string;
+};
 
 export type CreateAnnouncementInput = Omit<Announcement, '_id' | 'createdAt' | 'createdBy'>;
 export type UpdateAnnouncementInput = Partial<Omit<Announcement, '_id' | 'createdAt' | 'createdBy'>>;

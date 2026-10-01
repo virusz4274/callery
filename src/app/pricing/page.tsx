@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PricingSection } from "@/components/pricing-section";
 import { billingEnabled } from "@/lib/config";
 
@@ -17,7 +18,9 @@ export default function PricingPage() {
     }
     return (
         <div className="container mx-auto px-4 py-16">
-            <PricingSection />
+            <Suspense>
+                <PricingSection />
+            </Suspense>
         </div>
     );
 }

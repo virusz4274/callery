@@ -44,8 +44,9 @@ export function MobileNav() {
     navItems.push({ href: "/login", name: "Login", icon: navigationConfig.adminLink.icon }); // Using shield/lock icon type for Login placeholder
   }
 
-  // Limit to 5 items max for bottom bar to avoid crowding
-  const displayItems = navItems.slice(0, 5);
+  // Limit to 5 items max for bottom bar to avoid crowding (admins get 6
+  // so Audit stays reachable).
+  const displayItems = navItems.slice(0, pathname.startsWith('/admin') ? 6 : 5);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/80 backdrop-blur-lg md:hidden pb-[env(safe-area-inset-bottom)]">

@@ -14,10 +14,11 @@ export function useStats() {
             setIsLoading(true);
             try {
                 const response = await authFetch('/api/stats');
-                if (response.ok) {
-                    const data = await response.json();
-                    setStats(data);
+                if (!response.ok) {
+                    throw new Error(`Stats request failed (${response.status})`);
                 }
+                const data = await response.json();
+                setStats(data);
             } catch (err) {
                 setError(err instanceof Error ? err : new Error('Unknown error'));
             } finally {

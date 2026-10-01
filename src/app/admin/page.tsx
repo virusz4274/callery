@@ -4,8 +4,10 @@ import { AdminDashboard } from '@/components/pages/admin/admin-dashboard';
 import { Spinner } from '@/components/ui-primitives';
 
 export default async function AdminPage() {
-    const stats = await getSystemStats();
-    const orphanedCount = await getOrphanedRecordingsCount();
+    const [stats, orphanedCount] = await Promise.all([
+        getSystemStats(),
+        getOrphanedRecordingsCount(),
+    ]);
 
     return (
         <Suspense fallback={<div className="flex justify-center p-8"><Spinner size="lg" /></div>}>

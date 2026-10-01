@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Modal,
     Button,
@@ -11,6 +11,7 @@ import {
 } from '@heroui/react';
 import { PlanResponse } from '@/lib/db/types';
 import { createPlan, updatePlan } from '@/app/actions/admin-plans';
+import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
 
 type PlanFormDialogProps = {
@@ -21,6 +22,7 @@ type PlanFormDialogProps = {
 
 export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogProps) {
     const router = useRouter();
+    const { toast } = useToast();
     const [isPending, setIsPending] = useState(false);
 
     // Form State
@@ -37,7 +39,12 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
     const [isDefault, setIsDefault] = useState(false);
     const [isActive, setIsActive] = useState(true);
 
-    useEffect(() => {
+    // Render-time state adjustment (endorsed alternative to setState in an
+    // effect): re-seed the form whenever the edited plan or open state changes.
+    const editKey = `${planToEdit?.id ?? 'new'}:${isOpen ? 'open' : 'closed'}`;
+    const [prevEditKey, setPrevEditKey] = useState(editKey);
+    if (prevEditKey !== editKey) {
+        setPrevEditKey(editKey);
         if (planToEdit) {
             setName(planToEdit.name);
             setDescription(planToEdit.description || '');
@@ -66,9 +73,20 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
             setIsDefault(false);
             setIsActive(true);
         }
-    }, [planToEdit, isOpen]);
+    }
 
     const handleSubmit = async () => {
+        const priceNum = parseFloat(price);
+        const storageNum = parseFloat(storageGB);
+        const transcriptionNum = parseFloat(transcriptionMinutes);
+        if (!name.trim()) {
+            toast({ title: 'Plan name required', status: 'warning' });
+            return;
+        }
+        if (!Number.isFinite(priceNum) || priceNum < 0 || !Number.isFinite(storageNum) || storageNum < 0 || !Number.isFinite(transcriptionNum) || transcriptionNum < 0) {
+            toast({ title: 'Invalid numbers', description: 'Price, storage, and transcription must be non-negative numbers.', status: 'warning' });
+            return;
+        }
         setIsPending(true);
         try {
             const planData = {
@@ -98,7 +116,11 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
             onClose();
         } catch (error) {
             console.error('Failed to save plan:', error);
-            alert('Failed to save plan');
+            toast({
+                title: 'Failed to save plan',
+                description: error instanceof Error ? error.message : 'Please try again.',
+                status: 'danger',
+            });
         } finally {
             setIsPending(false);
         }

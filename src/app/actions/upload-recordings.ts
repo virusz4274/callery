@@ -185,14 +185,23 @@ export async function uploadRecordings(
             duration: Math.round(duration), // Store as rounded seconds
             recordedAt: contactInfo.date || recordedAt,
             transcriptionStatus: 'pending' as const,
-            transcriptSnippet: '',
-            transcript: '',
             tags: [],
             isStarred: false,
             isArchived: false,
           };
 
-          const createdRecording = await createRecording(recordingData);
+          let createdRecording;
+          try {
+            createdRecording = await createRecording(recordingData);
+          } catch (dbError) {
+            // The R2 file is already uploaded — remove it so a DB failure
+            // can't leave an orphaned object behind.
+            const { deleteFromR2 } = await import('@/lib/r2');
+            await deleteFromR2(r2Key).catch((r2Error) =>
+              logger.error(`[uploadRecordings] Orphan cleanup failed for ${r2Key}:`, r2Error)
+            );
+            throw dbError;
+          }
           logger.info(`[uploadRecordings] Success: ${file.name} -> ID: ${createdRecording._id.toString()}, Duration: ${duration}s`);
 
           // Update user's storage usage
@@ -338,6 +347,14 @@ export async function uploadRecordings(
   });
 
   logger.info(`[uploadRecordings] Complete. Uploaded: ${uploadedCount}, Errors: ${errors.length}`);
+
+  // Notify per the user's notification settings (never fails the upload).
+  const { notifyIngestComplete } = await import('@/lib/email/notifications');
+  await notifyIngestComplete(currentUser, {
+    succeeded: uploadedCount,
+    failed: errors.length,
+    failedNames: errors,
+  });
 
   if (errors.length > 0) {
     return {

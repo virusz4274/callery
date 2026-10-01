@@ -4,6 +4,7 @@
 import { useToast } from '@/components/toast-provider';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Modal,
   Button,
@@ -21,22 +22,29 @@ type ManagePlanDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   plans: PlanResponse[];
+  onUpdated?: () => void;
 };
 
-export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDialogProps) {
+export function ManagePlanDialog({ user, isOpen, onClose, plans, onUpdated }: ManagePlanDialogProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState(user.plan);
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateContactPlan(user.id, selectedPlan);
+      const result = await updateContactPlan(user.id, selectedPlan);
+      if (!result.success) {
+        toast({ title: 'Error', description: result.message ?? 'Failed to update plan', status: 'danger' });
+        return;
+      }
+      toast({ title: 'Plan updated', description: `${user.name} is now on ${selectedPlan}.`, status: 'success' });
       onClose();
-      // In a real app, you'd trigger a refresh or update UI state
-      window.location.reload();
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update plan', status: 'danger' });
+      onUpdated?.();
+      router.refresh();
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to update plan', status: 'danger' });
     } finally {
       setLoading(false);
     }

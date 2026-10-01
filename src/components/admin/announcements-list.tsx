@@ -6,6 +6,8 @@ import { Edit, Trash2, Calendar } from 'lucide-react';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { deleteAnnouncement } from '@/app/actions/admin-announcements';
 import { AnnouncementFormDialog } from './announcement-form-dialog';
+import { useToast } from '@/components/toast-provider';
+import { useRouter } from 'next/navigation';
 
 type AnnouncementsListProps = {
     announcements: AnnouncementResponse[];
@@ -15,18 +17,30 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
     const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementResponse | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [, startTransition] = useTransition();
+    const { toast } = useToast();
+    const router = useRouter();
 
     const handleDelete = (id: string) => {
         if (confirm('Delete this announcement?')) {
             startTransition(async () => {
-                await deleteAnnouncement(id);
+                try {
+                    await deleteAnnouncement(id);
+                    router.refresh();
+                } catch (error) {
+                    console.error(error);
+                    toast({
+                        title: 'Failed to delete announcement',
+                        description: error instanceof Error ? error.message : 'Please try again.',
+                        status: 'danger',
+                    });
+                }
             });
         }
     };
 
-    const getTypeColor = (type: string) => {
+    const getTypeColor = (type: string): React.ComponentProps<typeof Chip>['color'] => {
         switch (type) {
-            case 'info': return 'primary';
+            case 'info': return 'accent';
             case 'warning': return 'warning';
             case 'alert': return 'danger';
             case 'success': return 'success';
@@ -61,8 +75,7 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
                                     <h3 className="font-semibold text-lg">{ann.title}</h3>
                                     <Chip
                                         size="sm"
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        color={getTypeColor(ann.type) as any}
+                                        color={getTypeColor(ann.type)}
                                         variant="soft"
                                     >
                                         {ann.type.toUpperCase()}

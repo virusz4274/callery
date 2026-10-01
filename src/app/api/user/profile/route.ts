@@ -70,9 +70,60 @@ export async function GET(request: NextRequest) {
     }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Returns an error message when nested settings are malformed, else null. */
+async function validateProfileSettings(updateData: Record<string, unknown>): Promise<string | null> {
+    if ('notificationSettings' in updateData) {
+        const value = updateData.notificationSettings;
+        if (!isRecord(value)) return 'Invalid notificationSettings';
+        if ('activityDigest' in value && !['off', 'weekly', 'monthly'].includes(value.activityDigest as string)) {
+            return 'Invalid notificationSettings.activityDigest';
+        }
+        for (const key of ['ingestSuccess', 'ingestFail'] as const) {
+            if (key in value && typeof value[key] !== 'boolean') {
+                return `Invalid notificationSettings.${key}`;
+            }
+        }
+    }
+    if ('storageSettings' in updateData) {
+        const value = updateData.storageSettings;
+        if (!isRecord(value)) return 'Invalid storageSettings';
+        if ('deletionPolicy' in value && !['never', '3m', '6m', '1y'].includes(value.deletionPolicy as string)) {
+            return 'Invalid storageSettings.deletionPolicy';
+        }
+    }
+    if ('transcriptionSettings' in updateData) {
+        const value = updateData.transcriptionSettings;
+        if (!isRecord(value)) return 'Invalid transcriptionSettings';
+        if ('autoTranscribe' in value && typeof value.autoTranscribe !== 'boolean') {
+            return 'Invalid transcriptionSettings.autoTranscribe';
+        }
+        if ('provider' in value && value.provider !== undefined &&
+            !['soniox', 'elevenlabs', 'gemini', 'openai_compat'].includes(value.provider as string)) {
+            return 'Invalid transcriptionSettings.provider';
+        }
+    }
+    for (const key of ['firstName', 'lastName', 'phoneNumber', 'timezone'] as const) {
+        if (key in updateData && typeof updateData[key] !== 'string') {
+            return `Invalid ${key}`;
+        }
+    }
+    if ('timezone' in updateData) {
+        const { isValidTimeZone } = await import('@/lib/timezone');
+        const value = updateData.timezone as string;
+        if (value && !isValidTimeZone(value)) {
+            return 'Invalid timezone';
+        }
+    }
+    return null;
+}
+
 /**
  * PATCH /api/user/profile
- * 
+ *
  * Update the current user's profile.
  */
 export async function PATCH(request: NextRequest) {
@@ -101,6 +152,13 @@ export async function PATCH(request: NextRequest) {
             if (field in body) {
                 updateData[field] = body[field];
             }
+        }
+
+        // Validate nested settings shapes so garbage values can't break
+        // downstream readers (digest scheduler, retention purge, provider router).
+        const settingsError = await validateProfileSettings(updateData);
+        if (settingsError) {
+            return NextResponse.json({ error: settingsError }, { status: 400 });
         }
 
         // Update name if firstName or lastName changed

@@ -38,9 +38,6 @@ export function SettingsPage() {
         isSavingGeneral,
         isSavingNotifications,
         isSavingData,
-        generalDirtyRef,
-        notificationsDirtyRef,
-        dataDirtyRef,
         handleUpdateProfile,
         handleChangePassword,
         handleSaveGeneral,
@@ -49,7 +46,9 @@ export function SettingsPage() {
         handleConnectGoogle,
         onDialogConfirm,
         handleTabSelect,
-        handleBack
+        handleBack,
+        handleDeleteAccount,
+        isDeletingAccount
     } = useSettingsPage();
 
     if (isLoading) {
@@ -98,7 +97,8 @@ export function SettingsPage() {
                         </button>
 
                         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                            {view === 'detail' && window.innerWidth < 1024 ? tabs.find(t => t.id === activeTab)?.label || 'Settings' : 'Settings'}
+                            <span className="lg:hidden">{view === 'detail' ? tabs.find(t => t.id === activeTab)?.label || 'Settings' : 'Settings'}</span>
+                            <span className="hidden lg:inline">Settings</span>
                         </h1>
                     </div>
                     {/* Hide description on mobile detail view to save space? Or keep it? */}
@@ -157,7 +157,6 @@ export function SettingsPage() {
                                 <GeneralSettings
                                     settings={generalState}
                                     onSettingsChange={(newSettings: { timezone: string }) => {
-                                        generalDirtyRef.current = true;
                                         setGeneralState(newSettings);
                                     }}
                                     onSave={handleSaveGeneral}
@@ -169,7 +168,6 @@ export function SettingsPage() {
                                     userProfile={userProfile}
                                     settings={dataState}
                                     onSettingsChange={(newSettings: { deletionPolicy: string; transcriptionSettings: { autoTranscribe: boolean; provider?: TranscriptionProvider } }) => {
-                                        dataDirtyRef.current = true;
                                         setDataState(newSettings);
                                     }}
                                     onSave={handleSaveData}
@@ -180,13 +178,14 @@ export function SettingsPage() {
                                     showConnectDialog={showConnectDialog}
                                     onDialogConfirm={onDialogConfirm}
                                     onOpenChangeDialog={setShowConnectDialog}
+                                    onDeleteAccount={handleDeleteAccount}
+                                    isDeletingAccount={isDeletingAccount}
                                 />
                             )}
                             {activeTab === 'notifications' && (
                                 <NotificationsSettings
                                     settings={notificationsState}
                                     onSettingsChange={(newSettings: { activityDigest: 'off' | 'weekly' | 'monthly'; ingestSuccess: boolean; ingestFail: boolean }) => {
-                                        notificationsDirtyRef.current = true;
                                         setNotificationsState(newSettings);
                                     }}
                                     onSave={handleSaveNotifications}

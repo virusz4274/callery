@@ -12,9 +12,6 @@ export interface AccessResult {
 /**
  * Check if a user's free trial has expired.
  */
-/**
- * Check if a user's free trial has expired.
- */
 export function isTrialExpired(user: User): boolean {
     if (!billingEnabled()) return false;
 
@@ -29,7 +26,7 @@ export function isTrialExpired(user: User): boolean {
         return false;
     }
 
-    return new Date() > user.trialEndsAt;
+    return new Date() > new Date(user.trialEndsAt);
 }
 
 /**
@@ -79,7 +76,7 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
     // Check for Canceled + Period End (Already implicitly handled by sync logic moving it to 'canceled' status, but double check date)
     if (user.stripeSubscriptionStatus === 'canceled') {
         // If canceled, strict check on date
-        if (user.stripeCurrentPeriodEnd && new Date() > user.stripeCurrentPeriodEnd) {
+        if (user.stripeCurrentPeriodEnd && new Date() > new Date(user.stripeCurrentPeriodEnd)) {
             return { allowed: false, reason: 'Your subscription has been canceled and the billing period has ended.' };
         }
     }
@@ -161,7 +158,7 @@ export function checkTranscriptionAccess(user: User, unitsToAdd: number): Access
         };
     }
 
-    if (user.stripeSubscriptionStatus === 'canceled' && user.stripeCurrentPeriodEnd && new Date() > user.stripeCurrentPeriodEnd) {
+    if (user.stripeSubscriptionStatus === 'canceled' && user.stripeCurrentPeriodEnd && new Date() > new Date(user.stripeCurrentPeriodEnd)) {
         return { allowed: false, reason: 'Your subscription has been canceled.' };
     }
 

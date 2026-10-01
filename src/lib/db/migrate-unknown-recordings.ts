@@ -140,5 +140,36 @@ export async function migrateUnknownRecordingsToContact(
         }
     }
 
+    // Name-matched recordings were linked AFTER the contact's stats were last
+    // computed, so recompute them (phone-matched rows are unaffected — the
+    // aggregate is idempotent).
+    if (migratedCount > 0) {
+        try {
+            const cId = new ObjectId(contactId);
+            const stats = await recordingsCollection.aggregate([
+                { $match: { authSubject, contactId: cId } },
+                {
+                    $group: {
+                        _id: null,
+                        count: { $sum: 1 },
+                        lastRecording: { $max: '$recordedAt' },
+                    },
+                },
+            ]).toArray();
+            await db.collection(Collections.CONTACTS).updateOne(
+                { _id: cId },
+                {
+                    $set: {
+                        totalRecordings: stats[0]?.count || 0,
+                        lastRecordingAt: stats[0]?.lastRecording || null,
+                        updatedAt: new Date(),
+                    },
+                }
+            );
+        } catch (err) {
+            console.error(`Failed to recompute contact stats after migration for ${contactId}:`, err);
+        }
+    }
+
     return migratedCount;
 }

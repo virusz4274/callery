@@ -44,25 +44,14 @@ export async function GET(request: NextRequest) {
 
     try {
         const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit') || '20', 10);
-        const skip = parseInt(searchParams.get('skip') || '0', 10);
+        const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 100);
+        const skip = Math.max(parseInt(searchParams.get('skip') || '0', 10) || 0, 0);
+        const search = searchParams.get('search') || searchParams.get('q') || undefined;
 
-        const contacts = await getContactsByUser(authSubject, { limit, skip });
+        const contacts = await getContactsByUser(authSubject, { limit, skip, search });
 
-        // We probably want the total count of contacts for this user too, 
-        // effectively another query if we want "real" total vs "fetched" length.
-        // For infinite scroll, totalCount helps know when to stop.
-        // Let's add a quick count query or reuse logic if we had one. 
-        // Re-using the logic from the route to count documents.
-
-        // Since getContactsByUser returns the array, we need a separate count if we paginating.
-        // Let's assume we can get it from the db directly or add a count function.
-        // For now, I'll add a quick count query here, but ideally should be in db layer.
-
-        // Wait, looking at getContactsByUser, it sorts by name. 
-        // Let's just do a count here.
         const { countContactsByUser } = await import('@/lib/db/contacts');
-        const totalCount = await countContactsByUser(authSubject);
+        const totalCount = await countContactsByUser(authSubject, { search });
 
         return NextResponse.json({
             contacts: contacts.map(toContactResponse),

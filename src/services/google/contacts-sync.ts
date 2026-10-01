@@ -1,6 +1,7 @@
 import { people } from '@googleapis/people';
 import type { OAuth2Client } from 'google-auth-library';
-import { saveContactsToMongoDB } from '@/app/actions/save-contacts';
+import { persistSyncedContacts } from '@/lib/db/contacts';
+import { logSystemEvent } from '@/lib/db/system-log';
 
 function errorLog(userId: string, message: string, error?: any) {
     const timestamp = new Date().toISOString();
@@ -20,11 +21,11 @@ function errorLog(userId: string, message: string, error?: any) {
  * @param authClient - The authenticated OAuth2Client.
  */
 export async function syncContactsBackground(userId: string, authClient: OAuth2Client) {
+    let totalSynced = 0;
     try {
         const peopleService = people({ version: 'v1', auth: authClient });
 
         let nextPageToken: string | undefined = undefined;
-        let totalSynced = 0;
 
         do {
             const response = await peopleService.people.connections.list({
@@ -60,8 +61,7 @@ export async function syncContactsBackground(userId: string, authClient: OAuth2C
                     .filter((c: any) => c !== null);
 
                 if (contactsToSave.length > 0) {
-                    // We assume saveContactsToMongoDB handles batch upserts efficiently
-                    await saveContactsToMongoDB(userId, contactsToSave);
+                    await persistSyncedContacts(userId, contactsToSave);
                     totalSynced += contactsToSave.length;
                 }
             }
@@ -70,6 +70,16 @@ export async function syncContactsBackground(userId: string, authClient: OAuth2C
 
     } catch (error) {
         errorLog(userId, 'Sync failed.', error);
-        // In a real production app, we might want to update a "sync_status" logic in DB here
+        // Surface in the admin audit log — the user only saw "Sync started",
+        // so a console line alone would bury the failure.
+        await logSystemEvent(
+            'GOOGLE_SYNC_FAILED',
+            {
+                authSubject: userId,
+                syncedBeforeFailure: totalSynced,
+                error: error instanceof Error ? error.message : String(error),
+            },
+            userId,
+        );
     }
 }

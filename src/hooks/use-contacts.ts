@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { ContactResponse } from '@/lib/db/types';
 import { authFetch } from '@/lib/api-client';
 import useSWRInfinite from 'swr/infinite';
@@ -22,14 +22,18 @@ const LIMIT = 20;
  * Hook to fetch contacts for the current user.
  * Uses the API route with Firebase ID token authentication.
  */
-export function useContacts(): UseContactsResult {
+export function useContacts(search?: string): UseContactsResult {
+    const trimmedSearch = search?.trim() || '';
+
     const getKey = (pageIndex: number, previousPageData: ContactResponse[] | null) => {
         // Validation: if previous page is empty, we reached the end
         if (previousPageData && !previousPageData.length) return null;
 
         // SWR key for this page
         const skip = pageIndex * LIMIT;
-        return `/api/contacts?limit=${LIMIT}&skip=${skip}`;
+        const params = new URLSearchParams({ limit: String(LIMIT), skip: String(skip) });
+        if (trimmedSearch) params.set('search', trimmedSearch);
+        return `/api/contacts?${params.toString()}`;
     };
 
     const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactResponse[]>(
@@ -38,16 +42,7 @@ export function useContacts(): UseContactsResult {
             const response = await authFetch(url);
             if (!response.ok) throw new Error('Failed to fetch contacts');
             const result = await response.json();
-            // We return just the contacts array for this page
-            // Note: totalCount is in the result but useSWRInfinite expects an array of items for data.
-            // To handle totalCount properly we might need a separate fetch or to attach it to the array.
-            // For now, let's attach totalCount to the array object or just ignore it if safe.
-            // But wait, the previous code used totalCount.
-            // Let's modify the return type slightly to separate them if possible or just store contacts.
-            // Actually, best practice here to keep it simple: just return contacts.
-            // We can get totalCount from the first page's response if we could, but SWR fetcher return structure matters.
-
-            // Hack/Pattern: Attach metadata to the array
+            // useSWRInfinite expects an array per page; attach totalCount metadata.
             const contacts = result.contacts as ContactResponse[];
             (contacts as any).totalCount = result.totalCount;
             return contacts;
@@ -57,6 +52,15 @@ export function useContacts(): UseContactsResult {
             initialSize: 1,
         }
     );
+
+    // A new search targets a new result set: restart infinite scroll at page 1.
+    const prevSearch = React.useRef(trimmedSearch);
+    React.useEffect(() => {
+        if (prevSearch.current !== trimmedSearch) {
+            prevSearch.current = trimmedSearch;
+            setSize(1);
+        }
+    }, [trimmedSearch, setSize]);
 
     // Flatten pages into a single array
     const contactsData = pages ? pages.flat() : null;

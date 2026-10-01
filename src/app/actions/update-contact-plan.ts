@@ -35,10 +35,14 @@ export async function updateContactPlan(userId: string, planName: string): Promi
         transcriptionAllocation = plan.limits.transcription;
     }
 
-    // Get old user data for logging
-    const oldUser = await db.collection(Collections.USERS).findOne({ _id: new ObjectId(userId) });
-
     try {
+        if (!ObjectId.isValid(userId)) {
+            return { success: false, message: 'Invalid user id' };
+        }
+
+        // Get old user data for logging
+        const oldUser = await db.collection(Collections.USERS).findOne({ _id: new ObjectId(userId) });
+
         await db.collection(Collections.USERS).updateOne(
             { _id: new ObjectId(userId) },
             {

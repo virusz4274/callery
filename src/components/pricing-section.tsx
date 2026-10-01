@@ -2,9 +2,9 @@
 
 import { Button, Card, Separator, Spinner } from "@heroui/react";
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast-provider";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authFetch } from "@/lib/api-client";
 
 // Use a known plan name that matches your DB Plan 'name' field
@@ -19,6 +19,15 @@ export function PricingSection() {
 
     // Self-hosted mode: no plans to sell. The dedicated /pricing page renders
     // its own notice; embedded uses (landing page) render nothing.
+    const searchParams = useSearchParams();
+    const handledCanceled = useRef(false);
+    useEffect(() => {
+        if (handledCanceled.current || searchParams.get('canceled') !== 'true') return;
+        handledCanceled.current = true;
+        toast({ title: 'Checkout canceled', description: 'No changes were made to your subscription.', status: 'warning' });
+        router.replace('/pricing', { scroll: false });
+    }, [searchParams, router, toast]);
+
     if (!BILLING_ENABLED) return null;
 
 
@@ -47,7 +56,7 @@ export function PricingSection() {
 
             const { url } = await response.json();
             if (url) {
-                window.location.href = url;
+                window.location.assign(url);
             } else {
                 throw new Error('No checkout URL returned');
             }
@@ -85,7 +94,7 @@ export function PricingSection() {
                         </ul>
                     </Card.Content>
                     <Card.Footer>
-                        <Button variant="secondary" className="w-full">Get Started</Button>
+                        <Button variant="secondary" className="w-full" onPress={() => router.push('/signup')}>Get Started</Button>
                     </Card.Footer>
                 </Card>
                 <Card className="bg-card/70 backdrop-blur-xl border-primary border-2 shadow-lg scale-105 z-10">
@@ -132,7 +141,7 @@ export function PricingSection() {
                         </ul>
                     </Card.Content>
                     <Card.Footer>
-                        <Button variant="secondary" className="w-full" onPress={() => window.location.href = 'mailto:sales@vosift.com'}>Contact Sales</Button>
+                        <Button variant="secondary" className="w-full" onPress={() => window.location.assign('mailto:sales@vosift.com')}>Contact Sales</Button>
                     </Card.Footer>
                 </Card>
             </div>

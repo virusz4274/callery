@@ -2,9 +2,11 @@
 import React, { memo } from 'react';
 import { Recording, Contact } from '@/lib/types';
 import { Avatar, Button, Dropdown } from '@heroui/react';
-import { MoreHorizontal, FileText, RefreshCcw } from 'lucide-react';
+import { MoreHorizontal, FileText, RefreshCcw, Star, Download } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
+import { useToast } from '../toast-provider';
+import { downloadRecording } from './download-recording';
 import { TableSelectionState } from './types';
 
 // Helper for duration formatting
@@ -31,6 +33,14 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
     onRetryTranscription
 }: RecordingsTableMobileProps) {
     const { isSelected, toggleSelect } = selection;
+    const { toast } = useToast();
+
+    const handleDownload = (rec: Recording) => {
+        downloadRecording(rec).catch((error) => {
+            console.error('Download failed:', error);
+            toast({ title: 'Download failed', description: 'Could not download this recording.', status: 'danger' });
+        });
+    };
 
     return (
         <div className="md:hidden flex flex-col divide-y divide-default-100/50">
@@ -63,8 +73,9 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                         )}
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <div className="font-semibold text-foreground truncate" onClick={() => onOpenDialog(rec)}>
+                                        <div className="font-semibold text-foreground truncate flex items-center gap-1.5" onClick={() => onOpenDialog(rec)}>
                                             {rec.contactName || 'Unknown Caller'}
+                                            {rec.isStarred && <Star className="w-3.5 h-3.5 fill-warning text-warning shrink-0" aria-label="Starred" />}
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-default-500">
                                             <span className="font-mono">{rec.phoneNumber}</span>
@@ -94,6 +105,9 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                                     <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
                                                 </Dropdown.Item>
                                             )}
+                                            <Dropdown.Item key="download" onPress={() => handleDownload(rec)}>
+                                                <div className="flex items-center gap-2"><Download className="h-4 w-4 text-success" /> Download</div>
+                                            </Dropdown.Item>
                                             <Dropdown.Item key="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>
                                                 Delete
                                             </Dropdown.Item>

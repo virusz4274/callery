@@ -3,25 +3,36 @@
 
 import { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api-client';
+import { updateRecordingApi } from '@/hooks/use-recordings';
 import type { Recording } from '@/lib/types';
 import {
   Modal,
   ScrollShadow,
   Button,
-  Avatar
+  Avatar,
+  Chip,
+  Input
 } from '@heroui/react';
 import { ClientFormattedDate } from './client-formatted-date';
-import { Loader2, Wand2 } from 'lucide-react';
+import { useToast } from '@/components/toast-provider';
+import { Loader2, Wand2, Star, Archive, ArchiveRestore, Plus, X } from 'lucide-react';
 import { motion } from 'motion/react';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
   onOpenChange: (open: boolean) => void;
+  onRecordingUpdated?: () => void;
 };
 
-export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDetailsDialogProps) {
+export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
+  const { toast } = useToast();
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showTransliteration, setShowTransliteration] = useState(false);
+  const [isStarred, setIsStarred] = useState(recording.isStarred);
+  const [isArchived, setIsArchived] = useState(recording.isArchived);
+  const [tags, setTags] = useState<string[]>(recording.tags || []);
+  const [newTag, setNewTag] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -32,22 +43,21 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
 
-  // Fetch playback URL on mount if not provided
+  // Fetch playback URL on mount if not provided (state updates only in
+  // async callbacks; the dialog remounts per recording via `key`).
   useEffect(() => {
-    if (recording.playbackUrl) {
-      setPlaybackUrl(recording.playbackUrl);
-      setIsLoadingUrl(false);
-      return;
-    }
-
-    setIsLoadingUrl(true);
+    if (recording.playbackUrl) return;
+    let cancelled = false;
     authFetch(`/api/recordings/${recording.id}/play`)
       .then(res => res.json())
       .then(data => {
-        if (data.playbackUrl) setPlaybackUrl(data.playbackUrl);
+        if (!cancelled && data.playbackUrl) setPlaybackUrl(data.playbackUrl);
       })
       .catch(console.error)
-      .finally(() => setIsLoadingUrl(false));
+      .finally(() => {
+        if (!cancelled) setIsLoadingUrl(false);
+      });
+    return () => { cancelled = true; };
   }, [recording.id, recording.playbackUrl]);
 
   const handleTranscribe = async () => {
@@ -65,24 +75,64 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
       });
 
       if (!response.ok) {
-        throw new Error('Transcription failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Transcription failed');
       }
 
-      // In a real app, we'd invalidate queries or rely on realtime updates.
-      // For now, we just reload the page or let the user close/reopen.
-      // But refreshing the page is a bit heavy.
-      // Ideally we should call an onUpdate prop or similar.
-      // Since we don't have that plumbed, a simple alert or toast would be better, but user UI libraries vary.
-      // For now, let's just finish the loading state.
-      // A reload would ensure data consistency.
-      window.location.reload();
-
+      toast({
+        title: 'Transcription started',
+        description: 'The recording is being processed in the background.',
+        status: 'success',
+      });
+      onRecordingUpdated?.();
+      onOpenChange(false);
     } catch (error) {
       console.error('Transcription error:', error);
-      alert('Failed to start transcription');
+      toast({
+        title: 'Transcription failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'danger',
+      });
     } finally {
       setIsTranscribing(false);
     }
+  };
+
+  const persistMetadata = async (data: { isStarred?: boolean; isArchived?: boolean; tags?: string[] }, successTitle: string) => {
+    setIsUpdating(true);
+    try {
+      const result = await updateRecordingApi(recording.id, data);
+      if (!result.success) throw new Error(result.error || 'Update failed');
+      if (data.isStarred !== undefined) setIsStarred(data.isStarred);
+      if (data.isArchived !== undefined) setIsArchived(data.isArchived);
+      if (data.tags !== undefined) setTags(data.tags);
+      onRecordingUpdated?.();
+      toast({ title: successTitle, status: 'success' });
+    } catch (error) {
+      console.error('Metadata update error:', error);
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'danger',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleAddTag = () => {
+    const tag = newTag.trim();
+    if (!tag) return;
+    if (tags.includes(tag)) {
+      setNewTag('');
+      return;
+    }
+    void persistMetadata({ tags: [...tags, tag] }, 'Tag added');
+    setNewTag('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    void persistMetadata({ tags: tags.filter(t => t !== tag) }, 'Tag removed');
   };
 
   const isProcessing = recording.transcriptionStatus === 'processing' || isTranscribing;
@@ -105,6 +155,55 @@ export function RecordingDetailsDialog({ recording, onOpenChange }: RecordingDet
                   Duration: {formatDuration(recording.duration)}
                 </span>
               </p>
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => persistMetadata({ isStarred: !isStarred }, isStarred ? 'Removed from starred' : 'Starred')}
+                  isDisabled={isUpdating}
+                  className="h-8"
+                  aria-label={isStarred ? 'Unstar recording' : 'Star recording'}
+                >
+                  <Star className={`w-4 h-4 ${isStarred ? 'fill-warning text-warning' : ''}`} />
+                  {isStarred ? 'Starred' : 'Star'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => persistMetadata({ isArchived: !isArchived }, isArchived ? 'Restored from archive' : 'Archived')}
+                  isDisabled={isUpdating}
+                  className="h-8"
+                  aria-label={isArchived ? 'Unarchive recording' : 'Archive recording'}
+                >
+                  {isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                  {isArchived ? 'Unarchive' : 'Archive'}
+                </Button>
+                {tags.map((tag) => (
+                  <Chip key={tag} size="sm" variant="soft" color="default">
+                    {tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-1 opacity-60 hover:opacity-100"
+                      aria-label={`Remove tag ${tag}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Chip>
+                ))}
+                <div className="flex items-center gap-1">
+                  <Input
+                    className="w-32 h-8 text-sm"
+                    placeholder="New tag"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+                    aria-label="New tag"
+                  />
+                  <Button size="sm" variant="ghost" isIconOnly onPress={handleAddTag} isDisabled={!newTag.trim() || isUpdating} aria-label="Add tag">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </Modal.Header>
             <Modal.Body className="p-4 sm:p-6 gap-6 overflow-y-auto flex-1">
               <div className="flex flex-col gap-6 h-full">

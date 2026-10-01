@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react';
 import type { Recording, Contact } from '@/lib/types';
-import { Button, Chip, SearchField, Select, ListBox, Input } from '@heroui/react';
+import { Button, Chip, SearchField, Select, ListBox, Input, Switch } from '@heroui/react';
 import { useToast } from '@/components/toast-provider'; // Correct import path
 import { RecordingsTable } from '@/components/recordings-table'; // Resolves to /index.tsx
 import { Users, Phone, Clock, BarChart, Search, Sparkles, Filter, Calendar, ArrowUpAz, ArrowDownAz, SlidersHorizontal } from 'lucide-react';
@@ -16,7 +16,7 @@ type RecordingsDashboardProps = {
     allRecordings: Recording[];
     allContacts: Contact[];
     filter: { type: string | null; value: string | null };
-    searchQuery: string; // This is the simple client-side filter
+    searchQuery: string; // Server-side keyword search (URL `q` param)
     stats: {
         totalRecordings: number;
         newThisMonth: number;
@@ -32,8 +32,10 @@ type RecordingsDashboardProps = {
     // New Props for Sorting & Filtering
     onSortChange: (sortBy: 'date' | 'duration', sortOrder: 'asc' | 'desc') => void;
     onDateFilterChange: (start?: string, end?: string) => void;
+    onArchivedChange: (showArchived: boolean) => void;
     currentSort: { by: 'date' | 'duration'; order: 'asc' | 'desc' };
     currentDateFilter: { start?: string; end?: string };
+    showArchived: boolean;
 };
 
 export function RecordingsDashboard({
@@ -49,35 +51,72 @@ export function RecordingsDashboard({
     onRecordingsChange,
     onSortChange,
     onDateFilterChange,
+    onArchivedChange,
     currentSort,
-    currentDateFilter
+    currentDateFilter,
+    showArchived
 }: RecordingsDashboardProps) {
     const [semanticQuery, setSemanticQuery] = useState('');
-    const [semanticResults, setSemanticResults] = useState<Recording[] | null>(null);
+    const [semanticState, setSemanticState] = useState<{ query: string; results: Recording[]; totalCount: number } | null>(null);
     const [isSearching, startSearchTransition] = useTransition();
+    const semanticResults = semanticState?.results ?? null;
+
+    const { toast } = useToast();
+
+    // Fetch one page of semantic results (server-side vector search).
+    const runSemanticSearch = React.useCallback((query: string, targetPage: number) => {
+        startSearchTransition(async () => {
+            try {
+                const response = await searchRecordingsAction(query, targetPage, itemsPerPage);
+                if (response.success) {
+                    setSemanticState({ query, results: response.results as Recording[], totalCount: response.totalCount });
+                } else {
+                    throw new Error(response.error || 'Search failed');
+                }
+            } catch (error) {
+                console.error('Search failed:', error);
+                toast({
+                    title: 'Semantic search failed',
+                    description: error instanceof Error ? error.message : 'Please try again.',
+                    status: 'danger',
+                });
+            }
+        });
+    }, [itemsPerPage, toast]);
+
+    // Active semantic query as the pagination effect's source of truth,
+    // set synchronously on submit so page changes fetch the right query.
+    const activeSemanticQuery = React.useRef<string | null>(null);
 
     // Handle Semantic Search
     const handleSemanticSearch = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!semanticQuery.trim()) return;
-
-        startSearchTransition(async () => {
-            const response = await searchRecordingsAction(semanticQuery);
-            if (response.success) {
-                setSemanticResults(response.results as Recording[]);
-            } else {
-                console.error('Search failed:', response.error);
-                // Optionally show toast error here
-            }
-        });
+        const trimmed = semanticQuery.trim();
+        if (!trimmed) return;
+        activeSemanticQuery.current = trimmed;
+        if (page === 1) {
+            runSemanticSearch(trimmed, 1);
+        } else {
+            // The pagination effect below fetches page 1 once the state lands.
+            setPage(1);
+        }
     };
 
     const clearSemanticSearch = () => {
         setSemanticQuery('');
-        setSemanticResults(null);
+        setSemanticState(null);
+        activeSemanticQuery.current = null;
+        setPage(1);
     };
 
-    const { toast } = useToast();
+    // While semantic search is active, table pagination drives vector pages.
+    React.useEffect(() => {
+        if (activeSemanticQuery.current) {
+            runSemanticSearch(activeSemanticQuery.current, page);
+        }
+        // Only re-run when the page changes; query changes go through submit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
 
     const handleRetryTranscription = async (recording: Recording) => {
         toast({
@@ -105,8 +144,8 @@ export function RecordingsDashboard({
                 status: 'success',
             });
 
-            // Optionally refresh or invalidate data here if needed
-            // onRecordingsChange?.(); 
+            // Refresh so the row shows the new `processing` status.
+            onRecordingsChange?.();
         } catch (error) {
             console.error('Retry failed:', error);
             toast({
@@ -117,50 +156,15 @@ export function RecordingsDashboard({
         }
     };
 
-    const filteredRecordings = React.useMemo(() => {
-        // If we have semantic results, use those!
-        if (semanticResults) {
-            return semanticResults;
-        }
+    // Keyword search, contact filter, sorting, and date range all run
+    // server-side: `allRecordings` is already the current page. Semantic
+    // search swaps in its own paginated result set while active.
+    const displayedRecordings = semanticResults || allRecordings || [];
+    const displayTotalCount = semanticState ? semanticState.totalCount : totalCount;
 
-        if (!allRecordings) return [];
-        return allRecordings.filter(rec => {
-            const searchLower = searchQuery.toLowerCase();
-            const matchesSearch = searchQuery === '' ||
-                rec.contactName?.toLowerCase().includes(searchLower) ||
-                rec.contactName?.toLowerCase().includes(searchLower) ||
-                rec.phoneNumber.includes(searchLower) ||
-                rec.summary?.toLowerCase().includes(searchLower) ||
-                false; // fallback
-
-            if (!filter.type || !filter.value) {
-                return matchesSearch;
-            }
-
-            let matchesFilter = false;
-            if (filter.type === 'contact') {
-                if (filter.value === 'Unknown') {
-                    matchesFilter = !rec.contactName;
-                } else {
-                    matchesFilter = rec.contactName === filter.value;
-                }
-            } else if (filter.type === 'date') {
-                const recDate = new Date(rec.recordedAt);
-                const [filterMonth, filterYear] = filter.value?.split(' ') || [];
-                matchesFilter = recDate.toLocaleString('default', { month: 'long' }) === filterMonth &&
-                    recDate.getFullYear().toString() === filterYear;
-            }
-
-            return matchesSearch && matchesFilter;
-        });
-    }, [allRecordings, searchQuery, filter, semanticResults]);
-
-    // Use semantic results count if active, otherwise totalCount (backend) or filtered count (frontend)
-    const displayTotalCount = semanticResults ? semanticResults.length : totalCount;
-
-    // If semantic search is active, pagination is local to the results array for now (or just show all 20)
-    // For simplicity, we'll just show all returned semantic results (limit 20) without pagination
-    const displayedRecordings = semanticResults || filteredRecordings;
+    const hasServerFilter = !semanticState && (
+        searchQuery !== '' || (filter.type === 'contact' && !!filter.value)
+    );
 
     const summaryStats = useMemo(() => {
         return stats || { totalRecordings: 0, newThisMonth: 0, unknownCallers: 0, avgDuration: 0 };
@@ -246,10 +250,10 @@ export function RecordingsDashboard({
                         <Search className="h-5 w-5 text-primary" />
                         Semantic Search
                     </h3>
-                    {semanticResults && (
+                    {semanticState && (
                         <div className="flex items-center gap-2 px-1">
                             <span className="text-sm text-default-500 hidden sm:inline-block">
-                                Found {semanticResults.length} relevant recordings
+                                Found {semanticState.totalCount} relevant recordings
                             </span>
                             <Chip color="success" variant="soft" size="sm" className="pl-2">
                                 Active
@@ -362,8 +366,35 @@ export function RecordingsDashboard({
                             Clear Dates
                         </Button>
                     )}
+
+                    <div className="w-px h-6 bg-default-200 mx-2 hidden sm:block"></div>
+
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            isSelected={showArchived}
+                            onChange={onArchivedChange}
+                            aria-label="Show archived recordings"
+                        >
+                            <Switch.Control>
+                                <Switch.Thumb />
+                            </Switch.Control>
+                        </Switch>
+                        <span className="text-sm font-medium text-default-700">Show archived</span>
+                    </div>
                 </div>
             </div>
+
+            {hasServerFilter && (
+                <div className="flex items-center gap-2 text-sm text-default-500">
+                    <Filter className="w-4 h-4" />
+                    <span>
+                        {totalCount} result{totalCount === 1 ? '' : 's'}
+                        {searchQuery !== '' && <> for &ldquo;{searchQuery}&rdquo;</>}
+                        {filter.type === 'contact' && !!filter.value && <> in {filter.value}</>}
+                        {' '}across your full library
+                    </span>
+                </div>
+            )}
 
             <RecordingsTable
                 recordings={displayedRecordings}
