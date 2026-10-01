@@ -13,6 +13,8 @@ import {
 } from '@heroui/react';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { createAnnouncement, updateAnnouncement } from '@/app/actions/admin-announcements';
+import { useToast } from '@/components/toast-provider';
+import { useRouter } from 'next/navigation';
 
 type AnnouncementFormDialogProps = {
     isOpen: boolean;
@@ -27,8 +29,17 @@ const TYPES = [
     { value: 'success', label: 'Success' },
 ];
 
+/** Formats a date as a local `datetime-local` input value (no UTC shift). */
+function toLocalDateTimeInput(value: string | Date): string {
+    const d = new Date(value);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: AnnouncementFormDialogProps) {
     const isEditing = !!announcementToEdit;
+    const { toast } = useToast();
+    const router = useRouter();
 
     // Form State
     const [title, setTitle] = useState(announcementToEdit?.title || '');
@@ -39,15 +50,29 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
     // Dates need careful formatting for Input type="datetime-local" if used, or just type="date"
     // Using simple text or standard inputs for now
     // Default start date to now if new
-    const defaultStart = announcementToEdit ? new Date(announcementToEdit.startDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16);
+    const defaultStart = announcementToEdit ? toLocalDateTimeInput(announcementToEdit.startDate) : toLocalDateTimeInput(new Date());
     const [startDate, setStartDate] = useState(defaultStart);
 
-    const defaultEnd = announcementToEdit?.endDate ? new Date(announcementToEdit.endDate).toISOString().slice(0, 16) : '';
+    const defaultEnd = announcementToEdit?.endDate ? toLocalDateTimeInput(announcementToEdit.endDate) : '';
     const [endDate, setEndDate] = useState(defaultEnd);
 
     const [loading, setLoading] = useState(false);
 
     const handleSave = async () => {
+        if (!title.trim() || !message.trim()) {
+            toast({ title: 'Title and message are required', status: 'warning' });
+            return;
+        }
+        const start = new Date(startDate);
+        const end = endDate ? new Date(endDate) : undefined;
+        if (Number.isNaN(start.getTime()) || (end && Number.isNaN(end.getTime()))) {
+            toast({ title: 'Invalid dates', description: 'Enter valid start/end dates.', status: 'warning' });
+            return;
+        }
+        if (end && end <= start) {
+            toast({ title: 'Invalid date range', description: 'End date must be after start date.', status: 'warning' });
+            return;
+        }
         setLoading(true);
         try {
             const payload = {
@@ -55,8 +80,8 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
                 message,
                 type,
                 isActive,
-                startDate: new Date(startDate),
-                endDate: endDate ? new Date(endDate) : undefined,
+                startDate: start,
+                endDate: end,
             };
 
             if (isEditing && announcementToEdit) {
@@ -64,10 +89,16 @@ export function AnnouncementFormDialog({ isOpen, onClose, announcementToEdit }: 
             } else {
                 await createAnnouncement(payload);
             }
+            toast({ title: isEditing ? 'Announcement updated' : 'Announcement created', status: 'success' });
+            router.refresh();
             onClose();
         } catch (error) {
             console.error('Failed to save announcement', error);
-            alert('Failed to save');
+            toast({
+                title: 'Failed to save',
+                description: error instanceof Error ? error.message : 'Please try again.',
+                status: 'danger',
+            });
         } finally {
             setLoading(false);
         }

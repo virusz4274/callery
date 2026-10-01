@@ -70,18 +70,12 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
 
 
 
+  // Search runs server-side across the full directory; the list arrives
+  // already filtered and sorted by name.
   const sortedAndFilteredContacts = useMemo(() => {
     if (!allContacts) return [];
-    const searchLower = searchQuery.toLowerCase();
-    return allContacts
-      .filter(contact =>
-        contact.name.toLowerCase().includes(searchLower) ||
-        contact.phoneNumbers?.some(p => p.includes(searchLower)) ||
-        contact.company?.toLowerCase().includes(searchLower) ||
-        contact.jobTitle?.toLowerCase().includes(searchLower)
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allContacts, searchQuery]);
+    return [...allContacts].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allContacts]);
 
   const groupedContacts = useMemo(() => {
     return sortedAndFilteredContacts.reduce((acc, contact) => {
@@ -153,7 +147,7 @@ export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, i
               Directory
             </div>
             <div className="text-sm text-default-400 bg-default-100/50 px-2 py-1 rounded-md">
-              {searchQuery ? sortedAndFilteredContacts.length : (totalCount || sortedAndFilteredContacts.length)} Contacts
+              {totalCount || sortedAndFilteredContacts.length} Contacts
             </div>
           </div>
         </Card.Header>

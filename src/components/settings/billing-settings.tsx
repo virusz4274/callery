@@ -1,29 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, Button, Chip, Spinner, Switch, Tooltip, Modal } from '@heroui/react';
 import { SettingsPage } from './settings-page';
 import Link from 'next/link';
 import { UserResponse } from '@/lib/db/types';
+import type { Invoice } from '@/lib/types';
 import { Info, Check } from 'lucide-react';
 import { useToast } from '@/components/toast-provider';
 import { authFetch } from '@/lib/api-client';
+import { ClientFormattedDate } from '@/components/client-formatted-date';
 import { getPublishedPlans, PublicPlan } from '@/app/actions/plans';
 
-type Invoice = {
-    id: string;
-    date: string;
-    amount: string;
-    status: string;
-};
-
 interface BillingSettingsProps {
-    invoices: Invoice[];
+    invoices?: Invoice[];
     isLoading: boolean;
     userProfile: UserResponse | null;
 }
 
-export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps) {
+export function BillingSettings({ invoices: initialInvoices = [], isLoading, userProfile }: BillingSettingsProps) {
     const { toast } = useToast();
     const [isTogglingRules, setIsTogglingRules] = useState(false);
+    const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
+    const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        authFetch('/api/user/invoices')
+            .then(async (res) => {
+                if (!res.ok) throw new Error('Failed to fetch invoices');
+                const data = await res.json();
+                if (!cancelled) setInvoices(data.invoices || []);
+            })
+            .catch((error) => {
+                console.error('Error fetching invoices:', error);
+                if (!cancelled) {
+                    toast({ title: 'Could not load invoices', description: 'Billing history is unavailable right now.', status: 'warning' });
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingInvoices(false);
+            });
+        return () => { cancelled = true; };
+    }, [toast]);
 
     // Use profile data if available, else fallback to user object
     const planName = userProfile?.plan || 'Free Plan';
@@ -64,7 +81,7 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
             }
 
             const { url } = await res.json();
-            window.location.href = url;
+            window.location.assign(url);
         } catch (error: any) {
             console.error('Portal error:', error);
             toast({
@@ -107,7 +124,7 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
             }
 
             const { url } = await res.json();
-            window.location.href = url;
+            window.location.assign(url);
         } catch (error: any) {
             console.error('Checkout error:', error);
             toast({
@@ -306,15 +323,47 @@ export function BillingSettings({ isLoading, userProfile }: BillingSettingsProps
                     </Card.Content>
                 </Card>
 
-                {/* Billing History (Placeholder) */}
                 <Card className="bg-card/70 border-default-200">
                     <Card.Header>
                         <h4 className="text-base font-medium">Billing History</h4>
                     </Card.Header>
                     <Card.Content>
-                        {isLoading ? (
+                        {isLoading || isLoadingInvoices ? (
                             <div className="flex justify-center p-4">
                                 <Spinner />
+                            </div>
+                        ) : invoices.length > 0 ? (
+                            <div className="rounded-lg border border-default-200 overflow-hidden">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-default-500 font-medium bg-default-50 border-b border-default-200">
+                                        <tr>
+                                            <th className="h-10 px-4 align-middle">Invoice</th>
+                                            <th className="h-10 px-4 align-middle">Date</th>
+                                            <th className="h-10 px-4 align-middle">Amount</th>
+                                            <th className="h-10 px-4 align-middle text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-default-100">
+                                        {invoices.map((invoice) => (
+                                            <tr key={invoice.id}>
+                                                <td className="p-4 align-middle font-mono text-xs">{invoice.id}</td>
+                                                <td className="p-4 align-middle">
+                                                    <ClientFormattedDate date={invoice.date} formatString="MMMM dd, yyyy" />
+                                                </td>
+                                                <td className="p-4 align-middle">${invoice.amount.toFixed(2)}</td>
+                                                <td className="p-4 align-middle text-right">
+                                                    <Chip
+                                                        color={invoice.status === 'Paid' ? 'success' : invoice.status === 'Pending' ? 'warning' : 'danger'}
+                                                        variant="soft"
+                                                        size="sm"
+                                                    >
+                                                        {invoice.status}
+                                                    </Chip>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         ) : (
                             <div className="p-4 text-center text-default-500 text-sm">

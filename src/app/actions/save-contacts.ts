@@ -1,6 +1,6 @@
 'use server';
 
-import { upsertContacts } from '@/lib/db/contacts';
+import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 
 type ContactData = {
     googleContactId?: string;
@@ -13,7 +13,10 @@ type ContactData = {
 
 /**
  * Saves or updates contacts in MongoDB.
- * @param authSubject The Firebase UID of the user.
+ * The caller must be authenticated as the target user — the authSubject
+ * parameter alone is never trusted, otherwise anyone could write contacts
+ * into anyone else's account.
+ * @param authSubject The auth subject of the user.
  * @param contacts An array of contact data to be saved.
  */
 export async function saveContactsToMongoDB(
@@ -21,47 +24,18 @@ export async function saveContactsToMongoDB(
     contacts: ContactData[]
 ): Promise<{ created: number; updated: number }> {
     if (!authSubject) {
-        throw new Error("Firebase UID is required to save contacts.");
+        throw new Error('Auth subject is required to save contacts.');
     }
+
+    const sessionSubject = await getAuthSubjectFromSession();
+    if (!sessionSubject || sessionSubject !== authSubject) {
+        throw new Error('Unauthorized');
+    }
+
     if (!contacts || contacts.length === 0) {
         return { created: 0, updated: 0 };
     }
 
-    const result = await upsertContacts(authSubject, contacts);
-
-    // Asynchronously migrate any unknown recordings to the newly saved contacts
-    // This runs in the background and doesn't block the response
-    if (result.created > 0) {
-        // Import migration function dynamically to avoid circular dependencies
-        import('@/lib/db/migrate-unknown-recordings')
-            .then(({ migrateUnknownRecordingsToContact }) => {
-                // For each newly created contact, attempt migration
-                contacts.forEach(async (contact) => {
-                    if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
-                        // We need to find the contact ID to migrate
-                        // For now, we'll trigger migration for all phone numbers
-                        const { findContactByPhone } = await import('@/lib/db/contacts');
-                        const foundContact = await findContactByPhone(authSubject, contact.phoneNumbers[0]);
-
-                        if (foundContact) {
-                            const migratedCount = await migrateUnknownRecordingsToContact(
-                                authSubject,
-                                foundContact._id.toString(),
-                                contact.phoneNumbers,
-                                contact.name
-                            );
-
-
-                        }
-                    }
-                });
-            })
-            .catch(err => {
-                console.error('Failed to migrate unknown recordings:', err);
-            });
-    }
-
-    return result;
+    const { persistSyncedContacts } = await import('@/lib/db/contacts');
+    return persistSyncedContacts(authSubject, contacts);
 }
-
-

@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error('Stripe Checkout Error:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Internal Server Error' },
+            { error: 'Failed to start checkout' },
             { status: 500 }
         );
     }

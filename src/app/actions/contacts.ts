@@ -4,7 +4,6 @@
 import { getOAuth2Client } from '@/services/google/oauth';
 import { after } from 'next/server';
 import { syncContactsBackground } from '@/services/google/contacts-sync';
-import { saveContactsToMongoDB } from './save-contacts';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 
 

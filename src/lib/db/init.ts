@@ -39,6 +39,9 @@ export async function initializeDatabase(): Promise<void> {
             { key: { authSubject: 1, contactId: 1 }, name: 'authSubject_contactId' },
             { key: { r2Key: 1 }, unique: true, name: 'r2Key_unique' },
             { key: { authSubject: 1, isArchived: 1 }, name: 'authSubject_isArchived' },
+            { key: { authSubject: 1, isArchived: 1, recordedAt: -1 }, name: 'authSubject_isArchived_recordedAt' },
+            { key: { authSubject: 1, isArchived: 1, duration: -1 }, name: 'authSubject_isArchived_duration' },
+            { key: { authSubject: 1, contactName: 1, recordedAt: -1 }, name: 'authSubject_contactName_recordedAt' },
         ]);
         console.log('✅ Recordings indexes created');
     } catch (e) {
@@ -50,6 +53,7 @@ export async function initializeDatabase(): Promise<void> {
         await db.collection(Collections.CONTACTS).createIndexes([
             { key: { authSubject: 1, phoneNumbers: 1 }, unique: true, name: 'authSubject_phoneNumbers_unique' },
             { key: { authSubject: 1, name: 1 }, name: 'authSubject_name' },
+            { key: { authSubject: 1, company: 1 }, name: 'authSubject_company' },
         ]);
         console.log('✅ Contacts indexes created');
     } catch (e) {
@@ -229,6 +233,9 @@ export async function initializeDatabase(): Promise<void> {
                     "type": "string"
                 },
                 "contactName": {
+                    "type": "string"
+                },
+                "phoneNumber": {
                     "type": "string"
                 },
                 "fileName": {

@@ -6,8 +6,10 @@ import { init, replayIntegration, captureRouterTransitionStart } from "@sentry/n
 
 if (typeof window !== "undefined") {
   init({
-    // Optional: when SENTRY_DSN is unset the SDK stays a no-op client.
-    dsn: process.env.SENTRY_DSN,
+    // Optional: when unset the SDK stays a no-op client. Browser bundles
+    // can only read NEXT_PUBLIC_* variables, so the client DSN needs the
+    // public name (SENTRY_DSN alone is server-only and would be undefined).
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN,
 
     // Add optional integrations for additional features
     integrations: [replayIntegration()],

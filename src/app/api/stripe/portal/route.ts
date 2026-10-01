@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error('Stripe Portal Error:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Internal Server Error' },
+            { error: 'Failed to open billing portal' },
             { status: 500 }
         );
     }

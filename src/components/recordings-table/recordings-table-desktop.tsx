@@ -2,9 +2,11 @@
 import React, { memo } from 'react';
 import { Recording } from '@/lib/types';
 import { Checkbox, Avatar, Button, Dropdown } from '@heroui/react';
-import { Play, MoreHorizontal, Download, Trash2, FileText, RefreshCcw } from 'lucide-react';
+import { Play, MoreHorizontal, Download, Trash2, FileText, RefreshCcw, Star } from 'lucide-react';
 import { ClientFormattedDate } from '../client-formatted-date';
 import { ExpandableSummary } from '../expandable-summary';
+import { useToast } from '../toast-provider';
+import { downloadRecording } from './download-recording';
 import { TableSelectionState } from './types';
 
 // Helper for duration formatting if not imported
@@ -30,6 +32,14 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
     onRetryTranscription
 }: RecordingsTableDesktopProps) {
     const { isAllSelected, toggleSelectAll, isSelected, toggleSelect } = selection;
+    const { toast } = useToast();
+
+    const handleDownload = (rec: Recording) => {
+        downloadRecording(rec).catch((error) => {
+            console.error('Download failed:', error);
+            toast({ title: 'Download failed', description: 'Could not download this recording.', status: 'danger' });
+        });
+    };
 
     return (
         <div className="hidden md:block relative w-full overflow-hidden">
@@ -81,8 +91,9 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                 <Avatar.Fallback>{rec.contactName ? rec.contactName.charAt(0) : '#'}</Avatar.Fallback>
                                             </Avatar>
                                             <div>
-                                                <div className={`font-semibold ${selected ? 'text-primary' : 'text-foreground'}`}>
+                                                <div className={`font-semibold flex items-center gap-1.5 ${selected ? 'text-primary' : 'text-foreground'}`}>
                                                     {rec.contactName || 'Unknown Caller'}
+                                                    {rec.isStarred && <Star className="w-3.5 h-3.5 fill-warning text-warning" aria-label="Starred" />}
                                                 </div>
                                                 <div className="text-xs text-default-500 font-mono">{rec.phoneNumber}</div>
                                             </div>
@@ -153,7 +164,11 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
                                                                 <div className="flex items-center gap-2"><RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription</div>
                                                             </Dropdown.Item>
                                                         )}
-                                                        <Dropdown.Item key="download" textValue="Download">
+                                                        <Dropdown.Item
+                                                            key="download"
+                                                            textValue="Download"
+                                                            onPress={() => handleDownload(rec)}
+                                                        >
                                                             <div className="flex items-center gap-2"><Download className="h-4 w-4 text-success" /> Download</div>
                                                         </Dropdown.Item>
                                                         <Dropdown.Item

@@ -44,14 +44,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     auth,
 }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [isUserLoading, setIsUserLoading] = useState(true);
-    const [userError, setUserError] = useState<Error | null>(null);
+    const [isUserLoading, setIsUserLoading] = useState(!!auth);
+    const [userError, setUserError] = useState<Error | null>(
+        () => (auth ? null : new Error("Auth service not provided."))
+    );
 
     useEffect(() => {
         if (!auth) {
-            setUser(null);
-            setIsUserLoading(false);
-            setUserError(new Error("Auth service not provided."));
             return;
         }
 

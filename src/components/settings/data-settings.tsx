@@ -1,8 +1,8 @@
 
 'use client';
 
-import React from 'react';
-import { Card, Button, Select, Switch, Spinner, Label, ListBox } from '@heroui/react';
+import React, { useState } from 'react';
+import { Card, Button, Select, Switch, Spinner, Label, ListBox, Modal, Input } from '@heroui/react';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { GoogleConnectDialog } from './google-connect-dialog';
 import { SettingsPage } from './settings-page';
@@ -26,6 +26,8 @@ interface DataSettingsProps {
     showConnectDialog: boolean;
     onDialogConfirm: () => void;
     onOpenChangeDialog: (open: boolean) => void;
+    onDeleteAccount: () => Promise<void>;
+    isDeletingAccount: boolean;
 }
 
 export function DataSettings({
@@ -39,7 +41,11 @@ export function DataSettings({
     showConnectDialog,
     onDialogConfirm,
     onOpenChangeDialog,
+    onDeleteAccount,
+    isDeletingAccount,
 }: DataSettingsProps) {
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
 
     const storageUsed = userProfile?.storageUsed || 0;
@@ -232,12 +238,80 @@ export function DataSettings({
                         </Card.Footer>
                     </Card>
                 </SettingsPage>
+
+                <SettingsPage title="Danger Zone" description="Irreversible actions on your account and data.">
+                    <Card className="bg-card/70 border-danger/30">
+                        <Card.Content className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-danger/20 p-4">
+                                <div className="space-y-0.5">
+                                    <h4 className="text-base font-medium">Delete Account</h4>
+                                    <p className="text-sm text-default-500">
+                                        Permanently delete your account, all recordings and audio files,
+                                        contacts, and cancel your subscription. This cannot be undone.
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="danger"
+                                    onPress={() => {
+                                        setDeleteConfirmation('');
+                                        setShowDeleteDialog(true);
+                                    }}
+                                    className="w-full sm:w-auto"
+                                >
+                                    Delete Account
+                                </Button>
+                            </div>
+                        </Card.Content>
+                    </Card>
+                </SettingsPage>
             </div>
             {showConnectDialog && (
                 <GoogleConnectDialog
                     onOpenChange={onOpenChangeDialog}
                     onConfirm={onDialogConfirm}
                 />
+            )}
+            {showDeleteDialog && (
+                <Modal isOpen={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <Button className="hidden" />
+                    <Modal.Backdrop>
+                        <Modal.Container>
+                            <Modal.Dialog className="bg-card/70 backdrop-blur-xl border border-default-200 shadow-2xl">
+                                <Modal.CloseTrigger />
+                                <Modal.Header>
+                                    <Modal.Heading>Delete your account?</Modal.Heading>
+                                </Modal.Header>
+                                <Modal.Body>
+                                    <p className="text-sm text-default-500">
+                                        This permanently deletes your account, all recordings and audio files,
+                                        contacts, and cancels your subscription. Type <strong>DELETE</strong> to confirm.
+                                    </p>
+                                    <Input
+                                        className="mt-4"
+                                        placeholder="DELETE"
+                                        value={deleteConfirmation}
+                                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                        aria-label="Type DELETE to confirm"
+                                    />
+                                </Modal.Body>
+                                <Modal.Footer>
+                                    <Button variant="ghost" onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
+                                    <Button
+                                        variant="danger"
+                                        onPress={async () => {
+                                            await onDeleteAccount();
+                                            setShowDeleteDialog(false);
+                                        }}
+                                        isPending={isDeletingAccount}
+                                        isDisabled={deleteConfirmation !== 'DELETE' || isDeletingAccount}
+                                    >
+                                        Delete Everything
+                                    </Button>
+                                </Modal.Footer>
+                            </Modal.Dialog>
+                        </Modal.Container>
+                    </Modal.Backdrop>
+                </Modal>
             )}
         </>
     );

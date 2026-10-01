@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { getRecordingById, deleteRecording, updateRecording } from '@/lib/db/recordings';
 import { toRecordingResponse } from '@/lib/db/converters';
@@ -8,6 +9,36 @@ import { decrementStorageUsed } from '@/lib/db/users';
 
 interface RouteParams {
     params: Promise<{ id: string }>;
+}
+
+function invalidIdResponse() {
+    return NextResponse.json({ error: 'Invalid recording id' }, { status: 400 });
+}
+
+/** Returns an error message when the update payload is malformed, else null. */
+function validateRecordingUpdate(updateData: Record<string, unknown>): string | null {
+    for (const key of ['isStarred', 'isArchived'] as const) {
+        if (key in updateData && typeof updateData[key] !== 'boolean') {
+            return `Invalid ${key}`;
+        }
+    }
+    if ('tags' in updateData) {
+        const tags = updateData.tags;
+        if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string')) {
+            return 'Invalid tags';
+        }
+    }
+    if ('contactName' in updateData) {
+        const value = updateData.contactName;
+        if (value !== null && typeof value !== 'string') return 'Invalid contactName';
+    }
+    if ('contactId' in updateData) {
+        const value = updateData.contactId;
+        if (value !== null && (typeof value !== 'string' || !ObjectId.isValid(value))) {
+            return 'Invalid contactId';
+        }
+    }
+    return null;
 }
 
 /**
@@ -24,6 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     try {
         const { id } = await params;
+        if (!ObjectId.isValid(id)) return invalidIdResponse();
         const recording = await getRecordingById(id, authSubject);
 
         if (!recording) {
@@ -53,6 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     try {
         const { id } = await params;
+        if (!ObjectId.isValid(id)) return invalidIdResponse();
         const body = await request.json();
 
         // Only allow updating specific fields
@@ -63,6 +96,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             if (field in body) {
                 updateData[field] = body[field];
             }
+        }
+
+        const settingsError = validateRecordingUpdate(updateData);
+        if (settingsError) {
+            return NextResponse.json({ error: settingsError }, { status: 400 });
+        }
+
+        // Store contactId as an ObjectId, never a raw string.
+        if (typeof updateData.contactId === 'string') {
+            updateData.contactId = new ObjectId(updateData.contactId);
         }
 
         const recording = await updateRecording(id, authSubject, updateData);
@@ -92,6 +135,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     try {
         const { id } = await params;
+        if (!ObjectId.isValid(id)) return invalidIdResponse();
 
         // Delete from MongoDB first (to get the R2 key)
         const deletedRecording = await deleteRecording(id, authSubject);
@@ -100,16 +144,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
-        // Delete from R2
+        // Delete from R2 (same semantics as the batch delete action: usage
+        // is only reclaimed when the file is actually removed).
         try {
             await deleteFromR2(deletedRecording.r2Key);
+            await decrementStorageUsed(authSubject, deletedRecording.fileSize);
+            const { reportUsage } = await import('@/lib/stripe/usage');
+            await reportUsage(authSubject, 'storage', -(deletedRecording.fileSize / (1024 * 1024 * 1024)));
         } catch (r2Error) {
             console.error('Error deleting from R2 (continuing anyway):', r2Error);
             // Don't fail the request if R2 deletion fails
         }
-
-        // Update user's storage usage
-        await decrementStorageUsed(authSubject, deletedRecording.fileSize);
 
         return NextResponse.json({ success: true, id });
     } catch (error) {

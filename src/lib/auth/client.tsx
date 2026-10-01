@@ -8,7 +8,9 @@ import {
     GoogleAuthProvider,
     signOut as firebaseSignOut,
     sendEmailVerification as firebaseSendVerification,
+    sendPasswordResetEmail as firebaseSendReset,
     updatePassword as firebaseUpdatePassword,
+    updateProfile as firebaseUpdateProfile,
     reauthenticateWithCredential,
     EmailAuthProvider,
     type User as FirebaseUser,
@@ -32,6 +34,8 @@ export interface AuthActions {
     signOut(): Promise<void>;
     sendVerificationEmail(): Promise<void>;
     changePassword(currentPassword: string, newPassword: string): Promise<void>;
+    requestPasswordReset(email: string): Promise<void>;
+    confirmPasswordReset(token: string, newPassword: string): Promise<void>;
     googleEnabled: boolean;
 }
 
@@ -76,8 +80,11 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
                 const credential = await signInWithEmailAndPassword(requireAuth(), email, password);
                 return toAppUser(credential.user);
             },
-            signUpEmail: async (_name, email, password) => {
+            signUpEmail: async (name, email, password) => {
                 const credential = await createUserWithEmailAndPassword(requireAuth(), email, password);
+                if (name.trim()) {
+                    await firebaseUpdateProfile(credential.user, { displayName: name.trim() });
+                }
                 return toAppUser(credential.user);
             },
             signInGoogle: async () => {
@@ -106,6 +113,14 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
                 const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
                 await reauthenticateWithCredential(currentUser, credential);
                 await firebaseUpdatePassword(currentUser, newPassword);
+            },
+            requestPasswordReset: async (email) => {
+                await firebaseSendReset(requireAuth(), email);
+            },
+            confirmPasswordReset: async () => {
+                // Firebase completes resets through the link in its own email
+                // (Google-hosted handler); there is no app-side token to redeem.
+                throw new Error('Use the reset link in your email to finish resetting your password.');
             },
             googleEnabled: true,
         };
@@ -178,6 +193,17 @@ function LocalBranch({ children }: { children: ReactNode }) {
                     revokeOtherSessions: true,
                 });
                 throwOnError(error, 'Password change failed.');
+            },
+            requestPasswordReset: async (email) => {
+                const { error } = await localAuthClient.requestPasswordReset({
+                    email,
+                    redirectTo: '/reset-password',
+                });
+                throwOnError(error, 'Failed to send reset email.');
+            },
+            confirmPasswordReset: async (token, newPassword) => {
+                const { error } = await localAuthClient.resetPassword({ newPassword, token });
+                throwOnError(error, 'Password reset failed.');
             },
             googleEnabled: !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
         };

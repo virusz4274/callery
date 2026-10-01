@@ -153,15 +153,29 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Fetch all recordings for the user (no pagination for file tree)
-        const recordings = await getRecordingsByUser(authSubject, {
-            limit: 1000, // Reasonable limit for file browser
-            includeArchived: false,
-        });
+        // Fetch all recordings for the user (no pagination for file tree).
+        // The truncation flag needs an exact non-archived count (the cached
+        // user stat includes archived recordings), so count directly.
+        const { buildRecordingsQuery } = await import('@/lib/db/recordings');
+        const { getMongoDb, Collections } = await import('@/lib/mongodb');
+        const db = await getMongoDb();
+        const [recordings, totalCount] = await Promise.all([
+            getRecordingsByUser(authSubject, {
+                limit: 1000, // Reasonable limit for file browser
+                includeArchived: false,
+            }),
+            db.collection(Collections.RECORDINGS).countDocuments(
+                buildRecordingsQuery(authSubject, { includeArchived: false })
+            ),
+        ]);
 
         const fileSystemTree = buildFileSystemTree(recordings);
 
-        return NextResponse.json({ fileSystem: fileSystemTree });
+        return NextResponse.json({
+            fileSystem: fileSystemTree,
+            totalCount,
+            truncated: totalCount > recordings.length,
+        });
     } catch (error) {
         console.error('Error building file system:', error);
         return NextResponse.json(

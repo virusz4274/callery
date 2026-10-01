@@ -100,14 +100,16 @@ export function LoginPage() {
                   Continue with Google
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
-                isDisabled
-              >
-                <AppleIcon className="mr-2 h-5 w-5" />
-                Continue with Apple
-              </Button>
+              <span title="Apple sign-in is coming soon" className="w-full">
+                <Button
+                  variant="ghost"
+                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
+                  isDisabled
+                >
+                  <AppleIcon className="mr-2 h-5 w-5" />
+                  Continue with Apple
+                </Button>
+              </span>
             </div>
 
             <div className="flex items-center gap-4 my-2">
@@ -126,7 +128,7 @@ export function LoginPage() {
                 <Input type="password" placeholder="••••••••" className="bg-default-50/50" />
               </TextField>
               <div className="flex justify-end">
-                <Link href="#" className="font-medium text-primary hover:text-primary/80 transition-colors text-sm">
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80 transition-colors text-sm">
                   Forgot password?
                 </Link>
               </div>

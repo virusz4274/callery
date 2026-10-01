@@ -10,10 +10,15 @@ interface UseRecordingsResult {
     error: Error | null;
     refetch: () => Promise<void>;
     totalCount: number;
+    totalPages: number;
+    page: number;
 }
 
 interface RecordingOptions {
     limit?: number;
+    /** 1-based page. Prefer over `skip`; when both are given, page wins. */
+    page?: number;
+    /** @deprecated Use `page` instead. Kept for backwards compatibility. */
     skip?: number;
     includeArchived?: boolean;
     contactName?: string;
@@ -21,6 +26,8 @@ interface RecordingOptions {
     sortOrder?: 'asc' | 'desc';
     startDate?: string;
     endDate?: string;
+    /** Keyword search across contact, phone, file, summary, tags, transcript. */
+    search?: string;
 }
 
 /**
@@ -36,13 +43,18 @@ export function useRecordings(
     const { data: responseData, error, isLoading, mutate } = useSWR(key, async ([url, opts]: [string, RecordingOptions | undefined]) => {
         const params = new URLSearchParams();
         if (opts?.limit) params.set('limit', opts.limit.toString());
-        if (opts?.skip) params.set('skip', opts.skip.toString());
+        if (opts?.page) {
+            params.set('page', opts.page.toString());
+        } else if (opts?.skip) {
+            params.set('skip', opts.skip.toString());
+        }
         if (opts?.includeArchived) params.set('includeArchived', 'true');
         if (opts?.contactName) params.set('contactName', opts.contactName);
         if (opts?.sortBy) params.set('sortBy', opts.sortBy);
         if (opts?.sortOrder) params.set('sortOrder', opts.sortOrder);
         if (opts?.startDate) params.set('startDate', opts.startDate);
         if (opts?.endDate) params.set('endDate', opts.endDate);
+        if (opts?.search?.trim()) params.set('search', opts.search.trim());
 
         const response = await authFetch(`${url}?${params.toString()}`);
 
@@ -67,14 +79,20 @@ export function useRecordings(
         // SWR Configuration
         revalidateOnFocus: false, // Don't reval on window focus to save bandwidth
         dedupingInterval: 5000, // Dedup requests within 5s
+        keepPreviousData: true, // Keep showing the old page while the new one loads
     });
+
+    const limit = options?.limit || 20;
+    const totalCount = responseData?.totalCount || 0;
 
     return {
         data: responseData?.recordings || null,
         isLoading,
         error: error || null,
         refetch: async () => { await mutate(); },
-        totalCount: responseData?.totalCount || 0,
+        totalCount,
+        totalPages: responseData?.totalPages ?? Math.ceil(totalCount / limit),
+        page: responseData?.page ?? options?.page ?? 1,
     };
 }
 

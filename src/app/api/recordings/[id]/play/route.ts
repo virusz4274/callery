@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { getRecordingById } from '@/lib/db/recordings';
 import { getSignedR2Url } from '@/lib/r2';
@@ -16,6 +17,9 @@ export async function GET(
 
     try {
         const { id } = await params;
+        if (!ObjectId.isValid(id)) {
+            return NextResponse.json({ error: 'Invalid recording id' }, { status: 400 });
+        }
         const recording = await getRecordingById(id, authSubject);
 
         if (!recording) {

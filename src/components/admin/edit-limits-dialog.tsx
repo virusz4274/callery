@@ -35,10 +35,16 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
     );
 
     const handleSave = async () => {
+        const storageNum = Number(storageGB);
+        const transcriptionNum = Number(transcriptionMin);
+        if (!Number.isFinite(storageNum) || storageNum < 0 || !Number.isFinite(transcriptionNum) || transcriptionNum < 0) {
+            toast({ title: 'Invalid limits', description: 'Enter non-negative numbers for storage and transcription.', status: 'warning' });
+            return;
+        }
         setLoading(true);
         try {
-            const storageBytes = Number(storageGB) * 1024 * 1024 * 1024;
-            const transcriptionSeconds = Number(transcriptionMin) * 60;
+            const storageBytes = storageNum * 1024 * 1024 * 1024;
+            const transcriptionSeconds = transcriptionNum * 60;
 
             await updateUserLimits(user.id, {
                 storageAllocation: storageBytes,

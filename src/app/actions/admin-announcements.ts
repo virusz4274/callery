@@ -25,6 +25,10 @@ function mapAnnouncement(announcement: Announcement): AnnouncementResponse {
  * Get all announcements (for admin view)
  */
 export async function getAnnouncements() {
+    const admin = await getCurrentAdmin();
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
     const db = await getMongoDb();
     const announcements = await db.collection<Announcement>(Collections.ANNOUNCEMENTS)
         .find({})
@@ -66,9 +70,30 @@ import { logAdminAction } from '@/app/actions/audit-log';
 /**
  * Create a new announcement
  */
+const ANNOUNCEMENT_TYPES = ['info', 'warning', 'alert', 'success'];
+
+function validateAnnouncementInput(data: CreateAnnouncementInput | UpdateAnnouncementInput): string | null {
+    if ('title' in data && (typeof data.title !== 'string' || !data.title.trim())) {
+        return 'Title is required';
+    }
+    if ('message' in data && (typeof data.message !== 'string' || !data.message.trim())) {
+        return 'Message is required';
+    }
+    if ('type' in data && data.type !== undefined && !ANNOUNCEMENT_TYPES.includes(data.type)) {
+        return 'Invalid announcement type';
+    }
+    if ('isActive' in data && data.isActive !== undefined && typeof data.isActive !== 'boolean') {
+        return 'Invalid isActive flag';
+    }
+    return null;
+}
+
 export async function createAnnouncement(data: CreateAnnouncementInput) {
     const admin = await getCurrentAdmin();
     if (!admin) throw new Error('Unauthorized');
+
+    const validationError = validateAnnouncementInput(data);
+    if (validationError) throw new Error(validationError);
 
     const db = await getMongoDb();
     const now = new Date();
@@ -91,7 +116,7 @@ export async function createAnnouncement(data: CreateAnnouncementInput) {
     );
 
     revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard'); // Update user dashboard
+    revalidatePath('/'); // Update user dashboard
 }
 
 /**
@@ -100,6 +125,10 @@ export async function createAnnouncement(data: CreateAnnouncementInput) {
 export async function updateAnnouncement(id: string, data: UpdateAnnouncementInput) {
     const admin = await getCurrentAdmin();
     if (!admin) throw new Error('Unauthorized');
+
+    if (!ObjectId.isValid(id)) throw new Error('Invalid announcement id');
+    const validationError = validateAnnouncementInput(data);
+    if (validationError) throw new Error(validationError);
 
     const db = await getMongoDb();
 
@@ -125,7 +154,7 @@ export async function updateAnnouncement(id: string, data: UpdateAnnouncementInp
     );
 
     revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard');
+    revalidatePath('/');
 }
 
 /**
@@ -134,6 +163,8 @@ export async function updateAnnouncement(id: string, data: UpdateAnnouncementInp
 export async function deleteAnnouncement(id: string) {
     const admin = await getCurrentAdmin();
     if (!admin) throw new Error('Unauthorized');
+
+    if (!ObjectId.isValid(id)) throw new Error('Invalid announcement id');
 
     const db = await getMongoDb();
     const announcement = await db.collection<Announcement>(Collections.ANNOUNCEMENTS).findOne({ _id: new ObjectId(id) });
@@ -149,5 +180,5 @@ export async function deleteAnnouncement(id: string) {
     );
 
     revalidatePath('/admin/announcements');
-    revalidatePath('/dashboard');
+    revalidatePath('/');
 }

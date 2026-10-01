@@ -11,6 +11,11 @@ import { deleteFromR2 } from '@/lib/r2';
  */
 export async function getSystemStats() {
     const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
 
     const totalUsers = await db.collection(Collections.USERS).countDocuments();
     const totalRecordings = await db.collection(Collections.RECORDINGS).countDocuments();
@@ -45,15 +50,24 @@ export async function getUsers(
     search?: string
 ) {
     const db = await getMongoDb();
-    const skip = (page - 1) * limit;
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
+
+    const safePage = Math.min(Math.max(1, Math.floor(page) || 1), 100000);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 10), 100);
+    const skip = (safePage - 1) * safeLimit;
 
     const query: Record<string, unknown> = {};
     if (search) {
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         query.$or = [
-            { email: { $regex: search, $options: 'i' } },
-            { name: { $regex: search, $options: 'i' } },
-            { firstName: { $regex: search, $options: 'i' } },
-            { lastName: { $regex: search, $options: 'i' } }
+            { email: { $regex: escaped, $options: 'i' } },
+            { name: { $regex: escaped, $options: 'i' } },
+            { firstName: { $regex: escaped, $options: 'i' } },
+            { lastName: { $regex: escaped, $options: 'i' } }
         ];
     }
 
@@ -62,7 +76,7 @@ export async function getUsers(
         .find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(safeLimit)
         .toArray();
 
     // Serialize generic _id to string for client
@@ -80,9 +94,9 @@ export async function getUsers(
     return {
         users: serializedUsers,
         total: totalUsers,
-        page,
-        limit,
-        totalPages: Math.ceil(totalUsers / limit)
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(totalUsers / safeLimit)
     };
 }
 
@@ -91,6 +105,11 @@ export async function getUsers(
  */
 export async function getUserById(userId: string) {
     const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
 
     try {
         const user = await db.collection<User>(Collections.USERS).findOne({
@@ -126,6 +145,24 @@ export async function updateUserRole(userId: string, role: 'user' | 'admin') {
 
     if (!admin) {
         throw new Error('Unauthorized');
+    }
+
+    if (role !== 'user' && role !== 'admin') {
+        throw new Error('Invalid role');
+    }
+
+    if (role === 'user') {
+        // Nobody can demote themselves, and the last admin can't be demoted.
+        if (admin._id.equals(new ObjectId(userId))) {
+            throw new Error('You cannot demote your own admin account.');
+        }
+        const otherAdmins = await db.collection<User>(Collections.USERS).countDocuments({
+            role: 'admin',
+            _id: { $ne: new ObjectId(userId) },
+        });
+        if (otherAdmins === 0) {
+            throw new Error('Cannot demote the last admin account.');
+        }
     }
 
     await db.collection<User>(Collections.USERS).updateOne(
@@ -195,6 +232,12 @@ export async function updateUserLimits(
         throw new Error('Unauthorized');
     }
 
+    for (const [key, value] of Object.entries(limits)) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+            throw new Error(`Invalid ${key}: must be a non-negative number`);
+        }
+    }
+
     // Get previous values for better logging
     const oldUser = await db.collection<User>(Collections.USERS).findOne({ _id: new ObjectId(userId) });
 
@@ -231,6 +274,11 @@ export async function updateUserLimits(
  */
 export async function getUserRecordings(userId: string) {
     const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
 
     // First get the user to find their authSubject
     const user = await db.collection<User>(Collections.USERS).findOne({
@@ -242,6 +290,7 @@ export async function getUserRecordings(userId: string) {
     const recordings = await db.collection(Collections.RECORDINGS)
         .find({ authSubject: user.authSubject })
         .sort({ recordedAt: -1 })
+        .limit(200)
         .toArray();
 
     return recordings.map(rec => ({
@@ -277,36 +326,24 @@ export async function deleteUser(userId: string) {
         throw new Error('User not found');
     }
 
-    // 1. Get all user recordings to delete files from R2
-    const recordings = await db.collection<Recording>(Collections.RECORDINGS)
-        .find({ authSubject: user.authSubject })
-        .toArray();
+    if (user._id.equals(admin._id)) {
+        throw new Error('Admins cannot delete their own account from here. Use Settings → Data → Delete Account.');
+    }
 
-    // 2. Delete files from R2 (in parallel)
-    await Promise.all(recordings.map(async (rec) => {
-        if (rec.r2Key) {
-            try {
-                await deleteFromR2(rec.r2Key);
-            } catch (error) {
-                console.error(`Failed to delete R2 file for recording ${rec._id}:`, error);
-                // Continue identifying other resources even if one fails
-            }
-        }
-    }));
-
-    // 3. Delete Recordings from MongoDB
-    await db.collection(Collections.RECORDINGS).deleteMany({ authSubject: user.authSubject });
-
-    // 4. Delete Contacts from MongoDB
-    await db.collection(Collections.CONTACTS).deleteMany({ authSubject: user.authSubject });
-
-    // 5. Delete User from MongoDB
-    await db.collection(Collections.USERS).deleteOne({ _id: new ObjectId(userId) });
+    const { deleteUserData } = await import('@/lib/db/delete-user-data');
+    const result = await deleteUserData(user.authSubject);
 
     await logAdminAction(
         admin._id.toString(),
         'USER_DELETE',
-        { deletedUserEmail: user.email, deletedUserId: userId },
+        {
+            deletedUserEmail: result.email,
+            deletedUserId: userId,
+            recordingsDeleted: result.recordingsDeleted,
+            r2Failures: result.r2Failures,
+            stripeSubscriptionCanceled: result.stripeSubscriptionCanceled,
+            ...(result.stripeCancelError ? { stripeCancelError: result.stripeCancelError } : {}),
+        },
         userId,
         'USER'
     );
@@ -319,6 +356,11 @@ export async function deleteUser(userId: string) {
  */
 export async function getOrphanedRecordingsCount() {
     const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
 
     // Find recordings where the authSubject does not exist in the users collection
     const orphans = await db.collection(Collections.RECORDINGS).aggregate([
@@ -348,6 +390,11 @@ export async function getOrphanedRecordingsCount() {
  */
 export async function cleanupOrphanedRecordings() {
     const db = await getMongoDb();
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
 
     // 1. Find orphans
     const orphans = await db.collection<Recording>(Collections.RECORDINGS).aggregate([
@@ -386,6 +433,16 @@ export async function cleanupOrphanedRecordings() {
     const deleteResult = await db.collection(Collections.RECORDINGS).deleteMany({
         _id: { $in: orphanIds }
     });
+
+    await logAdminAction(
+        admin._id.toString(),
+        'ORPHAN_CLEANUP',
+        {
+            found: orphans.length,
+            deletedDb: deleteResult.deletedCount,
+            deletedR2,
+        }
+    );
 
     return {
         found: orphans.length,

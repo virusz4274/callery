@@ -11,6 +11,7 @@ import type { AppUser as User } from '@/lib/auth/types';
 
 function FilesBrowserContent({ user }: { user: User }) {
   const [fileSystem, setFileSystem] = useState<FileSystemNode | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const retryCount = useRef(0);
@@ -46,6 +47,7 @@ function FilesBrowserContent({ user }: { user: User }) {
 
       const data = await response.json();
       setFileSystem(data.fileSystem);
+      setTruncated(data.truncated === true);
       retryCount.current = 0; // Reset on success
     } catch (err) {
       console.error('Error fetching file system:', err);
@@ -128,7 +130,7 @@ function FilesBrowserContent({ user }: { user: User }) {
     return null;
   }
 
-  return <FileBrowserPage rootNode={fileSystem} />;
+  return <FileBrowserPage rootNode={fileSystem} truncated={truncated} />;
 }
 
 export default function FilesPage() {

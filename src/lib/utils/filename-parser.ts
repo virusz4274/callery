@@ -55,18 +55,31 @@ export function parseContactFromFilename(filename: string): ParsedContactInfo {
     // Check if contact is a phone number
     const isPhoneNumber = /^[\d+\-\s()]+$/.test(contact.replace(/_/g, ' '));
 
-    // Parse date
+    // Parse date. Range-check first: the Date constructor overflows
+    // (month 13 -> next year) instead of returning Invalid Date.
     let date: Date | null = null;
     try {
-        const year = 2000 + parseInt(dateStr.substring(0, 2));
-        const month = parseInt(dateStr.substring(2, 4)) - 1;
-        const day = parseInt(dateStr.substring(4, 6));
-        const hours = parseInt(timeStr.substring(0, 2));
-        const minutes = parseInt(timeStr.substring(2, 4));
-        const seconds = parseInt(timeStr.substring(4, 6));
-        date = new Date(year, month, day, hours, minutes, seconds);
-        if (isNaN(date.getTime())) {
-            date = null;
+        const year = 2000 + parseInt(dateStr.substring(0, 2), 10);
+        const month = parseInt(dateStr.substring(2, 4), 10);
+        const day = parseInt(dateStr.substring(4, 6), 10);
+        const hours = parseInt(timeStr.substring(0, 2), 10);
+        const minutes = parseInt(timeStr.substring(2, 4), 10);
+        const seconds = parseInt(timeStr.substring(4, 6), 10);
+        const inRange =
+            month >= 1 && month <= 12 &&
+            day >= 1 && day <= 31 &&
+            hours <= 23 && minutes <= 59 && seconds <= 59;
+        if (inRange) {
+            const candidate = new Date(year, month - 1, day, hours, minutes, seconds);
+            // Round-trip guard: rejects e.g. Feb 30 (which overflows to Mar).
+            if (
+                !isNaN(candidate.getTime()) &&
+                candidate.getFullYear() === year &&
+                candidate.getMonth() === month - 1 &&
+                candidate.getDate() === day
+            ) {
+                date = candidate;
+            }
         }
     } catch {
         date = null;

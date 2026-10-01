@@ -51,6 +51,8 @@ export function UploadPage() {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             addFiles(Array.from(event.target.files));
+            // Reset so selecting the same file again still fires onChange.
+            event.target.value = '';
         }
     };
 
@@ -241,7 +243,7 @@ export function UploadPage() {
                                             <p className="text-small text-default-500 mt-1">{uploadItems.length} file(s) ready</p>
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto">
-                                            <Button size="sm" variant="ghost" onPress={() => setUploadItems([])} className="font-medium text-danger hover:bg-danger/10 flex-1 sm:flex-none">
+                                            <Button size="sm" variant="ghost" onPress={() => setUploadItems([])} isDisabled={isUploading} className="font-medium text-danger hover:bg-danger/10 flex-1 sm:flex-none">
                                                 Clear All
                                             </Button>
                                             <Button

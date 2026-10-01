@@ -50,6 +50,22 @@ export function RecordingsTable({
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+    // Selection is per-page: a new page is a new set of rows. The row key
+    // also covers search/filter/sort changes that keep the same page number.
+    const { clearSelection } = selectionHook;
+    const recordingIdsKey = recordings.map((r) => r.id).join(',');
+    React.useEffect(() => {
+        clearSelection();
+    }, [page, recordingIdsKey, clearSelection]);
+
+    // If the current page becomes empty while results remain (e.g. deleted
+    // the last items on the page), step back instead of showing nothing.
+    React.useEffect(() => {
+        if (recordings.length === 0 && totalCount > 0 && page > 1) {
+            setPage(page - 1);
+        }
+    }, [recordings.length, totalCount, page, setPage]);
+
     const openDialog = useCallback((recording: Recording) => {
         setActiveRecording(recording);
     }, []);
@@ -170,8 +186,10 @@ export function RecordingsTable({
 
             {activeRecording && (
                 <RecordingDetailsDialog
+                    key={activeRecording.id}
                     recording={activeRecording}
                     onOpenChange={(isOpen) => !isOpen && closeDialog()}
+                    onRecordingUpdated={() => onRecordingsChange?.()}
                 />
             )}
 

@@ -13,7 +13,7 @@ export async function syncSubscription(subscriptionId: string) {
     if (!billingEnabled()) return;
     const stripe = getStripe();
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    let subscription = await stripe.subscriptions.retrieve(subscriptionId, {
         expand: ['items.data.price.product']
     });
 
@@ -65,9 +65,10 @@ export async function syncSubscription(subscriptionId: string) {
                             price: req.id,
                         });
                         subscriptionUpdated = true;
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                         // Ignore 'already exists' errors (race condition with other webhooks)
-                        if (err?.code !== 'resource_already_exists' && !err?.message?.includes('already using that Price')) {
+                        const stripeError = err as { code?: string; message?: string };
+                        if (stripeError?.code !== 'resource_already_exists' && !stripeError?.message?.includes('already using that Price')) {
                             console.error(`[Sync] Failed to add missing metered item ${req.id}:`, err);
                         }
                     }
@@ -75,20 +76,11 @@ export async function syncSubscription(subscriptionId: string) {
             }
         }
 
-        // Validate: If we added items, we MUST refresh the subscription object 
-        // ensuring the next block (Enforce Thresholds) sees the new Item IDs.
+        // If items were added, refresh so later blocks see the new item IDs.
         if (subscriptionUpdated) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const refreshedSub = await stripe.subscriptions.retrieve(subscriptionId, {
+            subscription = await stripe.subscriptions.retrieve(subscriptionId, {
                 expand: ['items.data.price.product']
             });
-            // Update the local reference for the next block (reassigning properties to keep 'const subscription' valid reference if it was let, but it is const)
-            // ERROR: 'subscription' is const. I need to handle this.
-            // Workaround: I will just use 'refreshedSub' for the items iteration below if updated.
-            // Actually, I can just mutate the array if I want, or better:
-            // Since 'subscription' is const, I cannot reassign it.
-            // I will update the 'items' property of the object if TS allows, or just use refreshedSub.items.
-            subscription.items = refreshedSub.items;
         }
     }
 
@@ -97,13 +89,14 @@ export async function syncSubscription(subscriptionId: string) {
     // and has been removed. If you need usage-based billing thresholds, configure them on your Meters in Stripe.
     // https://stripe.com/docs/billing/subscriptions/usage-based/advanced
 
+    // Stripe API v2025+: periods live on subscription items, not the
+    // subscription. The base plan item (index 0) drives our period end.
+    const baseItem = subscription.items.data[0];
     const updateData: any = {
         stripeSubscriptionId: subscription.id,
         stripeSubscriptionStatus: status, // Cast to specific enum if needed
         stripePriceId: price.id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        stripeCurrentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
-        // 'billingSettings.allowOverage': false, // Removed: Handled efficiently in plan check
+        stripeCurrentPeriodEnd: new Date(baseItem.current_period_end * 1000),
         updatedAt: new Date(),
     };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Avatar } from "@heroui/react";
+import { Card, Avatar } from "@heroui/react";
 import { MessageSquareQuote } from "lucide-react";
 import React from "react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -30,20 +30,11 @@ export function TestimonialsSection() {
     return (
         <section id="testimonials" className="w-full py-24 md:py-32">
             <div className="container mx-auto px-4 md:px-6">
-                <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-                    <div className="max-w-xl">
-                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Loved by our users</h2>
-                        <p className="text-default-500 text-lg">
-                            Join thousands of professionals who trust VoSift to manage their conversations.
-                        </p>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        className="font-medium"
-                    >
-                        Read more stories
-                        <div className="h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px] ml-2">&rarr;</div>
-                    </Button>
+                <div className="max-w-xl mb-12">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">Loved by our users</h2>
+                    <p className="text-default-500 text-lg">
+                        Join thousands of professionals who trust VoSift to manage their conversations.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

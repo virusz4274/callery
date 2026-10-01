@@ -44,6 +44,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing recordingId' }, { status: 400 });
         }
 
+        const { ObjectId } = await import('mongodb');
+        if (!ObjectId.isValid(recordingId)) {
+            return NextResponse.json({ error: 'Invalid recordingId' }, { status: 400 });
+        }
+
         // 2. Get Recording
         const recording = await getRecordingById(recordingId, uid);
         if (!recording) {
@@ -117,6 +122,8 @@ export async function POST(req: NextRequest) {
                     rawSeconds: recording.duration,
                     recordingId,
                 });
+                const { reportUsage } = await import('@/lib/stripe/usage');
+                await reportUsage(uid, 'transcription', billedUnits / 60);
                 logger.info(`[API/Transcribe] Job completed for ${recordingId} (${billedUnits} units via ${provider})`);
 
                 // Delete from provider
@@ -150,7 +157,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         logger.error('Transcription start error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to start transcription' }, { status: 500 });
     }
 }

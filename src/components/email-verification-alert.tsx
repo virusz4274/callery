@@ -15,8 +15,11 @@ export function EmailVerificationAlert({ user, onResend }: EmailVerificationAler
 
   const handleResend = async () => {
     setIsSending(true);
-    await onResend();
-    setIsSending(false);
+    try {
+      await onResend();
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // Only show the alert if the user is logged in and their email is not

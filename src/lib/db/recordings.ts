@@ -4,40 +4,59 @@ import type { Recording, CreateRecordingInput, UpdateRecordingInput, RecordingRe
 
 import { toRecordingResponse } from './converters';
 
+export interface RecordingsQueryOptions {
+    limit?: number;
+    skip?: number;
+    includeArchived?: boolean;
+    contactName?: string;
+    sortBy?: 'date' | 'duration';
+    sortOrder?: 'asc' | 'desc';
+    startDate?: string;
+    endDate?: string;
+    /** Keyword search across contact, phone, file name, summary, and tags. */
+    search?: string;
+}
 
+/** Escape user input so it is treated literally inside a RegExp. */
+export function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 /**
- * Get all recordings for a user.
+ * Normalize an end-date boundary. A bare `YYYY-MM-DD` date means the whole
+ * day, so it is extended to 23:59:59.999; full timestamps pass through.
  */
-/**
- * Get all recordings for a user.
- */
-export async function getRecordingsByUser(
-    authSubject: string,
-    options?: {
-        limit?: number;
-        skip?: number;
-        includeArchived?: boolean;
-        contactName?: string;
-        sortBy?: 'date' | 'duration';
-        sortOrder?: 'asc' | 'desc';
-        startDate?: string;
-        endDate?: string;
+export function normalizeEndDate(value: string): Date | null {
+    const end = new Date(value);
+    if (isNaN(end.getTime())) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        end.setHours(23, 59, 59, 999);
     }
-): Promise<Recording[]> {
-    const db = await getMongoDb();
+    return end;
+}
 
+/**
+ * Build the shared MongoDB filter for recordings. Used by both the list
+ * query and the count query so pagination totals always match the rows.
+ */
+export function buildRecordingsQuery(
+    authSubject: string,
+    options?: Pick<RecordingsQueryOptions, 'includeArchived' | 'contactName' | 'startDate' | 'endDate' | 'search'>
+): Record<string, unknown> {
     const query: Record<string, unknown> = { authSubject };
     if (!options?.includeArchived) {
         query.isArchived = { $ne: true };
     }
     if (options?.contactName) {
-        query.contactName = options.contactName;
+        if (options.contactName === 'Unknown') {
+            query.$or = [{ contactName: null }, { contactName: { $exists: false } }];
+        } else {
+            query.contactName = options.contactName;
+        }
     }
 
     if (options?.startDate || options?.endDate) {
         const dateQuery: Record<string, unknown> = {};
-        // Ensure valid dates if provided
         if (options.startDate) {
             const start = new Date(options.startDate);
             if (!isNaN(start.getTime())) {
@@ -45,12 +64,8 @@ export async function getRecordingsByUser(
             }
         }
         if (options.endDate) {
-            const end = new Date(options.endDate);
-            if (!isNaN(end.getTime())) {
-                // If it's just a date string (YYYY-MM-DD), we might want to set to end of day?
-                // For now, assume the caller handles the specific time boundary or we accept strict comparison.
-                // Let's ensure we cover the whole seconds/milliseconds of the end date if it matches the start date?
-                // Actually, let's keep it simple: exact comparison.
+            const end = normalizeEndDate(options.endDate);
+            if (end) {
                 dateQuery.$lte = end;
             }
         }
@@ -58,6 +73,42 @@ export async function getRecordingsByUser(
             query.recordedAt = dateQuery;
         }
     }
+
+    const search = options?.search?.trim();
+    if (search) {
+        const regex = { $regex: escapeRegExp(search), $options: 'i' };
+        const searchOr: Record<string, unknown>[] = [
+            { contactName: regex },
+            { phoneNumber: regex },
+            { fileName: regex },
+            { standardizedDisplayName: regex },
+            { summary: regex },
+            { tags: regex },
+            { 'fullTranscript.text': regex },
+        ];
+        if (query.$or) {
+            // Both contact-Unknown and search $or clauses: combine with $and.
+            const existing = query.$or;
+            delete query.$or;
+            query.$and = [{ $or: existing }, { $or: searchOr }];
+        } else {
+            query.$or = searchOr;
+        }
+    }
+
+    return query;
+}
+
+/**
+ * Get all recordings for a user.
+ */
+export async function getRecordingsByUser(
+    authSubject: string,
+    options?: RecordingsQueryOptions
+): Promise<Recording[]> {
+    const db = await getMongoDb();
+
+    const query = buildRecordingsQuery(authSubject, options);
 
     const sort: Record<string, 1 | -1> = {};
     if (options?.sortBy === 'duration') {
@@ -244,16 +295,7 @@ export async function deleteRecordings(
  */
 export async function getRecordingsForApi(
     authSubject: string,
-    options?: {
-        limit?: number;
-        skip?: number;
-        includeArchived?: boolean;
-        contactName?: string;
-        sortBy?: 'date' | 'duration';
-        sortOrder?: 'asc' | 'desc';
-        startDate?: string;
-        endDate?: string;
-    }
+    options?: RecordingsQueryOptions
 ): Promise<RecordingResponse[]> {
     const recordings = await getRecordingsByUser(authSubject, options);
 
@@ -265,41 +307,12 @@ export async function getRecordingsForApi(
  */
 export async function countRecordingsByUser(
     authSubject: string,
-    options?: {
-        includeArchived?: boolean;
-        contactName?: string;
-        startDate?: string;
-        endDate?: string;
-    }
+    options?: Pick<RecordingsQueryOptions, 'includeArchived' | 'contactName' | 'startDate' | 'endDate' | 'search'>
 ): Promise<number> {
     // If filtering, we must query the collection
-    if (options?.contactName || options?.startDate || options?.endDate) {
+    if (options?.contactName || options?.startDate || options?.endDate || options?.search) {
         const db = await getMongoDb();
-        const query: Record<string, unknown> = { authSubject };
-
-        if (!options.includeArchived) {
-            query.isArchived = { $ne: true };
-        }
-
-        if (options.contactName) {
-            query.contactName = options.contactName;
-        }
-
-        if (options.startDate || options.endDate) {
-            const dateQuery: Record<string, unknown> = {};
-            if (options.startDate) {
-                const start = new Date(options.startDate);
-                if (!isNaN(start.getTime())) dateQuery.$gte = start;
-            }
-            if (options.endDate) {
-                const end = new Date(options.endDate);
-                if (!isNaN(end.getTime())) dateQuery.$lte = end;
-            }
-            if (Object.keys(dateQuery).length > 0) {
-                query.recordedAt = dateQuery;
-            }
-        }
-
+        const query = buildRecordingsQuery(authSubject, options);
         return db.collection(Collections.RECORDINGS).countDocuments(query);
     }
 

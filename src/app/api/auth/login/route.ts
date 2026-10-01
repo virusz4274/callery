@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify the ID token and create a session cookie
-        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days (milliseconds for Firebase)
 
         const { getAdminAuth } = await import('@/lib/firebase/admin');
         const auth = getAdminAuth();
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
         // Create the session cookie. This will also verify the ID token.
         const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
 
-        // Set cookie options
+        // Set cookie options (maxAge is in seconds, unlike Firebase's millis).
         const options = {
             name: 'session',
             value: sessionCookie,
-            maxAge: expiresIn,
+            maxAge: Math.floor(expiresIn / 1000),
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             path: '/',
@@ -71,11 +71,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'success' }, { status: 200 });
     } catch (error: unknown) {
         console.error('Error creating session:', error);
-        // RETURN ACTUAL ERROR FOR DEBUGGING
-        const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-        const errorStack = error instanceof Error ? error.stack : undefined;
         return NextResponse.json(
-            { error: errorMessage, stack: errorStack },
+            { error: 'Login failed. Please try again.' },
             { status: 500 }
         );
     }

@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import { PlanResponse } from '@/lib/db/types';
 import { deletePlan } from '@/app/actions/admin-plans';
 import { PlanFormDialog } from '@/components/admin/plan-form-dialog';
+import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
 
 type PlansListProps = {
@@ -18,6 +19,7 @@ export function PlansList({ initialPlans }: PlansListProps) {
     const [editingPlan, setEditingPlan] = useState<PlanResponse | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const router = useRouter();
+    const { toast } = useToast();
 
     const handleCreate = () => {
         setEditingPlan(null);
@@ -34,9 +36,19 @@ export function PlansList({ initialPlans }: PlansListProps) {
             return;
         }
         setIsDeleting(id);
-        await deletePlan(id);
-        router.refresh();
-        setIsDeleting(null);
+        try {
+            await deletePlan(id);
+            router.refresh();
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: 'Failed to delete plan',
+                description: error instanceof Error ? error.message : 'Please try again.',
+                status: 'danger',
+            });
+        } finally {
+            setIsDeleting(null);
+        }
     };
 
     const formatCurrency = (amount: number, currency: string) => {

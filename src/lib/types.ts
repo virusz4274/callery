@@ -26,6 +26,8 @@ export type FileSystemNode = {
   lastModified: string;
   size?: string;
   children?: FileSystemNode[];
+  /** Set on file nodes: the recording to open on click. */
+  recordingId?: string;
 };
 
 export type Invoice = {

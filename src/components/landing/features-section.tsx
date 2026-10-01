@@ -4,24 +4,25 @@ import { Card } from "@heroui/react";
 import { Upload, Search, Zap } from "lucide-react";
 import React from "react";
 
+// Static classes: Tailwind can't generate `bg-${color}` interpolations.
 const features = [
     {
         icon: <Upload className="h-6 w-6" />,
         title: "Effortless Ingestion",
         description: "Drag & drop call recordings in any format. We handle the processing and organization instantly.",
-        color: "primary"
+        className: "bg-primary/10 text-primary"
     },
     {
         icon: <Search className="h-6 w-6" />,
         title: "Deep Search",
         description: "Find exactly what was said. Search across transcripts, dates, and contacts with pinpoint accuracy.",
-        color: "secondary"
+        className: "bg-secondary/10 text-secondary"
     },
     {
         icon: <Zap className="h-6 w-6" />,
         title: "AI Transcription",
         description: "Get accurate, speaker-diarized transcripts. Turn audio into actionable text in seconds.",
-        color: "warning"
+        className: "bg-warning/10 text-warning"
     },
 ];
 
@@ -42,7 +43,7 @@ export function FeaturesSection() {
                     {features.map((feature) => (
                         <Card key={feature.title} className="p-1 h-full bg-gradient-to-br from-content1 to-content2/50 border-none shadow-medium hover:shadow-xl transition-shadow duration-300">
                             <div className="h-full bg-background/80 backdrop-blur-md rounded-lg p-6 flex flex-col items-start gap-4 hover:bg-background/40 transition-colors">
-                                <div className={`p-3 rounded-xl bg-${feature.color}/10 text-${feature.color}`}>
+                                <div className={`p-3 rounded-xl ${feature.className}`}>
                                     {feature.icon}
                                 </div>
                                 <div>

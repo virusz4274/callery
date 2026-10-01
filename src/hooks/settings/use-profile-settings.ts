@@ -51,7 +51,10 @@ export function useProfileSettings(user: any, userProfile: UserProfile | null) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ firstName: values.firstName, lastName: values.lastName }),
             });
-            if (!response.ok) throw new Error('Failed to update profile');
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                throw new Error(data?.error || 'Failed to update profile');
+            }
             toast({ title: 'Profile Updated', status: 'success' });
         } catch (error: unknown) {
             toast({ title: 'Update Failed', description: error instanceof Error ? error.message : 'Unknown error', status: 'danger' });

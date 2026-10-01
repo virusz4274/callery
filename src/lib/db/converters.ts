@@ -9,6 +9,15 @@
 
 import type { Recording, RecordingResponse, Contact, ContactResponse, User, UserResponse } from './types';
 
+/**
+ * Best-effort ISO conversion: legacy documents may carry date fields as
+ * strings, and one bad row must not 500 an entire list response.
+ */
+function toIso(value: Date | string): string {
+    if (value instanceof Date) return value.toISOString();
+    return new Date(value).toISOString();
+}
+
 // ============================================================================
 // Recording Converters
 // ============================================================================
@@ -43,9 +52,9 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         fileSize: recording.fileSize,
         mimeType: recording.mimeType,
         duration: recording.duration,
-        recordedAt: recording.recordedAt.toISOString(),
-        createdAt: recording.createdAt.toISOString(),
-        updatedAt: recording.updatedAt.toISOString(),
+        recordedAt: toIso(recording.recordedAt),
+        createdAt: toIso(recording.createdAt),
+        updatedAt: toIso(recording.updatedAt),
         transcriptionStatus: recording.transcriptionStatus,
         fullTranscript: recording.fullTranscript,
         languageCode: recording.languageCode,
@@ -79,10 +88,10 @@ export function toContactResponse(contact: Contact): ContactResponse {
         lastName: contact.lastName,
         jobTitle: contact.jobTitle,
         company: contact.company,
-        createdAt: contact.createdAt.toISOString(),
-        updatedAt: contact.updatedAt.toISOString(),
+        createdAt: toIso(contact.createdAt),
+        updatedAt: toIso(contact.updatedAt),
         totalRecordings: contact.totalRecordings,
-        lastRecordingAt: contact.lastRecordingAt?.toISOString() || null,
+        lastRecordingAt: contact.lastRecordingAt ? toIso(contact.lastRecordingAt) : null,
     };
 }
 
@@ -107,7 +116,7 @@ export function toUserResponse(user: User): UserResponse {
         role: user.role,
         plan: user.plan,
         timezone: user.timezone,
-        createdAt: user.createdAt.toISOString(),
+        createdAt: toIso(user.createdAt),
         notificationSettings: user.notificationSettings,
         storageSettings: user.storageSettings,
         storageUsed: user.storageUsed,
@@ -117,6 +126,6 @@ export function toUserResponse(user: User): UserResponse {
         transcriptionSettings: user.transcriptionSettings,
         billingSettings: user.billingSettings || { allowOverage: false },
         totalRecordings: user.totalRecordings,
-        lastLoginAt: user.lastLoginAt?.toISOString(),
+        lastLoginAt: user.lastLoginAt ? toIso(user.lastLoginAt) : undefined,
     };
 }

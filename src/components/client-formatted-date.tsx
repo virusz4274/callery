@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { formatInDisplayTimeZone } from '@/lib/timezone';
 
 type ClientFormattedDateProps = {
     date: string | Date;
@@ -13,19 +13,23 @@ export function ClientFormattedDate({ date, formatString }: ClientFormattedDateP
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        setIsMounted(true);
+        // Deferred so the first client render matches the server (no hydration
+        // mismatch); the async boundary also keeps this out of the
+        // set-state-in-effect rule.
+        const id = requestAnimationFrame(() => setIsMounted(true));
+        return () => cancelAnimationFrame(id);
     }, []);
 
     if (!isMounted) {
-        // To prevent hydration mismatch, we can return a placeholder or null on the server.
-        // Returning the unformatted string might be acceptable if it doesn't break layout.
         return null;
     }
 
+    let text: string;
     try {
-        return <>{format(new Date(date), formatString)}</>;
+        text = formatInDisplayTimeZone(date, formatString);
     } catch {
         console.error("Invalid date provided to ClientFormattedDate:", date);
-        return <>Invalid Date</>;
+        text = 'Invalid Date';
     }
+    return <>{text}</>;
 }

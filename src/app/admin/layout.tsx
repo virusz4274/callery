@@ -11,7 +11,8 @@ import {
   Users,
   Settings,
   CreditCard,
-  Megaphone // Added
+  Megaphone, // Added
+  ScrollText
 } from 'lucide-react';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       { name: 'Users', href: '/admin/users', icon: Users },
       { name: 'Plans', href: '/admin/plans', icon: CreditCard },
       { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
+      { name: 'Audit Log', href: '/admin/audit', icon: ScrollText },
       { name: 'Settings', href: '/admin/settings', icon: Settings },
     ];
 

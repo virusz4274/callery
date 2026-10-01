@@ -21,7 +21,7 @@ export function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+  const passwordError = confirmPassword && password !== confirmPassword ? 'Passwords do not match' : '';
 
   const actions = useAuthActions();
   const { user, isUserLoading } = useUser();
@@ -32,14 +32,6 @@ export function SignupPage() {
       router.push('/');
     }
   }, [user, router]);
-
-  useEffect(() => {
-    if (confirmPassword && password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-    } else {
-      setPasswordError('');
-    }
-  }, [password, confirmPassword]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,14 +109,16 @@ export function SignupPage() {
                   Sign up with Google
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
-                isDisabled
-              >
-                <AppleIcon className="mr-2 h-5 w-5" />
-                Sign up with Apple
-              </Button>
+              <span title="Apple sign-in is coming soon" className="w-full">
+                <Button
+                  variant="ghost"
+                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
+                  isDisabled
+                >
+                  <AppleIcon className="mr-2 h-5 w-5" />
+                  Sign up with Apple
+                </Button>
+              </span>
             </div>
 
             <div className="flex items-center gap-4 my-2">

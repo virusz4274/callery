@@ -27,7 +27,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
             <Card className="bg-card/70 border-default-200">
                 <Card.Content className="space-y-6">
                     <RadioGroup
-                        defaultValue={settings.activityDigest}
+                        value={settings.activityDigest}
                         onChange={(value) => onSettingsChange({ ...settings, activityDigest: value as 'off' | 'weekly' | 'monthly' })}
                     >
                         <Label>Activity Digest</Label>

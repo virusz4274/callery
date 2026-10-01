@@ -37,6 +37,8 @@ function getClientPromise(): Promise<MongoClient> {
                 })
                 .catch(err => {
                     console.error('MongoDB Connection Error (dev):', err);
+                    // Clear the cached rejection so the next request retries.
+                    globalWithMongo._mongoClientPromise = undefined;
                     throw err;
                 });
         }
@@ -51,6 +53,8 @@ function getClientPromise(): Promise<MongoClient> {
             })
             .catch(err => {
                 console.error('MongoDB Connection Error (prod/worker):', err);
+                // Clear the cached rejection so the next request retries.
+                clientPromise = undefined;
                 throw err;
             });
     }

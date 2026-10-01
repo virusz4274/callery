@@ -1,6 +1,7 @@
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { AdminLog } from '@/lib/db/types';
 import { ObjectId } from 'mongodb';
+import { getCurrentAdmin } from '@/lib/admin-auth';
 
 export type LogActionType =
     | 'USER_BAN'
@@ -14,7 +15,8 @@ export type LogActionType =
     | 'SETTINGS_UPDATE'
     | 'ANNOUNCEMENT_CREATE'
     | 'ANNOUNCEMENT_UPDATE'
-    | 'ANNOUNCEMENT_DELETE';
+    | 'ANNOUNCEMENT_DELETE'
+    | 'ORPHAN_CLEANUP';
 
 export async function logAdminAction(
     adminId: string,
@@ -23,6 +25,13 @@ export async function logAdminAction(
     targetId?: string,
     targetType?: 'USER' | 'PLAN' | 'SYSTEM' | 'ANNOUNCEMENT'
 ) {
+    // The audit trail must not be forgeable: only an authenticated admin
+    // session may append. All legitimate callers run in admin request scope.
+    const admin = await getCurrentAdmin().catch(() => null);
+    if (!admin || admin._id.toString() !== adminId) {
+        console.error('Refused to log admin action: session mismatch');
+        return;
+    }
     try {
         const db = await getMongoDb();
 
@@ -60,7 +69,15 @@ export async function getAuditLogs(
     adminIdFilter?: string
 ) {
     const db = await getMongoDb();
-    const skip = (page - 1) * limit;
+    const admin = await getCurrentAdmin();
+
+    if (!admin) {
+        throw new Error('Unauthorized');
+    }
+
+    const safePage = Math.min(Math.max(1, Math.floor(page) || 1), 100000);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 20), 100);
+    const skip = (safePage - 1) * safeLimit;
 
     const query: Record<string, unknown> = {};
     if (actionFilter) query.action = actionFilter;
@@ -71,7 +88,7 @@ export async function getAuditLogs(
         .find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(safeLimit)
         .toArray();
 
     const serializedLogs: AdminLogResponse[] = logs.map(log => ({
@@ -88,8 +105,8 @@ export async function getAuditLogs(
     return {
         logs: serializedLogs,
         total: totalLogs,
-        page,
-        limit,
-        totalPages: Math.ceil(totalLogs / limit)
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(totalLogs / safeLimit)
     };
 }

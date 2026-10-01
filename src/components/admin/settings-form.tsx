@@ -4,6 +4,7 @@ import React, { useState, useTransition } from 'react';
 import { Card, Button, Switch } from '@heroui/react';
 import { SystemSettingsResponse, PlanResponse } from '@/lib/db/types';
 import { updateSystemSettings } from '@/app/actions/admin-settings';
+import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
 
 type SettingsFormProps = {
@@ -13,6 +14,7 @@ type SettingsFormProps = {
 
 export function SettingsForm({ settings, plans }: SettingsFormProps) {
     const router = useRouter();
+    const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
 
     const [allowSignups, setAllowSignups] = useState(settings.allowSignups);
@@ -25,14 +27,17 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                 await updateSystemSettings({
                     allowSignups,
                     maintenanceMode,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    defaultPlanId: (defaultPlanId || undefined) as any
+                    defaultPlanId: defaultPlanId || undefined
                 });
-                alert('Settings updated successfully');
+                toast({ title: 'Settings updated', status: 'success' });
                 router.refresh();
             } catch (error) {
                 console.error('Failed to update settings:', error);
-                alert('Failed to update settings');
+                toast({
+                    title: 'Failed to update settings',
+                    description: error instanceof Error ? error.message : 'Please try again.',
+                    status: 'danger',
+                });
             }
         });
     };
