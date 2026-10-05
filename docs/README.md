@@ -10,6 +10,7 @@ This folder contains the maintained documentation for the current Callery codeba
 
 ## Developer Reference
 
+- [Dependency Review](dependency-review.md): current toolchain, security fixes, compatibility decisions and upgrade checks
 - [Architecture](architecture.md): system shape, async flows, security boundaries, and repository layout
 - [API Reference](api-reference.md): Server Actions, route handlers, signed upload flow, webhooks, and cron endpoints
 - [Data Model](data-model.md): MongoDB collections, important document fields, and index/TTL notes

@@ -8,6 +8,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
 *   [**Branch Reconciliation**](docs/branch-reconciliation.md): Preserved snapshots, confirmed decisions, and verification.
+*   [**Dependency Review**](docs/dependency-review.md): Current packages, security patches and upgrade validation.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
 *   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
 *   [**Cron Jobs**](docs/cron-jobs.md): Exports, retention, digests, and billing retries.
@@ -15,8 +16,10 @@ A modern web application for managing, transcribing, and organizing phone call r
 ## Quick Start
 
 1.  **Install dependencies**:
+    Use Node 24 and the pnpm version pinned in `package.json`:
     ```bash
-    pnpm install
+    corepack enable pnpm
+    pnpm install --frozen-lockfile
     ```
 
 2.  **Set up environment variables**:

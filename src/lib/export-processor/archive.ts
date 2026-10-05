@@ -1,4 +1,4 @@
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -100,7 +100,7 @@ async function uploadArchivePart(key: string, chunk: Recording[]): Promise<numbe
 
     try {
         await new Promise<void>((resolve, reject) => {
-            const archive = archiver('zip', { zlib: { level: 9 } });
+            const archive = new ZipArchive({ zlib: { level: 9 } });
             const output = createWriteStream(archivePath);
             let settled = false;
 

@@ -53,6 +53,8 @@ if (process.env.NODE_ENV === 'production') {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Bundle the S3 SDK so standalone tracing retains its checksum subpath imports.
+  transpilePackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   experimental: {
     serverActions: {
       bodySizeLimit: '1mb',
@@ -143,7 +145,7 @@ const sentryBuildConfig = {
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',
   swDest: 'public/sw.js',
-  disable: process.env.NODE_ENV === 'development',
+  disable: process.env.NODE_ENV !== 'production',
 });
 const pwaConfig = withSerwist(nextConfig);
 

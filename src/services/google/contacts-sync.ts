@@ -1,4 +1,5 @@
-import { google, type people_v1 } from 'googleapis';
+import { people, type people_v1 } from '@googleapis/people';
+import type { OAuth2Client } from 'google-auth-library';
 import { saveContactsToMongoDB } from '@/app/actions/save-contacts';
 import { normalizeContactPhoneNumbers } from '@/lib/db/contacts/normalize';
 import type { GoogleSyncDuplicatePhoneIssue } from '@/lib/db/types';
@@ -30,16 +31,12 @@ type ContactRecord = {
     company?: string;
 };
 
-// `googleapis` and `google-auth-library` ship duplicate copies of OAuth2Client across nested
-// node_modules; their types are nominally distinct even though structurally identical. Accept
-// any authenticated OAuth2-like client and let `google.people()` handle runtime compatibility.
 export async function syncContactsBackground(
     userId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    authClient: any
+    authClient: OAuth2Client
 ): Promise<{ importedCount: number; duplicatePhoneIssues: GoogleSyncDuplicatePhoneIssue[] }> {
     try {
-        const peopleService: people_v1.People = google.people({ version: 'v1', auth: authClient });
+        const peopleService: people_v1.People = people({ version: 'v1', auth: authClient });
 
         let nextPageToken: string | undefined = undefined;
         const contactsToSave: ContactRecord[] = [];

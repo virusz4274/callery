@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import { env } from '@/lib/env';
 
 export function getOAuth2Client(redirectUri?: string) {
@@ -14,7 +14,7 @@ export function getOAuth2Client(redirectUri?: string) {
   // Use the passed redirectUri, or fall back to the environment variable
   const callbackUrl = redirectUri || env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
 
-  return new google.auth.OAuth2(
+  return new OAuth2Client(
     clientId,
     clientSecret,
     callbackUrl

@@ -1,0 +1,87 @@
+diff --git a/lib/compile.js b/lib/compile.js
+index dce69beb90ece5c3b0ca234a949418f9f34eedbc..afb7263f6fc592618f9f7790b89ab6ffaf95533c 100644
+--- a/lib/compile.js
++++ b/lib/compile.js
+@@ -4,6 +4,7 @@ const fill = require('fill-range');
+ const utils = require('./utils');
+ 
+ const compile = (ast, options = {}) => {
++  utils.assertMaxDepth(ast);
+   const walk = (node, parent = {}) => {
+     const invalidBlock = utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
+diff --git a/lib/expand.js b/lib/expand.js
+index 35b2c41d6afdb8f0197959e26079f266e48370d3..13fbb413d78e5b472fdf4a6315d4db1bfbb75194 100644
+--- a/lib/expand.js
++++ b/lib/expand.js
+@@ -31,6 +31,7 @@ const append = (queue = '', stash = '', enclose = false) => {
+ };
+ 
+ const expand = (ast, options = {}) => {
++  utils.assertMaxDepth(ast);
+   const rangeLimit = options.rangeLimit === undefined ? 1000 : options.rangeLimit;
+ 
+   const walk = (node, parent = {}) => {
+diff --git a/lib/parse.js b/lib/parse.js
+index 3a6988e629f52aee6609dc5ec290a5e9ff47cecb..106ff3ddf168a65c25084bdc3750b3db4161ce90 100644
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -1,6 +1,7 @@
+ 'use strict';
+ 
+ const stringify = require('./stringify');
++const utils = require('./utils');
+ 
+ /**
+  * Constants
+@@ -55,6 +56,9 @@ const parse = (input, options = {}) => {
+ 
+   const advance = () => input[index++];
+   const push = node => {
++    if (node.nodes && stack.length > utils.MAX_DEPTH) {
++      throw new SyntaxError(`Input nesting exceeds max depth (${utils.MAX_DEPTH})`);
++    }
+     if (node.type === 'text' && prev.type === 'dot') {
+       prev.type = 'text';
+     }
+diff --git a/lib/stringify.js b/lib/stringify.js
+index 8bcf872c31894f81a8c64d9202fd607e4fd7ea2b..727a2da06896f1a09a74a13d6961073e18d2cd3d 100644
+--- a/lib/stringify.js
++++ b/lib/stringify.js
+@@ -3,6 +3,7 @@
+ const utils = require('./utils');
+ 
+ module.exports = (ast, options = {}) => {
++  utils.assertMaxDepth(ast);
+   const stringify = (node, parent = {}) => {
+     const invalidBlock = options.escapeInvalid && utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
+diff --git a/lib/utils.js b/lib/utils.js
+index d19311fe044ad5157624077670dc297e8b53da49..3b5ad29f43af4ac7659247df753d8d90708f3efd 100644
+--- a/lib/utils.js
++++ b/lib/utils.js
+@@ -1,5 +1,24 @@
+ 'use strict';
+ 
++// Bound every recursive AST walker, including callers that provide their own AST.
++exports.MAX_DEPTH = 100;
++exports.assertMaxDepth = ast => {
++  const stack = [[ast, 0]];
++  while (stack.length > 0) {
++    const [node, depth] = stack.pop();
++    if (depth > exports.MAX_DEPTH) {
++      throw new SyntaxError(`Input nesting exceeds max depth (${exports.MAX_DEPTH})`);
++    }
++    if (node && Array.isArray(node.nodes)) {
++      for (const child of node.nodes) {
++        if (child && Array.isArray(child.nodes)) {
++          stack.push([child, depth + 1]);
++        }
++      }
++    }
++  }
++};
++
+ exports.isInteger = num => {
+   if (typeof num === 'number') {
+     return Number.isInteger(num);
