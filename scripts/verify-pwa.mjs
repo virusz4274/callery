@@ -3,8 +3,9 @@
 // Uses only node builtins so it needs no test framework.
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 let failures = 0;
 
 function check(name, fn) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getRecordingById, updateRecording } from '@/lib/db/recordings';
-import { getSignedR2Url } from '@/lib/r2';
+import { getSignedR2Url, getSignedStorageUrl } from '@/lib/r2';
 import { getAiService } from '@/services/ai';
 import { getTranscriptionService, transcriptionMultiplier } from '@/services/transcription';
 import { toBlockedDetails, toFailureDetails } from '@/services/transcription/failure-events';
@@ -84,7 +84,11 @@ export async function POST(req: NextRequest) {
         // 5. Trigger Background Transcription
         after(async () => {
             try {
-                const fileUrl = await getSignedR2Url(recording.r2Key, 1800);
+                // Gemini and Whisper download audio through this app process.
+                // Soniox/ElevenLabs fetch it remotely and need the public host.
+                const fileUrl = provider === 'gemini' || provider === 'openai_compat'
+                    ? await getSignedStorageUrl(recording.r2Key, 1800)
+                    : await getSignedR2Url(recording.r2Key, 1800);
                 logger.info(`[API/Transcribe] Processing ${recordingId}...`);
                 const result = await transcriptionService.transcribe(fileUrl, recording.duration);
                 logger.info(`[API/Transcribe] Transcription received for ${recordingId}`);

@@ -3,3 +3,6 @@ allowBuilds:
   '@google/genai': true
   protobufjs: true
   unrs-resolver: true
+  workerd: true
+patchedDependencies:
+  tr46@5.1.1: patches/tr46@5.1.1.patch

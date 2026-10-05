@@ -1,36 +1,64 @@
 # Setup Guide
 
-VoSift ships as one image with two personalities — self-hosted or managed SaaS —
-switched purely by environment. `.env.example` is the authoritative variable
-reference; this guide explains the choices.
+VoSift supports self-hosted and managed SaaS deployments from one codebase.
+The Docker deployment uses Next.js standalone on Node. Set public settings
+before building; `NEXT_PUBLIC_*` values are compiled into the browser bundle.
+`.env.example` is the full variable reference; `.env.selfhost.example` is the
+short Docker self-host template.
 
 ## Prerequisites
 
 *   **Node.js**: v22 or later (v24 LTS recommended), with **pnpm**.
+    Docker users only need Docker Engine/Desktop with Compose v2.20 or later.
 *   **MongoDB**: v6.0 or later — local, Docker (compose `selfhost` profile), or Atlas.
+    (Semantic search needs Atlas Search indexes; self-hosted MongoDB gets
+    regex keyword search instead. See docker-compose.yml comments.)
 *   **S3-compatible storage**: MinIO, Cloudflare R2, AWS S3, or similar.
-*   **One transcription key**: Soniox, ElevenLabs, or Gemini (see below).
+*   **Transcription**: a Soniox, ElevenLabs, or Gemini key, or a local
+    Whisper-compatible server (see below). Organizing and playing recordings
+    do not require transcription.
 
 Everything else is optional and degrades gracefully (details below).
 
 ## Quickstart (self-host)
 
 ```bash
-cp .env.example .env
-# Edit .env: at minimum AUTH_PROVIDER, MONGODB_URI, R2_* storage, one transcription key
-pnpm install
-pnpm dlx tsx src/lib/db/init.ts   # indexes + seed plans (needs MongoDB up)
-docker compose --profile selfhost up   # app (port 3000) + MongoDB
+cp .env.selfhost.example .env
+# Set BETTER_AUTH_SECRET, ADMIN_EMAILS, and storage credentials/endpoints.
+# Configure a transcription backend if you want transcription.
+docker compose --profile selfhost up   # app (port 3000) + MongoDB + MinIO
+docker compose ps -a
 ```
+
+Generate the auth secret with `openssl rand -base64 32`, or with Node:
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`.
+The bundled MinIO bucket (`R2_BUCKET_NAME`) is auto-created on first start; external backends need the bucket pre-created. Compose
+starts MongoDB, waits for it to be healthy, then runs the idempotent `db-init`
+service to create indexes and seed missing plans. The app starts only after
+initialization succeeds. `docker compose logs db-init app` shows startup errors.
+
+Open `http://localhost:3000`, sign up with your `ADMIN_EMAILS` address, and test
+upload → playback → transcription → search → delete with a sample recording.
+`GET /api/health` returns 200 when the app can reach MongoDB, or 503 otherwise;
+it does not verify storage credentials or transcription providers. Ordinary
+keyword search has a fallback for self-hosted MongoDB. Semantic vector search
+still requires a MongoDB deployment with the configured vector search index.
+
+The app and MongoDB run locally; hosted transcription and AI providers still
+receive audio/text. Choose the local Whisper + Ollama recipe below when those
+operations also need to stay on your infrastructure.
 
 Prefer local dev outside Docker? `pnpm run dev` serves on
 `http://localhost:9000` (with MongoDB + storage reachable from your machine).
+Use `.env.example` and run `pnpm install` then `pnpm run db:init` first.
 
 Minimal self-host `.env` (local auth, no billing, no email):
 
 ```env
 AUTH_PROVIDER=local
 NEXT_PUBLIC_AUTH_PROVIDER=local
+NEXT_PUBLIC_ENABLE_BILLING=false
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 ADMIN_EMAILS=you@example.com
 MONGODB_URI=mongodb://mongo:27017/vosift
@@ -43,8 +71,21 @@ S3_FORCE_PATH_STYLE=true
 S3_PUBLIC_ENDPOINT=http://localhost:9000
 TRANSCRIPTION_PROVIDER=soniox
 SONIOX_API_KEY=...
+AI_PROVIDER=gemini
 EMAIL_PROVIDER=none
 ```
+
+For access from another computer, replace both localhost URLs with the
+browser-reachable app/storage addresses. Use HTTPS for a remote deployment
+and PWA installation. `EMAIL_PROVIDER=none` skips email verification and cannot
+send password resets; configure SMTP or Resend for those features.
+
+When changing public settings, run the Compose command with `--build` again.
+Compose derives both client and server auth settings from `AUTH_PROVIDER`,
+so local accounts do not accidentally build a Firebase login screen.
+Runtime secrets are excluded from the Docker build context and supplied via
+`env_file`. For a direct `docker build`, pass the corresponding public settings
+using `--build-arg`; the Dockerfile defaults to local auth with billing disabled.
 
 ## Deployment profiles
 
@@ -84,17 +125,27 @@ The app speaks plain S3 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`,
     server (e.g. server: `http://minio:9000`, browser: `http://localhost:9000`).
     URLs are *signed* with this host; omit it when both use the same address.
 
-**External MinIO** (run it yourself; it is not bundled):
+**Bundled MinIO** (compose `selfhost` profile): included automatically —
+`R2_ENDPOINT=http://minio:9000`, `S3_REGION=us-east-1`,
+`S3_FORCE_PATH_STYLE=true`, `S3_PUBLIC_ENDPOINT=http://localhost:9000`
+(see `.env.selfhost.example`); the bucket is created on first start.
 
-```bash
-docker run -d --name minio -p 9000:9000 \
-  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-  -v minio-data:/data minio/minio server /data
-```
+**External MinIO** (if you run it yourself outside compose):
 
-then `R2_ENDPOINT=http://minio:9000` (same Docker network as the app),
-`S3_REGION=us-east-1`, `S3_FORCE_PATH_STYLE=true`,
-`S3_PUBLIC_ENDPOINT=http://localhost:9000`.
+Run your S3-compatible storage separately, listening on host port 9000, and
+create the private `vosift` bucket using its administration tools. For a service
+on the Docker host, use `R2_ENDPOINT=http://host.docker.internal:9000`,
+`S3_REGION=us-east-1`, `S3_FORCE_PATH_STYLE=true`, and
+`S3_PUBLIC_ENDPOINT=http://localhost:9000`. Compose adds the host gateway mapping
+for Linux. On Linux, storage must listen on an address reachable from the Docker
+bridge, rather than only 127.0.0.1. If storage is instead a container on the
+app's Docker network, use its service name for `R2_ENDPOINT`.
+
+`S3_PUBLIC_ENDPOINT` must also be reachable by hosted transcription services
+when they fetch audio by URL. For Soniox/ElevenLabs, localhost playback URLs
+cannot be fetched by their servers; use a reachable HTTPS storage endpoint.
+Gemini and local Whisper download audio through the app using `R2_ENDPOINT`;
+browser playback uses `S3_PUBLIC_ENDPOINT`. Those hosts may differ.
 
 **Cloudflare R2**: `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`,
 `S3_REGION=auto`, path style off, no public endpoint.
@@ -134,6 +185,31 @@ embedding model covers summaries, transliteration, and embeddings; pair it
 with a Whisper-API server (e.g. Speaches, faster-whisper-server) for
 transcription and the whole pipeline runs offline. Base URLs must include the
 version path (`http://localhost:11434/v1`, not the bare host).
+These servers are operator-run (not bundled in compose); point the *_COMPAT_* variables at them.
+
+In Docker, replace localhost with `host.docker.internal` for AI servers running
+on the host, or use their service names on a shared Docker network. Both AI
+servers must be reachable from the app container. They are not bundled here.
+
+## Operations
+
+MongoDB data persists in the `mongo-data` volume. Recordings persist in the
+`minio-data` volume (bundled MinIO) or your external object-storage bucket
+if `R2_ENDPOINT` points elsewhere. Back up the database and whichever
+storage you use.
+`docker compose down` keeps named volumes; `down -v` deletes them.
+
+Transcription currently runs through Next.js `after()` in the app process.
+Wait for active jobs to finish before restarting; jobs are not a durable queue
+and an interrupted recording may need transcription retried.
+
+Retention purges and activity digests use `/api/cron/purge-recordings` and
+`/api/cron/digest`. Compose does not schedule them. If enabled, configure your
+own scheduler to call them with `Authorization: Bearer <CRON_SECRET>` (the
+Vercel schedule is daily at 03:00 and 08:00 UTC respectively).
+
+Next.js builds generate and verify the Serwist service worker automatically.
+The separate experimental vinext/Cloudflare build is not needed for self-hosting.
 
 Warning: every embedding model emits a fixed vector width. Switching embedding
 models (or AI providers) without re-embedding breaks vector search — the app
@@ -171,4 +247,4 @@ All of these can be absent — the app stays fully usable:
 *   `pnpm run start`: Start production server.
 *   `pnpm run lint`: Run ESLint.
 *   `pnpm run typecheck`: Run TypeScript compiler check.
-*   `pnpm dlx tsx src/lib/db/init.ts`: Init database (indexes + seed plans).
+*   `pnpm run db:init`: Init database (indexes + seed plans; exits nonzero on failure).

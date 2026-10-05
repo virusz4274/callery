@@ -6,27 +6,18 @@ import path from 'path';
 /**
  * Get the fully initialized Firebase Admin app.
  * Ensures singleton pattern (reusing existing app if created).
+ *
+ * Reads FIREBASE_SERVICE_ACCOUNT first so edge runtimes without filesystem
+ * access (Cloudflare Workers) never touch `fs`. The local service-account.json
+ * file remains a Dev/Docker convenience and is guarded: runtimes where
+ * process.cwd()/existsSync throw fall through to the actionable error below.
  */
 export function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
         return getApp();
     }
 
-    // 1. Try to load from local file (Dev / Docker with mount)
-    const localServiceAccountPath = path.join(process.cwd(), 'service-account.json');
-
-    if (existsSync(localServiceAccountPath)) {
-        try {
-            return initializeApp({
-                credential: cert(localServiceAccountPath),
-            });
-        } catch (error) {
-            console.error('[Firebase Admin] Failed to load local service-account.json:', error);
-            // Fallthrough to env var
-        }
-    }
-
-    // 2. Fallback to Environment Variable (Production / Vercel)
+    // 1. Environment Variable (Production / Vercel / Workers)
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         try {
             const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -39,7 +30,25 @@ export function getFirebaseAdminApp(): App {
         }
     }
 
-    throw new Error('Missing Firebase Admin credentials. Please provide service-account.json or FIREBASE_SERVICE_ACCOUNT env var.');
+    // 2. Local file (Dev / Docker with mount). Guarded for runtimes without fs.
+    try {
+        const localServiceAccountPath = path.join(process.cwd(), 'service-account.json');
+
+        if (existsSync(localServiceAccountPath)) {
+            try {
+                return initializeApp({
+                    credential: cert(localServiceAccountPath),
+                });
+            } catch (error) {
+                console.error('[Firebase Admin] Failed to load local service-account.json:', error);
+                // Fallthrough to the missing-credentials error below.
+            }
+        }
+    } catch {
+        // Filesystem unavailable (e.g. Cloudflare Workers) — fall through.
+    }
+
+    throw new Error('Missing Firebase Admin credentials. Provide service-account.json (Node dev/Docker) or the FIREBASE_SERVICE_ACCOUNT env var (required on Cloudflare Workers).');
 }
 
 /**

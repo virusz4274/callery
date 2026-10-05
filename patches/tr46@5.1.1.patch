@@ -1,0 +1,17 @@
+diff --git a/index.js b/index.js
+index 9e53f0580b47260d8d272fa832d50f61589656e3..4a0e75a90a9b46c1f172923613a25a5dabf5a55b 100644
+--- a/index.js
++++ b/index.js
+@@ -1,6 +1,11 @@
+ "use strict";
+ 
+-const punycode = require("punycode/");
++// Patched (Vosift/vinext): bare require("punycode/") is externalized by the
++// Vite dev SSR runner, and workerd has no require, so dev crashes with
++// 'Calling `require` for "punycode/" ...'. A relative require to pnpm's
++// nested copy of the same package forces bundling. See:
++// https://github.com/cloudflare/vinext/issues/720
++const punycode = require("../punycode/punycode.js");
+ const regexes = require("./lib/regexes.js");
+ const mappingTable = require("./lib/mappingTable.json");
+ const { STATUS_MAPPING } = require("./lib/statusMapping.js");

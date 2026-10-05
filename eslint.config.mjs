@@ -6,7 +6,11 @@ export default [
         ignores: [
             "public/",
             ".next/",
-            "node_modules/"
+            "node_modules/",
+            // vinext / Cloudflare Workers build output
+            ".cloudflare/",
+            ".vinext/",
+            "dist/"
         ],
     },
 ];

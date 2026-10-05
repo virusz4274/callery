@@ -24,7 +24,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 
 3.  **Initialize the Database**:
     ```bash
-    pnpm dlx tsx src/lib/db/init.ts
+    pnpm run db:init
     ```
 
 4.  **Run the development server**:
@@ -36,7 +36,10 @@ Open [http://localhost:9000](http://localhost:9000) with your browser to see the
 
 ## Deployment Profiles
 
-One image, two personalities, switched purely by env (see `.env.example`):
+One codebase supports self-host and managed deployments (see `.env.example`).
+Set the profile before building: Next.js compiles `NEXT_PUBLIC_*` settings into
+the browser bundle, so changing auth, billing, or other public settings requires
+`docker compose up --build`.
 
 | | Self-host | Managed (SaaS) |
 |---|---|---|
@@ -50,8 +53,20 @@ One image, two personalities, switched purely by env (see `.env.example`):
 Self-host quickstart:
 
 ```bash
-cp .env.example .env   # fill in Mongo, S3, one transcription key
-docker compose --profile selfhost up
+cp .env.selfhost.example .env
+# Set BETTER_AUTH_SECRET, S3 storage credentials, and a transcription backend.
+docker compose --profile selfhost up --build -d
+docker compose ps -a
 ```
 
-See the [Setup Guide](docs/setup-guide.md) for every variable.
+Open [http://localhost:3000](http://localhost:3000). Compose waits for MongoDB
+and initializes its indexes and plans before starting the app, and bundles
+MinIO for object storage (bucket auto-created; point R2_ENDPOINT elsewhere
+for R2/AWS/external MinIO). The app health check verifies the server and
+database; test upload, playback, and transcription after setup.
+
+This deployment uses Next.js standalone on Node, including the Serwist service
+worker. The experimental vinext/Workers setup is separate; its compatibility
+percentage does not govern the Docker deployment.
+
+See the [Setup Guide](docs/setup-guide.md) for storage, local AI, and every variable.

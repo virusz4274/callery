@@ -7,6 +7,9 @@ let cached: Stripe | null = null;
  * STRIPE_SECRET_KEY is missing instead of failing later with an opaque API
  * auth error. Never called when billing is disabled (see billingEnabled),
  * so self-hosted builds and requests don't need the key.
+ *
+ * Uses the fetch-based HTTP client so the same code runs on Node.js and on
+ * edge runtimes (Cloudflare Workers) where Node's http stack is unavailable.
  */
 export function getStripe(): Stripe {
     if (!cached) {
@@ -19,6 +22,7 @@ export function getStripe(): Stripe {
         cached = new Stripe(apiKey, {
             apiVersion: '2025-11-17.clover' as any, // Latest stable version
             typescript: true,
+            httpClient: Stripe.createFetchHttpClient(),
         });
     }
     return cached;

@@ -4,17 +4,74 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
+        NEXT_PUBLIC_ENABLE_BILLING: ${NEXT_PUBLIC_ENABLE_BILLING:-false}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_GOOGLE_REDIRECT_URI: ${NEXT_PUBLIC_GOOGLE_REDIRECT_URI:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: ${NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU:-false}
     ports:
       - "3000:3000"
     restart: always
+    # Lets the app reach host-run services (external MinIO, Ollama, Whisper)
+    # via host.docker.internal on Linux; no-op on Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Loads environment variables from the .env file
     env_file:
       - .env
+    environment:
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
+      NEXT_PUBLIC_AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
+      NEXT_PUBLIC_ENABLE_BILLING: ${NEXT_PUBLIC_ENABLE_BILLING:-false}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+        required: false
+      minio-init:
+        condition: service_completed_successfully
+        required: false
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  db-init:
+    profiles: [selfhost]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: db-init
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
 
   # Self-hosted MongoDB. Only starts with the selfhost profile:
   #   docker compose --profile selfhost up -d
   # then set MONGODB_URI=mongodb://mongo:27017/vosift in .env.
-  # Managed deployments use an external MongoDB (Atlas) and skip this.
+  # Without the profile, the app uses whatever MONGODB_URI points at
+  # (usually a MongoDB Atlas cluster) and this service stays down.
+  #
+  # TRADE-OFF — semantic search is Atlas-only: vector search ($vectorSearch)
+  # and full-text search ($search) need Atlas Search indexes (the index JSON
+  # is printed by `pnpm run db:init`). On this self-hosted MongoDB, semantic
+  # search answers "Search failed" and keyword search automatically falls
+  # back to regex (works, but no fuzzy matching). Everything else — auth,
+  # uploads, playback, transcription, AI summaries — works identically.
+  # If you need semantic search, point MONGODB_URI at an Atlas cluster and
+  # create the two Search indexes from the `db:init` output.
   mongo:
     profiles: [selfhost]
     image: mongo:8
@@ -22,10 +79,66 @@ services:
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "if (db.adminCommand({ ping: 1 }).ok !== 1) quit(1)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+      retries: 12
 
-  # NOTE: object storage is NOT bundled here. Point R2_ENDPOINT at any
-  # S3-compatible backend (external MinIO container, Cloudflare R2, AWS S3,
-  # ...) — see docs/setup-guide.md for recipes.
+  # Bundled S3-compatible object storage (MinIO). Only starts with the
+  # selfhost profile. The app reaches it at http://minio:9000 (R2_ENDPOINT);
+  # browsers use S3_PUBLIC_ENDPOINT (http://localhost:9000). Credentials come
+  # from R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY in .env, data persists in
+  # the minio-data volume. Prefer R2 / AWS / an external MinIO instead?
+  # Point R2_ENDPOINT (+ S3_PUBLIC_ENDPOINT) at that backend — the app
+  # speaks plain S3. Changing the root credentials later requires resetting
+  # the minio-data volume (MinIO stores them on first start).
+  # NOTE: `pnpm run dev` also uses port 9000 — stop the dev server or remap
+  # these ports before running both on one machine.
+  minio:
+    profiles: [selfhost]
+    image: minio/minio:latest
+    container_name: vosift-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API (browser playback via S3_PUBLIC_ENDPOINT)
+      - "9001:9001"   # MinIO console (same root credentials)
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  # One-shot: creates the R2_BUCKET_NAME bucket if missing, so the first
+  # upload works on a fresh `compose --profile selfhost up`.
+  minio-init:
+    profiles: [selfhost]
+    image: minio/mc:latest
+    container_name: vosift-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-vosift}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set local http://minio:9000 "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" >/dev/null
+        mc mb --ignore-existing "local/$R2_BUCKET_NAME"
+    restart: "no"
 
 volumes:
   mongo-data:
+  minio-data:

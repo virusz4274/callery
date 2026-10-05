@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { FetchHttpHandler } from '@smithy/fetch-http-handler';
 import { storageConfig } from './config';
 
 let client: S3Client | undefined;
@@ -18,6 +19,10 @@ let client: S3Client | undefined;
  * via endpoint/region/path-style settings. Env is read here — never at
  * import time — so builds and unrelated routes don't require storage
  * credentials to merely import this module.
+ *
+ * Uses the fetch-based HTTP handler so the same code runs on Node.js and
+ * on edge runtimes (Cloudflare Workers) where Node's http stack is
+ * unavailable.
  */
 export function getStorageClient(): S3Client {
     if (!client) {
@@ -30,6 +35,7 @@ export function getStorageClient(): S3Client {
                 accessKeyId: cfg.accessKeyId,
                 secretAccessKey: cfg.secretAccessKey,
             },
+            requestHandler: new FetchHttpHandler(),
         });
     }
     return client;
@@ -65,6 +71,7 @@ function getPresignClient(): S3Client {
                           accessKeyId: cfg.accessKeyId,
                           secretAccessKey: cfg.secretAccessKey,
                       },
+                      requestHandler: new FetchHttpHandler(),
                   });
     }
     return presignClient;
@@ -203,6 +210,18 @@ export async function getSignedR2Url(
     });
 
     return getSignedUrl(getPresignClient(), command, { expiresIn: expiresInSeconds });
+}
+
+/** Sign against the internal storage endpoint for downloads by the app itself. */
+export async function getSignedStorageUrl(
+    key: string,
+    expiresInSeconds: number = 3600,
+): Promise<string> {
+    return getSignedUrl(
+        getStorageClient(),
+        new GetObjectCommand({ Bucket: storageBucket(), Key: key }),
+        { expiresIn: expiresInSeconds },
+    );
 }
 
 /**
