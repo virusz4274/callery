@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Card, Button, Chip } from '@heroui/react';
 import { Edit, Trash2, Calendar } from 'lucide-react';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { deleteAnnouncement } from '@/app/actions/admin-announcements';
 import { AnnouncementFormDialog } from './announcement-form-dialog';
-import { useToast } from '@/components/toast-provider';
-import { useRouter } from 'next/navigation';
 
 type AnnouncementsListProps = {
     announcements: AnnouncementResponse[];
@@ -17,28 +15,18 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
     const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementResponse | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [, startTransition] = useTransition();
-    const { toast } = useToast();
-    const router = useRouter();
 
     const handleDelete = (id: string) => {
         if (confirm('Delete this announcement?')) {
             startTransition(async () => {
-                try {
-                    await deleteAnnouncement(id);
-                    router.refresh();
-                } catch (error) {
-                    console.error(error);
-                    toast({
-                        title: 'Failed to delete announcement',
-                        description: error instanceof Error ? error.message : 'Please try again.',
-                        status: 'danger',
-                    });
-                }
+                await deleteAnnouncement(id);
             });
         }
     };
 
-    const getTypeColor = (type: string): React.ComponentProps<typeof Chip>['color'] => {
+    const getTypeColor = (
+        type: string
+    ): 'default' | 'accent' | 'success' | 'warning' | 'danger' => {
         switch (type) {
             case 'info': return 'accent';
             case 'warning': return 'warning';
@@ -54,7 +42,7 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
                 <Button
                     variant="primary"
                     onPress={() => setIsCreateOpen(true)}
-                    className="bg-primary text-white"
+                    className="rounded-full bg-primary px-5 text-white"
                 >
                     Create Announcement
                 </Button>
@@ -62,13 +50,13 @@ export function AnnouncementsList({ announcements }: AnnouncementsListProps) {
 
             <div className="grid gap-4">
                 {announcements.length === 0 && (
-                    <div className="text-center py-10 text-default-500 bg-default-50 rounded-lg">
+                    <div className="rounded-[1.5rem] bg-default-50 py-10 text-center text-default-500">
                         No announcements found.
                     </div>
                 )}
 
                 {announcements.map((ann) => (
-                    <Card key={ann.id} className="p-4">
+                    <Card key={ann.id} className="rounded-[1.5rem] border border-default-200/80 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
                         <div className="flex justify-between items-start gap-4">
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">

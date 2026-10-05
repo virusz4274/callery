@@ -1,102 +1,252 @@
-# API & Server Actions Reference
+# API Reference
 
-This document describes the key API endpoints and Server Actions available in the application. All API routes are located in `src/app/api` and Server Actions in `src/app/actions`.
+Callery uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
 
-## Server Actions (`src/app/actions`)
+## Server Actions
 
-The application favors Server Actions for mutations and data fetching in Server Components.
+Primary action directories:
 
-### **Uploads & Recordings**
-*   `upload-recordings.ts`:
-    *   `getPresignedUrl`: Generates R2 upload URL.
-    *   `processRecording`: Initiates transcription/summarization.
-*   `delete-recordings.ts`: Handles deletion of recording metadata and R2 files.
+- `src/app/actions`
+- `src/app/actions/admin`
+- `src/app/actions/upload`
 
-### **Admin**
-*   `admin.ts`: System-wide statistics.
-*   `admin-plans.ts`: Manage user subscription plans.
-*   `admin-announcements.ts`: System announcements.
+## Product Actions
 
-### **Contacts**
-*   `save-contacts.ts`: CRUD for contacts.
-*   `google-auth.ts`: Google People API integration.
+### Recordings
 
----
+File: `src/app/actions/recordings.ts`
 
-## API Routes (`src/app/api`)
+- `getRecordingsAction`
+- `getRecordingDetailsAction`
+- `getPlaybackUrlAction`
+- `updateRecordingAction`
+- `deleteRecordingAction`
 
-## Authentication
+### Upload
 
-### `POST /api/auth/session`
-Creates or verifies a session cookie based on the Firebase ID token.
-*   **Body**: `{ idToken: string }`
+Files:
 
-## Recordings
+- `src/app/actions/upload/direct-upload.ts`
+- `src/app/actions/upload/upload-single-file.ts`
+- `src/app/actions/upload/transcription.ts`
+- `src/app/actions/upload/prepare-upload-context.ts`
+- `src/app/actions/upload/validation.ts`
 
-### `GET /api/recordings`
-Fetches a list of recordings for the authenticated user.
-*   **Query Params**:
-    *   `limit` (default: 50)
-    *   `offset` (default: 0)
-    *   `search` (optional search term)
-*   **Response**: `RecordingResponse[]`
+Main browser flow:
 
-### `GET /api/recordings/[id]`
-Fetches details of a specific recording.
+1. `initializeDirectUpload`
+2. client `PUT` to R2
+3. `completeDirectUpload`
+4. optional auto-transcription start with `after(...)`
 
-### `DELETE /api/recordings/[id]`
-Deletes a recording and its associated file from Cloudflare R2.
+Legacy fallback:
 
-### `POST /api/process/recording`
-*Moved to Server Action: `upload-recordings.ts`*
+- `src/app/actions/upload-recordings.ts`
 
-## Uploads
+### Search And Transcription
 
-*Moved to Server Action: `upload-recordings.ts`*
+Files:
 
-## Contacts
+- `src/app/actions/search-actions.ts`
+- `src/app/actions/transcription.ts`
+- `src/app/actions/transcription-providers.ts`
+- `src/app/actions/user-settings.ts`
 
-### `GET /api/contacts`
-Fetches a list of contacts.
-*   **Query Params**: `limit`, `skip`.
+Main actions:
 
-### `POST /api/contacts/sync`
-*Moved to Server Action: `contacts.ts`*
+- `searchRecordingsAction`
+- `transcribeRecordingAction`
+- `getAvailableProviders`
+- `getProviderMultiplier`
+- `updateTranscriptionSettings`
 
-## Users
+`searchRecordingsAction` also reports whether semantic search used Atlas vector search or fell back to keyword mode through `mode` and `fallbackReason`.
 
-### `GET /api/user/profile`
-Fetches the current user's profile and settings.
-*   **Response**: `UserResponse` object.
-    *   `billingSettings`: `{ allowOverage: boolean }`
-    *   `stripeSubscriptionStatus`: Current Stripe status.
-    *   `storageUsed` / `storageAllocation`: Usage stats.
-    *   `trialEndsAt`: Date string.
+### Contacts And Google Sync
 
-### `PATCH /api/user/profile`
-Updates user settings.
-*   **Body**: `UpdateUserInput` (e.g., `firstName`, `lastName`, `timezone`).
+Files:
 
-### `POST /api/user/ensure-profile`
-Ensures a user profile exists in MongoDB. Called after Firebase Auth login.
-*   **Body**: `{ firebaseUid, email, displayName, firstName, lastName }`
+- `src/app/actions/contacts.ts`
+- `src/app/actions/google-auth.ts`
+- `src/app/actions/save-contacts.ts`
 
-## Filesystem
+Main actions:
 
-### `GET /api/filesystem`
-Returns a hierarchical file tree structure of the user's recordings, organized by Contact -> Year -> Month.
-*   **Response**: `FileSystemNode` tree.
+- `getGoogleAuthUrl`
+- `syncGoogleContacts`
+- `saveContactsToMongoDB`
 
-## Transcription
+### Sharing, Stats, Export, Notifications, Plans
 
-### `POST /api/transcribe`
-Triggers background transcription and summarization for a specific recording.
-*   **Body**: `{ recordingId: string }`
-*   **Note**: Uses Next.js `after()` for background processing. Returns `processing` status immediately.
+Files:
 
-## Statistics
+- `src/app/actions/sharing.ts`
+- `src/app/actions/stats.ts`
+- `src/app/actions/export.ts`
+- `src/app/actions/notifications.ts`
+- `src/app/actions/plans.ts`
 
-### `GET /api/stats`
-Fetches dashboard statistics (total calls, duration, recent activity).
+Main actions:
 
+- `createShareLink`
+- `createShareLinkForClip`
+- `getStatsAction`
+- `startExport`
+- `getExportStatus`
+- `fetchNotifications`
+- `readNotification`
+- `readAllNotifications`
+- `clearAllNotifications`
+- `sendTestNotification`
+- `getPublishedPlans`
+- `getUpgradeablePlans`
 
+## Admin Actions
+
+Current admin action files:
+
+- `src/app/actions/admin-health.ts`
+- `src/app/actions/admin-settings.ts`
+- `src/app/actions/admin-announcements.ts`
+- `src/app/actions/admin-plans.ts`
+- `src/app/actions/audit-log.ts`
+- `src/app/actions/admin/stats.ts`
+- `src/app/actions/admin/recordings.ts`
+- `src/app/actions/admin/users.ts`
+- `src/app/actions/admin/users/queries.ts`
+- `src/app/actions/admin/users/mutations.ts`
+- `src/app/actions/update-contact-plan.ts`
+- `src/app/actions/delete-recordings.ts`
+
+Main admin capabilities:
+
+- health checks and incident clearing
+- async job retry
+- SMTP test email
+- plan CRUD
+- announcement CRUD
+- system settings updates
+- audit log retrieval
+- user search, role changes, disable/restore, limits, usage edits, and deletion
+- orphaned recording cleanup and bulk deletion
+
+## Route Handlers
+
+### Auth And User
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | creates a server session from the authenticated Firebase user |
+| `GET`, `POST` | `/api/auth/logout` | clears the current session |
+| `GET` | `/api/auth/google/callback` | handles Google Contacts OAuth callback |
+| `GET`, `PATCH` | `/api/user/profile` | reads or updates the current profile via cookie or bearer sessions |
+| `POST` | `/api/user/ensure-profile` | ensures a MongoDB user exists for the current authenticated identity |
+| `PATCH` | `/api/user/billing-settings` | toggles overage preferences and seeds the current storage baseline when enabled |
+| `GET` | `/api/system-settings/public` | returns public maintenance-mode state |
+
+### Product Data
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `GET` | `/api/contacts` | returns contacts for the current user |
+| `POST` | `/api/contacts/sync` | runs a foreground Google Contacts refresh for the current user |
+| `GET` | `/api/filesystem` | returns the storage/file tree for the current user |
+| `GET` | `/api/recordings/[id]` | returns a single recording payload |
+| `POST`, `DELETE` | `/api/notifications/subscribe` | registers or removes a browser push subscription |
+| `POST` | `/api/support` | creates a support request and may send support email after the response |
+
+### Billing
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/stripe/checkout` | creates a Stripe Checkout session |
+| `POST` | `/api/stripe/portal` | creates a Stripe customer portal session |
+| `GET` | `/api/stripe/invoices` | lists recent invoices for the current user |
+| `POST` | `/api/stripe/webhook` | processes Stripe events idempotently |
+
+Billing routes return `403` unless `NEXT_PUBLIC_ENABLE_BILLING=true`.
+
+### Mobile Sync
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/mobile/sync-session` | creates a short-lived mobile sync token for the authenticated user |
+| `POST` | `/api/mobile/direct-upload/init` | initializes client mobile direct upload |
+| `POST` | `/api/mobile/direct-upload/complete` | finalizes client mobile direct upload |
+
+Mobile upload routes authenticate with the sync token created by `/api/mobile/sync-session`. That token currently expires after `24 hours`.
+
+### Webhooks
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/webhooks/soniox` | handles Soniox transcription callbacks |
+| `POST` | `/api/webhooks/elevenlabs` | handles ElevenLabs transcription callbacks |
+
+Security:
+
+- Soniox expects `X-Soniox-Secret`
+- ElevenLabs expects a valid `ElevenLabs-Signature`
+- both providers persist idempotency state in `transcription_webhook_events`
+
+### Cron
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `GET` | `/api/cron/process-exports` | processes pending export jobs |
+| `GET` | `/api/cron/cleanup-recordings` | enforces cleanup and retention rules |
+
+All cron routes require:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+## Public Signed Access
+
+- `/s/[token]`: read-only shared recording page
+
+This is a page route, not an API route.
+
+## Current Upload Rules
+
+- maximum upload size: `5 GiB`
+- maximum transcription-eligible size: `2 GiB`
+- supported upload formats: `mp3`, `wav`, `m4a`, `mp4`, `webm`
+- direct upload URL lifetime: `15 minutes`
+
+## Support Route Behavior
+
+`POST /api/support` currently:
+
+- validates the JSON body with `zod`
+- rejects submissions that fill the honeypot `companyWebsite` field
+- rejects cross-origin submissions that do not match the public app origin
+- rate limits by client IP
+- stores every accepted request in `support_messages`
+- stores `pending` delivery state when `SUPPORT_EMAIL` is configured, otherwise `skipped`
+- sends the support email after the response with Next.js `after(...)`
+
+## Stripe Webhook Events
+
+`POST /api/stripe/webhook` handles:
+
+- checkout completion and async checkout outcomes
+- checkout expiration notifications
+- subscription create, update, pause, resume, delete, and pending-update lifecycle events
+- invoice payment success and failure events
+- `customer.deleted`
+
+The webhook processor records state in `stripe_webhook_events`.
+
+## Deployment authentication and retained APIs
+
+In local mode, Better Auth serves `/api/auth/*` including email signup/sign-in/session routes. Firebase-only `/api/auth/login` is unavailable. The shared product APIs resolve either the instance's cookie or bearer session and reject disabled/deleted profiles.
+
+`POST /api/mobile/sync-session` accepts instance-native cookie/bearer auth. The upload init/complete endpoints accept that identity or a limited sync token; upload completion tokens cannot be used for sync authentication.
+
+`POST /api/transcribe` accepts `recordingId` and optional `provider`/`model`; configured providers are `soniox`, `elevenlabs`, `gemini` and `openai_compat`. Successful scheduling returns 202.
+
+`GET /api/recordings` supports owner-scoped search with Atlas/regex fallback and inclusive full-day date filters. `GET /api/recordings/[id]/play` returns a public-host signed playback URL.
+
+`GET /api/health` checks process/database readiness. `GET /api/cron/process-usage` retries persisted managed meter events; see [scheduled jobs](cron-jobs.md).

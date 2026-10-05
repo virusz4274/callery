@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getActiveAnnouncements } from '@/app/actions/admin-announcements';
 import { AnnouncementResponse } from '@/lib/db/types';
 import { Alert, CloseButton } from '@heroui/react';
@@ -16,7 +16,7 @@ export function AnnouncementBanner() {
                 const data = await getActiveAnnouncements();
                 setAnnouncements(data);
             } catch (error) {
-                console.error('Failed to fetch announcements', error);
+                void error;
             }
         };
         fetchAnnouncements();

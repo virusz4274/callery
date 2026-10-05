@@ -42,7 +42,7 @@ export function emailProvider(): EmailProvider {
 
 /** Sender identity for verification/reset mails. Required when EMAIL_PROVIDER is resend or smtp. */
 export function emailFrom(): string {
-    return required('EMAIL_FROM');
+    return process.env.EMAIL_FROM || required('SMTP_FROM');
 }
 
 /** Resend API key. Required when EMAIL_PROVIDER=resend. */
@@ -186,8 +186,8 @@ export function storageConfig(): StorageConfig {
         accessKeyId: process.env.R2_ACCESS_KEY_ID as string,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY as string,
         bucket: process.env.R2_BUCKET_NAME as string,
-        region: process.env.S3_REGION || 'auto',
-        forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+        region: process.env.S3_REGION || process.env.R2_REGION || 'auto',
+        forcePathStyle: (process.env.S3_FORCE_PATH_STYLE || process.env.R2_FORCE_PATH_STYLE) === 'true',
         publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || undefined,
     };
 }

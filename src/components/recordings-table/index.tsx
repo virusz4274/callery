@@ -1,19 +1,14 @@
+'use client';
 
-"use client";
-
-import { useToast } from '@/components/toast-provider';
-import React, { useState, useTransition, useCallback } from 'react';
-import { useTableSelection } from '@/hooks/use-table-selection';
-import { useRouter } from 'next/navigation';
-import { Button, Card } from '@heroui/react';
-import { Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { RecordingDetailsDialog } from '../recording-details-dialog'; // Update path if needed, assuming direct sibling in components
-import { deleteRecordings } from '@/app/actions/delete-recordings';
-import { RecordingsTableProps, TableSelectionState } from './types';
+import { Card } from '@heroui/react';
+import { RecordingDetailsDialog } from '../recording-details-dialog';
+import { DeleteConfirmationModal } from './delete-confirmation-modal';
 import { RecordingsTableDesktop } from './recordings-table-desktop';
 import { RecordingsTableMobile } from './recordings-table-mobile';
-import { DeleteConfirmationModal } from './delete-confirmation-modal';
-import { Recording } from '@/lib/types';
+import { RecordingsTableFooter } from './recordings-table-footer';
+import { RecordingsTableHeader } from './recordings-table-header';
+import { useRecordingsTableController } from './use-recordings-table-controller';
+import type { RecordingsTableProps } from './types';
 
 export function RecordingsTable({
     recordings,
@@ -23,126 +18,59 @@ export function RecordingsTable({
     totalCount,
     itemsPerPage,
     onRecordingsChange,
-    onRetryTranscription
+    onRetryTranscription,
+    variant = 'default',
+    density = 'comfortable',
 }: RecordingsTableProps) {
-    const { toast } = useToast();
-    const router = useRouter();
-
-    // Selection state via reusable hook
-    const selectionHook = useTableSelection({ items: recordings });
-
-    // Cast hook result to our defined interface if needed, or ensuring it matches
-    const selection: TableSelectionState = React.useMemo(() => ({
-        selectedIds: selectionHook.selectedIds,
-        selectedCount: selectionHook.selectedCount,
-        isAllSelected: selectionHook.isAllSelected,
-        isSelected: selectionHook.isSelected,
-        toggleSelect: selectionHook.toggleSelect,
-        toggleSelectAll: selectionHook.toggleSelectAll,
-        clearSelection: selectionHook.clearSelection,
-        getSelectedItems: selectionHook.getSelectedItems
-    }), [selectionHook]);
-
-    const [activeRecording, setActiveRecording] = useState<Recording | null>(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [recordingsToDelete, setRecordingsToDelete] = useState<string[]>([]);
-    const [isDeleting, startDeleteTransition] = useTransition();
+    const {
+        activeRecording,
+        isDeleting,
+        isSelectionMode,
+        recordingsToDelete,
+        selection,
+        showDeleteConfirm,
+        setShowDeleteConfirm,
+        closeDialog,
+        executeDelete,
+        handleRecordingUpdated,
+        handleDeleteRequest,
+        handleDeleteSelection,
+        openDialog,
+        toggleSelectionMode,
+    } = useRecordingsTableController({ recordings, onRecordingsChange });
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-    // Selection is per-page: a new page is a new set of rows. The row key
-    // also covers search/filter/sort changes that keep the same page number.
-    const { clearSelection } = selectionHook;
-    const recordingIdsKey = recordings.map((r) => r.id).join(',');
-    React.useEffect(() => {
-        clearSelection();
-    }, [page, recordingIdsKey, clearSelection]);
-
-    // If the current page becomes empty while results remain (e.g. deleted
-    // the last items on the page), step back instead of showing nothing.
-    React.useEffect(() => {
-        if (recordings.length === 0 && totalCount > 0 && page > 1) {
-            setPage(page - 1);
-        }
-    }, [recordings.length, totalCount, page, setPage]);
-
-    const openDialog = useCallback((recording: Recording) => {
-        setActiveRecording(recording);
-    }, []);
-
-    const closeDialog = useCallback(() => {
-        setActiveRecording(null);
-    }, []);
-
-    const handleDeleteRequest = useCallback((recs: Recording[]) => {
-        if (recs.length === 0) return;
-        const ids = recs.map(r => r.id);
-        setRecordingsToDelete(ids);
-        setShowDeleteConfirm(true);
-    }, []);
-
-    const executeDelete = useCallback(() => {
-        startDeleteTransition(async () => {
-            try {
-                const result = await deleteRecordings(recordingsToDelete);
-                if (result.success) {
-                    toast({ title: 'Success', description: result.message, status: 'success' });
-                    selection.clearSelection();
-                    if (onRecordingsChange) {
-                        await onRecordingsChange();
-                    }
-                    router.refresh();
-                } else {
-                    toast({ title: 'Error', description: result.message, status: 'danger' });
-                }
-            } catch (error) {
-                console.error('Delete error:', error);
-                toast({ title: 'Error', description: 'Failed to delete recordings', status: 'danger' });
-            }
-            setShowDeleteConfirm(false);
-            setRecordingsToDelete([]);
-        });
-    }, [recordingsToDelete, onRecordingsChange, router, toast, selection]);
-
     return (
         <>
-            <div className="space-y-4">
-                <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl transition-all duration-300">
-                    {/* Table Controls / Header */}
-                    <Card.Header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-default-100/50">
-                        <div>
-                            <h2 className="text-lg font-semibold text-foreground">Recent Recordings</h2>
-                            <p className="text-sm text-default-500">
-                                {selection.selectedCount > 0
-                                    ? `${selection.selectedCount} item(s) selected`
-                                    : `Showing ${recordings.length} of ${totalCount} recordings`}
-                            </p>
-                        </div>
+            <div className="space-y-3 md:space-y-4">
+                <Card
+                    className={`transition-all duration-300 ${
+                        variant === 'flat'
+                            ? 'bg-transparent border-none shadow-none'
+                            : 'rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]'
+                    }`}
+                >
+                    <RecordingsTableHeader
+                        totalCount={totalCount}
+                        displayedCount={recordings.length}
+                        selectedCount={selection.selectedCount}
+                        isDeleting={isDeleting}
+                        isSelectionMode={isSelectionMode}
+                        onToggleSelectionMode={toggleSelectionMode}
+                        onDeleteSelection={handleDeleteSelection}
+                        variant={variant}
+                        density={density}
+                    />
 
-                        {selection.selectedCount > 0 && (
-                            <Button
-                                variant="danger"
-                                size="sm"
-                                onPress={() => {
-                                    const recs = recordings.filter(r => selection.selectedIds.has(r.id));
-                                    handleDeleteRequest(recs);
-                                }}
-                                isDisabled={isDeleting}
-                                className="animate-appearance-in font-medium"
-                            >
-                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                                Delete Selection ({selection.selectedCount})
-                            </Button>
-                        )}
-                    </Card.Header>
-
-                    <Card.Content className="p-0">
+                    <Card.Content className={`p-0 ${variant === 'flat' ? 'mt-2' : ''}`}>
                         <RecordingsTableDesktop
                             recordings={recordings}
                             selection={selection}
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
+                            density={density}
                         />
                         <RecordingsTableMobile
                             recordings={recordings}
@@ -151,45 +79,26 @@ export function RecordingsTable({
                             onOpenDialog={openDialog}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
+                            isSelectionMode={isSelectionMode}
+                            toggleSelectionMode={toggleSelectionMode}
+                            density={density}
                         />
                     </Card.Content>
 
-                    {totalPages > 1 && (
-                        <Card.Footer className="flex items-center justify-between px-6 py-4 border-t border-default-100/50">
-                            <span className="text-xs text-default-400 uppercase tracking-widest font-semibold">
-                                Page {page} of {totalPages}
-                            </span>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onPress={() => setPage(Math.max(1, page - 1))}
-                                    isDisabled={page === 1}
-                                    className="bg-default-100/50 backdrop-blur-md"
-                                >
-                                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onPress={() => setPage(Math.min(totalPages, page + 1))}
-                                    isDisabled={page === totalPages}
-                                    className="bg-default-100/50 backdrop-blur-md"
-                                >
-                                    Next <ChevronRight className="h-4 w-4 ml-1" />
-                                </Button>
-                            </div>
-                        </Card.Footer>
-                    )}
+                    <RecordingsTableFooter
+                        page={page}
+                        totalPages={totalPages}
+                        onPageChange={setPage}
+                        variant={variant}
+                    />
                 </Card>
             </div>
 
             {activeRecording && (
                 <RecordingDetailsDialog
-                    key={activeRecording.id}
                     recording={activeRecording}
                     onOpenChange={(isOpen) => !isOpen && closeDialog()}
-                    onRecordingUpdated={() => onRecordingsChange?.()}
+                    onRecordingUpdated={handleRecordingUpdated}
                 />
             )}
 

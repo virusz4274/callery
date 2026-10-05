@@ -1,0 +1,125 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+
+type EnvLike = Record<string, string | undefined>;
+
+type GoogleSyncLike = {
+    refreshTokenCiphertext?: string;
+    refreshTokenKeyVersion?: string;
+} | null | undefined;
+
+type EncryptedGoogleRefreshToken = {
+    refreshTokenCiphertext: string;
+    refreshTokenKeyVersion: string;
+};
+
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_SCHEME = 'gcm-v1';
+const GOOGLE_TOKEN_ENCRYPTION_ERROR =
+    'GOOGLE_TOKEN_ENCRYPTION_KEY must be set before Google refresh tokens can be stored or used.';
+
+function getKeyMaterial(env: EnvLike = process.env): Buffer {
+    const rawSecret = env.GOOGLE_TOKEN_ENCRYPTION_KEY?.trim();
+    if (!rawSecret) {
+        throw new Error(GOOGLE_TOKEN_ENCRYPTION_ERROR);
+    }
+
+    return createHash('sha256').update(rawSecret).digest();
+}
+
+function getKeyVersion(env: EnvLike = process.env): string {
+    const keyVersion = env.GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION?.trim();
+    if (!keyVersion) {
+        throw new Error('GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION must be set before Google refresh tokens can be stored or used.');
+    }
+
+    return keyVersion;
+}
+
+function toBase64Url(value: Buffer): string {
+    return value.toString('base64url');
+}
+
+function fromBase64Url(value: string): Buffer {
+    return Buffer.from(value, 'base64url');
+}
+
+export function hasStoredGoogleRefreshToken(googleSync?: GoogleSyncLike): boolean {
+    return Boolean(googleSync?.refreshTokenCiphertext);
+}
+
+export function encryptGoogleRefreshToken(
+    refreshToken: string,
+    env: EnvLike = process.env
+): EncryptedGoogleRefreshToken {
+    if (!refreshToken.trim()) {
+        throw new Error('Google refresh token cannot be empty');
+    }
+
+    const iv = randomBytes(12);
+    const cipher = createCipheriv(ENCRYPTION_ALGORITHM, getKeyMaterial(env), iv);
+    const encrypted = Buffer.concat([
+        cipher.update(refreshToken, 'utf8'),
+        cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    return {
+        refreshTokenCiphertext: [
+            ENCRYPTION_SCHEME,
+            toBase64Url(iv),
+            toBase64Url(authTag),
+            toBase64Url(encrypted),
+        ].join(':'),
+        refreshTokenKeyVersion: getKeyVersion(env),
+    };
+}
+
+export function decryptGoogleRefreshToken(
+    refreshTokenCiphertext: string,
+    env: EnvLike = process.env
+): string {
+    const [scheme, ivValue, authTagValue, encryptedValue] = refreshTokenCiphertext.split(':');
+
+    if (
+        scheme !== ENCRYPTION_SCHEME
+        || !ivValue
+        || !authTagValue
+        || !encryptedValue
+    ) {
+        throw new Error('Invalid Google refresh token ciphertext format');
+    }
+
+    // TODO: Support multi-key rotation by looking up the key based on the stored version.
+    // Currently, this always uses GOOGLE_TOKEN_ENCRYPTION_KEY from the environment.
+    const decipher = createDecipheriv(
+        ENCRYPTION_ALGORITHM,
+        getKeyMaterial(env),
+        fromBase64Url(ivValue)
+    );
+    decipher.setAuthTag(fromBase64Url(authTagValue));
+
+    return Buffer.concat([
+        decipher.update(fromBase64Url(encryptedValue)),
+        decipher.final(),
+    ]).toString('utf8');
+}
+
+export function readStoredGoogleRefreshToken(
+    googleSync?: GoogleSyncLike,
+    env: EnvLike = process.env
+): string | null {
+    if (!googleSync) {
+        return null;
+    }
+
+    if (googleSync.refreshTokenCiphertext) {
+        // TODO: Pass googleSync.refreshTokenKeyVersion here to support rotating keys
+        return decryptGoogleRefreshToken(googleSync.refreshTokenCiphertext, env);
+    }
+
+    return null;
+}
+
+export function getGoogleTokenEncryptionErrorMessage(): string {
+    return GOOGLE_TOKEN_ENCRYPTION_ERROR;
+}

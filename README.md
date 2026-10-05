@@ -7,10 +7,10 @@ A modern web application for managing, transcribing, and organizing phone call r
 *   [**Setup Guide**](docs/setup-guide.md): Installation, environment variables, and running locally.
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
-*   [**Project Structure**](docs/project-structure.md): Codebase organization and key files.
+*   [**Branch Reconciliation**](docs/branch-reconciliation.md): Preserved snapshots, confirmed decisions, and verification.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
 *   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
-*   [**Launch Checklist**](docs/launch-checklist.md): Pre-launch steps and owed verifications.
+*   [**Cron Jobs**](docs/cron-jobs.md): Exports, retention, digests, and billing retries.
 
 ## Quick Start
 
@@ -46,7 +46,7 @@ the browser bundle, so changing auth, billing, or other public settings requires
 | Auth (`AUTH_PROVIDER`) | `local` (built-in email/password) or `firebase` | `firebase` |
 | Billing | Off (`NEXT_PUBLIC_ENABLE_BILLING=false`) | On (Stripe) |
 | Email (`EMAIL_PROVIDER`) | `smtp` / `resend` / `none` | `resend` |
-| Transcription | Your Soniox / ElevenLabs / Gemini key | Same, metered with multipliers |
+| Transcription | Soniox / ElevenLabs / Gemini or a compatible local server | Same, metered with multipliers |
 | Storage | Any S3-compatible (MinIO, R2, AWS) | Same |
 | Database | Your MongoDB (compose includes one) | Same |
 
@@ -54,7 +54,7 @@ Self-host quickstart:
 
 ```bash
 cp .env.selfhost.example .env
-# Set BETTER_AUTH_SECRET, S3 storage credentials, and a transcription backend.
+# Set BETTER_AUTH_SECRET, CRON_SECRET, storage credentials, and an optional transcription backend.
 docker compose --profile selfhost up --build -d
 docker compose ps -a
 ```

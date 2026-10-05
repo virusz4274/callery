@@ -1,16 +1,19 @@
-
 'use client';
 
 import { useToast } from '@/components/toast-provider';
-
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, Card, Input, Label, Spinner, TextField, Separator } from '@heroui/react';
-import { GoogleIcon } from '@/components/icons/google-icon';
-import { AppleIcon } from '@/components/icons/apple-icon';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Alert, Button, Input, Label, Separator, Spinner, TextField } from '@heroui/react';
 import Link from 'next/link';
+import { GoogleIcon } from '@/components/icons/google-icon';
+import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuthActions, useUser } from '@/lib/auth/client';
-import { ensureUserProfile } from '@/hooks/firebase/use-user-profile';
+import { isGoogleSignInCancelledError } from '@/lib/firebase/google-sign-in';
+import {
+  buildAuthPageHref,
+  getAuthRedirectCopy,
+  resolvePostAuthRedirect,
+} from '@/lib/auth-redirect';
 
 export function SignupPage() {
   const { toast } = useToast();
@@ -22,156 +25,195 @@ export function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleLoading] = useState(false);
   const passwordError = confirmPassword && password !== confirmPassword ? 'Passwords do not match' : '';
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isCompletingSignup, setIsCompletingSignup] = useState(false);
 
-  const actions = useAuthActions();
+  const auth = useAuthActions();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  const authCopy = getAuthRedirectCopy(redirectParam);
+  const postAuthPath = resolvePostAuthRedirect(redirectParam);
+  const loginHref = buildAuthPageHref('/login', redirectParam);
 
   useEffect(() => {
-    if (user) {
-      router.push('/');
+    if (user && !isCompletingSignup) {
+      router.replace(postAuthPath);
     }
-  }, [user, router]);
+  }, [isCompletingSignup, postAuthPath, user, router]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignUp = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (password !== confirmPassword) {
       return;
     }
     setIsLoading(true);
+    setIsCompletingSignup(true);
+    setAuthMessage(null);
     try {
-      const newUser = await actions.signUpEmail(`${firstName} ${lastName}`.trim(), email, password);
-      await ensureUserProfile(newUser, { firstName, lastName });
-      router.push('/');
+      await auth.signUpEmail(`${firstName} ${lastName}`.trim(), email, password);
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setAuthMessage(errorMessage);
       toast({ title: 'Sign Up Failed', description: errorMessage, status: 'danger' });
     } finally {
       setIsLoading(false);
+      setIsCompletingSignup(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    setIsCompletingSignup(true);
+    setAuthMessage(null);
 
     try {
-      const newUser = await actions.signInGoogle();
-      // Local Google sign-in redirects away (null here); Firebase returns the user.
-      if (newUser) {
-        await ensureUserProfile(newUser);
-      }
-      router.push('/');
+      const result = await auth.signInGoogle();
+      if (!result) return; // Local OAuth completes through its redirect.
+
+      router.replace(postAuthPath);
     } catch (error: unknown) {
-      const authError = error as { code?: string; message?: string };
-      if (authError.code !== 'auth/popup-closed-by-user') {
-        toast({ title: 'Google Sign-In Failed', description: authError.message || "Could not sign in with Google.", status: 'danger' });
+      const firebaseError = error as { message?: string };
+      if (!isGoogleSignInCancelledError(error)) {
+        setAuthMessage(firebaseError.message || 'Could not sign in with Google.');
+        toast({
+          title: 'Google Sign-In Failed',
+          description: firebaseError.message || 'Could not sign in with Google.',
+          status: 'danger',
+        });
       }
     } finally {
       setGoogleLoading(false);
+      setIsCompletingSignup(false);
     }
   };
 
   if (isUserLoading || user) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+      <div className="flex min-h-dvh items-center justify-center p-6">
         <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-primary/10 blur-3xl opacity-40 animate-pulse" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full bg-secondary/10 blur-3xl opacity-40" />
-      </div>
+    <AuthShell
+      badge="Create Workspace"
+      title="Create your account"
+      description={authCopy.signupDescription}
+      footer={
+        <p className="text-sm text-default-500">
+          Already have an account?{' '}
+          <Link href={loginHref} className="font-semibold text-primary transition-colors hover:text-primary/80">
+            Sign in
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSignUp} className="space-y-5">
+        {authMessage && (
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>{authMessage}</Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
 
-      <Card className="w-full max-w-md bg-card/70 backdrop-blur-xl border border-default-200 shadow-2xl">
-        <Card.Header className="flex flex-col items-center text-center pb-0">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4 p-2 shadow-inner">
-            <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" /></svg>
+        {auth.googleEnabled && <div className="grid gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-12 justify-center rounded-2xl border border-default-200 bg-background/70 text-foreground transition-colors hover:border-primary/20 hover:bg-primary/5"
+            onPress={handleGoogleSignIn}
+            isDisabled={!auth.googleEnabled || isGoogleLoading || isLoading || isCompletingSignup}
+          >
+            {isGoogleLoading ? (
+              <Spinner color="current" size="sm" />
+            ) : (
+              <GoogleIcon className="mr-2 h-5 w-5" />
+            )}
+            Sign up with Google
+          </Button>
+
+        </div>}
+
+        <div className="flex items-center gap-3">
+          <Separator className="flex-1" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-default-400">
+            Or use email
+          </span>
+          <Separator className="flex-1" />
+        </div>
+
+        <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField value={firstName} onChange={setFirstName} isRequired className="gap-2">
+              <Label className="text-sm font-medium text-default-600">First name</Label>
+              <Input
+                autoComplete="given-name"
+                placeholder="John"
+                className="bg-default-50/60"
+              />
+            </TextField>
+
+            <TextField value={lastName} onChange={setLastName} isRequired className="gap-2">
+              <Label className="text-sm font-medium text-default-600">Last name</Label>
+              <Input
+                autoComplete="family-name"
+                placeholder="Doe"
+                className="bg-default-50/60"
+              />
+            </TextField>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Create an Account</h1>
-          <p className="text-small text-default-500 mt-2">Enter your details to get started.</p>
-        </Card.Header>
-        <Card.Content className="pt-6">
-          <form onSubmit={handleSignUp} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              {actions.googleEnabled && (
-                <Button
-                  variant="ghost"
-                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11"
-                  onPress={handleGoogleSignIn}
-                  isDisabled={isGoogleLoading || isLoading}
-                >
-                  {isGoogleLoading ? <Spinner color="current" size="sm" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
-                  Sign up with Google
-                </Button>
-              )}
-              <span title="Apple sign-in is coming soon" className="w-full">
-                <Button
-                  variant="ghost"
-                  className="w-full border border-default-200 hover:bg-default-100 transition-colors h-11 opacity-70"
-                  isDisabled
-                >
-                  <AppleIcon className="mr-2 h-5 w-5" />
-                  Sign up with Apple
-                </Button>
-              </span>
-            </div>
 
-            <div className="flex items-center gap-4 my-2">
-              <Separator className="flex-1" />
-              <span className="text-xs text-default-400 font-medium uppercase tracking-wider">Or continue with</span>
-              <Separator className="flex-1" />
-            </div>
+          <TextField value={email} onChange={setEmail} isRequired className="gap-2">
+            <Label className="text-sm font-medium text-default-600">Email</Label>
+            <Input
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              placeholder="you@company.com"
+              className="bg-default-50/60"
+            />
+          </TextField>
 
-            <div className="grid grid-cols-2 gap-4">
-              <TextField value={firstName} onChange={setFirstName} isRequired className="group">
-                <Label className="group-focus-within:text-primary transition-colors">First Name</Label>
-                <Input placeholder="John" className="bg-default-50/50" />
-              </TextField>
-              <TextField value={lastName} onChange={setLastName} isRequired className="group">
-                <Label className="group-focus-within:text-primary transition-colors">Last Name</Label>
-                <Input placeholder="Doe" className="bg-default-50/50" />
-              </TextField>
-            </div>
-            <TextField value={email} onChange={setEmail} isRequired className="group">
-              <Label className="group-focus-within:text-primary transition-colors">Email</Label>
-              <Input type="email" placeholder="you@company.com" className="bg-default-50/50" />
-            </TextField>
-            <TextField value={password} onChange={setPassword} isRequired className="group">
-              <Label className="group-focus-within:text-primary transition-colors">Password</Label>
-              <Input type="password" placeholder="Create a password" className="bg-default-50/50" />
-            </TextField>
-            <TextField value={confirmPassword} onChange={setConfirmPassword} isRequired isInvalid={!!passwordError} className="group">
-              <Label className="group-focus-within:text-primary transition-colors">Confirm Password</Label>
-              <Input type="password" placeholder="Confirm your password" className="bg-default-50/50" />
-              {passwordError && <p className="text-tiny text-danger mt-1">{passwordError}</p>}
-            </TextField>
+          <TextField value={password} onChange={setPassword} isRequired className="gap-2">
+            <Label className="text-sm font-medium text-default-600">Password</Label>
+            <Input
+              type="password"
+              autoComplete="new-password"
+              placeholder="Minimum 8 characters"
+              className="bg-default-50/60"
+            />
+          </TextField>
 
-            <Button
-              className="w-full font-semibold shadow-lg shadow-primary/20"
-              variant="primary"
-              size="lg"
-              type="submit"
-              isPending={isLoading}
-              isDisabled={isLoading || isGoogleLoading || !!passwordError}
-            >
-              {isLoading ? <Spinner color="current" size="sm" /> : "Sign Up"}
-            </Button>
-          </form>
-        </Card.Content>
-        <Card.Footer className="flex-col gap-4 pt-0 pb-6">
-          <p className="text-small text-center text-default-500">
-            Already have an account?{' '}
-            <Link href="/login" className="font-medium text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </Card.Footer>
-      </Card>
-    </div>
+          <TextField value={confirmPassword} onChange={setConfirmPassword} isRequired isInvalid={!!passwordError} className="gap-2">
+            <Label className="text-sm font-medium text-default-600">Confirm password</Label>
+            <Input
+              type="password"
+              autoComplete="new-password"
+              placeholder="Repeat your password"
+              className="bg-default-50/60"
+            />
+            {passwordError ? <p className="text-tiny text-danger">{passwordError}</p> : null}
+          </TextField>
+        </div>
+
+        <Button
+          className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+          variant="primary"
+          size="lg"
+          type="submit"
+          isPending={isLoading}
+          isDisabled={isLoading || isGoogleLoading || isCompletingSignup || !!passwordError}
+        >
+          {isLoading ? <Spinner color="current" size="sm" /> : 'Create account'}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

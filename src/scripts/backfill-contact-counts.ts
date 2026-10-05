@@ -21,10 +21,9 @@ async function main() {
     let updatedCount = 0;
 
     for (const contact of contacts) {
-        // Count recordings for this contact. Matches linkRecordingsToContact:
-        // ALL recordings (including archived) — totalRecordings is lifetime.
+        // Count recordings for this contact
         const recordings = await recordingsCollection
-            .find({ contactId: contact._id }) // Use ObjectId directly
+            .find({ contactId: contact._id, isArchived: { $ne: true } }) // Use ObjectId directly
             .sort({ recordedAt: -1 })
             .toArray();
 

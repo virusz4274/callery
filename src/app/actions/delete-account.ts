@@ -25,11 +25,8 @@ export async function deleteOwnAccount(): Promise<{ success: boolean; message: s
             stripeSubscriptionCanceled: result.stripeSubscriptionCanceled,
         });
 
-        if (result.r2Failures.length > 0 || result.stripeCancelError) {
-            return {
-                success: true,
-                message: 'Account deleted. Some cleanup steps need admin attention — support has been notified via the audit log.',
-            };
+        if (result.cleanupPending) {
+            return { success: false, message: 'Your account is disabled while cleanup retries. Its storage records are retained until deletion succeeds.' };
         }
 
         return { success: true, message: 'Your account and all data have been permanently deleted.' };

@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, Button, Chip, Spinner } from '@heroui/react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { PlanResponse } from '@/lib/db/types';
 import { deletePlan } from '@/app/actions/admin-plans';
 import { PlanFormDialog } from '@/components/admin/plan-form-dialog';
-import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
 
 type PlansListProps = {
@@ -19,7 +18,6 @@ export function PlansList({ initialPlans }: PlansListProps) {
     const [editingPlan, setEditingPlan] = useState<PlanResponse | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const router = useRouter();
-    const { toast } = useToast();
 
     const handleCreate = () => {
         setEditingPlan(null);
@@ -36,19 +34,9 @@ export function PlansList({ initialPlans }: PlansListProps) {
             return;
         }
         setIsDeleting(id);
-        try {
-            await deletePlan(id);
-            router.refresh();
-        } catch (error) {
-            console.error(error);
-            toast({
-                title: 'Failed to delete plan',
-                description: error instanceof Error ? error.message : 'Please try again.',
-                status: 'danger',
-            });
-        } finally {
-            setIsDeleting(null);
-        }
+        await deletePlan(id);
+        router.refresh();
+        setIsDeleting(null);
     };
 
     const formatCurrency = (amount: number, currency: string) => {
@@ -57,14 +45,10 @@ export function PlansList({ initialPlans }: PlansListProps) {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold">Pricing Plans</h1>
-                    <p className="text-default-500">Manage subscription tiers and limits.</p>
-                </div>
+            <div className="flex justify-end items-center">
                 <Button
                     onPress={handleCreate}
-                    className="gap-2 bg-primary text-white"
+                    className="gap-2 rounded-full bg-primary px-5 text-white"
                 >
                     <Plus className="h-4 w-4" />
                     Create Plan
@@ -73,15 +57,15 @@ export function PlansList({ initialPlans }: PlansListProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {initialPlans.map((plan) => (
-                    <Card key={plan.id} className={`p-6 border-2 ${plan.isDefault ? 'border-primary' : 'border-transparent'}`}>
+                    <Card key={plan.id} className={`rounded-[2rem] p-6 border-2 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] ${plan.isDefault ? 'border-primary' : 'border-default-200/80'}`}>
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <h3 className="text-xl font-bold">{plan.name}</h3>
+                                <h3 className="text-xl font-semibold">{plan.name}</h3>
                                 {plan.isDefault && (
-                                    <Chip size="sm" className="mt-1 bg-primary text-white">Default</Chip>
+                                    <Chip size="sm" variant="soft" color="accent" className="mt-1">Default</Chip>
                                 )}
                                 {!plan.isActive && (
-                                    <Chip size="sm" className="mt-1 ml-2 bg-default-200">Inactive</Chip>
+                                    <Chip size="sm" variant="soft" color="default" className="mt-1 ml-2">Inactive</Chip>
                                 )}
                             </div>
                             <div className="text-right">

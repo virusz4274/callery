@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState } from 'react';
-import type { AppUser } from '@/lib/auth/types';
+import { useState } from 'react';
+import type { AppUser as User } from '@/lib/auth/types';
 import { Alert, Button, Spinner } from '@heroui/react';
 
 type EmailVerificationAlertProps = {
-  user: AppUser | null;
+  user: User | null;
   onResend: () => Promise<void>;
 };
 
@@ -15,17 +15,15 @@ export function EmailVerificationAlert({ user, onResend }: EmailVerificationAler
 
   const handleResend = async () => {
     setIsSending(true);
-    try {
-      await onResend();
-    } finally {
-      setIsSending(false);
-    }
+    await onResend();
+    setIsSending(false);
   };
 
-  // Only show the alert if the user is logged in and their email is not
-  // verified. Social (Google) accounts are verified by their provider in
-  // both auth modes, so no provider check is needed.
-  if (!user || user.emailVerified) {
+  const isEmailPasswordProvider = user?.canChangePassword;
+
+  // Only show the alert if the user is logged in, their email is not verified,
+  // and they used email/password to sign up.
+  if (!user || user.emailVerified || !isEmailPasswordProvider) {
     return null;
   }
 

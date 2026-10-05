@@ -1,4 +1,4 @@
-import { ITranscriptionService, TranscriptionResult } from './types';
+import { ITranscriptionService, TranscriptionResult, TranscribeOptions } from './types';
 import { getGeminiClient, hasGeminiKey } from '@/services/ai/client';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
@@ -96,7 +96,8 @@ export class GeminiTranscriptionService implements ITranscriptionService {
         this.model = process.env.GEMINI_MODEL_TRANSCRIPTION || 'gemini-2.5-flash';
     }
 
-    async transcribe(fileUrl: string, durationSeconds?: number): Promise<TranscriptionResult> {
+    async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
+        const durationSeconds = options?.durationSeconds;
         const ai = getGeminiClient();
 
         // The Files API needs bytes, not a URL — download the (presigned) audio first.
@@ -124,7 +125,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
             }
 
             const response = await ai.models.generateContent({
-                model: this.model,
+                model: options?.model || this.model,
                 contents: [
                     { fileData: { fileUri: uploaded.uri, mimeType: uploaded.mimeType || mimeType } },
                     { text: TRANSCRIPTION_PROMPT },
@@ -157,6 +158,8 @@ export class GeminiTranscriptionService implements ITranscriptionService {
                       ];
 
             return {
+                provider: 'gemini',
+                model: options?.model || this.model,
                 text: finalSegments.map((s) => s.text).join(' '),
                 languageCode,
                 segments: finalSegments,

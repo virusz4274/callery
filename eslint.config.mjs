@@ -1,16 +1,26 @@
 import nextConfig from "eslint-config-next";
 
-export default [
+const config = [
     ...nextConfig,
     {
         ignores: [
             "public/",
             ".next/",
-            "node_modules/",
-            // vinext / Cloudflare Workers build output
+            ".open-next/",
             ".cloudflare/",
             ".vinext/",
-            "dist/"
+            "dist/",
+            "test-results/",
+            "playwright-report/",
+            "node_modules/"
         ],
     },
+    {
+        files: ["src/**/*.{ts,tsx}"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "warn",
+        },
+    },
 ];
+
+export default config;

@@ -1,245 +1,251 @@
+'use client';
 
-"use client"
-
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { Alert, Button, Card, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
 import type { Contact } from '@/lib/types';
-import { Card, Avatar, Button, Dropdown, Separator, Spinner, Chip } from '@heroui/react';
-import { Phone, Mic, MoreVertical, ChevronRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useUser } from '@/lib/auth/client';
+import { ContactList } from './contacts/contact-list';
+import { useContactGroups } from './contacts/use-contact-groups';
+import { ArrowRight } from 'lucide-react';
+import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
 type ContactsPageProps = {
-  allContacts: Contact[];
-  loadMore?: () => void;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  totalCount?: number;
+    allContacts: Contact[];
+    loadMore?: () => void;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
+    totalCount?: number;
 };
 
-import { useUser } from '@/lib/auth/client';
-
-function ContactPhoneDisplay({ phoneNumbers }: { phoneNumbers?: string[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  if (!phoneNumbers || phoneNumbers.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 mt-2">
-      <Chip size="sm" variant="soft" color="default">
-        <Phone className="w-3 h-3 mr-1" />
-        {phoneNumbers[0]}
-      </Chip>
-
-      {isExpanded && phoneNumbers.slice(1).map((num, i) => (
-        <Chip key={i} size="sm" variant="soft" color="default">
-          <Phone className="w-3 h-3 mr-1" />
-          {num}
-        </Chip>
-      ))}
-
-      {!isExpanded && phoneNumbers.length > 1 && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(true);
-          }}
-          role="button"
-          className="cursor-pointer"
-        >
-          <Chip size="sm" variant="soft" className="cursor-pointer hover:bg-default-200 transition-colors">
-            +{phoneNumbers.length - 1} more
-          </Chip>
+function ContactsShellLoadingState() {
+    return (
+        <div className="space-y-8">
+            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <div className="space-y-5 px-5 py-6 md:px-8 md:py-8">
+                    <div className="flex gap-2">
+                        <Chip variant="soft" color="default">Contact directory</Chip>
+                        <Chip variant="soft" color="accent">Loading</Chip>
+                    </div>
+                    <div className="space-y-3">
+                        <Skeleton className="h-12 w-40 rounded-2xl" />
+                        <Skeleton className="h-4 w-full max-w-2xl rounded-xl" />
+                        <Skeleton className="h-4 w-full max-w-xl rounded-xl" />
+                    </div>
+                </div>
+            </section>
+            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+                <div className="space-y-4">
+                    <Skeleton className="h-10 rounded-2xl" />
+                    <Skeleton className="h-24 rounded-xl" />
+                    <Skeleton className="h-24 rounded-xl" />
+                </div>
+            </Card>
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
-export function ContactsPage({ allContacts, loadMore, hasMore, totalCount = 0, isLoadingMore = false }: ContactsPageProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams.get('q') || '';
+export function ContactsPage({
+    allContacts,
+    loadMore,
+    hasMore = false,
+    totalCount = 0,
+    isLoadingMore = false,
+}: ContactsPageProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const searchQuery = searchParams.get('q') || '';
+    const { user, isUserLoading } = useUser();
+    const { userProfile } = useUserProfile(user);
 
-  const { user, isUserLoading } = useUser();
+    const { groupedContacts, sortedAndFilteredContacts } = useContactGroups(allContacts, searchQuery);
 
-  // Protect the page
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.replace('/login');
-    }
-  }, [user, isUserLoading, router]);
+    useEffect(() => {
+        if (!isUserLoading && !user) {
+            router.replace(buildLoginRedirectHref('/contacts'));
+        }
+    }, [isUserLoading, router, user]);
 
+    const handleContactClick = (contactId?: string) => {
+        if (!contactId) {
+            return;
+        }
+        router.push(`/contacts/${contactId}`);
+    };
 
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const isLoadingMoreRef = useRef(isLoadingMore);
 
-  // Search runs server-side across the full directory; the list arrives
-  // already filtered and sorted by name.
-  const sortedAndFilteredContacts = useMemo(() => {
-    if (!allContacts) return [];
-    return [...allContacts].sort((a, b) => a.name.localeCompare(b.name));
-  }, [allContacts]);
+    useEffect(() => {
+        isLoadingMoreRef.current = isLoadingMore;
+    }, [isLoadingMore]);
 
-  const groupedContacts = useMemo(() => {
-    return sortedAndFilteredContacts.reduce((acc, contact) => {
-      const firstLetter = contact.name[0]?.toUpperCase() || '#';
-      if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-      }
-      acc[firstLetter].push(contact);
-      return acc;
-    }, {} as Record<string, Contact[]>);
-  }, [sortedAndFilteredContacts]);
+    useEffect(() => {
+        if (!loadMore || !hasMore) {
+            return;
+        }
 
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && !isLoadingMoreRef.current) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
 
+        if (sentinelRef.current) {
+            observer.observe(sentinelRef.current);
+        }
 
-  const handleContactClick = (contactName: string) => {
-    router.push(`/?filterType=contact&filterValue=${encodeURIComponent(contactName)}`);
-  }
+        return () => observer.disconnect();
+    }, [hasMore, isLoadingMore, loadMore]);
 
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const isLoadingMoreRef = useRef(isLoadingMore);
-
-  // Keep ref in sync without triggering effect
-  useEffect(() => {
-    isLoadingMoreRef.current = isLoadingMore;
-  }, [isLoadingMore]);
-
-  useEffect(() => {
-    if (!loadMore || !hasMore) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      // Guard against multiple calls
-      if (entries[0].isIntersecting && !isLoadingMoreRef.current) {
-        loadMore();
-      }
-    }, { threshold: 0.1 });
-
-    if (sentinelRef.current) {
-      observer.observe(sentinelRef.current);
+    if (isUserLoading || !user) {
+        return <ContactsShellLoadingState />;
     }
 
-    return () => observer.disconnect();
-  }, [loadMore, hasMore, isLoadingMore]);
+    const displayedCount = searchQuery ? sortedAndFilteredContacts.length : totalCount || sortedAndFilteredContacts.length;
 
-  if (isUserLoading || !user) {
-    return <div className="flex h-[50vh] items-center justify-center">Loading...</div>;
-  }
+    return (
+        <div className="relative min-w-0 overflow-x-clip space-y-6 md:space-y-8">
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
 
-  return (
-    <div className="relative space-y-8">
-      {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-0 right-[-10%] w-[600px] h-[600px] rounded-full bg-primary/10 blur-3xl opacity-40 animate-pulse" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-secondary/10 blur-3xl opacity-40" />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h2 className="text-4xl font-bold tracking-tight text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-          Contacts
-        </h2>
-        <p className="text-default-500 text-lg">
-          Manage and view your contact directory
-        </p>
-      </div>
-
-      <Card className="bg-card/70 backdrop-blur-xl border border-default-200/50 shadow-xl transition-all duration-300">
-        <Card.Header className="flex flex-col items-start gap-1 pb-4 pt-6 px-6 border-b border-default-100/50">
-          <div className="flex justify-between w-full items-center">
-            <div className="text-sm font-medium text-default-500 uppercase tracking-wider">
-              Directory
-            </div>
-            <div className="text-sm text-default-400 bg-default-100/50 px-2 py-1 rounded-md">
-              {totalCount || sortedAndFilteredContacts.length} Contacts
-            </div>
-          </div>
-        </Card.Header>
-        <Card.Content className="p-0 relative overflow-hidden min-h-[400px]">
-          <div className="flex flex-col pr-8">
-            {Object.keys(groupedContacts).length > 0 ? (
-              Object.entries(groupedContacts).map(([letter, contacts]) => (
-                <div key={letter} id={`letter-group-${letter}`} className="pt-0">
-                  <h3 className="text-sm font-bold px-6 py-2 text-primary bg-default-50/80 backdrop-blur-sm z-10 w-full sticky top-0 border-y border-default-100/50 uppercase tracking-widest">{letter}</h3>
-                  {contacts.map((contact, index) => {
-                    return (
-                      <React.Fragment key={contact.id || contact.phoneNumbers?.[0] || index}>
-                        <div
-                          className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
-                          onClick={() => handleContactClick(contact.name)}
-                        >
-                          <div className="flex items-center gap-4">
-                            <Avatar className="w-12 h-12 ring-2 ring-transparent group-hover:ring-primary/20 transition-all shadow-sm">
-                              <Avatar.Fallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground">{contact.name.charAt(0)}</Avatar.Fallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{contact.name}</p>
-
-                              {(contact.jobTitle || contact.company) && (
-                                <div className="text-small text-default-500 flex items-center gap-2 mt-0.5">
-                                  {contact.jobTitle && <span>{contact.jobTitle}</span>}
-                                  {contact.jobTitle && contact.company && <span className="text-default-300">•</span>}
-                                  {contact.company && <span>{contact.company}</span>}
-                                </div>
-                              )}
-
-                              <ContactPhoneDisplay phoneNumbers={contact.phoneNumbers} />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div className="hidden sm:inline-flex">
-                              <Chip size="sm" variant="soft" color="accent">
-                                <Mic className="w-3 h-3 mr-1" />
-                                {contact.totalRecordings} recordings
-                              </Chip>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <Dropdown>
-                                <Dropdown.Trigger className="opacity-0 group-hover:opacity-100 transition-opacity text-default-400 hover:text-foreground p-1.5 rounded-md hover:bg-default-100 cursor-pointer">
-                                  <MoreVertical className="h-4 w-4" />
-                                  <span className="sr-only">Actions</span>
-                                </Dropdown.Trigger>
-                                <Dropdown.Popover>
-                                  <Dropdown.Menu aria-label="Contact actions" onAction={(key) => {
-                                    if (key === 'view') handleContactClick(contact.name);
-                                  }}>
-                                    <Dropdown.Item id="view">View Recordings</Dropdown.Item>
-                                  </Dropdown.Menu>
-                                </Dropdown.Popover>
-                              </Dropdown>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-default-300 sm:hidden group-hover:text-primary transition-colors" />
-                          </div>
+            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
+                <div className="grid min-w-0 gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                    <div className="min-w-0 space-y-4">
+                        <Chip variant="soft" color="accent" size="sm">
+                            Contact directory
+                        </Chip>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
+                                Contacts
+                            </h1>
                         </div>
-                        {index < contacts.length - 1 && <Separator className="ml-20 w-[calc(100%-5rem)] bg-default-100/50" />}
-                      </React.Fragment>
-                    )
-                  })}
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-32 text-default-400">
-                <div className="w-20 h-20 rounded-full bg-default-50 flex items-center justify-center mb-6 shadow-sm">
-                  <Phone className="w-10 h-10 text-default-300" />
-                </div>
-                <p className="font-semibold text-xl text-foreground mb-2">{searchQuery ? "No contacts found" : "No contacts yet"}</p>
-                <p className="text-default-500">{searchQuery ? "Try putting in a different term." : "Your contacts will appear here."}</p>
-              </div>
-            )}
+                        <p className="max-w-2xl text-sm leading-6 text-default-500">
+                            Browse and search people, companies, and phone numbers.
+                        </p>
+                        {!userProfile?.googleSync?.hasRefreshToken ? (
+                            <Alert status="accent">
+                                <Alert.Indicator />
+                                <Alert.Content>
+                                    <Alert.Title>Want Google Contacts here?</Alert.Title>
+                                    <Alert.Description>
+                                        Connect Google Contacts in Settings › Sources to import names and numbers.
+                                    </Alert.Description>
+                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
+                                        <Button size="sm" variant="secondary" className="rounded-full">
+                                            Go to Sources
+                                        </Button>
+                                    </Link>
+                                </Alert.Content>
+                            </Alert>
+                        ) : null}
+                        {(userProfile?.googleSync?.duplicatePhoneIssueCount || 0) > 0 ? (
+                            <Alert status="warning">
+                                <Alert.Indicator />
+                                <Alert.Content>
+                                    <Alert.Title>Review duplicate numbers in Google Contacts</Alert.Title>
+                                    <Alert.Description>
+                                        {userProfile?.googleSync?.duplicatePhoneIssueCount} phone number{userProfile?.googleSync?.duplicatePhoneIssueCount === 1 ? '' : 's'} currently appear on multiple Google contacts. Vosift keeps them separate until you fix them in Google Contacts.
+                                    </Alert.Description>
+                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
+                                        <Button size="sm" variant="secondary" className="rounded-full">
+                                            Review sync issues
+                                        </Button>
+                                    </Link>
+                                </Alert.Content>
+                            </Alert>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Chip variant="soft" color="default">
+                                {displayedCount} visible
+                            </Chip>
+                            {searchQuery && (
+                                <Chip variant="soft" color="warning">
+                                    Search: {searchQuery}
+                                </Chip>
+                            )}
+                        </div>
+                    </div>
 
-            {/* Sentinel for Infinite Scroll */}
-            {hasMore && (
-              <>
-                {!isLoadingMore && (
-                  <div ref={sentinelRef} className="py-4 w-full flex justify-center min-h-[40px]" />
-                )}
-                {isLoadingMore && (
-                  <div className="py-4 w-full flex justify-center min-h-[40px]">
-                    <Spinner size="sm" color="current" className="text-default-400" />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                    <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+                        <Link href="/upload" className="w-full sm:w-auto xl:w-full">
+                            <Button className="w-full rounded-full px-6 font-semibold">
+                                Upload more calls
+                                <ArrowRight className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <Link href="/recordings" className="w-full sm:w-auto xl:w-full">
+                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
+                                View recordings
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </section>
 
-        </Card.Content>
-      </Card>
-    </div>
-  );
+            <Surface
+                variant="default"
+                className="-mt-6 sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 min-w-0 rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:-mt-8 md:top-4 md:rounded-[2rem]"
+            >
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                            Search directory
+                        </div>
+                        {searchQuery ? (
+                            <Chip variant="soft" color="warning" size="sm">
+                                {displayedCount} match{displayedCount === 1 ? '' : 'es'}
+                            </Chip>
+                        ) : (
+                            <Chip variant="soft" color="default" size="sm">
+                                {displayedCount} visible
+                            </Chip>
+                        )}
+                    </div>
+
+                    <SearchField
+                        aria-label="Search contacts"
+                        value={searchQuery}
+                        onChange={(value) => {
+                            const params = new URLSearchParams(searchParams.toString());
+                            if (value) {
+                                params.set('q', value);
+                            } else {
+                                params.delete('q');
+                            }
+                            const query = params.toString();
+                            router.replace(query ? `/contacts?${query}` : '/contacts');
+                        }}
+                        variant="secondary"
+                        className="w-full"
+                    >
+                        <SearchField.Group className="flex h-11 items-center overflow-hidden rounded-2xl border border-default-200 bg-default-50 px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                            <SearchField.SearchIcon className="mr-2 text-default-400" />
+                            <SearchField.Input
+                                className="w-full bg-transparent p-0 text-small text-foreground placeholder:text-default-400"
+                                placeholder="Search by name, number, role, or company"
+                            />
+                            <SearchField.ClearButton />
+                        </SearchField.Group>
+                    </SearchField>
+                </div>
+            </Surface>
+
+            <ContactList
+                groupedContacts={groupedContacts}
+                searchQuery={searchQuery}
+                hasMore={hasMore}
+                onContactClick={handleContactClick}
+                showGoogleSetup={!userProfile?.googleSync?.hasRefreshToken}
+                setSentinelRef={(node) => {
+                    sentinelRef.current = node;
+                }}
+                isLoadingMore={isLoadingMore}
+            />
+        </div>
+    );
 }

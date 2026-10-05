@@ -3,6 +3,7 @@ import { getUserFromRequest } from '@/lib/auth-utils';
 import { getRecordingsByUser } from '@/lib/db/recordings';
 import type { FileSystemNode } from '@/lib/types';
 import type { Recording } from '@/lib/db/types';
+import { logger } from '@/lib/logger';
 
 /**
  * Converts a file size in bytes to a human-readable string.
@@ -137,6 +138,34 @@ function buildFileSystemTree(recordings: Recording[]): FileSystemNode {
     };
 }
 
+async function getAllRecordingsForFileTree(authSubject: string): Promise<Recording[]> {
+    const batchSize = 500;
+    const allRecordings: Recording[] = [];
+    let skip = 0;
+
+    while (true) {
+        const batch = await getRecordingsByUser(authSubject, {
+            limit: batchSize,
+            skip,
+            includeArchived: false,
+        });
+
+        if (batch.length === 0) {
+            break;
+        }
+
+        allRecordings.push(...batch);
+
+        if (batch.length < batchSize) {
+            break;
+        }
+
+        skip += batch.length;
+    }
+
+    return allRecordings;
+}
+
 /**
  * GET /api/filesystem
  * 
@@ -153,31 +182,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Fetch all recordings for the user (no pagination for file tree).
-        // The truncation flag needs an exact non-archived count (the cached
-        // user stat includes archived recordings), so count directly.
-        const { buildRecordingsQuery } = await import('@/lib/db/recordings');
-        const { getMongoDb, Collections } = await import('@/lib/mongodb');
-        const db = await getMongoDb();
-        const [recordings, totalCount] = await Promise.all([
-            getRecordingsByUser(authSubject, {
-                limit: 1000, // Reasonable limit for file browser
-                includeArchived: false,
-            }),
-            db.collection(Collections.RECORDINGS).countDocuments(
-                buildRecordingsQuery(authSubject, { includeArchived: false })
-            ),
-        ]);
+        // Fetch all non-archived recordings in batches to avoid silent truncation.
+        const recordings = await getAllRecordingsForFileTree(authSubject);
 
         const fileSystemTree = buildFileSystemTree(recordings);
 
-        return NextResponse.json({
-            fileSystem: fileSystemTree,
-            totalCount,
-            truncated: totalCount > recordings.length,
-        });
+        return NextResponse.json({ fileSystem: fileSystemTree });
     } catch (error) {
-        console.error('Error building file system:', error);
+        logger.error('Error building file system:', error);
         return NextResponse.json(
             { error: 'Failed to build file system' },
             { status: 500 }

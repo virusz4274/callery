@@ -1,158 +1,256 @@
-import { ITranscriptionService, TranscriptionResult } from './types';
+
+import { ITranscriptionService, TranscriptionResult, TranscribeOptions, TranscribeAsyncOptions, TranscribeAsyncResult } from './types';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
+import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
+import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
-/** Word shape returned by ElevenLabs Scribe (`timestamps_granularity=word`). */
-export interface ScribeWord {
+interface ElevenLabsWord {
     text: string;
-    type?: string;
-    start?: number;
-    end?: number;
+    start: number;
+    end: number;
     speaker_id?: string;
+    type?: string;
     logprob?: number;
-}
-
-interface ScribeResponse {
-    text?: string;
-    language_code?: string;
-    words?: ScribeWord[];
-}
-
-function formatSpeakerId(speakerId: string | undefined): string {
-    if (!speakerId) return 'Unknown';
-    const match = speakerId.match(/^speaker_(\d+)$/);
-    if (match) return `Speaker ${match[1]}`;
-    return speakerId;
-}
-
-/**
- * Group Scribe words into speaker segments. Exported for unit testing.
- * Audio-event words (e.g. "[laughs]") often lack a speaker — they join the
- * current segment instead of starting a new one.
- */
-export function mapScribeWordsToSegments(words: ScribeWord[]): TranscriptionSegment[] {
-    const segments: TranscriptionSegment[] = [];
-    if (!words || words.length === 0) return segments;
-
-    let currentSegment: TranscriptionSegment | null = null;
-    let currentSpeakerKey: string | null = null;
-
-    for (const word of words) {
-        if (!word.text) continue;
-        const speakerKey: string = word.speaker_id ?? currentSpeakerKey ?? 'unknown';
-
-        if (!currentSegment || speakerKey !== currentSpeakerKey) {
-            if (currentSegment) {
-                segments.push(currentSegment);
-            }
-            currentSpeakerKey = speakerKey;
-            currentSegment = {
-                speakerId: formatSpeakerId(speakerKey === 'unknown' ? undefined : speakerKey),
-                text: '',
-                start: word.start ?? 0,
-                end: word.end ?? 0,
-                words: [],
-            };
-        }
-
-        const mappedWord: TranscriptionWord = {
-            text: word.text,
-            start: word.start ?? 0,
-            end: word.end ?? 0,
-            speakerId: speakerKey,
-            // Scribe reports log-probability; convert to a 0-1 confidence.
-            confidence: word.logprob !== undefined ? Math.exp(word.logprob) : undefined,
-        };
-
-        currentSegment.words.push(mappedWord);
-        currentSegment.text += (currentSegment.text ? ' ' : '') + word.text;
-        currentSegment.end = word.end ?? currentSegment.end;
-    }
-
-    if (currentSegment) {
-        segments.push(currentSegment);
-    }
-
-    return segments;
 }
 
 export class ElevenLabsService implements ITranscriptionService {
     private apiKey: string;
     private baseUrl: string;
     private model: string;
+    public readonly provider = 'elevenlabs';
 
     constructor() {
-        if (!process.env.ELEVENLABS_API_KEY) {
-            logger.warn('ELEVENLABS_API_KEY is not defined. Transcription will fail.');
-        }
-        this.apiKey = process.env.ELEVENLABS_API_KEY || '';
-        this.baseUrl = process.env.ELEVENLABS_API_BASE_URL || 'https://api.elevenlabs.io';
-        this.model = process.env.ELEVENLABS_MODEL_ID || 'scribe_v2';
+        this.apiKey = env.ELEVENLABS_API_KEY;
+        this.baseUrl = env.ELEVENLABS_API_BASE_URL;
+        this.model = env.ELEVENLABS_MODEL_ID;
     }
 
-    async transcribe(fileUrl: string, durationSeconds?: number): Promise<TranscriptionResult> {
+    async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
         if (!this.apiKey) {
-            throw new Error('ELEVENLABS_API_KEY is not defined');
+            const configError = new Error('ELEVENLABS_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
         }
 
-        // Scribe accepts a remote URL directly, so the presigned file URL is
-        // passed through — no server-side download needed.
-        const form = new FormData();
-        form.append('model_id', this.model);
-        form.append('cloud_storage_url', fileUrl);
-        form.append('diarize', 'true');
-        form.append('timestamps_granularity', 'word');
-        form.append('tag_audio_events', 'true');
+        // Allow model override if passed, otherwise default
+        const modelToUse = options?.model || this.model;
 
-        logger.debug(`[ElevenLabs] Requesting transcription (model: ${this.model})`);
-        const response = await fetch(`${this.baseUrl}/v1/speech-to-text`, {
-            method: 'POST',
-            headers: { 'xi-api-key': this.apiKey },
-            body: form,
-        });
+        try {
+            logger.info(`[ElevenLabs] Requesting transcription for: ${fileUrl} (Model: ${modelToUse})`);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            logger.error(`[ElevenLabs] Error (${response.status}): ${errorText}`);
-            if (response.status === 401) {
-                throw new Error('ElevenLabs authentication failed. Check ELEVENLABS_API_KEY.');
+            const formData = new FormData();
+            formData.append('model_id', modelToUse);
+            formData.append('cloud_storage_url', fileUrl);
+            formData.append('diarize', 'true');
+            // formData.append('timestamps_granularity', 'word'); // default is word
+
+            const response = await fetch(`${this.baseUrl}/v1/speech-to-text`, {
+                method: 'POST',
+                headers: {
+                    'xi-api-key': this.apiKey,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error(`[ElevenLabs] API Error (${response.status}): ${errorText}`);
+
+                if (response.status === 401) {
+                    const authError = new Error('ElevenLabs API Auth failed') as Error & { status?: number };
+                    authError.status = response.status;
+                    throw authError;
+                }
+
+                const apiError = new Error(`ElevenLabs API failed: ${response.status} ${errorText}`) as Error & { status?: number };
+                apiError.status = response.status;
+                throw apiError;
             }
-            if (response.status === 402 || response.status === 429) {
-                throw new Error('Transcription service temporarily unavailable due to quota limits.');
-            }
-            throw new Error(`Failed to transcribe with ElevenLabs: ${response.status}`);
+
+            const data = await response.json();
+
+            // Map the response
+            const segments = this.processWordsIntoSegments(data.words || []);
+            const language = data.language_code || 'en'; // default if missing
+            const transcriptionId = data.transcription_id || `el_${Date.now()}`; // Fallback ID if not returned in sync mode
+
+            logger.info(`[ElevenLabs] Success. ${segments.length} segments. Language: ${language}`);
+            await resolveExternalServiceIncident({
+                provider: this.provider,
+                operation: 'transcribe',
+            });
+
+            return {
+                text: data.text || segments.map(s => s.text).join(' '),
+                languageCode: language,
+                segments: segments,
+                transcriptionId,
+                provider: 'elevenlabs',
+                model: modelToUse
+            };
+
+        } catch (error) {
+            logger.error('[ElevenLabs] Transcription Error:', error);
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe',
+                error,
+                context: {
+                    model: modelToUse,
+                    fileUrl,
+                },
+                notifyAdmins: true,
+            });
+            throw error;
         }
-
-        const data = (await response.json()) as ScribeResponse;
-        const segments = mapScribeWordsToSegments(data.words ?? []);
-        logger.info(`[ElevenLabs] Processed ${segments.length} segments. Language: ${data.language_code || 'unknown'}`);
-
-        // Fallback: text without word timestamps becomes one untimed segment.
-        const finalSegments =
-            segments.length > 0 || !data.text?.trim()
-                ? segments
-                : [
-                      {
-                          speakerId: 'Unknown',
-                          text: data.text.trim(),
-                          start: 0,
-                          end: durationSeconds ?? 0,
-                          words: [],
-                      } satisfies TranscriptionSegment,
-                  ];
-
-        return {
-            text: data.text || finalSegments.map((s) => s.text).join(' '),
-            languageCode: data.language_code || 'unknown',
-            segments: finalSegments,
-            // Scribe is synchronous and returns no transcript id; the id is
-            // only used for the (no-op) delete call below.
-            transcriptionId: `elevenlabs-${Date.now()}`,
-        };
     }
 
-    async deleteTranscript(_transcriptionId: string): Promise<void> {
-        // Scribe is a synchronous request/response API — nothing persists
-        // server-side for us to delete.
+    /**
+     * Start an async transcription that will deliver results via webhook.
+     * Returns immediately with a request ID for correlation.
+     */
+    async transcribeAsync(fileUrl: string, options?: TranscribeAsyncOptions): Promise<TranscribeAsyncResult> {
+        if (!this.apiKey) {
+            const configError = new Error('ELEVENLABS_API_KEY is not defined');
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe_async',
+                error: configError,
+                notifyAdmins: true,
+            });
+            throw configError;
+        }
+
+        const modelToUse = options?.model || this.model;
+
+        try {
+            logger.info(`[ElevenLabs] Starting ASYNC transcription for: ${fileUrl} (Model: ${modelToUse})`);
+
+            const formData = new FormData();
+            formData.append('model_id', modelToUse);
+            formData.append('cloud_storage_url', fileUrl);
+            formData.append('diarize', 'true');
+            formData.append('webhook', 'true'); // Enable async mode
+
+            // Include metadata for webhook correlation
+            if (options?.webhookMetadata) {
+                formData.append('webhook_metadata', JSON.stringify(options.webhookMetadata));
+            }
+
+            const response = await fetch(`${this.baseUrl}/v1/speech-to-text`, {
+                method: 'POST',
+                headers: {
+                    'xi-api-key': this.apiKey,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error(`[ElevenLabs] Async API Error (${response.status}): ${errorText}`);
+                const apiError = new Error(`ElevenLabs API failed: ${response.status} ${errorText}`) as Error & { status?: number };
+                apiError.status = response.status;
+                throw apiError;
+            }
+
+            const data = await response.json();
+
+            logger.info(`[ElevenLabs] Async request submitted. Request ID: ${data.request_id}`);
+            await resolveExternalServiceIncident({
+                provider: this.provider,
+                operation: 'transcribe_async',
+            });
+
+            return {
+                requestId: data.request_id,
+                transcriptionId: data.transcription_id,
+                message: data.message || 'Transcription queued for processing',
+            };
+
+        } catch (error) {
+            logger.error('[ElevenLabs] Async Transcription Error:', error);
+            await safelyReportExternalServiceIncident({
+                provider: this.provider,
+                service: 'ElevenLabs',
+                operation: 'transcribe_async',
+                error,
+                context: {
+                    model: modelToUse,
+                    fileUrl,
+                },
+                notifyAdmins: true,
+            });
+            throw error;
+        }
+    }
+
+    async deleteTranscript(transcriptionId: string): Promise<void> {
+        // ElevenLabs doesn't have a specific "delete transcript" endpoint for the Sync/Scribe API
+        // unless we used stored storage. If we use logging=false (default is true), it stores it.
+        // We might want to use GET /v1/speech-to-text/transcripts/{transcription_id} to check existence,
+        // but DELETE endpoint documentation wasn't provided in the snippet.
+        // For now, we'll log.
+        logger.debug(`[ElevenLabs] Delete requested for ${transcriptionId} - Not implemented (API limitation or zero-retention mode used)`);
+    }
+
+    private formatSpeakerId(speakerId: string | undefined): string {
+        if (!speakerId) return 'Unknown';
+        return speakerId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()); // "speaker_1" -> "Speaker 1"
+    }
+
+    private processWordsIntoSegments(words: ElevenLabsWord[]): TranscriptionSegment[] {
+        const segments: TranscriptionSegment[] = [];
+        if (!words || words.length === 0) return segments;
+
+        let currentSegment: TranscriptionSegment | null = null;
+        let currentSpeakerId: string | null = null;
+
+        for (const word of words) {
+            // ElevenLabs word: { text: "Hello", start: 0.1, end: 0.5, speaker_id: "speaker_1", type: "word" }
+            const wordSpeakerId = word.speaker_id || 'unknown';
+
+            // Start new segment when speaker changes
+            if (!currentSegment || wordSpeakerId !== currentSpeakerId) {
+                if (currentSegment) {
+                    segments.push(currentSegment);
+                }
+                currentSpeakerId = wordSpeakerId;
+                currentSegment = {
+                    speakerId: this.formatSpeakerId(wordSpeakerId),
+                    text: '',
+                    start: word.start || 0,
+                    end: word.end || 0,
+                    words: [],
+                };
+            }
+
+            // Map to internal structure
+            const mappedWord: TranscriptionWord = {
+                text: word.text,
+                start: word.start,
+                end: word.end,
+                speakerId: wordSpeakerId,
+                // confidence: word.logprob ? Math.exp(word.logprob) : undefined // optional mapping
+            };
+
+            currentSegment.words.push(mappedWord);
+            currentSegment.text += (currentSegment.text ? ' ' : '') + word.text;
+            currentSegment.end = word.end || currentSegment.end;
+        }
+
+        if (currentSegment) {
+            segments.push(currentSegment);
+        }
+
+        return segments;
     }
 }
