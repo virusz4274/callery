@@ -3,15 +3,11 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 import { fileURLToPath } from 'url';
 
-import { Plan } from '@/lib/db/types';
-import { ObjectId } from 'mongodb';
-
 /**
  * Initialize the database with required indexes.
  * This should be run once when setting up a new database.
  * 
- * You can run this via: npx tsx src/lib/db/init.ts
- * Or it will be called automatically on first API request.
+ * Run via pnpm run db:init, or the Compose selfhost initialization service.
  */
 export async function initializeDatabase(): Promise<void> {
     // Dynamic import to ensure dotenv is loaded before mongodb.ts is evaluated
@@ -30,6 +26,7 @@ export async function initializeDatabase(): Promise<void> {
         console.log('✅ Users indexes created');
     } catch (e) {
         console.error('⚠️ Users index creation failed:', e);
+        throw e;
     }
 
     // Recordings collection indexes
@@ -46,6 +43,7 @@ export async function initializeDatabase(): Promise<void> {
         console.log('✅ Recordings indexes created');
     } catch (e) {
         console.error('⚠️ Recordings index creation failed:', e);
+        throw e;
     }
 
     // Contacts collection indexes
@@ -58,6 +56,7 @@ export async function initializeDatabase(): Promise<void> {
         console.log('✅ Contacts indexes created');
     } catch (e) {
         console.error('⚠️ Contacts index creation failed (likely duplicates):', e);
+        throw e;
     }
 
     // Plans collection indexes
@@ -68,6 +67,7 @@ export async function initializeDatabase(): Promise<void> {
         console.log('✅ Plans indexes created');
     } catch (e) {
         console.error('⚠️ Plans index creation failed:', e);
+        throw e;
     }
 
     // Admin Logs collection indexes
@@ -80,23 +80,12 @@ export async function initializeDatabase(): Promise<void> {
         console.log('✅ Admin Logs indexes created');
     } catch (e) {
         console.error('⚠️ Admin Logs index creation failed:', e);
+        throw e;
     }
 
     // Seed or Update Plans
     console.log('🌱 Seeding/Updating plans...');
     const now = new Date();
-
-    // Define all plans with their logic
-    const plansToSeed: Plan[] = [
-        {
-            _id: new ObjectId(), // Note: verify_plans script might fail if we keep generating new IDs for updates. 
-            // Better strategy: Look up by Name. If exists, update. If not, insert.
-            name: 'Free Trial',
-            // ... (rest of fields)
-        } as any // Temporary cast to fix later
-    ];
-
-    // let's construct the array properly inside the loop or map
 
     const planDefinitions = [
         {
@@ -296,13 +285,16 @@ export async function testConnection(): Promise<boolean> {
 }
 
 // Allow running this file directly for initialization
-// Usage: npx tsx src/lib/db/init.ts
+// Usage: pnpm run db:init
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     (async () => {
-        const connected = await testConnection();
-        if (connected) {
+        try {
+            if (!await testConnection()) process.exit(1);
             await initializeDatabase();
+            process.exit(0);
+        } catch (error) {
+            console.error('Database initialization failed:', error);
+            process.exit(1);
         }
-        process.exit(0);
     })();
 }

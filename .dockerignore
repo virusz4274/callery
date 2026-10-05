@@ -7,4 +7,18 @@ pnpm-debug.log*
 README.md
 .next
 .git
+.env*
+!.env.example
+!.env.selfhost.example
+.dev.vars*
+service-account*.json
+*.pem
+dist
+.vinext
+.cloudflare
+*.tsbuildinfo
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/swe-worker-*.js.map
 
