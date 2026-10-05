@@ -1,11 +1,9 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
-import { Shield } from 'lucide-react';
 import type { User as UserProfile } from '@/lib/types';
 
 interface MainNavProps {
@@ -15,6 +13,7 @@ interface MainNavProps {
 
 export function MainNav({ userProfile, loggedIn }: MainNavProps) {
     const pathname = usePathname();
+    const mainItems = navigationConfig.main;
 
     if (!loggedIn) {
         return (
@@ -40,7 +39,7 @@ export function MainNav({ userProfile, loggedIn }: MainNavProps) {
 
     return (
         <nav className="hidden md:flex items-center gap-1 mx-6">
-            {navigationConfig.main.map((item) => (
+            {mainItems.map((item) => (
                 <Link
                     key={item.href}
                     href={item.href}

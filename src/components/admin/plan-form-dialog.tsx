@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-    Modal,
-    Button,
-    Input,
-    Checkbox,
-    Label // Using Label as per manage-plan-dialog
-    // Removed Select/SelectItem as they seem complex/unavailable
-} from '@heroui/react';
-import { PlanResponse } from '@/lib/db/types';
+import { useState } from 'react';
+import { Button, Chip, Modal } from '@heroui/react';
+import { Layers3 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { createPlan, updatePlan } from '@/app/actions/admin-plans';
 import { useToast } from '@/components/toast-provider';
-import { useRouter } from 'next/navigation';
+import type { PlanResponse } from '@/lib/db/types';
+import { PlanFormBody } from './plan-form-dialog/plan-form-body';
+import {
+    buildPlanPayload,
+    getInitialPlanFormValues,
+    usePlanFormState,
+} from './plan-form-dialog/use-plan-form-state';
 
 type PlanFormDialogProps = {
     isOpen: boolean;
@@ -21,104 +21,83 @@ type PlanFormDialogProps = {
 };
 
 export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogProps) {
+    const formKey = `${planToEdit?.id ?? 'new'}-${isOpen ? 'open' : 'closed'}`;
+
+    return (
+        <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <Modal.Backdrop className="bg-background/80 backdrop-blur-md">
+                <Modal.Container>
+                    <Modal.Dialog
+                        key={formKey}
+                        className="w-full max-w-4xl overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]"
+                    >
+                        <Modal.CloseTrigger />
+                        <Modal.Header className="border-b border-default-100/80 px-6 py-6 sm:px-8">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Chip variant="soft" color="default" className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                                        Billing catalog
+                                    </Chip>
+                                    <Chip variant="soft" color={planToEdit ? 'accent' : 'success'} className="rounded-full px-3 py-1 text-[11px] font-semibold">
+                                        {planToEdit ? 'Editing live plan' : 'New plan draft'}
+                                    </Chip>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                        <Layers3 className="h-5 w-5" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h2 className="text-2xl font-bold tracking-[-0.04em] text-foreground">
+                                            {planToEdit ? 'Update subscription plan' : 'Create subscription plan'}
+                                        </h2>
+                                        <p className="max-w-2xl text-sm leading-6 text-default-500">
+                                            Define pricing, metered usage, and feature packaging in one place so the public pricing page and admin tools stay aligned.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </Modal.Header>
+                        <PlanFormDialogContent planToEdit={planToEdit} onClose={onClose} />
+                    </Modal.Dialog>
+                </Modal.Container>
+            </Modal.Backdrop>
+        </Modal>
+    );
+}
+
+type PlanFormDialogContentProps = {
+    onClose: () => void;
+    planToEdit?: PlanResponse | null;
+};
+
+function PlanFormDialogContent({ onClose, planToEdit }: PlanFormDialogContentProps) {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, setIsPending] = useState(false);
-
-    // Form State
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [stripePriceId, setStripePriceId] = useState('');
-    const [stripeStoragePriceId, setStripeStoragePriceId] = useState('');
-    const [stripeTranscriptionPriceId, setStripeTranscriptionPriceId] = useState('');
-    const [price, setPrice] = useState('0');
-    const [interval, setInterval] = useState<'monthly' | 'yearly' | 'lifetime'>('monthly');
-    const [storageGB, setStorageGB] = useState('5');
-    const [transcriptionMinutes, setTranscriptionMinutes] = useState('60');
-    const [featuresInput, setFeaturesInput] = useState('');
-    const [isDefault, setIsDefault] = useState(false);
-    const [isActive, setIsActive] = useState(true);
-
-    // Render-time state adjustment (endorsed alternative to setState in an
-    // effect): re-seed the form whenever the edited plan or open state changes.
-    const editKey = `${planToEdit?.id ?? 'new'}:${isOpen ? 'open' : 'closed'}`;
-    const [prevEditKey, setPrevEditKey] = useState(editKey);
-    if (prevEditKey !== editKey) {
-        setPrevEditKey(editKey);
-        if (planToEdit) {
-            setName(planToEdit.name);
-            setDescription(planToEdit.description || '');
-            setStripePriceId(planToEdit.stripePriceId || '');
-            setStripeStoragePriceId(planToEdit.stripeStoragePriceId || '');
-            setStripeTranscriptionPriceId(planToEdit.stripeTranscriptionPriceId || '');
-            setPrice(planToEdit.price.toString());
-            setInterval(planToEdit.interval);
-            setStorageGB((planToEdit.limits.storage / (1024 * 1024 * 1024)).toString());
-            setTranscriptionMinutes((planToEdit.limits.transcription / 60).toString());
-            setFeaturesInput(planToEdit.features.join('\n'));
-            setIsDefault(planToEdit.isDefault);
-            setIsActive(planToEdit.isActive);
-        } else {
-            // Reset for create
-            setName('');
-            setDescription('');
-            setStripePriceId('');
-            setStripeStoragePriceId('');
-            setStripeTranscriptionPriceId('');
-            setPrice('0');
-            setInterval('monthly');
-            setStorageGB('5');
-            setTranscriptionMinutes('60');
-            setFeaturesInput('');
-            setIsDefault(false);
-            setIsActive(true);
-        }
-    }
+    const { values, setField } = usePlanFormState(getInitialPlanFormValues(planToEdit));
 
     const handleSubmit = async () => {
-        const priceNum = parseFloat(price);
-        const storageNum = parseFloat(storageGB);
-        const transcriptionNum = parseFloat(transcriptionMinutes);
-        if (!name.trim()) {
-            toast({ title: 'Plan name required', status: 'warning' });
-            return;
-        }
-        if (!Number.isFinite(priceNum) || priceNum < 0 || !Number.isFinite(storageNum) || storageNum < 0 || !Number.isFinite(transcriptionNum) || transcriptionNum < 0) {
-            toast({ title: 'Invalid numbers', description: 'Price, storage, and transcription must be non-negative numbers.', status: 'warning' });
-            return;
-        }
         setIsPending(true);
         try {
-            const planData = {
-                name,
-                description,
-                stripePriceId,
-                stripeStoragePriceId,
-                stripeTranscriptionPriceId,
-                price: parseFloat(price),
-                currency: 'USD',
-                interval,
-                limits: {
-                    storage: parseFloat(storageGB) * 1024 * 1024 * 1024,
-                    transcription: parseFloat(transcriptionMinutes) * 60
-                },
-                features: featuresInput.split('\n').filter(f => f.trim()),
-                isDefault,
-                isActive
-            };
-
+            const planData = buildPlanPayload(values);
             if (planToEdit) {
                 await updatePlan(planToEdit.id, planData);
             } else {
                 await createPlan(planData);
             }
+
             router.refresh();
+            toast({
+                title: planToEdit ? 'Plan updated' : 'Plan created',
+                description: `${values.name || 'Plan'} is now synced with the admin catalog.`,
+                status: 'success',
+            });
             onClose();
         } catch (error) {
             console.error('Failed to save plan:', error);
             toast({
-                title: 'Failed to save plan',
-                description: error instanceof Error ? error.message : 'Please try again.',
+                title: 'Plan save failed',
+                description: error instanceof Error ? error.message : 'Please review the plan details and try again.',
                 status: 'danger',
             });
         } finally {
@@ -127,140 +106,26 @@ export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogPr
     };
 
     return (
-        <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Button className="hidden" aria-hidden="true" />
-            <Modal.Backdrop>
-                <Modal.Container>
-                    <Modal.Dialog>
-                        <Modal.Header>
-                            <h2 className="text-lg font-bold">{planToEdit ? 'Edit Plan' : 'Create New Plan'}</h2>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-2">
-                                    <Label>Plan Name</Label>
-                                    <Input
-                                        placeholder="e.g. Enterprise"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
+        <>
+            <Modal.Body className="px-6 py-6 sm:px-8">
+                <PlanFormBody values={values} setField={setField} />
+            </Modal.Body>
 
-                                <div className="flex flex-col gap-2">
-                                    <Label>Stripe Price ID (Base)</Label>
-                                    <Input
-                                        placeholder="price_H5ggY..."
-                                        value={stripePriceId}
-                                        onChange={(e) => setStripePriceId(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Stripe Storage Price ID (Metered)</Label>
-                                    <Input
-                                        placeholder="price_..."
-                                        value={stripeStoragePriceId}
-                                        onChange={(e) => setStripeStoragePriceId(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Stripe Transcription Price ID (Metered)</Label>
-                                    <Input
-                                        placeholder="price_..."
-                                        value={stripeTranscriptionPriceId}
-                                        onChange={(e) => setStripeTranscriptionPriceId(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Price (USD)</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2 flex flex-col gap-2">
-                                    <Label>Description</Label>
-                                    <Input
-                                        placeholder="Short description for the pricing table"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Billing Interval</Label>
-                                    {/* Using native select for simplicity */}
-                                    <select
-                                        className="h-10 w-full rounded-md border border-default-200 bg-default-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        value={interval}
-                                        onChange={(e) => setInterval(e.target.value as 'monthly' | 'yearly' | 'lifetime')}
-                                    >
-                                        <option value="monthly">Monthly</option>
-                                        <option value="yearly">Yearly</option>
-                                        <option value="lifetime">Lifetime</option>
-                                    </select>
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Status & Visibility</Label>
-                                    <div className="flex flex-col gap-2">
-                                        <Checkbox isSelected={isActive} onChange={() => setIsActive(!isActive)}>
-                                            Active (Visible)
-                                        </Checkbox>
-                                        <Checkbox isSelected={isDefault} onChange={() => setIsDefault(!isDefault)}>
-                                            Default Plan for New Users
-                                        </Checkbox>
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2 divider my-2 font-bold text-sm">Limits</div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Storage (GB)</Label>
-                                    <Input
-                                        type="number"
-                                        value={storageGB}
-                                        onChange={(e) => setStorageGB(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <Label>Transcription (Min)</Label>
-                                    <Input
-                                        type="number"
-                                        value={transcriptionMinutes}
-                                        onChange={(e) => setTranscriptionMinutes(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2 flex flex-col gap-2">
-                                    <Label>Features (One per line)</Label>
-                                    <textarea
-                                        className="w-full p-2 rounded-lg border border-default-200 bg-default-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        rows={4}
-                                        placeholder="Feature 1&#10;Feature 2&#10;Feature 3"
-                                        value={featuresInput}
-                                        onChange={(e) => setFeaturesInput(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button variant="ghost" onPress={onClose} isDisabled={isPending}>
-                                Cancel
-                            </Button>
-                            <Button variant="primary" onPress={handleSubmit} isDisabled={isPending} className="ml-2">
-                                {isPending ? 'Saving...' : (planToEdit ? 'Update Plan' : 'Create Plan')}
-                            </Button>
-                        </Modal.Footer>
-                    </Modal.Dialog>
-                </Modal.Container>
-            </Modal.Backdrop>
-        </Modal>
+            <Modal.Footer className="border-t border-default-100/80 px-6 py-5 sm:px-8">
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-default-500">
+                        Changes here affect checkout flows, plan assignment, and what customers see on pricing.
+                    </p>
+                    <div className="flex gap-3 self-end">
+                        <Button variant="ghost" onPress={onClose} isDisabled={isPending}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" onPress={handleSubmit} isDisabled={isPending}>
+                            {isPending ? 'Saving...' : planToEdit ? 'Save changes' : 'Create plan'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal.Footer>
+        </>
     );
 }

@@ -15,6 +15,7 @@ export async function verifySessionCookieValue(cookieValue: string): Promise<Ses
             name: decoded.name ?? null,
             image: decoded.picture ?? null,
             provider: 'firebase',
+            emailVerified: decoded.email_verified === true,
         };
     } catch {
         return null;
@@ -32,6 +33,7 @@ export async function verifyIdTokenValue(idToken: string): Promise<SessionUser |
             name: decoded.name ?? null,
             image: decoded.picture ?? null,
             provider: 'firebase',
+            emailVerified: decoded.email_verified === true,
         };
     } catch {
         return null;

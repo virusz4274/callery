@@ -1,3 +1,6 @@
+import { Readable } from 'node:stream';
+import { logger } from './logger';
+import { SUPPORTED_UPLOAD_AUDIO_MIME_TYPES } from './upload-audio-support';
 import {
     S3Client,
     PutObjectCommand,
@@ -41,7 +44,7 @@ export function getStorageClient(): S3Client {
     return client;
 }
 
-function storageBucket(): string {
+export function storageBucket(): string {
     return storageConfig().bucket;
 }
 
@@ -55,7 +58,7 @@ let presignEndpoint: string | undefined;
  * localhost:9000 from the browser) the URL must be SIGNED with the public
  * host — string-replacing the host after signing would invalidate it.
  */
-function getPresignClient(): S3Client {
+export function getPresignClient(): S3Client {
     const cfg = storageConfig();
     const endpoint = cfg.publicEndpoint || cfg.endpoint;
     if (!presignClient || presignEndpoint !== endpoint) {
@@ -81,15 +84,7 @@ function getPresignClient(): S3Client {
  * Allowed audio MIME types for recording uploads.
  * Using a Set for O(1) lookup performance.
  */
-const ALLOWED_AUDIO_MIME_TYPES = new Set([
-    'audio/mpeg',
-    'audio/mp4',
-    'audio/x-m4a',
-    'audio/m4a',
-    'audio/wav',
-    'audio/x-wav',
-    'audio/webm',
-]);
+const ALLOWED_AUDIO_MIME_TYPES = SUPPORTED_UPLOAD_AUDIO_MIME_TYPES;
 
 /**
  * Validate if a MIME type is an allowed audio format.
@@ -270,4 +265,56 @@ export async function copyR2Object(
     });
 
     await getStorageClient().send(command);
+}
+
+function toNodeReadableStream(body: unknown): Readable | null {
+    if (!body) {
+        return null;
+    }
+
+    if (body instanceof Readable) {
+        return body;
+    }
+
+    const maybeWebStream = body as { getReader?: unknown };
+    if (typeof maybeWebStream.getReader === 'function' && typeof Readable.fromWeb === 'function') {
+        return Readable.fromWeb(body as unknown as import('node:stream/web').ReadableStream);
+    }
+
+    const maybeTransformable = body as { transformToWebStream?: () => ReadableStream<Uint8Array> };
+    if (typeof maybeTransformable.transformToWebStream === 'function' && typeof Readable.fromWeb === 'function') {
+        return Readable.fromWeb(
+            maybeTransformable.transformToWebStream() as unknown as import('node:stream/web').ReadableStream
+        );
+    }
+
+    return null;
+}
+
+export async function getR2ObjectDurationSeconds(
+    key: string,
+    mimeType: string,
+    size?: number
+): Promise<number> {
+    try {
+        const { parseStream } = await import('music-metadata');
+        const response = await getStorageClient().send(
+            new GetObjectCommand({
+                Bucket: storageBucket(),
+                Key: key,
+            })
+        );
+
+        const stream = toNodeReadableStream(response.Body);
+        if (!stream) {
+            return 0;
+        }
+
+        const metadata = await parseStream(stream, { mimeType, size }, { duration: true, skipPostHeaders: true });
+        const duration = metadata.format.duration || 0;
+        return Number.isFinite(duration) && duration > 0 ? duration : 0;
+    } catch (error) {
+        logger.error(`Failed to extract duration from ${key}:`, error);
+        return 0;
+    }
 }

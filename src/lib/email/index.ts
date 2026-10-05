@@ -53,3 +53,13 @@ export async function sendNotificationEmail(input: SendEmailInput): Promise<bool
     await service.send(input);
     return true;
 }
+
+/** Compatibility contract for feature emails, using the selected provider. */
+export async function sendEmail(input: SendEmailInput) {
+    try {
+        const sent = await sendNotificationEmail(input);
+        return { messageId: undefined as string | undefined, success: sent, error: sent ? undefined : new Error('Email delivery is disabled.') };
+    } catch (error) {
+        return { messageId: undefined as string | undefined, success: false, error };
+    }
+}

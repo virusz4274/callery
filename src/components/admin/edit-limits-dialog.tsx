@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Modal,
     Button,
+    Chip,
     Input,
-    Label
+    Label,
+    Surface,
 } from '@heroui/react';
+import { HardDrive, Waves } from 'lucide-react';
 import type { UserResponse } from '@/lib/db/types';
 import { updateUserLimits } from '@/app/actions/admin';
 import { useToast } from '@/components/toast-provider';
@@ -35,16 +38,10 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
     );
 
     const handleSave = async () => {
-        const storageNum = Number(storageGB);
-        const transcriptionNum = Number(transcriptionMin);
-        if (!Number.isFinite(storageNum) || storageNum < 0 || !Number.isFinite(transcriptionNum) || transcriptionNum < 0) {
-            toast({ title: 'Invalid limits', description: 'Enter non-negative numbers for storage and transcription.', status: 'warning' });
-            return;
-        }
         setLoading(true);
         try {
-            const storageBytes = storageNum * 1024 * 1024 * 1024;
-            const transcriptionSeconds = transcriptionNum * 60;
+            const storageBytes = Number(storageGB) * 1024 * 1024 * 1024;
+            const transcriptionSeconds = Number(transcriptionMin) * 60;
 
             await updateUserLimits(user.id, {
                 storageAllocation: storageBytes,
@@ -65,47 +62,84 @@ export function EditLimitsDialog({ user, isOpen, onClose }: EditLimitsDialogProp
 
     return (
         <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Button className="hidden" aria-hidden="true" />
-            <Modal.Backdrop>
+            <Modal.Backdrop className="bg-background/80 backdrop-blur-sm">
                 <Modal.Container>
-                    <Modal.Dialog>
+                    <Modal.Dialog className="w-full max-w-xl rounded-[2rem] border border-default-200/80 bg-background p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]">
                         <Modal.CloseTrigger />
-                        <Modal.Header>
-                            <Modal.Heading>Edit Limits for {user.name}</Modal.Heading>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <div className="space-y-4 py-4">
-                                <p className="text-sm text-gray-500">
-                                    Manually overriding these limits will persist until the user&apos;s plan changes.
+                        <Modal.Header className="border-b border-default-100/80 px-6 py-5">
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Chip variant="soft" color="accent">Custom limits</Chip>
+                                    <Chip variant="soft" color="default">{user.name}</Chip>
+                                </div>
+                                <Modal.Heading className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                                    Edit limits
+                                </Modal.Heading>
+                                <p className="text-sm leading-6 text-default-500">
+                                    Override the plan-provided allocations for this user. These values persist until the plan changes again.
                                 </p>
+                            </div>
+                        </Modal.Header>
+                        <Modal.Body className="px-6 py-5">
+                            <div className="space-y-5">
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="rounded-2xl bg-accent/10 p-2.5 text-accent">
+                                                <HardDrive className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-foreground">Storage cap</div>
+                                                <p className="mt-1 text-sm leading-6 text-default-500">
+                                                    Set the maximum storage this user can consume before further uploads are blocked.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Surface>
+                                    <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="rounded-2xl bg-success/10 p-2.5 text-success">
+                                                <Waves className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-foreground">Transcription cap</div>
+                                                <p className="mt-1 text-sm leading-6 text-default-500">
+                                                    Adjust the usable transcription budget independently from the assigned plan.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Surface>
+                                </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="storage">Storage Allocation (GB)</Label>
+                                        <Label htmlFor="storage" className="text-sm font-medium">Storage Allocation (GB)</Label>
                                         <Input
                                             id="storage"
                                             type="number"
                                             min="0"
                                             value={storageGB}
                                             onChange={(e) => setStorageGB(e.target.value)}
+                                            className="w-full"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="transcription">Transcription (Minutes)</Label>
+                                        <Label htmlFor="transcription" className="text-sm font-medium">Transcription (Minutes)</Label>
                                         <Input
                                             id="transcription"
                                             type="number"
                                             min="0"
                                             value={transcriptionMin}
                                             onChange={(e) => setTranscriptionMin(e.target.value)}
+                                            className="w-full"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </Modal.Body>
-                        <Modal.Footer>
-                            <Button variant="ghost" onPress={onClose}>Cancel</Button>
-                            <Button variant="primary" onPress={handleSave} isPending={loading}>
+                        <Modal.Footer className="border-t border-default-100/80 px-6 py-4">
+                            <Button variant="ghost" className="rounded-full" onPress={onClose}>Cancel</Button>
+                            <Button variant="primary" className="rounded-full px-6 font-semibold" onPress={handleSave} isPending={loading}>
                                 Save Changes
                             </Button>
                         </Modal.Footer>

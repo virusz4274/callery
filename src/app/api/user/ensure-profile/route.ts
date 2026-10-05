@@ -1,46 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureUserProfile } from '@/lib/db/users';
-import { authProvider } from '@/lib/config';
-import { getUserFromRequest } from '@/lib/auth-utils';
+import { getRequestIdentity } from '@/lib/auth-utils';
+import { EnsureProfileBodySchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/user/ensure-profile
  *
  * Ensures a user profile exists in MongoDB.
- * Called after successful authentication. The caller must present a valid
- * session/token whose subject matches the requested authSubject — otherwise
- * anyone could mint profiles for arbitrary subjects.
+ * Called after successful Firebase authentication.
  */
 export async function POST(request: NextRequest) {
     try {
-        const verifiedSubject = await getUserFromRequest(request);
-        if (!verifiedSubject) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            );
+        const identity = await getRequestIdentity(request);
+        if (!identity) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const authSubject = identity.subject;
+
+        const rawBody = await request.json().catch(() => null);
+        const parsed = EnsureProfileBodySchema.safeParse(rawBody ?? {});
+        if (!parsed.success) {
+            return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
         }
+        const { displayName, firstName, lastName, photoURL } = parsed.data;
 
-        const body = await request.json();
-
-        const { authSubject, email, displayName, firstName, lastName, photoURL } = body;
-
-        if (!authSubject || !email) {
-            return NextResponse.json(
-                { error: 'authSubject and email are required' },
-                { status: 400 }
-            );
-        }
-
-        if (authSubject !== verifiedSubject) {
-            return NextResponse.json(
-                { error: 'authSubject does not match authenticated user' },
-                { status: 403 }
-            );
-        }
+        const email = identity.email;
 
         // Build display name from parts
-        let name = displayName;
+        let name = displayName || identity.name || '';
         if (firstName || lastName) {
             name = `${firstName || ''} ${lastName || ''} `.trim();
         }
@@ -52,8 +38,9 @@ export async function POST(request: NextRequest) {
             authSubject,
             email,
             name,
-            photoURL,
-            authProvider()
+            photoURL || identity.image || undefined,
+            identity.provider,
+            identity.emailVerified
         );
 
         return NextResponse.json({
@@ -62,15 +49,24 @@ export async function POST(request: NextRequest) {
             userId: user._id.toString(),
         });
     } catch (error) {
-        console.error('Error ensuring user profile:', error);
-        if (error instanceof Error && error.message === 'New signups are currently disabled.') {
+        logger.error('Error ensuring user profile:', error);
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (message.includes('New signups are currently disabled')) {
             return NextResponse.json(
-                { error: error.message },
+                {
+                    error: message,
+                    details: message,
+                },
                 { status: 403 }
             );
         }
+
         return NextResponse.json(
-            { error: 'Failed to ensure user profile' },
+            {
+                error: 'Failed to ensure user profile',
+                details: message
+            },
             { status: 500 }
         );
     }

@@ -1,4 +1,4 @@
-import { ITranscriptionService, TranscriptionResult } from './types';
+import { ITranscriptionService, TranscriptionResult, TranscribeOptions } from './types';
 import { compatTranscriptionConfig } from '@/lib/config';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
@@ -131,7 +131,8 @@ export class OpenAiCompatTranscriptionService implements ITranscriptionService {
         }
     }
 
-    async transcribe(fileUrl: string, durationSeconds?: number): Promise<TranscriptionResult> {
+    async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
+        const durationSeconds = options?.durationSeconds;
         const cfg = compatTranscriptionConfig();
         if (!cfg) {
             throw new Error(
@@ -148,8 +149,8 @@ export class OpenAiCompatTranscriptionService implements ITranscriptionService {
         const blob = new Blob([Buffer.from(await audioResponse.arrayBuffer())], { type: mimeType });
 
         const form = new FormData();
-        form.append('file', blob, 'audio.mp3');
-        form.append('model', cfg.model);
+        form.append('file', blob, decodeURIComponent(new URL(fileUrl).pathname.split('/').pop() || 'audio'));
+        form.append('model', options?.model || cfg.model);
         form.append('response_format', 'verbose_json');
         form.append('timestamp_granularities[]', 'word');
 
@@ -181,6 +182,8 @@ export class OpenAiCompatTranscriptionService implements ITranscriptionService {
         logger.info(`[Compat] Processed ${segments.length} segments. Language: ${languageCode}`);
 
         return {
+            provider: 'openai_compat',
+            model: options?.model || cfg.model,
             text,
             languageCode,
             segments,

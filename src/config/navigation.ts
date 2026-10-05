@@ -8,14 +8,12 @@ import {
     Sparkles,
     CreditCard,
     Settings,
-    Megaphone,
-    ScrollText,
-    Briefcase
+    Megaphone
 } from 'lucide-react';
 
 export const navigationConfig = {
     main: [
-        { href: '/', name: 'Recordings', icon: LayoutDashboard },
+        { href: '/recordings', name: 'Recordings', icon: LayoutDashboard },
         { href: '/contacts', name: 'Contacts', icon: Users },
         { href: '/files', name: 'Files', icon: Folder },
         { href: '/upload', name: 'Upload', icon: Upload },
@@ -25,7 +23,6 @@ export const navigationConfig = {
         { href: '/admin/users', name: 'Users', icon: Users },
         { href: '/admin/plans', name: 'Plans', icon: CreditCard },
         { href: '/admin/announcements', name: 'Announcements', icon: Megaphone },
-        { href: '/admin/audit', name: 'Audit', icon: ScrollText },
         { href: '/admin/settings', name: 'Settings', icon: Settings },
     ],
     public: [

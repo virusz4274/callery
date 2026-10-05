@@ -1,49 +1,78 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Dropdown } from '@heroui/react';
+import { Check, Laptop, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { Switch } from '@heroui/react';
-import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ThemeSwitcher() {
-  const [mounted, setMounted] = useState(false);
-  const { setTheme, resolvedTheme } = useTheme();
+  const { setTheme, theme, resolvedTheme } = useTheme();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!resolvedTheme) {
     return (
-      <div className="w-[56px] h-[32px] rounded-full bg-default-200 animate-pulse" />
+      <div className="h-[34px] w-[58px] animate-pulse rounded-full border border-default-200/80 bg-default-100/80" />
     );
   }
 
-  const isDark = resolvedTheme === 'dark';
+  const selectedTheme = (theme ?? 'system') as 'light' | 'dark' | 'system';
+  const effectiveTheme = resolvedTheme as 'light' | 'dark';
+
+  const triggerIcon =
+    selectedTheme === 'system'
+      ? <Laptop className="h-4 w-4" />
+      : effectiveTheme === 'dark'
+        ? <Moon className="h-4 w-4" />
+        : <Sun className="h-4 w-4" />;
 
   return (
-    <Switch
-      isSelected={isDark}
-      onChange={(selected) => setTheme(selected ? 'dark' : 'light')}
-      size="lg"
-      aria-label="Toggle dark mode"
-      className={cn(
-        "w-[56px] h-[32px] rounded-full border border-default-200 transition-colors",
-        isDark ? "bg-default-900" : "bg-default-200"
-      )}
-    >
-      <Switch.Control>
-        <Switch.Thumb>
-          <Switch.Icon>
-            {isDark ? (
-              <Moon className="w-4 h-4 text-default-900 fill-current" />
-            ) : (
-              <Sun className="w-4 h-4 text-yellow-500 fill-current" />
-            )}
-          </Switch.Icon>
-        </Switch.Thumb>
-      </Switch.Control>
-    </Switch>
+    <Dropdown>
+      <Dropdown.Trigger
+        aria-label="Theme mode"
+        className={cn(
+          'inline-flex h-[34px] w-[58px] items-center justify-center rounded-full border border-default-200/80 transition-colors',
+          effectiveTheme === 'dark' ? 'bg-default-900 text-default-100' : 'bg-default-100 text-foreground'
+        )}
+      >
+        {triggerIcon}
+      </Dropdown.Trigger>
+      <Dropdown.Popover>
+        <Dropdown.Menu
+          aria-label="Theme"
+          onAction={(key) => {
+            if (key === 'light' || key === 'dark' || key === 'system') {
+              setTheme(key);
+            }
+          }}
+        >
+          <Dropdown.Item id="system" textValue="System">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Laptop className="h-4 w-4" />
+                <span>System</span>
+              </div>
+              {selectedTheme === 'system' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+          </Dropdown.Item>
+          <Dropdown.Item id="light" textValue="Light">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sun className="h-4 w-4" />
+                <span>Light</span>
+              </div>
+              {selectedTheme === 'light' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+          </Dropdown.Item>
+          <Dropdown.Item id="dark" textValue="Dark">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4" />
+                <span>Dark</span>
+              </div>
+              {selectedTheme === 'dark' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
   );
 }

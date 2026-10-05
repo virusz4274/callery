@@ -1,38 +1,99 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
-import { authFetch } from '@/lib/api-client';
-import { updateRecordingApi } from '@/hooks/use-recordings';
+import useSWR from 'swr';
+
+import { useEffect, useRef, useState } from 'react';
 import type { Recording } from '@/lib/types';
-import {
-  Modal,
-  ScrollShadow,
-  Button,
-  Avatar,
-  Chip,
-  Input
-} from '@heroui/react';
+import { Modal, Button, Card, Chip } from '@heroui/react';
+import { X } from 'lucide-react';
 import { ClientFormattedDate } from './client-formatted-date';
-import { useToast } from '@/components/toast-provider';
-import { Loader2, Wand2, Star, Archive, ArchiveRestore, Plus, X } from 'lucide-react';
-import { motion } from 'motion/react';
+import { RecordingContent } from './recording-view/recording-content';
+import { SharePopover } from './sharing/share-popover';
+import { getPlaybackUrlAction, getRecordingDetailsAction } from '@/app/actions/recordings';
+import { transcribeRecordingAction } from '@/app/actions/transcription';
+import { useToast } from './toast-provider';
+import { getAvailableProviders } from '@/app/actions/transcription-providers';
+import type { TranscriptionProviderId } from '@/services/transcription/factory';
+import { useUser } from '@/lib/auth/client';
+import { useUserProfile } from '@/hooks/firebase/use-user-profile';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
   onOpenChange: (open: boolean) => void;
-  onRecordingUpdated?: () => void;
+  onRecordingUpdated?: (recording: Recording) => Promise<void> | void;
 };
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
   const { toast } = useToast();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user);
+  const [updatedRecording, setCurrentRecording] = useState<Recording | null>(null);
+  const currentRecording = updatedRecording?.id === recording.id && updatedRecording.updatedAt >= recording.updatedAt
+    ? updatedRecording : recording;
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [showTransliteration, setShowTransliteration] = useState(false);
-  const [isStarred, setIsStarred] = useState(recording.isStarred);
-  const [isArchived, setIsArchived] = useState(recording.isArchived);
-  const [tags, setTags] = useState<string[]>(recording.tags || []);
-  const [newTag, setNewTag] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [pendingProvider, setActiveTranscriptionProvider] = useState<TranscriptionProviderId | null>(null);
+  const activeTranscriptionProvider = currentRecording.transcriptionStatus === 'processing' ? pendingProvider : null;
+  const { data: fetchedPlaybackUrl, isLoading: isFetchingUrl } = useSWR(
+    currentRecording.playbackUrl ? null : ['playback', user?.id, currentRecording.id],
+    async () => {
+      const result = await getPlaybackUrlAction(currentRecording.id);
+      if (!result.playbackUrl) throw new Error(result.error || 'Playback unavailable');
+      return result.playbackUrl;
+    },
+  );
+  const playbackUrl = currentRecording.playbackUrl || fetchedPlaybackUrl || null;
+  const isLoadingUrl = !currentRecording.playbackUrl && isFetchingUrl;
+  const [availableProviders, setAvailableProviders] = useState<TranscriptionProviderId[]>([]);
+  const [isProviderPickerOpen, setIsProviderPickerOpen] = useState(false);
+  const mountedRef = useRef(true);
+  const transcribePollAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      transcribePollAbortRef.current?.abort();
+      transcribePollAbortRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAvailableProviders()
+      .then((providers) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAvailableProviders(providers.map((provider) => provider.id));
+      })
+      .catch((error) => {
+        console.error('Failed to load transcription providers:', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -40,313 +101,248 @@ export function RecordingDetailsDialog({ recording, onOpenChange, onRecordingUpd
     return `${mins}m ${secs}s`;
   };
 
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(recording.playbackUrl || null);
-  const [isLoadingUrl, setIsLoadingUrl] = useState(!recording.playbackUrl);
+  const pushRecordingUpdate = async (updatedRecording: Recording) => {
+    if (!mountedRef.current) {
+      return;
+    }
 
-  // Fetch playback URL on mount if not provided (state updates only in
-  // async callbacks; the dialog remounts per recording via `key`).
-  useEffect(() => {
-    if (recording.playbackUrl) return;
-    let cancelled = false;
-    authFetch(`/api/recordings/${recording.id}/play`)
-      .then(res => res.json())
-      .then(data => {
-        if (!cancelled && data.playbackUrl) setPlaybackUrl(data.playbackUrl);
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (!cancelled) setIsLoadingUrl(false);
-      });
-    return () => { cancelled = true; };
-  }, [recording.id, recording.playbackUrl]);
+    setCurrentRecording(updatedRecording);
+    await onRecordingUpdated?.(updatedRecording);
+  };
 
-  const handleTranscribe = async () => {
+  const refreshRecording = async (): Promise<Recording | null> => {
+    const details = await getRecordingDetailsAction(currentRecording.id);
+    if ('error' in details) {
+      return null;
+    }
+
+    const updatedRecording = details.recording as Recording;
+    await pushRecordingUpdate(updatedRecording);
+    return updatedRecording;
+  };
+
+  const handleTranscribe = async (provider: TranscriptionProviderId) => {
+    if (isTranscribing) {
+      return;
+    }
+    transcribePollAbortRef.current?.abort();
+    const controller = new AbortController();
+    transcribePollAbortRef.current = controller;
+    const { signal } = controller;
+
     setIsTranscribing(true);
+    setActiveTranscriptionProvider(provider);
+    setIsProviderPickerOpen(false);
+    const previousRecording = currentRecording;
     try {
+      const optimisticRecording: Recording = {
+        ...currentRecording,
+        transcriptionStatus: 'processing',
+        transcriptionProvider: provider,
+      };
+      await pushRecordingUpdate(optimisticRecording);
 
+      const result = await transcribeRecordingAction(currentRecording.id, { provider });
+      if (signal.aborted) {
+        return;
+      }
 
-      // ... (in handleTranscribe)
-      const response = await authFetch('/api/transcribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ recordingId: recording.id }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Transcription failed');
+      if ('error' in result) {
+        throw new Error(result.error);
       }
 
       toast({
-        title: 'Transcription started',
-        description: 'The recording is being processed in the background.',
+        title: 'Transcription Started',
+        description: 'We are processing this recording. Results will appear automatically.',
         status: 'success',
       });
-      onRecordingUpdated?.();
-      onOpenChange(false);
+
+      let lastSeen: Recording | null = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        await sleep(3000, signal);
+        if (signal.aborted) {
+          return;
+        }
+        const latest = await refreshRecording();
+        if (signal.aborted) {
+          return;
+        }
+        if (!latest) {
+          continue;
+        }
+        lastSeen = latest;
+
+        if (latest.transcriptionStatus === 'completed' || latest.transcriptionStatus === 'failed') {
+          break;
+        }
+      }
+
+      if (lastSeen && lastSeen.transcriptionStatus === 'processing') {
+        toast({
+          title: 'Still Processing',
+          description: 'Transcription is taking longer than expected. Results will appear automatically once complete.',
+          status: 'warning',
+        });
+      }
     } catch (error) {
+      if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        return;
+      }
       console.error('Transcription error:', error);
+      await pushRecordingUpdate(previousRecording);
       toast({
-        title: 'Transcription failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        title: 'Transcription Failed',
+        description: error instanceof Error ? error.message : 'Failed to start transcription',
         status: 'danger',
       });
     } finally {
-      setIsTranscribing(false);
+      if (transcribePollAbortRef.current === controller) {
+        transcribePollAbortRef.current = null;
+      }
+      if (mountedRef.current && !signal.aborted) {
+        setIsTranscribing(false);
+      }
     }
   };
 
-  const persistMetadata = async (data: { isStarred?: boolean; isArchived?: boolean; tags?: string[] }, successTitle: string) => {
-    setIsUpdating(true);
-    try {
-      const result = await updateRecordingApi(recording.id, data);
-      if (!result.success) throw new Error(result.error || 'Update failed');
-      if (data.isStarred !== undefined) setIsStarred(data.isStarred);
-      if (data.isArchived !== undefined) setIsArchived(data.isArchived);
-      if (data.tags !== undefined) setTags(data.tags);
-      onRecordingUpdated?.();
-      toast({ title: successTitle, status: 'success' });
-    } catch (error) {
-      console.error('Metadata update error:', error);
-      toast({
-        title: 'Update failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'danger',
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const isProcessing = currentRecording.transcriptionStatus === 'processing' || isTranscribing;
+  const defaultProvider = userProfile?.transcriptionSettings?.defaultProvider || 'soniox';
+  const preferredProvider = availableProviders.includes(defaultProvider)
+    ? defaultProvider
+    : (availableProviders[0] || 'soniox');
 
-  const handleAddTag = () => {
-    const tag = newTag.trim();
-    if (!tag) return;
-    if (tags.includes(tag)) {
-      setNewTag('');
+  const handleRequestTranscribe = () => {
+    if (isProcessing) {
       return;
     }
-    void persistMetadata({ tags: [...tags, tag] }, 'Tag added');
-    setNewTag('');
+
+    if (availableProviders.length <= 1) {
+      handleTranscribe(preferredProvider);
+      return;
+    }
+
+    setIsProviderPickerOpen(true);
   };
 
-  const handleRemoveTag = (tag: string) => {
-    void persistMetadata({ tags: tags.filter(t => t !== tag) }, 'Tag removed');
-  };
-
-  const isProcessing = recording.transcriptionStatus === 'processing' || isTranscribing;
+  const providerCardDefinitions: Array<{
+    id: TranscriptionProviderId;
+    title: string;
+    description: string;
+    note: string;
+  }> = [
+      {
+        id: 'soniox',
+        title: 'Standard',
+        description: 'Fast manual transcription with the regular provider.',
+        note: 'Uses the standard model and lower quota cost.',
+      },
+      {
+        id: 'elevenlabs',
+        title: 'Premium',
+        description: 'Higher-accuracy transcription for tougher audio.',
+        note: 'Uses the premium model and higher quota cost.',
+      },
+      { id: 'gemini', title: 'Gemini', description: 'Transcribe with the configured Gemini model.', note: 'Uses the instance quota multiplier.' },
+      { id: 'openai_compat', title: 'Local or compatible server', description: 'Transcribe with the configured Whisper-compatible server.', note: 'Uses the instance quota multiplier.' },
+    ];
+  const providerCards = providerCardDefinitions.filter((provider) => availableProviders.includes(provider.id));
 
   return (
     <Modal isOpen={true} onOpenChange={onOpenChange}>
-      <Button className="hidden" aria-hidden="true" />
-      <Modal.Backdrop className="bg-background/20 backdrop-blur-xl z-[99]">
-        <Modal.Container className="z-[100]">
-          <Modal.Dialog className="h-[100dvh] sm:h-auto sm:max-h-[85vh] w-full max-w-5xl m-0 sm:m-4 bg-background sm:bg-card/70 backdrop-blur-xl sm:border border-default-200/50 shadow-none sm:shadow-2xl flex flex-col">
-            <Modal.CloseTrigger />
-            <Modal.Header className="flex flex-col gap-1 border-b border-default-100/50 p-4 sm:p-6 flex-shrink-0">
-              <Modal.Heading className="text-lg sm:text-xl font-bold truncate pr-8">
-                {recording.contactName || recording.phoneNumber}
-              </Modal.Heading>
-              <p className="text-xs sm:text-sm text-default-500 font-normal flex flex-wrap gap-2 items-center">
-                <ClientFormattedDate date={recording.recordedAt} formatString="PPPP p" />
-                <span className="hidden sm:inline">&bull;</span>
-                <span className="bg-default-100 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                  Duration: {formatDuration(recording.duration)}
-                </span>
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => persistMetadata({ isStarred: !isStarred }, isStarred ? 'Removed from starred' : 'Starred')}
-                  isDisabled={isUpdating}
-                  className="h-8"
-                  aria-label={isStarred ? 'Unstar recording' : 'Star recording'}
-                >
-                  <Star className={`w-4 h-4 ${isStarred ? 'fill-warning text-warning' : ''}`} />
-                  {isStarred ? 'Starred' : 'Star'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => persistMetadata({ isArchived: !isArchived }, isArchived ? 'Restored from archive' : 'Archived')}
-                  isDisabled={isUpdating}
-                  className="h-8"
-                  aria-label={isArchived ? 'Unarchive recording' : 'Archive recording'}
-                >
-                  {isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
-                  {isArchived ? 'Unarchive' : 'Archive'}
-                </Button>
-                {tags.map((tag) => (
-                  <Chip key={tag} size="sm" variant="soft" color="default">
-                    {tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 opacity-60 hover:opacity-100"
-                      aria-label={`Remove tag ${tag}`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Chip>
-                ))}
-                <div className="flex items-center gap-1">
-                  <Input
-                    className="w-32 h-8 text-sm"
-                    placeholder="New tag"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
-                    aria-label="New tag"
-                  />
-                  <Button size="sm" variant="ghost" isIconOnly onPress={handleAddTag} isDisabled={!newTag.trim() || isUpdating} aria-label="Add tag">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+
+      <Modal.Backdrop className="bg-black/40 backdrop-blur-sm z-[99]">
+        <Modal.Container className="z-[100] flex items-end sm:items-center justify-center h-full p-0 sm:p-4">
+          <Modal.Dialog className="relative w-full h-[95dvh] sm:h-auto sm:max-h-[85vh] max-w-none sm:max-w-4xl bg-background sm:bg-card backdrop-blur-xl border-t border-default-200/50 sm:border rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Custom Close Button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="absolute top-3 right-3 z-50 p-2 rounded-full bg-default-100 hover:bg-default-200 transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-default-600" />
+            </button>
+
+            {/* Header */}
+            <div className="flex flex-col gap-1 border-b border-default-100 px-4 py-3 sm:px-6 sm:py-4 flex-shrink-0 bg-background">
+              <div className="flex items-center gap-4 pr-10">
+                <h2 className="text-lg sm:text-xl font-bold truncate">
+                  {currentRecording.contactName || currentRecording.phoneNumber}
+                </h2>
+                <SharePopover recordingId={currentRecording.id} />
               </div>
-            </Modal.Header>
-            <Modal.Body className="p-4 sm:p-6 gap-6 overflow-y-auto flex-1">
-              <div className="flex flex-col gap-6 h-full">
-                <div className="flex-shrink-0 w-full bg-default-50 rounded-xl p-2 border border-default-100 min-h-[54px] flex items-center justify-center">
-                  {isLoadingUrl ? (
-                    <div className="flex items-center gap-2 text-default-500">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Loading audio...</span>
-                    </div>
-                  ) : playbackUrl ? (
-                    <audio controls className="w-full" key={recording.id}>
-                      <source
-                        src={playbackUrl}
-                        type="audio/mpeg"
-                      />
-                      Your browser does not support the audio element.
-                    </audio>
-                  ) : (
-                    <div className="text-sm text-danger">Audio unavailable</div>
-                  )}
-                </div>
-
-                {/* Summary Section */}
-                {recording.summary && (
-                  <div className="flex-shrink-0 bg-primary/5 p-4 sm:p-6 rounded-xl border border-primary/10 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-1.5 bg-primary/20 rounded-lg">
-                        <Wand2 className="w-4 h-4 text-primary" />
-                      </div>
-                      <h4 className="text-sm font-bold text-primary">AI Summary</h4>
-                    </div>
-                    <p className="text-sm sm:text-base text-foreground/90 leading-relaxed font-normal">
-                      {recording.summary}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-col flex-1 min-h-[300px]">
-                  <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur z-10 py-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg">Transcript</h3>
-                      <span className="text-[10px] font-mono text-default-400 bg-default-100 px-2 py-0.5 rounded-full border border-default-200">
-                        DIARIZED
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* Transliteration Toggle */}
-                      {recording.fullTranscript?.some(s => s.transliteratedText) && (
-                        <div className="flex items-center bg-default-100/50 rounded-lg p-1 gap-1 h-9 border border-default-200/50">
-                          <button
-                            onClick={() => setShowTransliteration(false)}
-                            className={`relative px-3 h-full rounded-md text-xs font-medium transition-colors z-10 ${!showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"
-                              }`}
-                          >
-                            {!showTransliteration && (
-                              <motion.div
-                                layoutId="active-pill"
-                                className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                              />
-                            )}
-                            Original
-                          </button>
-                          <button
-                            onClick={() => setShowTransliteration(true)}
-                            className={`relative px-3 h-full rounded-md text-xs font-medium transition-colors z-10 ${showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"
-                              }`}
-                          >
-                            {showTransliteration && (
-                              <motion.div
-                                layoutId="active-pill"
-                                className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                              />
-                            )}
-                            Transliteration
-                          </button>
-                        </div>
-                      )}
-
-                      {recording.transcriptionStatus !== 'completed' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          isPending={isProcessing}
-                          onPress={handleTranscribe}
-                          className="h-8"
-                        >
-                          {!isProcessing && <Wand2 className="w-4 h-4 mr-1" />}
-                          {isProcessing ? 'Transcribing...' : 'Transcribe'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <ScrollShadow className="flex-1 w-full rounded-2xl border border-default-200/60 bg-background/40 p-4 sm:p-6 h-full min-h-[400px]">
-                    {recording.fullTranscript && recording.fullTranscript.length > 0 ? (
-                      <div className="space-y-6">
-                        {recording.fullTranscript.map((segment, index) => (
-                          <div key={index} className="flex gap-3 sm:gap-4 group">
-                            <Avatar className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 mt-1 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-                              <Avatar.Fallback className={`text-[10px] sm:text-xs font-bold ${segment.speakerId === 'Speaker 0' ? 'bg-primary/20 text-primary' :
-                                segment.speakerId === 'Speaker 1' ? 'bg-secondary/20 text-secondary' :
-                                  'bg-default-100 text-default-600'
-                                }`}>
-                                {segment.speakerId ? segment.speakerId.replace('Speaker ', 'S') : '??'}
-                              </Avatar.Fallback>
-                            </Avatar>
-                            <div className="flex flex-col gap-1 flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs sm:text-sm font-bold text-foreground">
-                                  {segment.speakerId || 'Unknown Speaker'}
-                                </span>
-                                <span className="text-[10px] text-default-400 font-mono bg-default-50 px-1.5 rounded">
-                                  {formatDuration(segment.start ?? 0)}
-                                </span>
-                              </div>
-                              <p className="text-sm sm:text-base text-default-700 leading-relaxed">
-                                {showTransliteration ? (segment.transliteratedText || segment.text) : segment.text}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50 gap-4">
-                        {isProcessing ? (
-                          <>
-                            <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
-                            <p className="text-sm font-medium">Generating transcript...</p>
-                          </>
-                        ) : (
-                          <p className="text-sm italic">No transcript available</p>
-                        )}
-                      </div>
-                    )}
-                  </ScrollShadow>
-                </div>
+              <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-default-500">
+                <ClientFormattedDate date={currentRecording.recordedAt} formatString="PPP p" />
+                <Chip variant="soft" color="default" size="sm">
+                  {formatDuration(currentRecording.duration)}
+                </Chip>
               </div>
-            </Modal.Body>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <RecordingContent
+                recording={currentRecording}
+                playbackUrl={playbackUrl}
+                isLoadingUrl={isLoadingUrl}
+                onTranscribe={availableProviders.length ? handleRequestTranscribe : undefined}
+                isProcessing={isProcessing}
+                activeTranscriptionProvider={activeTranscriptionProvider}
+              />
+            </div>
           </Modal.Dialog>
         </Modal.Container>
-      </Modal.Backdrop >
-    </Modal >
+      </Modal.Backdrop>
+
+      <Modal isOpen={isProviderPickerOpen} onOpenChange={setIsProviderPickerOpen}>
+        <Modal.Backdrop className="bg-black/30 backdrop-blur-sm z-[109]" />
+        <Modal.Container className="z-[110] flex items-center justify-center p-4">
+          <Modal.Dialog className="w-full max-w-xl rounded-2xl border border-default-200 bg-background shadow-2xl">
+            <Modal.Header>
+              <div>
+                <Modal.Heading>Choose transcription model</Modal.Heading>
+                <p className="mt-1 text-sm text-default-500">
+                  Pick the provider for this manual transcription run.
+                </p>
+              </div>
+            </Modal.Header>
+            <Modal.Body className="space-y-4">
+              {providerCards.map((provider) => {
+                const isDefault = provider.id === preferredProvider;
+
+                return (
+                  <Card key={provider.id} className="rounded-2xl border border-default-200/80 bg-background/95">
+                    <Card.Content className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-base font-semibold text-foreground">{provider.title}</h4>
+                            {isDefault && <Chip size="sm" variant="soft" color="accent">Default</Chip>}
+                          </div>
+                          <p className="text-sm text-default-600">{provider.description}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs leading-5 text-default-500">{provider.note}</p>
+                      <Button
+                        className="w-full rounded-full"
+                        variant={provider.id === 'elevenlabs' ? 'primary' : 'secondary'}
+                        onPress={() => handleTranscribe(provider.id)}
+                        isDisabled={isProcessing}
+                      >
+                        Use {provider.title}
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                );
+              })}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="ghost" className="rounded-full" onPress={() => setIsProviderPickerOpen(false)}>
+                Cancel
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal>
+    </Modal>
   );
 }

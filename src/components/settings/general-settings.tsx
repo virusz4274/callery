@@ -1,8 +1,6 @@
-
 'use client';
-import React from 'react';
-import { Card, Button, Select, Label, ListBox, Spinner } from '@heroui/react';
-import { SettingsPage } from './settings-page';
+import { Button, Card, Chip, Label, ListBox, Select, Spinner } from '@heroui/react';
+import { SettingsSection } from './settings-section';
 
 const timezones = [
     { value: 'Etc/GMT+12', label: '(GMT-12:00) International Date Line West' },
@@ -40,11 +38,19 @@ interface GeneralSettingsProps {
 }
 
 export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }: GeneralSettingsProps) {
-
     return (
-        <SettingsPage title="Localization" description="Set your preferred language and timezone for date and time display.">
-            <Card className="bg-card/70 border-default-200">
-                <Card.Content className="space-y-4">
+        <SettingsSection title="Localization" description="Set your preferred language and timezone for date and time display.">
+            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+                <Card.Content className="space-y-5 p-5 sm:p-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Chip variant="soft" color="accent">
+                            Workspace defaults
+                        </Chip>
+                        <Chip variant="soft" color="default">
+                            Current timezone: {settings.timezone || 'Not set'}
+                        </Chip>
+                    </div>
+
                     <Select
                         placeholder="Select a timezone"
                         selectedKey={settings.timezone}
@@ -71,12 +77,12 @@ export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }
                         </Select.Popover>
                     </Select>
                 </Card.Content>
-                <Card.Footer>
-                    <Button onPress={onSave} isPending={isSaving} variant="primary">
+                <Card.Footer className="justify-end border-t border-default-100/80 px-5 py-4 md:px-6">
+                    <Button onPress={onSave} isPending={isSaving} variant="primary" className="rounded-full px-6 font-semibold">
                         {isSaving ? <Spinner color="current" size="sm" /> : "Save Preferences"}
                     </Button>
                 </Card.Footer>
             </Card>
-        </SettingsPage>
+        </SettingsSection>
     );
 }

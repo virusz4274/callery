@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import type { ContactResponse } from '@/lib/db/types';
 import { authFetch } from '@/lib/api-client';
 import useSWRInfinite from 'swr/infinite';
@@ -16,36 +16,35 @@ interface UseContactsResult {
     isLoadingMore: boolean;
 }
 
+interface ContactsPageResponse {
+    contacts: ContactResponse[];
+    totalCount: number;
+    limit: number;
+    skip: number;
+}
+
 const LIMIT = 20;
 
 /**
  * Hook to fetch contacts for the current user.
  * Uses the API route with Firebase ID token authentication.
  */
-export function useContacts(search?: string): UseContactsResult {
-    const trimmedSearch = search?.trim() || '';
-
-    const getKey = (pageIndex: number, previousPageData: ContactResponse[] | null) => {
+export function useContacts(): UseContactsResult {
+    const getKey = (pageIndex: number, previousPageData: ContactsPageResponse | null) => {
         // Validation: if previous page is empty, we reached the end
-        if (previousPageData && !previousPageData.length) return null;
+        if (previousPageData && previousPageData.contacts.length === 0) return null;
 
         // SWR key for this page
         const skip = pageIndex * LIMIT;
-        const params = new URLSearchParams({ limit: String(LIMIT), skip: String(skip) });
-        if (trimmedSearch) params.set('search', trimmedSearch);
-        return `/api/contacts?${params.toString()}`;
+        return `/api/contacts?limit=${LIMIT}&skip=${skip}`;
     };
 
-    const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactResponse[]>(
+    const { data: pages, error, size, setSize, mutate, isLoading } = useSWRInfinite<ContactsPageResponse>(
         getKey,
         async (url: string) => {
             const response = await authFetch(url);
             if (!response.ok) throw new Error('Failed to fetch contacts');
-            const result = await response.json();
-            // useSWRInfinite expects an array per page; attach totalCount metadata.
-            const contacts = result.contacts as ContactResponse[];
-            (contacts as any).totalCount = result.totalCount;
-            return contacts;
+            return (await response.json()) as ContactsPageResponse;
         },
         {
             revalidateOnFocus: false,
@@ -53,20 +52,11 @@ export function useContacts(search?: string): UseContactsResult {
         }
     );
 
-    // A new search targets a new result set: restart infinite scroll at page 1.
-    const prevSearch = React.useRef(trimmedSearch);
-    React.useEffect(() => {
-        if (prevSearch.current !== trimmedSearch) {
-            prevSearch.current = trimmedSearch;
-            setSize(1);
-        }
-    }, [trimmedSearch, setSize]);
-
     // Flatten pages into a single array
-    const contactsData = pages ? pages.flat() : null;
+    const contactsData = pages ? pages.flatMap((page) => page.contacts) : null;
 
     // Extract totalCount from the first page if available
-    const totalCount = pages && pages[0] ? (pages[0] as any).totalCount : 0;
+    const totalCount = pages?.[0]?.totalCount || 0;
 
     const hasMore = contactsData ? contactsData.length < totalCount : true;
     const isLoadingMore = !!(isLoading || (size > 0 && pages && typeof pages[size - 1] === 'undefined'));

@@ -1,82 +1,61 @@
 "use client";
 
-import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Button, Input } from "@heroui/react";
-import { Search } from 'lucide-react';
+import { Button } from "@heroui/react";
 import { Logo } from './icons';
 import { ThemeSwitcher } from './theme-switcher';
+import { NotificationCenter } from './notifications/notification-center';
 import { UserDropdown } from './navigation/user-dropdown';
 import { MainNav } from './navigation/main-nav';
 import { MobileMenu } from './navigation/mobile-menu';
 import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
+import { publicEnv } from '@/lib/public-env';
 
 type AppHeaderProps = {
   user: User | null;
   userProfile: UserProfile | null;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   onLogout: () => void;
+  showPrimaryNav?: boolean;
+  compact?: boolean;
 };
 
-export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLogout }: AppHeaderProps) {
-  const pathname = usePathname();
-
-  const getSearchPlaceholder = () => {
-    if (pathname === '/contacts') {
-      return 'Search contacts...';
-    }
-    return 'Search recordings...';
-  }
-
-  const isSearchablePage = ['/', '/contacts'].includes(pathname);
+export function AppHeader({
+  user,
+  userProfile,
+  onLogout,
+  showPrimaryNav = true,
+  compact = false,
+}: AppHeaderProps) {
+  const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full max-w-full mx-auto flex h-16 items-center px-4 md:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">
+      <div className={`w-full max-w-full mx-auto flex items-center px-4 md:px-6 ${compact ? 'h-14' : 'h-16'}`}>
 
-        {/* Mobile Menu */}
-        <MobileMenu
-          user={user}
-          userProfile={userProfile}
-          searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
-          isSearchablePage={isSearchablePage}
-          getSearchPlaceholder={getSearchPlaceholder}
-        />
+        {/* Mobile Menu - Only show if burger menu is enabled */}
+        {showHamburger && (
+          <MobileMenu
+            user={user}
+            userProfile={userProfile}
+          />
+        )}
 
         {/* Logo */}
         <div className="mr-4 flex">
           <Link href="/" className="flex items-center gap-2">
             <Logo className="h-8 w-8 text-primary" />
-            <span className="font-bold text-xl tracking-tight hidden xs:block">VoSift</span>
+            <span className="font-bold text-xl tracking-tight hidden xs:block">Callery</span>
           </Link>
         </div>
 
         {/* Desktop Navigation */}
-        <MainNav userProfile={userProfile} loggedIn={!!user} />
+        {showPrimaryNav && <MainNav userProfile={userProfile} loggedIn={!!user} />}
 
         <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
-          {/* Search Bar - Desktop */}
-          {user && isSearchablePage && (
-            <div className="hidden lg:flex w-full max-w-[240px]">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-default-400 z-10" />
-                <Input
-                  className="h-9 w-full text-small font-normal text-default-500 bg-default-100 dark:bg-default-50/10 shadow-none border-none focus:ring-2 focus:ring-primary rounded-md px-9"
-                  placeholder={getSearchPlaceholder()}
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  aria-label="Search"
-                />
-              </div>
-            </div>
-          )}
-
           <ThemeSwitcher />
+
+          {user && <NotificationCenter />}
 
           {user ? (
             <UserDropdown user={user} userProfile={userProfile} onLogout={onLogout} />
@@ -86,7 +65,7 @@ export function AppHeader({ user, userProfile, searchQuery, onSearchChange, onLo
                 Login
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="font-medium rounded-full px-6 bg-primary text-white">
+                <Button size="sm" variant="primary" className="rounded-full px-6 font-semibold">
                   Sign Up
                 </Button>
               </Link>

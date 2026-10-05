@@ -1,12 +1,217 @@
+import { normalizeEndDate } from './recordings';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { getAiService } from '@/services/ai';
 import { Recording } from '@/lib/db/types';
-import { normalizeEndDate } from '@/lib/db/recordings';
+import { logger } from '@/lib/logger';
 
-const aiService = getAiService();
+
+const VECTOR_SEARCH_INDEX = 'recordings_vector_search';
+const KEYWORD_MATCH_SCORE = 2;
+
+const SEARCH_RESULT_PROJECTION = {
+    _id: 1,
+    authSubject: 1,
+    contactId: 1,
+    contactName: 1,
+    phoneNumber: 1,
+    r2Key: 1,
+    fileName: 1,
+    standardizedDisplayName: 1,
+    fileSize: 1,
+    mimeType: 1,
+    duration: 1,
+    recordedAt: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    transcriptionStatus: 1,
+    summary: 1,
+    tags: 1,
+    isStarred: 1,
+    isArchived: 1,
+} as const;
 
 export interface SearchResult extends Recording {
     searchScore: number;
+}
+
+export type SemanticSearchMode = 'vector' | 'fallback';
+export type SemanticFallbackReason = 'embedding_unavailable' | 'vector_unavailable';
+
+function escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildKeywordPatterns(query: string): string[] {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+        return [];
+    }
+
+    const termPatterns = trimmedQuery
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter((part) => part.length >= 3);
+
+    return [...new Set([trimmedQuery, ...termPatterns].map(escapeRegex))];
+}
+
+function buildKeywordSearchQuery(query: string, authSubject: string): Record<string, unknown> {
+    const patterns = buildKeywordPatterns(query);
+
+    if (patterns.length === 0) {
+        return {
+            authSubject,
+            isArchived: { $ne: true },
+            _id: { $exists: false },
+        };
+    }
+
+    const searchableFields = ['summary', 'contactName', 'phoneNumber', 'fileName', 'standardizedDisplayName', 'tags', 'fullTranscript.text'];
+
+    return {
+        authSubject,
+        isArchived: { $ne: true },
+        $or: patterns.flatMap((pattern) =>
+            searchableFields.map((field) => ({
+                [field]: { $regex: pattern, $options: 'i' },
+            }))
+        ),
+    };
+}
+
+async function searchRecordingsByKeyword(
+    query: string,
+    authSubject: string,
+    windowLimit: number
+): Promise<{ results: SearchResult[]; totalCount: number }> {
+    const db = await getMongoDb();
+    const keywordQuery = buildKeywordSearchQuery(query, authSubject);
+    const totalCount = await db.collection<Recording>(Collections.RECORDINGS).countDocuments(keywordQuery);
+
+    if (totalCount === 0 || windowLimit <= 0) {
+        return { results: [], totalCount };
+    }
+
+    const results = await db
+        .collection<Recording>(Collections.RECORDINGS)
+        .find(keywordQuery, { projection: SEARCH_RESULT_PROJECTION })
+        .sort({ recordedAt: -1 })
+        .limit(windowLimit)
+        .toArray();
+
+    return {
+        results: results.map((recording) => ({
+            ...recording,
+            searchScore: KEYWORD_MATCH_SCORE,
+        })),
+        totalCount,
+    };
+}
+
+export function mergeSearchResults(keywordResults: SearchResult[], vectorResults: SearchResult[]): SearchResult[] {
+    const merged = new Map<string, SearchResult>();
+
+    for (const result of vectorResults) {
+        merged.set(result._id.toString(), result);
+    }
+
+    for (const result of keywordResults) {
+        const key = result._id.toString();
+        if (!merged.has(key)) {
+            merged.set(key, result);
+        }
+    }
+
+    return [...merged.values()];
+}
+
+/**
+ * Semantic search for recordings using Vector Search with keyword fallback.
+ */
+export async function searchRecordingsByVector(
+    query: string,
+    authSubject: string,
+    page: number = 1,
+    pageSize: number = 10
+): Promise<{
+    results: SearchResult[];
+    totalCount: number;
+    mode: SemanticSearchMode;
+    fallbackReason?: SemanticFallbackReason;
+}> {
+    if (!query) return { results: [], totalCount: 0, mode: 'vector' };
+
+    try {
+        const db = await getMongoDb();
+        const safePage = Math.max(1, page);
+        const safePageSize = Math.max(1, pageSize);
+        const pageWindow = safePage * safePageSize;
+        const pageStart = (safePage - 1) * safePageSize;
+
+        const keywordSearch = await searchRecordingsByKeyword(query, authSubject, pageWindow);
+        const queryEmbedding = await getAiService().generateEmbedding(query);
+        let vectorResults: SearchResult[] = [];
+        let mode: SemanticSearchMode = 'vector';
+        let fallbackReason: SemanticFallbackReason | undefined;
+
+        if (!queryEmbedding || queryEmbedding.length === 0) {
+            logger.warn('Empty embedding generated for query, falling back to keyword search:', query);
+            mode = 'fallback';
+            fallbackReason = 'embedding_unavailable';
+        } else {
+            try {
+                const vectorWindow = Math.max(pageWindow * 3, 25);
+                const numCandidates = Math.max(100, vectorWindow * 10);
+                const aggregation = [
+                    {
+                        $vectorSearch: {
+                            index: VECTOR_SEARCH_INDEX,
+                            path: 'summaryEmbedding',
+                            queryVector: queryEmbedding,
+                            numCandidates,
+                            limit: vectorWindow,
+                            filter: {
+                                $and: [
+                                    { authSubject: { $eq: authSubject } },
+                                    { isArchived: { $ne: true } },
+                                ],
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            ...SEARCH_RESULT_PROJECTION,
+                            searchScore: { $meta: 'vectorSearchScore' },
+                        },
+                    },
+                ];
+
+                vectorResults = await db
+                    .collection<Recording>(Collections.RECORDINGS)
+                    .aggregate<SearchResult>(aggregation)
+                    .toArray();
+            } catch (error) {
+                logger.error('Vector search unavailable, returning keyword results only:', error);
+                mode = 'fallback';
+                fallbackReason = 'vector_unavailable';
+            }
+        }
+
+        const mergedResults = mergeSearchResults(keywordSearch.results, vectorResults);
+        if (mergedResults.length === 0) {
+            return { results: [], totalCount: 0, mode, fallbackReason };
+        }
+
+        return {
+            results: mergedResults.slice(pageStart, pageStart + safePageSize),
+            totalCount: Math.max(keywordSearch.totalCount, mergedResults.length),
+            mode,
+            fallbackReason,
+        };
+    } catch (error) {
+        logger.error('Vector search error:', error);
+        throw new Error('Failed to perform vector search');
+    }
 }
 
 export interface PaginatedSearchResult {
@@ -29,136 +234,7 @@ export interface AtlasSearchOptions {
 export const RECORDINGS_TEXT_SEARCH_INDEX = 'recordings_text_search';
 export const RECORDINGS_VECTOR_SEARCH_INDEX = 'recordings_vector_search';
 
-// Cached stored-vector width. Embedding models each emit a fixed dimension;
-// switching models (or AI providers) without re-embedding breaks vector
-// search, so the first search per process learns the stored width and every
-// search after that fails fast with an actionable error on mismatch.
-let knownStoredDims: number | undefined;
 
-async function assertEmbeddingDimsMatch(
-    db: Awaited<ReturnType<typeof getMongoDb>>,
-    queryDims: number,
-): Promise<void> {
-    if (knownStoredDims === undefined) {
-        const sample = await db
-            .collection<Recording>(Collections.RECORDINGS)
-            .findOne(
-                { summaryEmbedding: { $exists: true, $ne: [] } },
-                { projection: { summaryEmbedding: 1 } },
-            );
-        if (!sample?.summaryEmbedding?.length) return; // nothing stored yet — nothing to compare
-        knownStoredDims = sample.summaryEmbedding.length;
-    }
-    if (queryDims !== knownStoredDims) {
-        throw new Error(
-            `Embedding dimension mismatch: query has ${queryDims} dims but stored vectors have ${knownStoredDims}. ` +
-                'The embedding model changed — restore the previous model or re-embed existing recordings.',
-        );
-    }
-}
-
-const SEARCH_PROJECT = {
-    _id: 1,
-    authSubject: 1,
-    contactId: 1,
-    contactName: 1,
-    phoneNumber: 1,
-    r2Key: 1,
-    fileName: 1,
-    fileSize: 1,
-    mimeType: 1,
-    duration: 1,
-    recordedAt: 1,
-    createdAt: 1,
-    updatedAt: 1,
-    transcriptionStatus: 1,
-    summary: 1,
-    tags: 1,
-    isStarred: 1,
-    isArchived: 1,
-};
-
-/**
- * Semantic search for recordings using Vector Search.
- *
- * `$vectorSearch` has no native skip, so pagination is implemented by
- * over-fetching (`skip + limit + 1`) and slicing. `totalCount` is exact
- * when the window reaches the end of the result set; otherwise it reports
- * `skip + page.length + 1` as an "at least" count so callers can offer a
- * next page (same convention as Atlas `$search` examples for search-after).
- */
-export async function searchRecordingsByVector(
-    query: string,
-    authSubject: string,
-    limit: number = 20,
-    skip: number = 0
-): Promise<PaginatedSearchResult> {
-    if (!query) return { results: [], totalCount: 0 };
-
-    try {
-        const db = await getMongoDb();
-        const queryEmbedding = await aiService.generateEmbedding(query, { authSubject });
-
-        if (!queryEmbedding || queryEmbedding.length === 0) {
-            console.warn('Empty embedding generated for query:', query);
-            return { results: [], totalCount: 0 };
-        }
-
-        await assertEmbeddingDimsMatch(db, queryEmbedding.length);
-
-        const safeSkip = Math.max(0, skip);
-        const safeLimit = Math.min(Math.max(1, limit), 100);
-        const fetchLimit = safeSkip + safeLimit + 1;
-
-        const aggregation = [
-            {
-                $vectorSearch: {
-                    index: RECORDINGS_VECTOR_SEARCH_INDEX,
-                    path: 'summaryEmbedding',
-                    queryVector: queryEmbedding,
-                    numCandidates: Math.max(100, fetchLimit * 10),
-                    limit: fetchLimit,
-                    filter: {
-                        authSubject: {
-                            $eq: authSubject
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    ...SEARCH_PROJECT,
-                    searchScore: { $meta: 'vectorSearchScore' }
-                }
-            }
-        ];
-
-        const fetched = await db
-            .collection<Recording>(Collections.RECORDINGS)
-            .aggregate(aggregation)
-            .toArray() as SearchResult[];
-
-        const hasMore = fetched.length > safeSkip + safeLimit;
-        const results = fetched.slice(safeSkip, safeSkip + safeLimit);
-        const totalCount = hasMore ? safeSkip + results.length + 1 : safeSkip + results.length;
-
-        return { results, totalCount };
-    } catch (error) {
-        console.error('Vector search error:', error);
-        throw new Error('Failed to perform vector search');
-    }
-}
-
-/**
- * Keyword search for recordings using Atlas Search (`$search`).
- *
- * Filters (owner, archived, contact, date range) are applied inside the
- * `$search` compound filter where indexed, with a `$match` stage covering
- * the rest. Returns the page plus an exact total via `$count`.
- *
- * Throws when Atlas Search is unavailable (self-hosted MongoDB, missing
- * index) so callers can fall back to the regex query path.
- */
 export async function searchRecordingsByAtlas(
     query: string,
     authSubject: string,
@@ -206,12 +282,14 @@ export async function searchRecordingsByAtlas(
     };
 
     // Post-search match for filters not covered by the search index.
-    const match: Record<string, unknown> = {};
+    const match: Record<string, unknown> = { authSubject };
     if (!options?.includeArchived) {
         match.isArchived = { $ne: true };
     }
     if (options?.contactName === 'Unknown') {
         match.contactName = null;
+    } else if (options?.contactName) {
+        match.contactName = options.contactName;
     }
     if (options?.startDate || options?.endDate) {
         const dateQuery: Record<string, unknown> = {};
@@ -243,7 +321,7 @@ export async function searchRecordingsByAtlas(
     if (sortStage.$sort) resultsPipeline.push(sortStage);
     resultsPipeline.push({ $skip: skip }, { $limit: limit });
     resultsPipeline.push({
-        $project: { ...SEARCH_PROJECT, searchScore: { $meta: 'searchScore' } },
+        $project: { ...SEARCH_RESULT_PROJECTION, searchScore: { $meta: 'searchScore' } },
     });
 
     const countPipeline = [...basePipeline, { $count: 'total' }];

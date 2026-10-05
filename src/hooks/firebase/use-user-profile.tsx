@@ -1,141 +1,78 @@
 'use client';
-
-import { useState, useEffect, useRef } from 'react';
-import type { AppUser } from '@/lib/auth/types';
+import useSWR from 'swr';
+import type { AppUser as FirebaseUser } from '@/lib/auth/types';
 import type { User } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
 
-const MAX_RETRIES = 3;
-
-interface UseUserProfileResult {
-    userProfile: User | null;
-    isProfileLoading: boolean;
-    profileError: Error | null;
-    refetch: () => Promise<void>;
+export interface EnsureUserProfileResult {
+    success: boolean;
+    wasCreated: boolean;
+    status?: number;
+    error?: string;
 }
 
-/**
- * Hook to fetch the user profile from MongoDB via API.
- * @param user The provider-agnostic auth user object.
- */
-export function useUserProfile(user: AppUser | null): UseUserProfileResult {
-    const [userProfile, setUserProfile] = useState<User | null>(null);
-    const [isProfileLoading, setIsProfileLoading] = useState(true);
-    const [profileError, setProfileError] = useState<Error | null>(null);
-    const retryCount = useRef(0);
-
-    const fetchProfile = async () => {
-        if (!user) {
-            setUserProfile(null);
-            setIsProfileLoading(false);
-            retryCount.current = 0;
-            return;
-        }
-
-        setIsProfileLoading(true);
-        setProfileError(null);
-
-        try {
+export function useUserProfile(user: FirebaseUser | null) {
+    const { data, error, isLoading, mutate } = useSWR<User>(
+        user ? ['user-profile', user.id] : null,
+        async () => {
             let response = await authFetch('/api/user/profile');
-
-            // Handle 404 (User not found in MongoDB) by attempting to create it
-            if (response.status === 404) {
-                console.log('User profile not found in MongoDB. Attempting to ensure profile...');
-                // Throws the server's message (e.g. signups disabled) on failure.
-                await ensureUserProfile(user);
-
-                // Small delay to ensure DB write propagation
-                await new Promise(resolve => setTimeout(resolve, 500));
-                // Retry fetching the profile
+            if (response.status === 404 && user) {
+                const result = await ensureUserProfile(user);
+                if (!result.success) throw new Error(result.error || 'Account setup failed');
                 response = await authFetch('/api/user/profile');
             }
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    setUserProfile(null);
-                    retryCount.current = 0;
-                    return;
-                }
-                throw new Error('Failed to fetch user profile');
-            }
-
-            const data = await response.json();
-            setUserProfile(data.profile);
-            retryCount.current = 0; // Reset on success
-        } catch (err) {
-            console.error('Error fetching user profile:', err);
-            setProfileError(err instanceof Error ? err : new Error('Unknown error'));
-            setUserProfile(null);
-        } finally {
-            setIsProfileLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        retryCount.current = 0; // Reset retry count when user changes
-        // Deferred to a macrotask: calling the component-scope fetch (which
-        // sets state synchronously) directly here trips set-state-in-effect.
-        const timer = setTimeout(() => {
-            void fetchProfile();
-        }, 0);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.id]);
-
-    // Bounded retry logic - only retry if under max attempts. A disabled-signups
-    // refusal is permanent for this session, so don't spin on it.
-    useEffect(() => {
-        if (profileError && retryCount.current < MAX_RETRIES && profileError.message !== 'New signups are currently disabled.') {
-            const delay = 500 * Math.pow(2, retryCount.current); // Exponential backoff
-            const timer = setTimeout(() => {
-                retryCount.current += 1;
-                console.log(`Retrying profile fetch (attempt ${retryCount.current}/${MAX_RETRIES})...`);
-                fetchProfile();
-            }, delay);
-            return () => clearTimeout(timer);
-        } else if (profileError && retryCount.current >= MAX_RETRIES) {
-            console.error(`Max retries (${MAX_RETRIES}) reached for fetching user profile. Giving up.`);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profileError]);
-
+            if (!response.ok) throw new Error('Failed to fetch user profile');
+            return (await response.json()).profile as User;
+        },
+        { errorRetryCount: 3, errorRetryInterval: 1000, revalidateOnFocus: true },
+    );
     return {
-        userProfile,
-        isProfileLoading,
-        profileError,
-        refetch: fetchProfile,
+        userProfile: user ? data ?? null : null,
+        isProfileLoading: !!user && isLoading,
+        profileError: error instanceof Error ? error : null,
+        refetch: async () => { await mutate(); },
     };
 }
 
-
-/**
- * Ensure user profile exists in MongoDB.
- * Called after auth login (any provider). Resolves true when the profile
- * exists; throws the server's message otherwise so callers can surface it.
- */
 export async function ensureUserProfile(
-    user: { id: string; email: string | null; name?: string | null },
+    user: FirebaseUser,
     additionalData?: { firstName?: string; lastName?: string }
-): Promise<boolean> {
-    const response = await authFetch('/api/user/ensure-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            authSubject: user.id,
-            email: user.email,
-            displayName: user.name ?? null,
-            firstName: additionalData?.firstName,
-            lastName: additionalData?.lastName,
-        }),
-    });
+): Promise<EnsureUserProfileResult> {
+    try {
+        const response = await authFetch('/api/user/ensure-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                authSubject: user.id,
+                email: user.email,
+                displayName: user.name,
+                firstName: additionalData?.firstName,
+                lastName: additionalData?.lastName,
+            }),
+        });
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Failed to create user profile');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Failed to ensure user profile:', errorData.details || errorData.error || response.statusText);
+            return {
+                success: false,
+                wasCreated: false,
+                status: response.status,
+                error: errorData.details || errorData.error || response.statusText,
+            };
+        }
+
+        const data = await response.json();
+        return {
+            success: true,
+            wasCreated: Boolean(data.wasCreated),
+        };
+    } catch (error) {
+        console.error('Error ensuring user profile:', error);
+        return {
+            success: false,
+            wasCreated: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
     }
-
-    // Any 2xx means the profile now exists (created now or by a
-    // concurrent request) — wasCreated is informational only.
-    await response.json().catch(() => ({}));
-    return true;
 }

@@ -8,15 +8,7 @@
  */
 
 import type { Recording, RecordingResponse, Contact, ContactResponse, User, UserResponse } from './types';
-
-/**
- * Best-effort ISO conversion: legacy documents may carry date fields as
- * strings, and one bad row must not 500 an entire list response.
- */
-function toIso(value: Date | string): string {
-    if (value instanceof Date) return value.toISOString();
-    return new Date(value).toISOString();
-}
+import { hasStoredGoogleRefreshToken } from '@/services/google/refresh-token-crypto';
 
 // ============================================================================
 // Recording Converters
@@ -49,15 +41,19 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         phoneNumber: recording.phoneNumber,
         r2Key: recording.r2Key,
         fileName: recording.fileName,
+        standardizedDisplayName: recording.standardizedDisplayName,
         fileSize: recording.fileSize,
         mimeType: recording.mimeType,
         duration: recording.duration,
-        recordedAt: toIso(recording.recordedAt),
-        createdAt: toIso(recording.createdAt),
-        updatedAt: toIso(recording.updatedAt),
+        recordedAt: recording.recordedAt.toISOString(),
+        createdAt: recording.createdAt.toISOString(),
+        updatedAt: recording.updatedAt.toISOString(),
         transcriptionStatus: recording.transcriptionStatus,
         fullTranscript: recording.fullTranscript,
         languageCode: recording.languageCode,
+        transcriptionProvider: recording.transcriptionProvider,
+        transcriptionModel: recording.transcriptionModel,
+        transcriptionCostMultiplier: recording.transcriptionCostMultiplier,
         summary: recording.summary,
         tags: recording.tags,
         isStarred: recording.isStarred,
@@ -88,10 +84,10 @@ export function toContactResponse(contact: Contact): ContactResponse {
         lastName: contact.lastName,
         jobTitle: contact.jobTitle,
         company: contact.company,
-        createdAt: toIso(contact.createdAt),
-        updatedAt: toIso(contact.updatedAt),
+        createdAt: contact.createdAt.toISOString(),
+        updatedAt: contact.updatedAt.toISOString(),
         totalRecordings: contact.totalRecordings,
-        lastRecordingAt: contact.lastRecordingAt ? toIso(contact.lastRecordingAt) : null,
+        lastRecordingAt: contact.lastRecordingAt?.toISOString() || null,
     };
 }
 
@@ -105,7 +101,7 @@ export function toContactResponse(contact: Contact): ContactResponse {
  * @param user - The MongoDB User document
  * @returns UserResponse suitable for JSON serialization
  */
-export function toUserResponse(user: User): UserResponse {
+export function toUserResponse(user: User, planName: string): UserResponse {
     return {
         id: user._id.toString(),
         email: user.email,
@@ -114,9 +110,10 @@ export function toUserResponse(user: User): UserResponse {
         name: user.name,
         phoneNumber: user.phoneNumber,
         role: user.role,
-        plan: user.plan,
+        planKey: user.planKey,
+        planName,
         timezone: user.timezone,
-        createdAt: toIso(user.createdAt),
+        createdAt: user.createdAt.toISOString(),
         notificationSettings: user.notificationSettings,
         storageSettings: user.storageSettings,
         storageUsed: user.storageUsed,
@@ -125,7 +122,28 @@ export function toUserResponse(user: User): UserResponse {
         transcriptionAllocation: user.transcriptionAllocation,
         transcriptionSettings: user.transcriptionSettings,
         billingSettings: user.billingSettings || { allowOverage: false },
+        stripeSubscriptionStatus: user.stripeSubscriptionStatus,
+        trialEndsAt: user.trialEndsAt?.toISOString(),
         totalRecordings: user.totalRecordings,
-        lastLoginAt: user.lastLoginAt ? toIso(user.lastLoginAt) : undefined,
+        lastLoginAt: user.lastLoginAt?.toISOString(),
+        googleSync: user.googleSync
+            ? {
+                status: user.googleSync.status,
+                connectedAt: user.googleSync.connectedAt?.toISOString(),
+                lastAttemptAt: user.googleSync.lastAttemptAt?.toISOString(),
+                lastSyncedAt: user.googleSync.lastSyncedAt?.toISOString(),
+                lastError: user.googleSync.lastError || null,
+                lastImportedCount: user.googleSync.lastImportedCount,
+                hasRefreshToken: hasStoredGoogleRefreshToken(user.googleSync),
+                scopes: user.googleSync.scopes,
+                tokenExpiresAt: user.googleSync.tokenExpiresAt?.toISOString(),
+                duplicatePhoneIssueCount: user.googleSync.duplicatePhoneIssueCount,
+                duplicatePhoneIssues: user.googleSync.duplicatePhoneIssues,
+                duplicatePhoneIssueDetectedAt: user.googleSync.duplicatePhoneIssueDetectedAt?.toISOString(),
+            }
+            : {
+                status: 'not_connected',
+                hasRefreshToken: false,
+            },
     };
 }

@@ -18,6 +18,7 @@ async function createTestRecording() {
             phoneNumber: '+1-555-0123',
             r2Key: 'test-user-123/2026/01/test_recording.mp3',
             fileName: 'test_recording.mp3',
+            standardizedDisplayName: 'John_Doe_2026-01-01_12-00-00',
             fileSize: 1024000, // ~1MB
             mimeType: 'audio/mpeg',
             duration: 120, // 2 minutes

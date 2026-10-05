@@ -1,12 +1,13 @@
 // Local (self-hosted) implementation of the server auth seam, powered by
 // better-auth with sessions stored in the existing MongoDB.
+import { APIError } from "better-auth/api";
 import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { bearer } from 'better-auth/plugins/bearer';
 import { nextCookies } from 'better-auth/next-js';
 import { MongoClient } from 'mongodb';
-import { adminEmails, emailProvider, mongoUri } from '@/lib/config';
-import { ensureUserProfile, setUserRole } from '@/lib/db/users';
+import { emailProvider, mongoUri } from '@/lib/config';
+import { ensureUserProfile, findUserByAuthSubject, getRequiredSystemSettings } from '@/lib/db/users';
 import { sendAuthEmail } from '@/lib/email';
 import type { SessionUser } from './types';
 
@@ -73,17 +74,32 @@ function createLocalAuth() {
         databaseHooks: {
             user: {
                 create: {
+                    before: async (user) => {
+                        if (!(await getRequiredSystemSettings()).allowSignups) {
+                            throw new APIError('FORBIDDEN', { message: 'New signups are currently disabled.' });
+                        }
+                        return { data: { ...user, emailVerified: user.emailVerified || !emailsEnabled } };
+                    },
                     after: async (user) => {
-                        const { user: profile } = await ensureUserProfile(
+                        await ensureUserProfile(
                             user.id,
                             user.email,
                             user.name ?? undefined,
                             user.image ?? undefined,
                             'local',
+                            user.emailVerified || !emailsEnabled,
                         );
-                        if (adminEmails().includes(user.email)) {
-                            await setUserRole(profile.authSubject, 'admin');
+                    },
+                },
+            },
+            session: {
+                create: {
+                    before: async (session) => {
+                        const profile = await findUserByAuthSubject(session.userId);
+                        if (profile?.disabled || profile?.softDelete?.isDeleted) {
+                            throw new APIError('FORBIDDEN', { message: 'Account disabled.' });
                         }
+                        return { data: session };
                     },
                 },
             },
@@ -118,6 +134,7 @@ export async function getLocalSessionUser(headers: Headers): Promise<SessionUser
             name: session.user.name ?? null,
             image: session.user.image ?? null,
             provider: 'local',
+            emailVerified: session.user.emailVerified || emailProvider() === 'none',
         };
     } catch {
         return null;

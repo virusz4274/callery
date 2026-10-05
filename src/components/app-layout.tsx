@@ -1,50 +1,114 @@
 
 "use client";
 import { useToast } from '@/components/toast-provider';
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AppHeader } from '@/components/app-header';
 import { MobileNav } from './mobile-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ClientOnly } from './client-only';
-import { EmailVerificationAlert } from './email-verification-alert';
 import { useUser, useAuthActions } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/firebase/use-user-profile';
-import { setDisplayTimeZone } from '@/lib/timezone';
 import { Spinner } from '@heroui/react';
-import { AnnouncementBanner } from '@/components/announcement-banner';
-import { BillingAlert } from '@/components/billing-alert';
-
-import { SystemSettingsResponse } from '@/lib/db/types';
+import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
+import { PublicHeader } from '@/components/public-header';
+import { ProductSidebar } from '@/components/navigation/product-sidebar';
+import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
+import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
+import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
+import { publicEnv } from '@/lib/public-env';
 
 type AppLayoutProps = {
   children: React.ReactNode;
-  systemSettings?: SystemSettingsResponse;
 };
 
-export function AppLayout({ children, systemSettings }: AppLayoutProps) {
+const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
+const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance']);
+const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance', '/~offline']);
+const MARKETING_LAYOUT_PATHS = new Set([
+  '/',
+  '/pricing',
+  '/support',
+  '/changelog',
+  '/privacy-policy',
+  '/terms-of-service',
+]);
+const PROTECTED_PATH_PREFIXES = ['/recordings', '/upload', '/contacts', '/files', '/settings'];
+
+export function AppLayout({ children }: AppLayoutProps) {
   const { toast } = useToast();
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
   const isMobile = useIsMobile();
 
   // Data fetching and auth logic is now in the layout container
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
-  const actions = useAuthActions();
+  const auth = useAuthActions();
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  // Publish the profile timezone for all ClientFormattedDate renders.
   useEffect(() => {
-    setDisplayTimeZone(userProfile?.timezone);
-  }, [userProfile?.timezone]);
+    if (isUserLoading) {
+      return;
+    }
+
+    if (user && pathname === '/') {
+      const search = searchParams.toString();
+      router.replace(search ? `/recordings?${search}` : '/recordings');
+    }
+  }, [isUserLoading, pathname, router, searchParams, user]);
+
+  useEffect(() => {
+    const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
+
+    if (!isUserLoading && !user && isProtectedProductRoute) {
+      router.replace(buildLoginRedirectHref(buildCurrentPath(pathname, searchParams.toString())));
+    }
+  }, [isUserLoading, pathname, router, searchParams, user]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPublicSettings() {
+      try {
+        const response = await fetch('/api/system-settings/public', {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          if (isMounted) {
+            setMaintenanceMode(false);
+          }
+          return;
+        }
+
+        const data = (await response.json()) as { maintenanceMode?: boolean };
+        if (isMounted) {
+          setMaintenanceMode(Boolean(data.maintenanceMode));
+        }
+      } catch (error) {
+        void error;
+        if (isMounted) {
+          setMaintenanceMode(false);
+        }
+      }
+    }
+
+    void loadPublicSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Maintenance Mode Check
   useEffect(() => {
-    if (systemSettings?.maintenanceMode) {
-      if (pathname === '/maintenance' || pathname?.startsWith('/login') || pathname?.startsWith('/api')) {
+    if (maintenanceMode) {
+      if (MAINTENANCE_ALLOWED_PATHS.has(pathname)) {
         return;
       }
 
@@ -64,45 +128,37 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
         router.replace('/');
       }
     }
-  }, [systemSettings, pathname, isUserLoading, isProfileLoading, userProfile, router]);
+  }, [maintenanceMode, pathname, isUserLoading, isProfileLoading, userProfile, router]);
 
-  // State for search query
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const showHamburger = process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU === 'true';
-
-  // Effect to update URL when searchQuery changes (debounced so each
-  // keystroke doesn't trigger a server-side search + navigation).
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      if (searchQuery) {
-        params.set('q', searchQuery);
-      } else {
-        params.delete('q');
-      }
-
-      const queryString = params.toString();
-      const newPath = queryString ? `${pathname}?${queryString}` : pathname;
-
-      startTransition(() => {
-        router.replace(newPath, { scroll: false });
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, pathname, router]);
-
-  // Clear search when navigating to a new page (render-time state
-  // adjustment, the endorsed alternative to setState inside an effect).
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (prevPathname !== pathname) {
-    setPrevPathname(pathname);
-    setSearchQuery('');
-  }
+  const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
+  const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
+  const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
+  const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+  const showProductChrome = Boolean(user) && !isMinimalLayoutRoute;
+  const showPublicHeader = !user && !isMinimalLayoutRoute;
+  const showAppHeader = Boolean(user) && !isMinimalLayoutRoute;
+  const showDesktopSidebar = showProductChrome && !pathname.startsWith('/admin');
+  const showBottomNav = showProductChrome && isMobile && !showHamburger && !pathname.startsWith('/admin');
+  const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
+  const mainClassName = isMinimalLayoutRoute || isMarketingLayoutRoute
+    ? 'flex flex-1 flex-col'
+    : `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-6 md:py-6 ${
+        showBottomNav
+          ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
+          : 'pb-6'
+      }`;
+  const desktopProductMainClassName = `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-8 md:py-6 ${
+    showBottomNav
+      ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
+      : 'pb-6'
+  }`;
 
   const handleLogout = async () => {
     try {
-      await actions.signOut();
+      await auth.signOut();
+      await clearPrivatePwaCaches();
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -113,7 +169,7 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
   const handleResendVerification = async () => {
     if (!user) return;
     try {
-      await actions.sendVerificationEmail();
+      await auth.sendVerificationEmail();
       toast({ title: 'Verification Email Sent', description: 'Please check your inbox for the verification link.', status: 'success' });
     } catch (error: unknown) {
       toast({ title: 'Error', description: (error as Error).message || 'Failed to send verification email. Please try again.', status: 'danger' });
@@ -128,28 +184,83 @@ export function AppLayout({ children, systemSettings }: AppLayoutProps) {
     )
   }
 
+  if (user && pathname === '/') {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner size="lg" color="current" className="text-primary" />
+      </div>
+    );
+  }
+
+  if (!isUserLoading && !user && isProtectedProductRoute) {
+    return (
+      <div className="flex min-h-dvh w-full flex-col bg-background">
+        <PublicHeader />
+        <main className="flex flex-1 items-center justify-center px-4 py-12">
+          <Spinner size="lg" color="current" className="text-primary" />
+        </main>
+      </div>
+    );
+  }
+
+  if (showDesktopSidebar) {
+    return (
+      <div className="flex min-h-dvh w-full bg-background">
+        <ProductSidebar userProfile={userProfile} />
+        <div className="flex min-h-dvh flex-1 flex-col">
+          {showAppHeader && (
+            <AppHeader
+              user={user}
+              userProfile={userProfile}
+              onLogout={handleLogout}
+              showPrimaryNav={false}
+              compact
+            />
+          )}
+          <main className={desktopProductMainClassName}>
+            {showProductChrome && (
+              <WorkspaceStatusRail
+                user={user}
+                userProfile={userProfile}
+                onResendVerification={handleResendVerification}
+              />
+            )}
+            {children}
+          </main>
+        </div>
+        <ClientOnly>
+          {showInstallPrompt && <InstallPwaPrompt />}
+          {showBottomNav && <MobileNav />}
+        </ClientOnly>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <AppHeader
-        user={user}
-        userProfile={userProfile}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onLogout={handleLogout}
-      />
+    <div className="flex min-h-dvh w-full flex-col bg-background">
+      {showPublicHeader && <PublicHeader />}
 
-
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 pb-24 md:pb-6">
-        <EmailVerificationAlert
+      {showAppHeader && (
+        <AppHeader
           user={user}
-          onResend={handleResendVerification}
+          userProfile={userProfile}
+          onLogout={handleLogout}
         />
-        <BillingAlert userProfile={userProfile} />
-        <AnnouncementBanner />
+      )}
+
+      <main className={mainClassName}>
+        {showProductChrome && (
+          <WorkspaceStatusRail
+            user={user}
+            userProfile={userProfile}
+            onResendVerification={handleResendVerification}
+          />
+        )}
         {children}
       </main>
       <ClientOnly>
-        {isMobile && !showHamburger && <MobileNav />}
+        {showInstallPrompt && <InstallPwaPrompt />}
+        {showBottomNav && <MobileNav />}
       </ClientOnly>
     </div>
   );

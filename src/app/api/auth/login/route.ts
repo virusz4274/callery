@@ -1,66 +1,84 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { authProvider } from '@/lib/config';
+import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
+// import { getAdminAuth } from '@/lib/firebase/admin';
+import { cookies } from 'next/headers';
+import { findUserByAuthSubject } from '@/lib/db/users';
+import { resolveProfileEnsureFailurePolicy } from './profile-ensure-policy';
+import { env } from '@/lib/env';
 
-/**
- * Firebase-mode login: exchanges a Firebase ID token for a session cookie.
- * Returns 404 unless AUTH_PROVIDER=firebase (local mode uses better-auth
- * endpoints under /api/auth/* instead).
- */
 export async function POST(request: NextRequest) {
-    if (authProvider() !== 'firebase') {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
+    if (authProvider() !== 'firebase') return NextResponse.json({ error: 'Use local authentication on this instance.' }, { status: 404 });
     try {
-        const { idToken } = await request.json();
+        let idToken: unknown;
+        try {
+            ({ idToken } = await request.json());
+        } catch {
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+        }
 
         if (!idToken) {
             return NextResponse.json({ error: 'ID token required' }, { status: 400 });
         }
 
+        if (typeof idToken !== 'string') {
+            return NextResponse.json({ error: 'ID token must be a string' }, { status: 400 });
+        }
+
         // Verify the ID token and create a session cookie
-        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days (milliseconds for Firebase)
+        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+        const maxAgeSeconds = Math.floor(expiresIn / 1000);
 
         const { getAdminAuth } = await import('@/lib/firebase/admin');
         const auth = getAdminAuth();
 
         // Verify the token to get user details
         const decodedToken = await auth.verifyIdToken(idToken);
-        const { uid, email, name, picture } = decodedToken;
+        const { uid, email, name, picture, email_verified } = decodedToken;
 
         if (!email) {
-            console.error('Email is missing in ID token');
+            logger.error('Email is missing in ID token');
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        // Ensure the user exists in MongoDB
+        const existingUser = await findUserByAuthSubject(uid);
+        if (existingUser?.disabled || existingUser?.softDelete?.isDeleted) return NextResponse.json({ error: 'Account disabled.' }, { status: 403 });
+        let profileEnsureFailed = false;
         try {
             const { ensureUserProfile } = await import('@/lib/db/users');
-            await ensureUserProfile(uid, email, name, picture);
+            await ensureUserProfile(uid, email, name, picture, 'firebase', email_verified);
         } catch (dbError) {
-            console.error('Failed to ensure user profile:', dbError);
-            // We continue even if DB sync fails, but log it. 
-            // Ideally we might want to fail the login or handle it gracefully?
-            // For now, let's allow login but the user might face issues later (like the upload one).
-            // Actually, if we fail here, the client sees an error and retries or shows a message.
-            // Given the user's issue ("User not found"), we probably WANT to fail hard or ensure it works.
-            // But let's just log for now to avoid blocking login if DB is momentarily down, 
-            // though critical features depend on it.
-            // On second thought, let's return 500 if we can't create the user, 
-            // because the app is broken without a user record.
-            return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 });
+            const message = dbError instanceof Error ? dbError.message : String(dbError);
+            const failurePolicy = resolveProfileEnsureFailurePolicy({
+                hasExistingUser: Boolean(existingUser),
+                errorMessage: message,
+            });
+
+            if (failurePolicy.kind === 'reject') {
+                if (failurePolicy.status === 503) {
+                    logger.error('Failed to provision user profile during first login:', dbError);
+                }
+
+                return NextResponse.json(
+                    { error: failurePolicy.error },
+                    { status: failurePolicy.status }
+                );
+            }
+
+            profileEnsureFailed = failurePolicy.profileEnsureFailed;
+            logger.error('Failed to ensure user profile during login (session will still be created):', dbError);
         }
 
         // Create the session cookie. This will also verify the ID token.
         const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
 
-        // Set cookie options (maxAge is in seconds, unlike Firebase's millis).
+        // Set cookie options
         const options = {
             name: 'session',
             value: sessionCookie,
-            maxAge: Math.floor(expiresIn / 1000),
+            maxAge: maxAgeSeconds,
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'lax' as const,
         };
@@ -68,12 +86,22 @@ export async function POST(request: NextRequest) {
         // Set the cookie
         (await cookies()).set(options);
 
-        return NextResponse.json({ status: 'success' }, { status: 200 });
-    } catch (error: unknown) {
-        console.error('Error creating session:', error);
         return NextResponse.json(
-            { error: 'Login failed. Please try again.' },
-            { status: 500 }
+            {
+                status: 'success',
+                profileEnsureFailed,
+            },
+            { status: 200 }
         );
+    } catch (error: unknown) {
+        logger.error('Error creating session:', error);
+        if (typeof error === 'object' && error !== null && 'code' in error) {
+            const code = (error as { code?: unknown }).code;
+            if (typeof code === 'string' && code.startsWith('auth/')) {
+                return NextResponse.json({ error: 'Invalid or expired authentication token' }, { status: 401 });
+            }
+        }
+
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

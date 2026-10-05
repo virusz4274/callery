@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -13,10 +13,12 @@ import {
     updateProfile as firebaseUpdateProfile,
     reauthenticateWithCredential,
     EmailAuthProvider,
+    confirmPasswordReset as firebaseConfirmReset,
     type User as FirebaseUser,
 } from 'firebase/auth';
 import { FirebaseClientProvider } from '@/lib/firebase/client-provider';
 import { useFirebaseContext } from '@/lib/firebase/provider';
+import { syncFirebaseSession } from '@/lib/firebase/session-sync';
 import { localAuthClient } from './local-client';
 import type { AppUser } from './types';
 
@@ -75,9 +77,14 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
             if (!auth) throw new Error('Auth service not available.');
             return auth;
         };
+        const syncSession = async (user: FirebaseUser) => {
+            const result = await syncFirebaseSession(user, { auth: requireAuth(), signOutOnFailure: true });
+            if (!result.ok) throw new Error(result.message);
+        };
         return {
             signInEmail: async (email, password) => {
                 const credential = await signInWithEmailAndPassword(requireAuth(), email, password);
+                await syncSession(credential.user);
                 return toAppUser(credential.user);
             },
             signUpEmail: async (name, email, password) => {
@@ -85,6 +92,7 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
                 if (name.trim()) {
                     await firebaseUpdateProfile(credential.user, { displayName: name.trim() });
                 }
+                await syncSession(credential.user);
                 return toAppUser(credential.user);
             },
             signInGoogle: async () => {
@@ -95,6 +103,7 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
                     await firebaseSignOut(firebaseAuth);
                 }
                 const result = await signInWithPopup(firebaseAuth, provider);
+                await syncSession(result.user);
                 return toAppUser(result.user);
             },
             signOut: async () => {
@@ -117,10 +126,8 @@ function FirebaseBranch({ children }: { children: ReactNode }) {
             requestPasswordReset: async (email) => {
                 await firebaseSendReset(requireAuth(), email);
             },
-            confirmPasswordReset: async () => {
-                // Firebase completes resets through the link in its own email
-                // (Google-hosted handler); there is no app-side token to redeem.
-                throw new Error('Use the reset link in your email to finish resetting your password.');
+            confirmPasswordReset: async (token, password) => {
+                await firebaseConfirmReset(requireAuth(), token, password);
             },
             googleEnabled: true,
         };
@@ -163,7 +170,7 @@ function LocalBranch({ children }: { children: ReactNode }) {
                     name,
                     email,
                     password,
-                    callbackURL: '/',
+                    callbackURL: '/recordings',
                 });
                 throwOnError(error, 'Sign up failed.');
                 if (!data?.user) throw new Error('Sign up failed.');

@@ -1,42 +1,25 @@
 'use server';
 
+import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import { randomBytes } from 'node:crypto';
-import { getOAuth2Client, GOOGLE_OAUTH_STATE_COOKIE } from '@/services/google/oauth';
+import { getOAuth2Client } from '@/services/google/oauth';
+import { env } from '@/lib/env';
 
-// These should match your Google Cloud project settings
 const SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
 
-function getBaseUrl() {
-  // Use the reliable environment variable provided by App Hosting.
-  // Fall back to localhost for local development/Cloud Workstation.
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9000';
-}
-
-
 export async function getGoogleAuthUrl() {
-  const { getAuthSubjectFromSession } = await import('@/lib/auth-utils');
-  const authSubject = await getAuthSubjectFromSession();
-  if (!authSubject) {
-    throw new Error('Unauthorized');
-  }
+  const redirectUri = env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
+  const state = crypto.randomUUID();
 
-  // Use the environment variable if set, otherwise construct it dynamically
-  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || `${getBaseUrl()}/api/auth/google/callback`;
-
-  const oAuth2Client = getOAuth2Client(redirectUri);
-
-  // CSRF protection: random state stored in an httpOnly cookie, verified
-  // by the callback route before the code is honored.
-  const state = randomBytes(16).toString('hex');
-  const cookieStore = await cookies();
-  cookieStore.set(GOOGLE_OAUTH_STATE_COOKIE, state, {
+  (await cookies()).set('google_oauth_state', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 10 * 60, // 10 minutes
+    maxAge: 60 * 10,
   });
+
+  const oAuth2Client = getOAuth2Client(redirectUri);
 
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',

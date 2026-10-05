@@ -1,13 +1,21 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
-      "path": "/api/cron/purge-recordings",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/digest",
-      "schedule": "0 8 * * *"
-    }
-  ]
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "crons": [
+        {
+            "path": "/api/cron/cleanup-recordings",
+            "schedule": "0 3 * * *"
+        },
+        {
+            "path": "/api/cron/process-exports",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/process-usage",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/digest",
+            "schedule": "0 8 * * *"
+        }
+    ]
 }

@@ -9,6 +9,7 @@ export interface SessionUser {
     name?: string | null;
     image?: string | null;
     provider: 'firebase' | 'local';
+    emailVerified?: boolean;
 }
 
 /** Authenticated user shape exposed to client components. */

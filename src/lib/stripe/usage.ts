@@ -1,52 +1,29 @@
-
-import { getStripe } from '@/lib/stripe';
+import { createHash, randomUUID } from 'node:crypto';
 import { billingEnabled } from '@/lib/config';
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { User, Plan } from '@/lib/db/types';
+import { findUserByAuthSubject } from '@/lib/db/users';
+import { enqueueUsageEvent, flushUsageEvents } from './usage-queue';
 
-/**
- * Reports metered usage to Stripe for a specific user.
- */
-export async function reportUsage(
-    authSubject: string,
-    type: 'storage' | 'transcription',
-    quantity: number
-) {
-    if (!billingEnabled()) return;
-    if (quantity === 0) return;
+export function meterQuantity(quantity: number, multiplier = 1): number {
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(multiplier) || multiplier <= 0) return 0;
+    return Math.ceil(quantity * multiplier);
+}
 
-    try {
-        const db = await getMongoDb();
-        const user = await db.collection<User>(Collections.USERS).findOne({ authSubject });
-
-        if (!user || !user.stripeCustomerId || !user.billingSettings?.allowOverage) {
-            // User not eligible for overage billing (or disabled)
-            return;
-        }
-
-        // Only require the key when a real API call will happen — this runs
-        // opportunistically from upload flows that must survive without Stripe.
-        const stripe = getStripe();
-
-        // Event Names must match what you configured in Stripe Dashboard
-        const eventName = type === 'storage' ? 'storage_usage_gb' : 'transcription_usage_min';
-
-        // Stripe V2 Meter Events
-        // We send the 'value' as the quantity. The Stripe Meter must be configured to aggregate by 'sum'.
-        // We use the Stripe Customer ID to link the event.
-        await stripe.billing.meterEvents.create({
-            event_name: eventName,
-            payload: {
-                stripe_customer_id: user.stripeCustomerId,
-                value: quantity.toString(), // Payload values are strings in V2 API
-            },
-            timestamp: Math.floor(Date.now() / 1000),
-        });
-
-        console.log(`[Usage] Sent Meter Event '${eventName}' (Value: ${quantity}) for user ${authSubject}`);
-
-    } catch (error) {
-        console.error(`[Usage] Failed to report usage for ${authSubject}:`, error);
-        // Don't throw, just log.
-    }
+/** Persist first, then send. Provider failures remain available to the usage cron. */
+export async function reportUsage(subject: string, type: 'storage' | 'transcription', quantity: number, options?: { multiplier?: number; identifier?: string }) {
+    if (!billingEnabled() || !meterQuantity(quantity, options?.multiplier)) return;
+    const user = await findUserByAuthSubject(subject);
+    if (!user?.stripeCustomerId || !user.billingSettings?.allowOverage || user.disabled || user.softDelete?.isDeleted) return;
+    const period = user.storagePeakPeriodEnd?.toISOString() || 'unbounded';
+    const sourceId = type === 'storage'
+        ? `storage:${subject}:${period}`
+        : options?.identifier || `transcription:${subject}:${randomUUID()}`;
+    const id = createHash('sha256').update(sourceId).digest('hex');
+    const value = type === 'storage'
+        ? meterQuantity(Math.max(quantity, user.storagePeakUsed || 0))
+        : meterQuantity(quantity, options?.multiplier);
+    await enqueueUsageEvent({
+        _id: id, authSubject: subject, customerId: user.stripeCustomerId, type, value,
+        timestamp: Math.floor(Date.now() / 1000),
+    });
+    await flushUsageEvents(10);
 }

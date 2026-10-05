@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+async function clearSessionCookie() {
+    (await cookies()).delete({
+        name: 'session',
+        path: '/',
+    });
+}
+
 export async function POST() {
-    (await cookies()).delete('session');
+    await clearSessionCookie();
     return NextResponse.json({ status: 'success' }, { status: 200 });
 }
 
 export async function GET(request: NextRequest) {
-    (await cookies()).delete('session');
-    // Redirect home after logout via GET (same origin, never a stale default).
-    return NextResponse.redirect(new URL('/', request.nextUrl.origin));
+    await clearSessionCookie();
+    // Redirect to login or home page after logout via GET
+    return NextResponse.redirect(new URL('/', request.url));
 }

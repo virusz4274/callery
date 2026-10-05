@@ -9,7 +9,7 @@ export type { ITranscriptionService, TranscriptionResult } from './types';
 
 /** Minimal shape needed to resolve a user's provider override. */
 export interface ProviderOverride {
-    transcriptionSettings?: { provider?: unknown } | null;
+    transcriptionSettings?: { defaultProvider?: unknown } | null;
 }
 
 /**
@@ -18,7 +18,7 @@ export interface ProviderOverride {
  * to the default instead of failing.
  */
 export function resolveTranscriptionProvider(user?: ProviderOverride | null): TranscriptionProvider {
-    const override = user?.transcriptionSettings?.provider;
+    const override = user?.transcriptionSettings?.defaultProvider;
     if (override === 'soniox' || override === 'elevenlabs' || override === 'gemini' || override === 'openai_compat') {
         return override;
     }

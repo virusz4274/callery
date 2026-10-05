@@ -15,6 +15,8 @@ services:
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
         NEXT_PUBLIC_GOOGLE_REDIRECT_URI: ${NEXT_PUBLIC_GOOGLE_REDIRECT_URI:-}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
+        NEXT_PUBLIC_FIREBASE_AUTH_HELPER_ORIGIN: ${NEXT_PUBLIC_FIREBASE_AUTH_HELPER_ORIGIN:-}
         NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: ${NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU:-false}
     ports:
       - "3000:3000"
@@ -45,6 +47,32 @@ services:
       start_period: 60s
       retries: 3
 
+  cron:
+    profiles: [selfhost, scheduler]
+    image: alpine:3.23
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      CRON_SECRET: ${CRON_SECRET:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        if [ -z "$$CRON_SECRET" ]; then
+          echo "Set CRON_SECRET in .env to run exports, usage retries and cleanup."
+          exit 1
+        fi
+        printf '%s\n' \
+          '*/5 * * * * wget -qO- --header="Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/process-exports >/dev/null' \
+          '*/5 * * * * wget -qO- --header="Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/process-usage >/dev/null' \
+          '0 3 * * * wget -qO- --header="Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/cleanup-recordings >/dev/null' \
+          '0 8 * * * wget -qO- --header="Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/digest >/dev/null' \
+          > /etc/crontabs/root
+        exec crond -f -l 8
+
   db-init:
     profiles: [selfhost]
     build:
@@ -67,7 +95,7 @@ services:
   # TRADE-OFF — semantic search is Atlas-only: vector search ($vectorSearch)
   # and full-text search ($search) need Atlas Search indexes (the index JSON
   # is printed by `pnpm run db:init`). On this self-hosted MongoDB, semantic
-  # search answers "Search failed" and keyword search automatically falls
+  # search uses keyword matching and keyword search automatically falls
   # back to regex (works, but no fuzzy matching). Everything else — auth,
   # uploads, playback, transcription, AI summaries — works identically.
   # If you need semantic search, point MONGODB_URI at an Atlas cluster and

@@ -1,22 +1,29 @@
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { AdminLog } from '@/lib/db/types';
+import { AdminLog, AdminLogResponse } from '@/lib/db/types';
+import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
+import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { getCurrentAdmin } from '@/lib/admin-auth';
+import { logger } from '@/lib/logger';
 
 export type LogActionType =
     | 'USER_BAN'
     | 'USER_UNBAN'
     | 'USER_ROLE_UPDATE'
     | 'USER_LIMITS_UPDATE'
-    | 'USER_DELETE'
+    | 'USER_USAGE_UPDATE'
+    | 'USER_SOFT_DELETE'
+    | 'USER_RESTORE'
+    | 'USER_HARD_DELETE'
     | 'PLAN_CREATE'
     | 'PLAN_UPDATE'
     | 'PLAN_DELETE'
     | 'SETTINGS_UPDATE'
+    | 'INCIDENT_CLEAR'
+    | 'INCIDENT_CLEAR_ALL'
+    | 'ASYNC_JOB_RETRY'
     | 'ANNOUNCEMENT_CREATE'
     | 'ANNOUNCEMENT_UPDATE'
     | 'ANNOUNCEMENT_DELETE'
-    | 'ORPHAN_CLEANUP';
+    | 'TEST_EMAIL_SEND';
 
 export async function logAdminAction(
     adminId: string,
@@ -25,18 +32,10 @@ export async function logAdminAction(
     targetId?: string,
     targetType?: 'USER' | 'PLAN' | 'SYSTEM' | 'ANNOUNCEMENT'
 ) {
-    // The audit trail must not be forgeable: only an authenticated admin
-    // session may append. All legitimate callers run in admin request scope.
-    const admin = await getCurrentAdmin().catch(() => null);
-    if (!admin || admin._id.toString() !== adminId) {
-        console.error('Refused to log admin action: session mismatch');
-        return;
-    }
     try {
         const db = await getMongoDb();
 
-        // Fetch admin email for easier reading logs later
-        const adminUser = await db.collection(Collections.USERS).findOne({ _id: new ObjectId(adminId) });
+        const adminUser = await db.collection(Collections.USERS).findOne({ _id: parseObjectId(adminId, 'adminId') });
         const adminEmail = adminUser?.email || 'unknown';
 
         const logEntry: AdminLog = {
@@ -47,51 +46,60 @@ export async function logAdminAction(
             details,
             targetId,
             targetType,
-            createdAt: new Date()
+            createdAt: new Date(),
         };
 
         await db.collection(Collections.ADMIN_LOGS).insertOne(logEntry);
     } catch (error) {
-        // Logging should not break the main action, but we should know about it
-        console.error('Failed to log admin action:', error);
+        logger.error('Failed to log admin action:', error);
     }
 }
 
 /**
  * Fetch paginated audit logs.
  */
-import { AdminLogResponse } from '@/lib/db/types';
-
 export async function getAuditLogs(
     page: number = 1,
     limit: number = 20,
     actionFilter?: string,
-    adminIdFilter?: string
+    adminIdFilter?: string,
+    startDate?: Date,
+    endDate?: Date
 ) {
+    await requireCurrentAdmin();
+
     const db = await getMongoDb();
-    const admin = await getCurrentAdmin();
-
-    if (!admin) {
-        throw new Error('Unauthorized');
-    }
-
-    const safePage = Math.min(Math.max(1, Math.floor(page) || 1), 100000);
-    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 20), 100);
-    const skip = (safePage - 1) * safeLimit;
+    const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = {};
-    if (actionFilter) query.action = actionFilter;
-    if (adminIdFilter) query.adminId = adminIdFilter;
+    if (actionFilter) {
+        query.action = actionFilter;
+    }
+    if (adminIdFilter) {
+        query.adminId = adminIdFilter;
+    }
+
+    if (startDate || endDate) {
+        const createdAtFilter: Record<string, Date> = {};
+        if (startDate) {
+            createdAtFilter.$gte = startDate;
+        }
+        if (endDate) {
+            createdAtFilter.$lte = endDate;
+        }
+        query.createdAt = createdAtFilter;
+    }
 
     const totalLogs = await db.collection(Collections.ADMIN_LOGS).countDocuments(query);
-    const logs = await db.collection<AdminLog>(Collections.ADMIN_LOGS)
+    const logs = await db
+        .collection<AdminLog>(Collections.ADMIN_LOGS)
         .find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(safeLimit)
+        .limit(limit)
         .toArray();
 
-    const serializedLogs: AdminLogResponse[] = logs.map(log => ({
+    const serializedLogs: AdminLogResponse[] = logs.map((log) => ({
         id: log._id.toString(),
         adminId: log.adminId,
         adminEmail: log.adminEmail,
@@ -105,8 +113,8 @@ export async function getAuditLogs(
     return {
         logs: serializedLogs,
         total: totalLogs,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(totalLogs / safeLimit)
+        page,
+        limit,
+        totalPages: Math.ceil(totalLogs / limit),
     };
 }

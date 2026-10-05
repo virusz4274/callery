@@ -24,7 +24,7 @@ Everything else is optional and degrades gracefully (details below).
 
 ```bash
 cp .env.selfhost.example .env
-# Set BETTER_AUTH_SECRET, ADMIN_EMAILS, and storage credentials/endpoints.
+# Set BETTER_AUTH_SECRET, CRON_SECRET, ADMIN_EMAILS, and storage credentials/endpoints.
 # Configure a transcription backend if you want transcription.
 docker compose --profile selfhost up   # app (port 3000) + MongoDB + MinIO
 docker compose ps -a
@@ -203,19 +203,16 @@ Transcription currently runs through Next.js `after()` in the app process.
 Wait for active jobs to finish before restarting; jobs are not a durable queue
 and an interrupted recording may need transcription retried.
 
-Retention purges and activity digests use `/api/cron/purge-recordings` and
-`/api/cron/digest`. Compose does not schedule them. If enabled, configure your
-own scheduler to call them with `Authorization: Bearer <CRON_SECRET>` (the
-Vercel schedule is daily at 03:00 and 08:00 UTC respectively).
+Scheduled exports, billing retries, retention and activity digests use the protected
+routes documented in [Cron Jobs](cron-jobs.md). Compose includes the scheduler
+under the `selfhost` or `scheduler` profile; set `CRON_SECRET` before starting it.
 
-Next.js builds generate and verify the Serwist service worker automatically.
-The separate experimental vinext/Cloudflare build is not needed for self-hosting.
+Next.js builds generate and verify the Serwist service worker. The experimental
+vinext/Cloudflare build is separate and is not required for self-hosting.
 
-Warning: every embedding model emits a fixed vector width. Switching embedding
-models (or AI providers) without re-embedding breaks vector search — the app
-fails fast with a dimension-mismatch error instead of returning wrong results.
-Pick one embedding model per deployment and stay on it (the Atlas vector index
-dimensions must match it too).
+Atlas vector-index dimensions must match the configured embedding model.
+If you change models, re-embed stored summaries and update the index. Unavailable
+semantic search falls back to keywords; regular MongoDB supports keyword search.
 
 ## Email
 

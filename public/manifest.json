@@ -1,21 +1,57 @@
 {
-    "name": "VoSift",
-    "short_name": "VoSift",
-    "description": "VoSift - Search deeper than words.",
+    "name": "Callery",
+    "short_name": "Callery",
+    "description": "Callery: Call Archive & AI Search. The Professional Gallery for your Voice Recordings.",
+    "id": "/",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#000000",
+    "theme_color": "#ffffff",
+    "orientation": "portrait-primary",
+    "categories": [
+        "productivity",
+        "utilities",
+        "business"
+    ],
     "icons": [
         {
             "src": "/icons/android-chrome-192x192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         },
         {
             "src": "/icons/android-chrome-512x512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "New Recording",
+            "short_name": "Record",
+            "description": "Start a new recording or upload",
+            "url": "/upload",
+            "icons": [
+                {
+                    "src": "/icons/android-chrome-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Search",
+            "short_name": "Search",
+            "description": "Search your recordings",
+            "url": "/recordings",
+            "icons": [
+                {
+                    "src": "/icons/android-chrome-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ],
     "screenshots": [

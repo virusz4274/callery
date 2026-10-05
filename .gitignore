@@ -61,3 +61,7 @@ public/swe-worker-*.js.map
 .vinext/
 .cloudflare/
 .dev.vars
+
+# Browser test output
+/test-results/
+/playwright-report/

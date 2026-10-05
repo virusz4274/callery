@@ -20,9 +20,10 @@ export function getStripe(): Stripe {
             );
         }
         cached = new Stripe(apiKey, {
-            apiVersion: '2025-11-17.clover' as any, // Latest stable version
             typescript: true,
             httpClient: Stripe.createFetchHttpClient(),
+            timeout: 30_000,
+            maxNetworkRetries: 1,
         });
     }
     return cached;
