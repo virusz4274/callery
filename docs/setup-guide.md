@@ -8,7 +8,7 @@ short Docker self-host template.
 
 ## Prerequisites
 
-*   **Node.js**: v22 or later (v24 LTS recommended), with **pnpm**.
+*   **Node.js**: v24 or later, with **pnpm 12.9.1** (pinned in `package.json`). `.nvmrc` selects the same Node 24 release line as Docker.
     Docker users only need Docker Engine/Desktop with Compose v2.20 or later.
 *   **MongoDB**: v6.0 or later — local, Docker (compose `selfhost` profile), or Atlas.
     (Semantic search needs Atlas Search indexes; self-hosted MongoDB gets
@@ -51,6 +51,8 @@ operations also need to stay on your infrastructure.
 Prefer local dev outside Docker? `pnpm run dev` serves on
 `http://localhost:9000` (with MongoDB + storage reachable from your machine).
 Use `.env.example` and run `pnpm install` then `pnpm run db:init` first.
+Run `corepack enable pnpm` once to use the package manager version pinned by this repository,
+or prefix commands with `corepack pnpm` if another pnpm version is installed globally.
 
 Minimal self-host `.env` (local auth, no billing, no email):
 
