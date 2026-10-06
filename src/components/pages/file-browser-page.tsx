@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/components/page-header';
 import { useRouter } from 'next/navigation';
 import { Button, Chip, Spinner } from '@heroui/react';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
@@ -46,54 +47,15 @@ export function FileBrowserPage({ rootNode, onRefresh }: FileBrowserPageProps) {
     const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
 
     return (
-        <div className="relative mx-auto max-w-7xl space-y-8">
-            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
+        <div className="w-full min-w-0 space-y-6">
 
-            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-6 px-5 py-6 md:px-8 md:py-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-                    <div className="space-y-3">
-                        <Chip variant="soft" color="accent" size="sm">
-                            File library
-                        </Chip>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
-                                File browser
-                            </h1>
-                        </div>
-                        <p className="max-w-2xl text-sm leading-6 text-default-500">
-                            Browse your stored files and folders.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color="default">
-                                Current location: {currentLocation}
-                            </Chip>
-                            <Chip variant="soft" color="success">
-                                {items.length} item{items.length === 1 ? '' : 's'} in view
-                            </Chip>
-                            <Chip variant="soft" color="default">
-                                {folderCount} folder{folderCount === 1 ? '' : 's'}
-                            </Chip>
-                            <Chip variant="soft" color="default">
-                                {fileCount} file{fileCount === 1 ? '' : 's'}
-                            </Chip>
-                        </div>
-                    </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <Button
-                            variant="secondary"
-                            className="w-full rounded-full px-6 font-semibold"
-                            onPress={() => router.push('/recordings')}
-                        >
-                            View recordings
-                        </Button>
-                        <Button className="w-full rounded-full px-6 font-semibold" onPress={() => router.push('/upload')}>
-                            Upload more calls
-                            <ArrowRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </section>
+            <PageHeader
+                title="Files"
+                description={`Browse your original recordings. Current folder: ${currentLocation}.`}
+                meta={<Chip variant="soft" color="default" size="sm">{folderCount} folder{folderCount === 1 ? '' : 's'} · {fileCount} file{fileCount === 1 ? '' : 's'}</Chip>}
+                actions={<> <Button variant="secondary" onPress={() => router.push('/recordings')}>View recordings</Button><Button onPress={() => router.push('/upload')}>Upload recordings<ArrowRight className="size-4" /></Button></>}
+            />
 
             <FileBrowserTable
                 items={items}

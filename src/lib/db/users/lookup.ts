@@ -2,10 +2,10 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { CreateUserInput, Plan, SystemSettings, UpdateUserInput, User } from '../types';
 import { getPlanDisplayName } from '@/lib/plans';
 
-const DB_INIT_INSTRUCTIONS = 'Run `npm run db:init` before using the app with a fresh database.';
+const DB_INIT_INSTRUCTIONS = 'Run `pnpm db:init` before using the app with a fresh database.';
 
 /**
- * Find a user by their Firebase UID.
+ * Find a user by their authentication subject.
  */
 export async function findUserByAuthSubject(authSubject: string): Promise<User | null> {
     const db = await getMongoDb();

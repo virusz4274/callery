@@ -1,199 +1,93 @@
+/* HeroUI v3 tokens are the source of truth for every surface and control. */
+@theme inline {
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--accent-foreground);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--surface-foreground);
+  --color-popover: var(--overlay);
+  --color-popover-foreground: var(--overlay-foreground);
+  --color-muted-foreground: var(--muted);
+  --color-input: var(--field-border);
+  --color-ring: var(--focus);
+
+  /* Compatibility for existing screens while they adopt v3 semantic tokens. */
+  --color-default-50: var(--neutral-50);
+  --color-default-100: var(--neutral-100);
+  --color-default-200: var(--neutral-200);
+  --color-default-300: var(--neutral-300);
+  --color-default-400: var(--neutral-400);
+  --color-default-500: var(--muted);
+  --color-default-600: var(--neutral-600);
+  --color-default-700: var(--neutral-700);
+  --color-default-800: var(--neutral-800);
+  --color-default-900: var(--foreground);
+  --text-tiny: 0.75rem;
+  --text-small: 0.875rem;
+  --text-medium: 1rem;
+  --text-large: 1.125rem;
+}
+
 @layer base {
-  /* HeroUI Default Theme */
   :root,
   .light,
   .default,
   [data-theme="light"],
   [data-theme="default"] {
-    color-scheme: light;
-
-    /* == Common Variables == */
-
-    /* Primitive Colors (Do not change between light and dark) */
-    --white: oklch(100% 0 0);
-    --black: oklch(0% 0 0);
-    --snow: oklch(0.9911 0 0);
-    --eclipse: oklch(0.2103 0.0059 285.89);
-
-    /* Spacing scale */
-    --spacing: 0.25rem;
-
-    /* Border */
-    --border-width: 0px; /* no border by default */
-    --field-border-width: var(--border-width);
-    --disabled-opacity: 0.5;
-
-    /* Ring offset - Used for focus ring */
-    --ring-offset-width: 2px;
-
-    /* Cursor */
-    --cursor-interactive: pointer;
-    --cursor-disabled: not-allowed;
-
-    /* Radius */
+    --background: oklch(0.985 0.002 255);
+    --foreground: oklch(0.25 0.018 255);
+    --surface: oklch(1 0 0);
+    --overlay: var(--surface);
+    --surface-secondary: oklch(0.97 0.003 255);
+    --muted: oklch(0.49 0.018 255);
+    --accent: oklch(0.53 0.2 260);
+    --accent-foreground: oklch(1 0 0);
+    --secondary: oklch(0.52 0.16 300);
+    --border: oklch(0.91 0.006 255);
+    --separator: var(--border);
+    --field-background: var(--surface);
+    --field-border: var(--border);
+    --field-border-width: 1px;
     --radius: 0.5rem;
-    --field-radius: calc(var(--radius) * 1.5);
-
-    /* == Light Theme Variables == */
-
-    /* Base Colors */
-    --background: oklch(0.9702 0 0);
-    --foreground: var(--eclipse);
-
-    /* Surface: Used for non-overlay components (cards, accordions, disclosure groups) */
-    --surface: var(--white);
-    --surface-foreground: var(--foreground);
-    --card: var(--surface);
-    --card-foreground: var(--surface-foreground);
-
-    /* Overlay: Used for floating/overlay components (tooltips, popovers, modals, menus) */
-    --overlay: var(--white);
-    --overlay-foreground: var(--foreground);
-    --popover: var(--overlay);
-    --popover-foreground: var(--overlay-foreground);
-
-    --muted: oklch(0.5517 0.0138 285.94);
-    --muted-foreground: var(--muted);
-
-    --scrollbar: oklch(87.1% 0.006 286.286);
-
-    --default: oklch(94% 0.001 286.375);
-    --default-foreground: var(--eclipse);
-
-    --accent: oklch(0.6204 0.195 253.83);
-    --accent-foreground: var(--snow);
-    --color-accent: var(--accent);
-
-    --primary: var(--accent);
-    --primary-foreground: var(--accent-foreground);
-    --color-primary: var(--primary);
-
-    --secondary: oklch(0.602 0.159 303.37);
-    --secondary-foreground: var(--snow);
-    --color-secondary: var(--secondary);
-
-    /* Form Fields */
-    --field-background: var(--white);
-    --field-on-background: oklch(0.9219 0 0);
-    --field-foreground: oklch(0.2103 0.0059 285.89);
-    --field-placeholder: var(--muted);
-    --field-border: transparent; /* no border by default on form fields */
-
-    /* Status Colors */
-    --success: oklch(0.7329 0.1935 150.81);
-    --success-foreground: var(--eclipse);
-    --color-success: var(--success);
-
-    --warning: oklch(0.7819 0.1585 72.33);
-    --warning-foreground: var(--eclipse);
-    --color-warning: var(--warning);
-
-    --danger: oklch(0.6532 0.2328 25.74);
-    --danger-foreground: var(--snow);
-    --color-danger: var(--danger);
-
-    /* Component Colors */
-    --segment: var(--white);
-    --segment-foreground: var(--eclipse);
-
-    /* Misc Colors */
-    --border: oklch(0 0 0 / 0%);
-    --separator: oklch(92% 0.004 286.32);
-    --focus: var(--accent);
-    --input: var(--separator);
-    --ring: var(--focus);
-    --link: var(--foreground);
-
-    /* Shadows */
-    /* --surface-shadow: 0 0px 0px 0 rgba(24, 24, 27, 0.03), 0 2px 10px 0 rgba(24, 24, 27, 0.08); */
-    --surface-shadow:
-      0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      0 0 1px 0 rgba(0, 0, 0, 0.06);
-    /* Overlay shadow */
-    --overlay-shadow: 0 4px 16px 0 rgba(24, 24, 27, 0.08), 0 8px 24px 0 rgba(24, 24, 27, 0.09);
-    --field-shadow:
-      0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      0 0 1px 0 rgba(0, 0, 0, 0.06);
-    /* Skeleton Default Global Animation */
-    --skeleton-animation: shimmer; /* shimmer, pulse, none */
+    --field-radius: 0.625rem;
+    --surface-shadow: 0 1px 3px oklch(0.25 0.018 255 / 0.04);
+    --field-shadow: none;
+    --overlay-shadow: 0 8px 32px oklch(0.25 0.018 255 / 0.12);
+    --neutral-50: oklch(0.98 0.002 255);
+    --neutral-100: oklch(0.955 0.004 255);
+    --neutral-200: var(--border);
+    --neutral-300: oklch(0.81 0.01 255);
+    --neutral-400: oklch(0.56 0.016 255);
+    --neutral-600: oklch(0.43 0.018 255);
+    --neutral-700: oklch(0.36 0.018 255);
+    --neutral-800: oklch(0.29 0.018 255);
   }
 
   .dark,
   [data-theme="dark"] {
-    color-scheme: dark;
-    /* == Dark Theme Variables == */
-
-    /* Base Colors */
-    --background: oklch(12% 0.005 285.823);
-    --foreground: var(--snow);
-
-    /* Surface: Used for non-overlay components (cards, accordions, disclosure groups) */
-    --surface: oklch(0.2103 0.0059 285.89);
-    --surface-foreground: var(--foreground);
-    --card: var(--surface);
-    --card-foreground: var(--surface-foreground);
-
-    /* Overlay: Used for floating/overlay components (tooltips, popovers, modals, menus) - lighter for contrast */
-    --overlay: oklch(
-      0.22 0.0059 285.89
-    ); /* A bit lighter than surface for visibility in dark mode */
-    --overlay-foreground: var(--foreground);
-    --popover: var(--overlay);
-    --popover-foreground: var(--overlay-foreground);
-
-    --muted: oklch(70.5% 0.015 286.067);
-    --muted-foreground: var(--muted);
-
-    --scrollbar: oklch(70.5% 0.015 286.067);
-
-    --default: oklch(27.4% 0.006 286.033);
-    --default-foreground: var(--snow);
-
-    --accent: oklch(0.6204 0.195 253.83);
-    --accent-foreground: var(--snow);
-    --color-accent: var(--accent);
-
-    --primary: var(--accent);
-    --primary-foreground: var(--accent-foreground);
-    --color-primary: var(--primary);
-
-    --secondary: oklch(0.602 0.159 303.37);
-    --secondary-foreground: var(--snow);
-    --color-secondary: var(--secondary);
-
-    /* Form Fields */
-    --field-background: var(--default);
-    --field-on-background: var(--surface);
-    --field-foreground: var(--foreground);
-
-    /* Status Colors */
-    --warning: oklch(0.8203 0.1388 76.34);
-    --warning-foreground: var(--eclipse);
-    --color-warning: var(--warning);
-
-    --danger: oklch(0.594 0.1967 24.63);
-    --danger-foreground: var(--snow);
-    --color-danger: var(--danger);
-
-    --success: oklch(0.7329 0.1935 150.81); /* Adding success back if missing or just ensuring it's here */
-    --success-foreground: var(--eclipse);
-    --color-success: var(--success);
-
-    /* Component Colors */
-    --segment: oklch(0.3964 0.01 285.93);
-    --segment-foreground: var(--foreground);
-
-    /* Misc Colors */
-    --border: oklch(1 0 0 / 0%);
-    --separator: oklch(22% 0.006 286.033);
-    --focus: var(--accent);
-    --input: var(--separator);
-    --ring: var(--focus);
-    --link: var(--foreground);
-
-    /* Shadows */
-    --surface-shadow: 0 0 0 1px var(--default) inset; /* Subtle border for dark mode */
-    --overlay-shadow: 0 0 0 1px var(--default) inset, 0 4px 16px 0 rgba(0, 0, 0, 0.4);
-    --field-shadow: 0 0 0 1px var(--default) inset; /* Border for fields */
+    --background: oklch(0.17 0.008 255);
+    --foreground: oklch(0.95 0.004 255);
+    --surface: oklch(0.215 0.01 255);
+    --overlay: oklch(0.25 0.012 255);
+    --surface-secondary: oklch(0.25 0.012 255);
+    --muted: oklch(0.71 0.015 255);
+    --accent: oklch(0.73 0.14 255);
+    --accent-foreground: oklch(0.18 0.04 255);
+    --secondary: oklch(0.73 0.14 300);
+    --border: oklch(0.31 0.012 255);
+    --separator: var(--border);
+    --field-background: var(--surface);
+    --field-border: var(--border);
+    --surface-shadow: 0 1px 3px oklch(0 0 0 / 0.12);
+    --overlay-shadow: 0 8px 32px oklch(0 0 0 / 0.3);
+    --neutral-50: oklch(0.23 0.009 255);
+    --neutral-100: oklch(0.265 0.011 255);
+    --neutral-200: var(--border);
+    --neutral-300: oklch(0.42 0.016 255);
+    --neutral-400: oklch(0.66 0.016 255);
+    --neutral-600: oklch(0.78 0.012 255);
+    --neutral-700: oklch(0.85 0.008 255);
+    --neutral-800: oklch(0.91 0.005 255);
   }
 }

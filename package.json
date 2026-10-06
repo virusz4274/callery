@@ -24,7 +24,6 @@
     "test:dependencies": "node --test scripts/dependency-security.test.mjs",
     "audit": "node scripts/audit-prod.mjs",
     "audit:prod": "node scripts/audit-prod.mjs --prod",
-    "contacts:rebuild-google": "tsx scripts/rebuild-google-contacts.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:dependencies && pnpm run audit"
   },
   "dependencies": {
@@ -49,8 +48,6 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "dotenv": "^18.0.5",
-    "firebase": "^12.19.0",
-    "firebase-admin": "^14.5.0",
     "google-auth-library": "^11.1.0",
     "jose": "^6.2.12",
     "lucide-react": "^1.52.0",

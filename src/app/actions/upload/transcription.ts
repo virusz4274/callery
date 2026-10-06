@@ -52,7 +52,7 @@ async function runAutoTranscription(
     recording: Recording,
     user: User
 ): Promise<AutoTranscriptionResult> {
-    if (!user?.transcriptionSettings?.autoTranscribe) {
+    if (!user?.transcriptionSettings.autoTranscribe) {
         return { outcome: 'skipped' };
     }
 
@@ -84,7 +84,7 @@ async function runAutoTranscription(
     }
 
     const providerId: TranscriptionProviderId = resolveTranscriptionProvider(user);
-    const modelId = user.transcriptionSettings?.defaultModel;
+    const modelId = user.transcriptionSettings.defaultModel;
     if (!TranscriptionFactory.isProviderAvailable(providerId)) return { outcome: 'skipped' };
 
     const multiplier = await getProviderMultiplier(providerId);

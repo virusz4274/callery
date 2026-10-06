@@ -4,9 +4,14 @@ This guide reflects the current user-facing workflow in the app.
 
 ## Signing In
 
-- Email/password sign-in uses the instance's configured local or Firebase authentication.
+- Email/password sign-in uses Better Auth on every instance.
 - Google sign-in appears when configured for the instance.
 - Successful sign-in creates an authenticated workspace session.
+- With SMTP or Resend, signup shows a check-email confirmation before login.
+  Verification links preserve the requested workspace destination.
+- Password changes require a linked email/password account. Google-only users
+  do not see current-password controls. Recovery is unavailable with testing
+  email configuration (`EMAIL_PROVIDER=none`). Password resets revoke sessions.
 
 Main authenticated areas:
 

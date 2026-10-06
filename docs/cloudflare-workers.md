@@ -7,7 +7,7 @@ pnpm dev:vinext
 pnpm build:vinext
 ```
 
-The combined local-auth app passes `build:vinext`. This verifies bundling, not a deployed Worker, authenticated Workers requests, long transcription jobs, email transport, archive streaming or offline support.
+Before auth unification, the combined app passed `build:vinext`. This verified bundling, not a deployed Worker, authenticated Workers requests, long transcription jobs, email transport, archive streaming or offline support. Auth now uses Better Auth and MongoDB in every deployment.
 
 `cloudflare.config.ts` defines the Worker and `nodejs_compat`. Keep runtime secrets in the provider's secret store. Public settings must match the chosen auth/billing profile at build time. Workers still need reachable MongoDB and S3-compatible storage.
 

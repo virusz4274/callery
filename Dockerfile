@@ -24,18 +24,12 @@ CMD ["pnpm", "run", "db:init"]
 FROM source AS builder
 # Browser settings are compiled by Next.js. Only public values go here;
 # database, storage, auth secrets and provider keys are supplied at runtime.
-ARG NEXT_PUBLIC_AUTH_PROVIDER=local
 ARG NEXT_PUBLIC_ENABLE_BILLING=false
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
-ARG NEXT_PUBLIC_FIREBASE_API_KEY
-ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
-ARG NEXT_PUBLIC_FIREBASE_APP_ID
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ARG NEXT_PUBLIC_GOOGLE_REDIRECT_URI
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ARG NEXT_PUBLIC_FIREBASE_AUTH_HELPER_ORIGIN
 ARG NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU=false
 
 # Next.js collects completely anonymous telemetry data about general usage.
@@ -58,8 +52,7 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 # Secrets are NOT baked into the image. Provide them at runtime
-# (compose env_file, -e flags, or a secrets manager). Firebase Admin also
-# accepts a service-account.json file mounted at /app for local dev.
+# (compose env_file, -e flags, or a secrets manager).
 
 # Set the correct permission for prerender cache
 RUN mkdir -p .next && chown nextjs:nodejs .next

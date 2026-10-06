@@ -10,7 +10,7 @@ import { TranscriptionFactory, type TranscriptionProviderId } from '@/services/t
 import { checkUserAccess, checkTranscriptionAccess } from '@/lib/access-control';
 import { resolveTranscriptionProvider } from '@/services/transcription';
 import { calculateBilledDuration } from '@/lib/utils/billing';
-import { incrementTranscriptionUsed, findUserByAuthSubject, checkAndResetUsageCycle } from '@/lib/db/users';
+import { incrementTranscriptionUsed, findUserByAuthSubject } from '@/lib/db/users';
 import { logger } from '@/lib/logger';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createNotification } from '@/lib/notifications';
@@ -177,7 +177,6 @@ export async function startManualTranscription(uid: string, recordingId: string,
             return { error: 'Selected transcription provider is not configured' };
         }
 
-        const currentUser = await checkAndResetUsageCycle(user);
         const recording = await getRecordingById(validatedRecordingId, uid);
         if (!recording) {
             return { error: 'Recording not found' };
@@ -193,7 +192,7 @@ export async function startManualTranscription(uid: string, recordingId: string,
 
         const multiplier = await getProviderMultiplier(providerId);
         const costDuration = Math.ceil(calculateBilledDuration(recording.duration) * multiplier);
-        const transcriptionAccess = checkTranscriptionAccess(currentUser, costDuration);
+        const transcriptionAccess = checkTranscriptionAccess(user, costDuration);
         if (!transcriptionAccess.allowed) {
             await logSystemEvent('TRANSCRIPTION_BLOCKED', toBlockedDetails(transcriptionAccess.reason || 'Quota exceeded', {
                 provider: providerId, recordingId: validatedRecordingId, authSubject: uid, durationSeconds: recording.duration,

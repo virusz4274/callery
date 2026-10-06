@@ -34,19 +34,10 @@ export function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      await auth.requestPasswordReset(email.trim());
+      await auth.requestPasswordReset(email.trim(), postAuthPath);
       setIsSent(true);
     } catch (error) {
-      const firebaseError = error as { code?: string; message?: string };
-      if (firebaseError.code === 'auth/user-not-found') {
-        setIsSent(true);
-      } else {
-        toast({
-          title: 'Reset Failed',
-          description: firebaseError.message || 'Failed to send reset email',
-          status: 'danger',
-        });
-      }
+      toast({ title: 'Reset Failed', description: error instanceof Error ? error.message : 'Failed to send reset email', status: 'danger' });
     } finally {
       setIsSubmitting(false);
     }
@@ -74,9 +65,13 @@ export function ForgotPasswordPage() {
         </p>
       }
     >
-      {isSent ? (
+      {!auth.passwordResetEnabled ? (
         <div className="space-y-4">
-          <div className="rounded-[1.5rem] border border-success/20 bg-success/10 px-5 py-4">
+          <p className="text-sm text-default-600">Password recovery is unavailable on this instance. Contact its administrator.</p>
+        </div>
+      ) : isSent ? (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-success/20 bg-success/10 px-5 py-4">
             <p className="text-sm font-medium text-foreground">
               If an account exists for <span className="font-semibold">{email}</span>, a reset link has been sent.
             </p>
@@ -87,7 +82,7 @@ export function ForgotPasswordPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Link href={loginHref} className="block">
-              <Button variant="primary" className="h-12 w-full rounded-full font-semibold">
+              <Button variant="primary" className="h-12 w-full rounded-lg font-medium">
                 Back to Sign In
               </Button>
             </Link>
@@ -118,7 +113,7 @@ export function ForgotPasswordPage() {
           <Button
             type="submit"
             variant="primary"
-            className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+            className="h-12 w-full rounded-lg font-medium"
             isDisabled={isSubmitting || !email.trim()}
             isPending={isSubmitting}
           >

@@ -49,7 +49,7 @@ export function ContextHelp({
             size="sm"
             variant="ghost"
             aria-label={triggerLabel || `More information about ${title}`}
-            className="h-8 w-8 min-w-8 rounded-full text-default-400 hover:bg-default-100 hover:text-foreground"
+            className="size-11 min-w-11 rounded-lg text-muted hover:bg-surface-secondary hover:text-foreground"
         >
             <CircleHelp className="h-4 w-4" />
         </Button>
@@ -58,7 +58,7 @@ export function ContextHelp({
     if (isMobile) {
         return (
             <Popover>
-                <Popover.Trigger>{button}</Popover.Trigger>
+                {button}
                 <Popover.Content placement="bottom" offset={10} className="max-w-[18rem]">
                     <Popover.Dialog className="p-3">
                         <Popover.Arrow />
@@ -71,9 +71,7 @@ export function ContextHelp({
 
     return (
         <Tooltip delay={150}>
-            <Tooltip.Trigger aria-label={triggerLabel || `More information about ${title}`}>
-                {button}
-            </Tooltip.Trigger>
+            {button}
             <Tooltip.Content placement={placement} offset={10} showArrow className="max-w-[18rem]">
                 <Tooltip.Arrow />
                 <HelpContent title={title} description={description} points={points} />

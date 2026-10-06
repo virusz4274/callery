@@ -5,6 +5,7 @@ import '../globals.css';
 import { PublicHeader } from '@/components/public-header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/toast-provider';
+import { ServiceWorkerUnregister } from '@/components/service-worker-unregister';
 import { createSiteMetadata, siteSeoConfig, siteViewport } from '@/lib/seo';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -26,6 +27,7 @@ export default function MarketingLayout({
           enableSystem
           disableTransitionOnChange
         >
+          {process.env.NODE_ENV === 'development' && <ServiceWorkerUnregister />}
           <AuthProvider>
           <ToastProvider>
             <div className="flex min-h-dvh w-full flex-col bg-background">

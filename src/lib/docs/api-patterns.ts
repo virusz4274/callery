@@ -60,10 +60,10 @@
  * 
  * Pattern:
  * ```typescript
- * import { verifySession } from '@/lib/firebase/session';
+ * import { getAuthSubjectFromSession } from '@/lib/auth-utils';
  * 
  * export async function GET(req: NextRequest) {
- *     const { uid } = await verifySession(req);
+ *     const { uid } = await getAuthSubjectFromSession(req);
  *     if (!uid) {
  *         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  *     }

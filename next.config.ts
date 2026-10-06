@@ -3,15 +3,16 @@ import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 import {
   getContentSecurityPolicyHeader,
-  getFirebaseAuthHelperOrigin,
-  shouldWarnAboutMissingFirebaseAuthHelper,
-} from './src/lib/firebase-auth-helper-config';
+} from './src/lib/security-headers';
 
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT;
 const sentryUrl = process.env.SENTRY_URL;
 const shouldEnableSentryBuildPlugin = Boolean(sentryAuthToken && sentryOrg && sentryProject);
+const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  ? new URL(process.env.NEXT_PUBLIC_APP_URL)
+  : undefined;
 
 const securityHeaders = [
   {
@@ -37,13 +38,6 @@ if (contentSecurityPolicyHeader) {
   securityHeaders.push(contentSecurityPolicyHeader);
 }
 
-const firebaseAuthHelperOrigin = getFirebaseAuthHelperOrigin();
-if (shouldWarnAboutMissingFirebaseAuthHelper()) {
-  console.warn(
-    '[next.config] Firebase auth helper rewrite disabled because FIREBASE_AUTH_HELPER_ORIGIN or NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is not configured.'
-  );
-}
-
 if (process.env.NODE_ENV === 'production') {
   securityHeaders.push({
     key: 'Strict-Transport-Security',
@@ -53,11 +47,14 @@ if (process.env.NODE_ENV === 'production') {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Allow the configured public host when developing through a tunnel.
+  allowedDevOrigins: publicAppUrl ? [publicAppUrl.hostname] : undefined,
   // Bundle the S3 SDK so standalone tracing retains its checksum subpath imports.
   transpilePackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   experimental: {
     serverActions: {
       bodySizeLimit: '1mb',
+      allowedOrigins: publicAppUrl ? [publicAppUrl.host] : undefined,
     },
     proxyClientMaxBodySize: '1mb',
   },
@@ -71,18 +68,6 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-  },
-  async rewrites() {
-    if (!firebaseAuthHelperOrigin) {
-      return [];
-    }
-
-    return [
-      {
-        source: '/__/auth/:path*',
-        destination: `${firebaseAuthHelperOrigin}/__/auth/:path*`,
-      },
-    ];
   },
   async headers() {
     return [

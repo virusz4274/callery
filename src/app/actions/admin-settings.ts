@@ -4,7 +4,7 @@ import { logAdminAction } from '@/app/actions/audit-log';
 import { SystemSettings, SystemSettingsResponse, UpdateSystemSettingsInput } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
 import { getRequiredSystemSettings } from '@/lib/db/users';
-import { Collections, getMongoDb } from '@/lib/mongodb';
+import { updateSystemSettingsDocument } from '@/lib/db/system-settings';
 import { revalidatePath } from 'next/cache';
 
 function mapSettings(settings: SystemSettings): SystemSettingsResponse {
@@ -12,7 +12,7 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse {
         id: settings._id.toString(),
         allowSignups: settings.allowSignups,
         maintenanceMode: settings.maintenanceMode,
-        defaultPlanId: settings.defaultPlanId?.toString(),
+        defaultPlanId: settings.defaultPlanId.toString(),
         transcriptionMultipliers: settings.transcriptionMultipliers,
         updatedAt: settings.updatedAt.toISOString(),
     };
@@ -34,17 +34,11 @@ export async function getSystemSettings() {
 export async function updateSystemSettings(data: UpdateSystemSettingsPayload) {
     const admin = await requireCurrentAdmin();
 
-    const db = await getMongoDb();
-    const updateData: Record<string, unknown> = {
-        ...data,
-        updatedAt: new Date(),
-    };
-
-    if (data.defaultPlanId && typeof data.defaultPlanId === 'string') {
-        updateData.defaultPlanId = parseObjectId(data.defaultPlanId, 'defaultPlanId');
-    }
-
-    await db.collection(Collections.SYSTEM_SETTINGS).updateOne({}, { $set: updateData }, { upsert: true });
+    const { defaultPlanId, ...settings } = data;
+    await updateSystemSettingsDocument({
+        ...settings,
+        ...(defaultPlanId !== undefined ? { defaultPlanId: parseObjectId(defaultPlanId, 'defaultPlanId') } : {}),
+    });
 
     await logAdminAction(admin._id.toString(), 'SETTINGS_UPDATE', { updates: data }, 'system', 'SYSTEM');
 

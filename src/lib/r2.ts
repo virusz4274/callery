@@ -127,7 +127,7 @@ export function sanitizePhoneNumber(phoneNumber: string): string {
  * Generate the storage object key for a recording with new metadata-rich structure.
  * Format: {authSubject}/{contactId}/{year}/{month}/{timestamp}_{randomHash}.{extension}
  *
- * @param authSubject - User's opaque auth subject (stable across auth providers)
+ * @param authSubject - User's stable Better Auth subject
  * @param contactId - Contact ID (MongoDB ObjectId as string) or null for unknown contacts
  * @param phoneNumber - Phone number (used for fallback when contactId is null)
  * @param recordedAt - Recording timestamp

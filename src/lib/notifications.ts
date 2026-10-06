@@ -38,7 +38,7 @@ export async function createNotification(
             const pushPayload = {
                 title,
                 body: message,
-                icon: '/icons/android-chrome-192x192.png',
+                icon: '/icons/callery/android-chrome-192x192.png',
                 url: normalizedLink || '/',
             };
 

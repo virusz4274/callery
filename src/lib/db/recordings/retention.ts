@@ -31,7 +31,7 @@ export async function getExpiredRecordings(
     const results: { authSubject: string; recordings: Recording[] }[] = [];
 
     for (const user of usersWithPolicies) {
-        const policy = user.storageSettings?.deletionPolicy;
+        const policy = user.storageSettings.deletionPolicy;
         const days = POLICY_DAYS[policy];
 
         if (!days) {

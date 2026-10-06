@@ -23,9 +23,9 @@ export const RecordingsTableDesktop = memo(function RecordingsTableDesktop({
     density = 'comfortable',
 }: RecordingsTableDesktopProps) {
     return (
-        <div className="relative hidden w-full overflow-hidden pb-6 md:block">
+        <div className="relative hidden w-full overflow-x-auto md:block">
             <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase tracking-wider text-default-500 font-semibold bg-default-50/50 border-b border-default-200/50">
+                <thead className="border-b border-border bg-surface-secondary text-xs font-medium text-muted">
                     <tr>
                         <th className={`${density === 'dense' ? 'h-11 py-3' : 'h-14 py-4'} w-14 px-4 align-top`}>
                             <div className="flex items-center justify-center">

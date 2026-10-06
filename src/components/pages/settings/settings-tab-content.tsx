@@ -21,25 +21,25 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
     return (
         <div
             className={cn(
-                'min-h-[400px] w-full min-w-0 flex-1 transition-all duration-300 lg:sticky lg:top-4 lg:min-h-0',
+                'w-full min-w-0 flex-1',
                 isMobileDetailView ? 'block' : 'hidden lg:block'
             )}
         >
-            <div className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col">
-                <div className="border-b border-default-100/70 px-5 py-5 md:px-6">
+            <div className="space-y-5">
+                <div className="hidden lg:block">
                     <div className="flex items-center gap-4">
                         {ActiveTabIcon && (
-                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                                 <ActiveTabIcon className="h-5 w-5" />
                             </div>
                         )}
-                        <h2 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">
                             {activeTabConfig?.label}
                         </h2>
                     </div>
                 </div>
 
-                <div className="px-5 py-5 md:px-6 md:py-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+                <div className="space-y-6">
                     <ClientOnly>
                         {state.activeTab === 'profile' && (
                             <ProfileSettings

@@ -11,7 +11,7 @@ import { isFreeTrialPlanKey } from '@/lib/plans';
 export function BillingSettings({ userProfile }: BillingSettingsProps) {
     const { toast } = useToast();
     const planName = userProfile?.planName || 'Free Trial';
-    const allowOverage = userProfile?.billingSettings?.allowOverage ?? false;
+    const allowOverage = userProfile?.billingSettings.allowOverage ?? false;
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [isInvoicesLoading, setIsInvoicesLoading] = useState(true);
     const [invoicesError, setInvoicesError] = useState<string | null>(null);

@@ -1,20 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { toNextJsHandler } from 'better-auth/next-js';
-import { authProvider } from '@/lib/config';
-import { getLocalAuth } from '@/lib/auth/local';
+import { getAuth } from '@/lib/auth/server';
 
 /**
- * better-auth API handler (local auth mode only): /api/auth/sign-in/email,
+ * Better Auth API handler: /api/auth/sign-in/email,
  * /api/auth/sign-up/email, /api/auth/sign-out, social callbacks, etc.
- * Coexists with the firebase-specific /api/auth/login + /api/auth/logout
- * routes (exact paths win over this catch-all). Returns 404 unless
- * AUTH_PROVIDER=local so Firebase mode never exposes these endpoints.
  */
 async function handle(request: NextRequest): Promise<Response> {
-    if (authProvider() !== 'local') {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-    const handler = toNextJsHandler(getLocalAuth());
+    const handler = toNextJsHandler(await getAuth());
     return request.method === 'GET' ? handler.GET(request) : handler.POST(request);
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByAuthSubject, getPlanByKey, updateUser } from '@/lib/db/users';
+import { findUserByAuthSubject, getPlanByKey, updateUser, updateUserProfile } from '@/lib/db/users';
 import { toUserResponse } from '@/lib/db/converters';
 import { getPlanDisplayName } from '@/lib/plans';
 import { UpdateProfileBodySchema } from '@/lib/schemas';
@@ -66,19 +66,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
         }
 
-        const updateData: Record<string, unknown> = { ...parsed.data };
-
-        // Update name if firstName or lastName changed
-        if (updateData.firstName || updateData.lastName) {
-            const user = await findUserByAuthSubject(authSubject);
-            if (user) {
-                const firstName = (updateData.firstName as string) || user.firstName;
-                const lastName = (updateData.lastName as string) || user.lastName;
-                updateData.name = `${firstName} ${lastName} `.trim();
-            }
-        }
-
-        const updatedUser = await updateUser(authSubject, updateData);
+        const updatedUser = await updateUserProfile(authSubject, parsed.data);
 
         if (!updatedUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });

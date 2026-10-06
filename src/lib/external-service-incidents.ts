@@ -10,7 +10,7 @@ import { classifyExternalServiceError, type IncidentClassification } from '@/lib
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
 import { createNotification } from '@/lib/notifications';
-import { sendEmail } from '@/lib/email';
+import { sendNotificationEmail } from '@/lib/email';
 
 const DEFAULT_INCIDENT_COOLDOWN_MS = 30 * 60 * 1000;
 const STALE_INCIDENT_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -168,7 +168,7 @@ async function notifyAdminsAboutIncident(incident: ExternalServiceIncident): Pro
     const emailJobs = admins
         .filter((admin) => Boolean(admin.email))
         .map((admin) =>
-            sendEmail({
+            sendNotificationEmail({
                 to: admin.email,
                 subject: `[Callery] Service incident: ${incident.service} ${severityLabel}`,
                 html: `

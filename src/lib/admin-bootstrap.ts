@@ -1,5 +1,5 @@
 function getConfiguredBootstrapEmails(env: NodeJS.ProcessEnv = process.env): string[] {
-    return (env.ADMIN_EMAILS || env.ADMIN_BOOTSTRAP_EMAILS || '')
+    return (env.ADMIN_EMAILS || '')
         .split(',')
         .map((value) => value.trim().toLowerCase())
         .filter(Boolean);

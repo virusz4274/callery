@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { getContactsByUser } from '@/lib/db/contacts';
-import type { ContactResponse } from '@/lib/db/types';
+import { getContactsByUser, countContactsByUser } from '@/lib/db/contacts';
+import { toContactResponse } from '@/lib/db/converters';
 import { ContactsListQuerySchema } from '@/lib/schemas';
 import { logger } from '@/lib/logger';
 
-
-/**
- * Convert a Contact document to API response format.
- */
-function toContactResponse(contact: Awaited<ReturnType<typeof getContactsByUser>>[number]): ContactResponse {
-    return {
-        id: contact._id.toString(),
-        authSubject: contact.authSubject,
-        name: contact.name,
-
-        phoneNumbers: contact.phoneNumbers || [],
-        email: contact.email,
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        jobTitle: contact.jobTitle,
-        company: contact.company,
-        googleContactId: contact.googleContactId,
-        createdAt: contact.createdAt.toISOString(),
-        updatedAt: contact.updatedAt.toISOString(),
-        totalRecordings: contact.totalRecordings,
-        lastRecordingAt: contact.lastRecordingAt?.toISOString() || null,
-    };
-}
 
 /**
  * GET /api/contacts
@@ -58,19 +35,6 @@ export async function GET(request: NextRequest) {
 
         const contacts = await getContactsByUser(authSubject, { limit, skip });
 
-        // We probably want the total count of contacts for this user too,
-        // effectively another query if we want "real" total vs "fetched" length.
-        // For infinite scroll, totalCount helps know when to stop.
-        // Let's add a quick count query or reuse logic if we had one.
-        // Re-using the logic from the route to count documents.
-
-        // Since getContactsByUser returns the array, we need a separate count if we paginating.
-        // Let's assume we can get it from the db directly or add a count function.
-        // For now, I'll add a quick count query here, but ideally should be in db layer.
-
-        // Wait, looking at getContactsByUser, it sorts by name.
-        // Let's just do a count here.
-        const { countContactsByUser } = await import('@/lib/db/contacts');
         const totalCount = await countContactsByUser(authSubject);
 
         return NextResponse.json({

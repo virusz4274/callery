@@ -14,7 +14,7 @@ export async function startExport() {
     // Check for existing pending/processing jobs
     const existingJob = await getLatestExportJob(authSubject);
     if (existingJob && ['pending', 'processing'].includes(existingJob.status)) {
-        return { success: false, message: 'An export is already in progress.' };
+        return { success: false as const, message: 'An export is already in progress.' };
     }
 
     // Create new job
@@ -40,7 +40,7 @@ export async function startExport() {
         });
     }
 
-    return { success: true, jobId: job._id.toString() };
+    return { success: true as const, jobId: job._id.toString() };
 }
 
 export async function getExportStatus() {

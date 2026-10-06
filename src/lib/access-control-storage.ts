@@ -26,8 +26,8 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
         return billingIssue;
     }
 
-    const currentUsage = user.storageUsed || 0;
-    const allocation = user.storageAllocation || 0;
+    const currentUsage = user.storageUsed;
+    const allocation = user.storageAllocation;
     const newUsage = currentUsage + bytesToAdd;
 
     if (isFreeTrialPlanKey(user.planKey)) {
@@ -41,7 +41,7 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
         return { allowed: true };
     }
 
-    const allowOverage = user.billingSettings?.allowOverage ?? false;
+    const allowOverage = user.billingSettings.allowOverage;
     if (!allowOverage && newUsage > allocation) {
         return {
             allowed: false,

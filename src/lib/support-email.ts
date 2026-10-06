@@ -1,5 +1,5 @@
 import type { SupportMessageDocument } from '@/lib/db/support-messages';
-import { sendEmail } from '@/lib/email';
+import { sendNotificationEmail } from '@/lib/email';
 
 function escapeHtml(input: string): string {
     return input
@@ -34,20 +34,11 @@ export async function sendSupportMessageNotification(
     message: SupportMessageDocument,
     recipient: string
 ) {
-    const result = await sendEmail({
+    const sent = await sendNotificationEmail({
         to: recipient,
         subject: `[Callery Support] ${message.subject}`,
         html: buildSupportMessageEmailHtml(message),
     });
 
-    if (!result.success) {
-        const errorValue = result.error;
-        const errorMessage =
-            typeof errorValue === 'string'
-                ? errorValue
-                : errorValue instanceof Error
-                    ? errorValue.message
-                    : 'Unknown email delivery error';
-        throw new Error(errorMessage);
-    }
+    if (!sent) throw new Error('Email delivery is disabled.');
 }

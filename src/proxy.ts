@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getContentSecurityPolicyHeader } from '@/lib/firebase-auth-helper-config';
+import { getContentSecurityPolicyHeader } from '@/lib/security-headers';
 
 /** Storage endpoints are runtime settings, including self-hosted HTTP MinIO. */
 export function proxy() {

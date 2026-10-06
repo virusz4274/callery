@@ -27,7 +27,7 @@ const LIMIT = 20;
 
 /**
  * Hook to fetch contacts for the current user.
- * Uses the API route with Firebase ID token authentication.
+ * Uses the API route with Better Auth session authentication.
  */
 export function useContacts(): UseContactsResult {
     const getKey = (pageIndex: number, previousPageData: ContactsPageResponse | null) => {

@@ -46,7 +46,7 @@ export function useExportJob(toast: ToastFn) {
                     description: 'We queued your archive and will email you when it is ready to download.',
                     status: 'success',
                 });
-                setExportJob({ id: 'temp', status: 'pending', progress: 0, createdAt: new Date().toISOString() });
+                setExportJob({ id: result.jobId, status: 'pending', progress: 0, parts: [], createdAt: new Date().toISOString() });
             } else {
                 toast({ title: 'Export Failed', description: result.message || 'Could not start export.', status: 'danger' });
             }

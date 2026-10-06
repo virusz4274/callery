@@ -9,7 +9,6 @@ README.md
 .git
 .env*
 !.env.example
-!.env.selfhost.example
 .dev.vars*
 service-account*.json
 *.pem

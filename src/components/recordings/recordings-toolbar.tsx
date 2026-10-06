@@ -4,10 +4,8 @@ import { Surface } from '@heroui/react';
 import { SearchSortRow } from './toolbar/search-sort-row';
 import { SavedViewsRow } from './toolbar/saved-views-row';
 import type { RecordingsToolbarProps } from './toolbar/types';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export function RecordingsToolbar(props: RecordingsToolbarProps) {
-    const isMobile = useIsMobile();
     const savedViewsControl = (
         <SavedViewsRow
             savedViews={props.savedViews}
@@ -23,8 +21,9 @@ export function RecordingsToolbar(props: RecordingsToolbarProps) {
 
     return (
         <Surface
+            id="semantic-search"
             variant="default"
-            className="sticky top-[calc(env(safe-area-inset-top)+4.5rem)] z-20 rounded-[1.5rem] border border-default-200/80 bg-background/95 p-3 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] backdrop-blur md:top-4 md:rounded-[2rem] md:bg-linear-to-r md:from-primary/6 md:via-background md:to-secondary/6 md:p-4"
+            className="scroll-mt-24 rounded-xl border border-border bg-surface p-4 shadow-none"
         >
             <div className="space-y-3 md:space-y-4">
                 <SearchSortRow
@@ -52,10 +51,9 @@ export function RecordingsToolbar(props: RecordingsToolbarProps) {
                     density={props.density}
                     onDensityChange={props.onDensityChange}
                     onResetAll={props.onResetAll}
-                    supplementalActions={isMobile ? savedViewsControl : null}
+                    supplementalActions={savedViewsControl}
                 />
 
-                {!isMobile && <div className="border-t border-default-100/80 pt-3">{savedViewsControl}</div>}
             </div>
         </Surface>
     );

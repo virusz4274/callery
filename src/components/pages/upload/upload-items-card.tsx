@@ -29,14 +29,11 @@ export function UploadItemsCard({
     const totalSizeMb = uploadItems.reduce((sum, item) => sum + item.file.size, 0) / 1024 / 1024;
 
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
             <Card.Content className="p-5 sm:p-6">
                 <div className="flex flex-col gap-5 border-b border-default-100 pb-5">
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color="accent" size="sm">
-                                Upload queue
-                            </Chip>
                             <Chip variant="soft" color="default">
                                 {uploadItems.length} file{uploadItems.length === 1 ? '' : 's'}
                             </Chip>
@@ -44,12 +41,12 @@ export function UploadItemsCard({
                                 {totalSizeMb.toFixed(1)} MB total
                             </Chip>
                         </div>
-                        <h3 className="mt-3 text-2xl font-bold tracking-[-0.03em] text-foreground">
+                        <h2 className="mt-3 text-lg font-semibold tracking-tight text-foreground">
                             Upload queue
-                        </h3>
+                        </h2>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="flex flex-wrap gap-2">
                         {[
                             {
                                 label: 'Pending',
@@ -87,15 +84,15 @@ export function UploadItemsCard({
                             return (
                                 <div
                                     key={item.label}
-                                    className="rounded-[1.5rem] border border-default-200/80 bg-default-50/70 p-5"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-surface-secondary px-3 py-2"
                                 >
-                                    <div className={`mb-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-background ${item.tone}`}>
+                                    <div className={item.tone}>
                                         <Icon className={`h-4.5 w-4.5 ${item.label === 'Uploading' ? 'animate-spin' : ''}`} />
                                     </div>
-                                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                    <div className="text-xs text-muted">
                                         {item.label}
                                     </div>
-                                    <div className="mt-1 text-2xl font-bold text-foreground">{item.value}</div>
+                                    <div className="text-sm font-medium tabular-nums text-foreground">{item.value}</div>
                                 </div>
                             );
                         })}

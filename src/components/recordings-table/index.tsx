@@ -45,10 +45,10 @@ export function RecordingsTable({
         <>
             <div className="space-y-3 md:space-y-4">
                 <Card
-                    className={`transition-all duration-300 ${
+                    className={`gap-0 p-0 ${
                         variant === 'flat'
                             ? 'bg-transparent border-none shadow-none'
-                            : 'rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]'
+                            : 'overflow-hidden rounded-xl border border-border bg-surface shadow-none'
                     }`}
                 >
                     <RecordingsTableHeader

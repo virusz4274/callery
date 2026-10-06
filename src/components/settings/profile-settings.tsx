@@ -59,8 +59,8 @@ export function ProfileSettings({
 
     return (
         <div className="space-y-6">
-            <SettingsSection title="Profile" description="Update your personal information.">
-                <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+            <SettingsSection title="Personal information" description="Update your personal information.">
+                <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                     <form onSubmit={handleProfileSubmit}>
                         <Card.Content className="space-y-5 p-5 sm:p-6">
                             <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +100,7 @@ export function ProfileSettings({
                             </TextField>
                         </Card.Content>
                         <Card.Footer className="justify-end border-t border-default-100/80 px-5 py-4 md:px-6">
-                            <Button type="submit" variant="primary" className="rounded-full px-6 font-semibold" isPending={isProfileSaving}>
+                            <Button type="submit" variant="primary" className="rounded-lg px-5 font-medium" isPending={isProfileSaving}>
                                 {isProfileSaving ? <Spinner color="current" size="sm" /> : "Save Profile"}
                             </Button>
                         </Card.Footer>
@@ -110,7 +110,7 @@ export function ProfileSettings({
 
             {user.canChangePassword && (
                 <SettingsSection title="Password" description="Change your account password. You will be logged out after a successful change.">
-                    <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+                    <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                         <form onSubmit={handlePasswordSubmit}>
                             <Card.Content className="space-y-5 p-5 sm:p-6">
                                 <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
@@ -150,7 +150,7 @@ export function ProfileSettings({
                                 </TextField>
                             </Card.Content>
                             <Card.Footer className="justify-end border-t border-default-100/80 px-5 py-4 md:px-6">
-                                <Button type="submit" variant="primary" className="rounded-full px-6 font-semibold" isPending={isPasswordSaving}>
+                                <Button type="submit" variant="primary" className="rounded-lg px-5 font-medium" isPending={isPasswordSaving}>
                                     {isPasswordSaving ? <Spinner color="current" size="sm" /> : "Change Password"}
                                 </Button>
                             </Card.Footer>

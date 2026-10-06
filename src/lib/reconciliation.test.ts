@@ -36,11 +36,29 @@ test('a local instance derives separate feature keys without extra secrets', () 
     delete process.env.UPLOAD_SESSION_SECRET;
     delete process.env.SHARE_LINK_SECRET;
     delete process.env.MOBILE_SYNC_SESSION_SECRET;
-    process.env.AUTH_PROVIDER = 'local';
     process.env.BETTER_AUTH_SECRET = 'one-local-auth-secret-at-least-thirty-two-characters';
     delete process.env.APP_SIGNING_SECRET;
     assert.notDeepEqual(featureSigningKey('UPLOAD_SESSION_SECRET', 'upload'), featureSigningKey('SHARE_LINK_SECRET', 'share'));
     assert.notDeepEqual(featureSigningKey('UPLOAD_SESSION_SECRET', 'upload'), featureSigningKey('MOBILE_SYNC_SESSION_SECRET', 'sync'));
+});
+
+test('feature signing preserves dedicated, shared, then auth-secret precedence', () => {
+    const saved = { ...process.env };
+    try {
+        process.env.UPLOAD_SESSION_SECRET = 'dedicated-feature-secret';
+        process.env.APP_SIGNING_SECRET = 'shared-app-secret';
+        process.env.BETTER_AUTH_SECRET = 'fallback-auth-secret-at-least-thirty-two-characters';
+        assert.deepEqual(featureSigningKey('UPLOAD_SESSION_SECRET', 'upload'), new TextEncoder().encode('dedicated-feature-secret'));
+        delete process.env.UPLOAD_SESSION_SECRET;
+        const shared = featureSigningKey('UPLOAD_SESSION_SECRET', 'upload');
+        process.env.BETTER_AUTH_SECRET = 'different-auth-secret-at-least-thirty-two-characters';
+        assert.deepEqual(featureSigningKey('UPLOAD_SESSION_SECRET', 'upload'), shared);
+        delete process.env.APP_SIGNING_SECRET;
+        assert.notDeepEqual(featureSigningKey('UPLOAD_SESSION_SECRET', 'upload'), shared);
+    } finally {
+        for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+        Object.assign(process.env, saved);
+    }
 });
 
 test('cleanup retains failed object keys and deletes each successful key once', async () => {

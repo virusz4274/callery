@@ -10,7 +10,7 @@ interface SettingsSectionProps {
 export function SettingsSection({ title, description, children, className }: SettingsSectionProps) {
     return (
         <section className={cn('space-y-3', className)}>
-            <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">{title}</h3>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
             {description ? (
                 <p className="max-w-2xl text-sm leading-6 text-default-500">{description}</p>
             ) : null}

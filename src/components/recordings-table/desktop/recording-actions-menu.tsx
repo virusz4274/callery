@@ -27,7 +27,8 @@ export function RecordingActionsMenu({
                 isIconOnly
                 size="sm"
                 variant="ghost"
-                className="text-default-400 data-[hover=true]:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-muted hover:text-accent"
+                aria-label={`Open ${recording.standardizedDisplayName || recording.fileName}`}
                 onPress={() => onOpenDialog(recording)}
             >
                 <Play className="h-4 w-4 fill-current" />

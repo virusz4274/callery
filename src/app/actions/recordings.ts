@@ -37,7 +37,7 @@ export async function getRecordingsAction(options: GetRecordingsOptions = {}) {
     try {
         const limit = validatedOptions.limit || 100;
         const page = validatedOptions.page || 1;
-        const skip = validatedOptions.skip !== undefined ? validatedOptions.skip : (page - 1) * limit;
+        const skip = (page - 1) * limit;
 
         const [recordings, totalCount] = await Promise.all([
             getRecordingsForApi(authSubject, {

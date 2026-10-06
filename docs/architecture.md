@@ -5,7 +5,7 @@ Callery is a Next.js 16 App Router application for ingesting, organizing, transc
 ## Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3 beta
-- Auth: deployment-selected local Better Auth or Firebase, with a shared client/server auth seam
+- Auth: Better Auth + MongoDB for managed and self-hosted deployments, with shared client/server hooks
 - Database: MongoDB
 - Storage: Cloudflare R2
 - AI: Gemini
@@ -42,8 +42,9 @@ graph TD
 
 ### Authentication
 
-- `AUTH_PROVIDER` and build-time `NEXT_PUBLIC_AUTH_PROVIDER` select local Better Auth or Firebase.
-- Local auth stores identities and sessions in MongoDB; Firebase mode verifies Firebase ID tokens/session cookies.
+- Lazy asynchronous `getAuth()` reuses the pooled MongoDB connection; adapter transactions are disabled for standalone servers.
+- Better Auth resolves cookie and bearer sessions. Application ownership uses the stable `authSubject` identity.
+- Public auth capabilities expose only three booleans without a database connection.
 - Google Contacts OAuth is a separate optional integration.
 - Server actions and route handlers share identity resolution and reject disabled/deleted profiles.
 - Verified bootstrap emails may create admin profiles; other admin access uses MongoDB role checks.
@@ -122,7 +123,7 @@ src/
   lib/
     db/                 Collections, types, indexes, init, query helpers
     export-processor/   Export packaging and lifecycle
-    firebase/           Client/admin Firebase helpers
+    auth/               Better Auth configuration, server and client hooks
     stripe/             Customer, sync, and usage reporting logic
     sync-store/         Android sync persistence helpers
   services/
@@ -143,11 +144,11 @@ src/scripts/            Backfill and repair scripts
 - Provider webhooks require secrets or signature validation.
 - Cron routes require `Authorization: Bearer <CRON_SECRET>`.
 - Support submissions enforce origin checks, a honeypot field, and IP-based rate limiting.
-- Next.js responses include security headers. A Content Security Policy is applied in production, either in enforced mode (`Content-Security-Policy`) or report-only mode (`Content-Security-Policy-Report-Only`) based on the `CSP_REPORT_ONLY` env flag. Vercel preview deployments automatically use report-only mode. The CSP directives and mode logic live in `src/lib/firebase-auth-helper-config.ts`.
+- Next.js responses include security headers. A Content Security Policy is applied in production, either in enforced mode (`Content-Security-Policy`) or report-only mode (`Content-Security-Policy-Report-Only`) based on the `CSP_REPORT_ONLY` env flag. Vercel preview deployments automatically use report-only mode. The CSP directives and mode logic live in `src/lib/security-headers.ts`.
 
 ## Deployment Notes
 
 - The build uses `output: 'standalone'`.
 - Server Actions are configured with a `20mb` body limit, but audio uploads avoid that limit through direct R2 uploads.
 - Production adds HSTS headers.
-- Firebase helper rewrites are only enabled when the helper origin can be resolved from env.
+- Google login uses `/api/auth/callback/google`; separate Contacts authorization uses `/api/auth/google/callback`.

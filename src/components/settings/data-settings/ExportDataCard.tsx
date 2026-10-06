@@ -18,7 +18,7 @@ export function ExportDataCard({
     const isBusy = isExportStarting || isQueued || isProcessing;
 
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Portable archive</Chip>
@@ -120,7 +120,7 @@ export function ExportDataCard({
                             </div>
                         )}
 
-                        {exportJob.status === 'completed' && exportJob.parts && (
+                        {exportJob.status === 'completed' && (
                             <div className="mt-4 space-y-3 border-t border-default-100/80 pt-4">
                                 <p className="text-sm font-medium text-foreground">Download packages</p>
                                 <div className="grid gap-2 sm:grid-cols-2">

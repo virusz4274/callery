@@ -113,7 +113,8 @@ test('mobile login shows email sign-in without an extra reveal', async ({ page }
   await page.goto('/login?redirect=%2Fupload');
 
   await expect(page.getByRole('link', { name: /Back to site/i })).toBeVisible();
-  if (process.env.NEXT_PUBLIC_AUTH_PROVIDER !== 'local' || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+  const capabilities = await page.request.get('/api/auth/capabilities');
+  if ((await capabilities.json()).googleEnabled) {
     await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
   } else {
     await expect(page.getByRole('button', { name: /Sign in with Google/i })).toHaveCount(0);
@@ -187,13 +188,13 @@ test('authenticated user journey works', async ({ page }) => {
   await test.step('workspace surfaces keep primary actions visible', async () => {
     await page.goto('/contacts');
     await expect(page.getByRole('heading', { name: /^Contacts$/i })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /Upload more calls/i })).toBeVisible();
-    await expect(page.getByPlaceholder('Search by name, number, role, or company')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search contacts' })).toBeVisible();
 
     await page.goto('/files');
-    await expect(page.getByRole('heading', { name: /File browser/i })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /Upload more calls/i })).toBeVisible();
-    await expect(page.locator('body')).toContainText('Current location:');
+    await expect(page.getByRole('heading', { name: /^Files$/i })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
+    await expect(page.locator('body')).toContainText('Current folder:');
   });
 
   await test.step('exercise billing endpoints for the signed-in user', async () => {

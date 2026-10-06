@@ -7,7 +7,7 @@ export interface SystemSettings {
     _id: ObjectId;
     allowSignups: boolean;
     maintenanceMode: boolean;
-    defaultPlanId?: ObjectId; // Optional reference to the default plan
+    defaultPlanId: ObjectId;
     transcriptionMultipliers?: {
         soniox: number;
         elevenlabs: number;
@@ -109,13 +109,13 @@ export interface ExportJob {
     progress: number; // 0-100
     totalRecordings: number;
     processedRecordings: number;
-    parts?: {
+    parts: {
         url: string; // R2 Signed URL (or public if bucket is public, likely signed)
         size: number;
         expiresAt: Date;
         key: string; // R2 Key
     }[];
-    checkpoint?: {
+    checkpoint: {
         cursorRecordedAt?: Date;
         cursorId?: string;
         nextPartNumber: number;
@@ -148,7 +148,7 @@ export interface SystemSettingsResponse {
     id: string;
     allowSignups: boolean;
     maintenanceMode: boolean;
-    defaultPlanId?: string;
+    defaultPlanId: string;
     transcriptionMultipliers?: {
         soniox: number;
         elevenlabs: number;
@@ -218,7 +218,7 @@ export interface ExportJobResponse {
     id: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
     progress: number;
-    parts?: {
+    parts: {
         url: string;
         expiresAt: string;
     }[];

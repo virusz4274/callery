@@ -13,7 +13,7 @@ type ContactData = {
 
 /**
  * Saves or updates contacts in MongoDB.
- * @param authSubject The Firebase UID of the user.
+ * @param authSubject The auth subject of the user.
  * @param contacts An array of contact data to be saved.
  */
 export async function saveContactsToMongoDB(
@@ -21,7 +21,7 @@ export async function saveContactsToMongoDB(
     contacts: ContactData[]
 ): Promise<{ created: number; updated: number }> {
     if (!authSubject) {
-        throw new Error("Firebase UID is required to save contacts.");
+        throw new Error("auth subject is required to save contacts.");
     }
     if (!contacts || contacts.length === 0) {
         return { created: 0, updated: 0 };

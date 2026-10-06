@@ -142,13 +142,17 @@ export async function seedSystemSettings(db: Db, collections: CollectionsMap): P
             key: PLAN_KEYS.FREE_TRIAL,
         });
 
+        if (!defaultPlan) {
+            throw new Error('Seed plans before initializing system settings.');
+        }
+
         await db.collection(collections.SYSTEM_SETTINGS).updateOne(
             {},
             {
                 $setOnInsert: {
                     allowSignups: true,
                     maintenanceMode: false,
-                    ...(defaultPlan?._id ? { defaultPlanId: defaultPlan._id } : {}),
+                    defaultPlanId: defaultPlan._id,
                     transcriptionMultipliers: {
                         soniox: 1.0,
                         elevenlabs: 5.0,
@@ -160,23 +164,6 @@ export async function seedSystemSettings(db: Db, collections: CollectionsMap): P
             },
             { upsert: true }
         );
-
-        if (defaultPlan?._id) {
-            await db.collection(collections.SYSTEM_SETTINGS).updateOne(
-                {
-                    $or: [
-                        { defaultPlanId: { $exists: false } },
-                        { defaultPlanId: null },
-                    ],
-                },
-                {
-                    $set: {
-                        defaultPlanId: defaultPlan._id,
-                        updatedAt: new Date(),
-                    },
-                }
-            );
-        }
 
         logger.info('✅ System Settings seeded');
     } catch (error) {

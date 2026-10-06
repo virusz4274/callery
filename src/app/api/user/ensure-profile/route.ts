@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
  * POST /api/user/ensure-profile
  *
  * Ensures a user profile exists in MongoDB.
- * Called after successful Firebase authentication.
+ * Repairs profiles for authenticated Better Auth users.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
             email,
             name,
             photoURL || identity.image || undefined,
-            identity.provider,
             identity.emailVerified
         );
 

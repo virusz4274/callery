@@ -7,4 +7,4 @@ export {
 
 export { incrementContactRecordings, linkRecordingsToContact, recalculateContactStats } from './contacts/link';
 
-export { createContact, updateContact, upsertContacts } from './contacts/write';
+export { upsertContacts } from './contacts/write/upsert-contacts';

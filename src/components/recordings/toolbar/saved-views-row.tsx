@@ -34,12 +34,10 @@ export function SavedViewsRow({
     return (
         <div className="flex flex-wrap items-center gap-2">
             <Popover>
-                <Popover.Trigger>
                     <Button size="sm" variant="ghost" className="rounded-full">
                         <Bookmark className="h-4 w-4" />
                         {isMobile ? 'Views' : 'Views & collections'}
                     </Button>
-                </Popover.Trigger>
                 <Popover.Content placement="bottom start" offset={10} className="w-[min(94vw,24rem)] p-3">
                     <Popover.Dialog className="space-y-4">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-default-400">
@@ -90,7 +88,7 @@ export function SavedViewsRow({
                                         <button
                                             type="button"
                                             onClick={() => onApplySavedView(view.id)}
-                                            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                                 activeViewId === view.id
                                                     ? 'bg-primary/10 text-primary'
                                                     : 'text-default-600 hover:text-foreground'

@@ -6,8 +6,9 @@ test('isAuthorizedCronRequest accepts matching Bearer token', () => {
     assert.equal(isAuthorizedCronRequest('Bearer s3cret', 's3cret'), true);
 });
 
-test('isAuthorizedCronRequest accepts bare token', () => {
-    assert.equal(isAuthorizedCronRequest('s3cret', 's3cret'), true);
+test('isAuthorizedCronRequest rejects bare tokens and other authentication schemes', () => {
+    assert.equal(isAuthorizedCronRequest('s3cret', 's3cret'), false);
+    assert.equal(isAuthorizedCronRequest('Basic s3cret', 's3cret'), false);
 });
 
 test('isAuthorizedCronRequest rejects null header', () => {

@@ -19,7 +19,7 @@ function errorLog(userId: string, message: string, error?: unknown) {
  * Syncs Google Contacts in the background.
  * This function is designed to be called within `next/after` or a background job.
  *
- * @param userId - The Firebase UID of the user.
+ * @param userId - The auth subject of the user.
  * @param authClient - The authenticated OAuth2Client.
  */
 type ContactRecord = {

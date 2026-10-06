@@ -3,14 +3,19 @@
 import { Dropdown } from '@heroui/react';
 import { Check, Laptop, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
+
+const subscribe = () => () => undefined;
 
 export function ThemeSwitcher() {
   const { setTheme, theme, resolvedTheme } = useTheme();
+  const hasMounted = useSyncExternalStore(subscribe, () => true, () => false);
 
-  if (!resolvedTheme) {
+  // Theme values can be available in the browser before hydration finishes.
+  if (!hasMounted || !resolvedTheme) {
     return (
-      <div className="h-[34px] w-[58px] animate-pulse rounded-full border border-default-200/80 bg-default-100/80" />
+      <div aria-hidden="true" className="size-11 animate-pulse rounded-lg bg-surface-secondary" />
     );
   }
 
@@ -29,8 +34,7 @@ export function ThemeSwitcher() {
       <Dropdown.Trigger
         aria-label="Theme mode"
         className={cn(
-          'inline-flex h-[34px] w-[58px] items-center justify-center rounded-full border border-default-200/80 transition-colors',
-          effectiveTheme === 'dark' ? 'bg-default-900 text-default-100' : 'bg-default-100 text-foreground'
+          'inline-flex size-11 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-secondary hover:text-foreground'
         )}
       >
         {triggerIcon}

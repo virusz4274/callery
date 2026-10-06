@@ -2,6 +2,12 @@
 
 Admin features live under `/admin` and require a user whose role is `admin`.
 
+Both deployment types use Better Auth with MongoDB. Set `ADMIN_EMAILS` to bootstrap
+admins after verified authentication, including email-verification completion.
+Configure SMTP or Resend for deployed verification and recovery; `EMAIL_PROVIDER=none`
+automatically verifies addresses for testing. Disabled or deleted profiles cannot
+access product APIs through existing cookies, bearer sessions or limited sync tokens.
+
 ## Admin Routes
 
 - `/admin`: dashboard, health checks, incidents, and cleanup actions
@@ -139,8 +145,6 @@ npx tsx scripts/check-user-stripe.ts
 npx tsx scripts/debug-contacts.ts
 npx tsx scripts/debug-transcripts.ts
 npx tsx scripts/test-recording.ts
-npx tsx src/scripts/backfill-contact-counts.ts
-npx tsx src/scripts/fix-contact-stats.ts
 ```
 
 ## Recommended Admin Runbook

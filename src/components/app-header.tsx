@@ -11,6 +11,9 @@ import { MobileMenu } from './navigation/mobile-menu';
 import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
 import { publicEnv } from '@/lib/public-env';
+import { usePathname } from 'next/navigation';
+import { navigationConfig } from '@/config/navigation';
+import { ChevronRight } from 'lucide-react';
 
 type AppHeaderProps = {
   user: User | null;
@@ -28,10 +31,13 @@ export function AppHeader({
   compact = false,
 }: AppHeaderProps) {
   const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
+  const pathname = usePathname();
+  const currentPage = [...navigationConfig.main, { href: '/settings', name: 'Settings' }]
+    .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.name || 'Workspace';
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">
-      <div className={`w-full max-w-full mx-auto flex items-center px-4 md:px-6 ${compact ? 'h-14' : 'h-16'}`}>
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex h-16 w-full items-center gap-2 px-4 md:px-8">
 
         {/* Mobile Menu - Only show if burger menu is enabled */}
         {showHamburger && (
@@ -42,15 +48,22 @@ export function AppHeader({
         )}
 
         {/* Logo */}
-        <div className="mr-4 flex">
+        <div className={`mr-4 flex ${compact ? 'md:hidden' : ''}`}>
           <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
-            <span className="font-bold text-xl tracking-tight hidden xs:block">Callery</span>
+            <Logo className="h-8 w-8" />
+            <span className="text-lg font-semibold tracking-tight">Callery</span>
           </Link>
         </div>
 
         {/* Desktop Navigation */}
         {showPrimaryNav && <MainNav userProfile={userProfile} loggedIn={!!user} />}
+        {compact && (
+          <div className="hidden items-center gap-2 text-sm md:flex" aria-label="Current location">
+            <span className="text-muted">Workspace</span>
+            <ChevronRight className="size-3.5 text-muted" aria-hidden="true" />
+            <span className="font-medium">{currentPage}</span>
+          </div>
+        )}
 
         <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
           <ThemeSwitcher />

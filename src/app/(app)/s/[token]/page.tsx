@@ -25,7 +25,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
     if (!payload) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4 text-center">
-                <Logo className="w-12 h-12 text-default-300" />
+                <Logo alt="Callery" className="w-12 h-12" />
                 <h1 className="text-xl font-bold text-default-700">Link Expired or Invalid</h1>
                 <p className="text-default-500 max-w-md">
                     This shared link is no longer valid. Please ask the sender to generate a new one.
@@ -64,7 +64,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
             {/* Header */}
             <header className="sticky top-0 z-40 w-full border-b border-default-200/50 bg-background/70 backdrop-blur-xl px-4 md:px-6 h-16 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
-                    <Logo className="h-8 w-8 text-primary" />
+                    <Logo className="h-8 w-8" />
                     <span className="font-bold text-xl tracking-tight">Callery</span>
                 </Link>
                 <div className="text-xs font-mono bg-default-100 px-2 py-1 rounded text-default-500">

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Chip } from '@heroui/react';
 import { Download, Share2, Smartphone, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import Image from 'next/image';
+import { Logo } from '@/components/icons';
 
 type DeferredInstallPrompt = {
     prompt: () => Promise<void>;
@@ -102,13 +102,7 @@ export function InstallPwaPrompt() {
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
-                                <Image
-                                    src="/icons/android-chrome-192x192.png"
-                                    alt="Callery"
-                                    width={34}
-                                    height={34}
-                                    className="size-8 object-contain"
-                                />
+                                <Logo className="size-8" />
                             </div>
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">

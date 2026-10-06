@@ -6,9 +6,14 @@ Collection names are defined in `src/lib/mongodb.ts`.
 
 ## Core Collections
 
+Better Auth owns separate `user`, `account`, `session` and `verification` collections.
+The Mongo adapter stores `user._id` and linked `account.userId`/`session.userId`
+as ObjectIds. Permanent deletion uses those reference types and removes reset
+verification records after retryable storage/billing cleanup succeeds.
+
 ### `users`
 
-Stores application profiles linked to the deployment-selected local or Firebase identity. `authSubject` is the opaque provider subject and `authProvider` records its source.
+Stores application profiles linked to Better Auth. `authSubject` is the stable string form of the Better Auth user ObjectId.
 
 Important fields:
 
@@ -31,16 +36,22 @@ Important fields:
 - `googleSync`
 - `softDelete`
 
-`googleSync` stores encrypted refresh-token material only:
+Signup creates all settings objects, usage counters (including
+`storagePeakUsed`), and `googleSync`. Profile edits update supplied nested fields
+atomically and preserve their siblings. Google credentials and subscription
+details remain optional until the corresponding service is connected.
+
+`googleSync` starts with `status: 'not_connected'` and stores encrypted refresh-token material:
 
 ```ts
 googleSync: {
+  status: 'not_connected' | 'syncing' | 'completed' | 'failed';
   connectedAt?: Date;
+  lastAttemptAt?: Date;
   lastSyncedAt?: Date;
   refreshTokenCiphertext?: string;
   refreshTokenKeyVersion?: string;
-  syncInProgress?: boolean;
-  syncError?: string;
+  lastError?: string | null;
 }
 ```
 
@@ -55,7 +66,7 @@ notificationSettings: {
 
 transcriptionSettings: {
   autoTranscribe: boolean;
-  defaultProvider?: 'soniox' | 'elevenlabs';
+  defaultProvider?: 'soniox' | 'elevenlabs' | 'gemini' | 'openai_compat';
   defaultModel?: string;
 }
 
@@ -75,7 +86,7 @@ Stores uploaded audio metadata, transcript state, embeddings, and user-facing ar
 Important fields:
 
 - `authSubject`
-- `contactId`, `contactName`, `phoneNumber`
+- `contactId`, `contactName`, `phoneNumber`, `normalizedPhoneNumber`
 - `r2Key`, `fileName`, `standardizedDisplayName`, `fileSize`, `mimeType`, `duration`
 - `recordedAt`, `createdAt`, `updatedAt`
 - `transcriptionStatus`
@@ -84,7 +95,6 @@ Important fields:
 - `transcriptionProvider`, `transcriptionModel`, `transcriptionCostMultiplier`
 - `externalTranscriptionId`
 - `transcriptionUsageReportId`, `transcriptionUsageReportedAt`
-- `transliteratedTranscript`, `translatedTranscript`, `additionalTranscriptions`
 - `summary`, `summaryEmbedding`
 - `tags`
 - `isStarred`, `isArchived`
@@ -117,7 +127,7 @@ Important fields:
 - `authSubject`
 - `googleContactId`
 - `name`, `firstName`, `lastName`
-- `phoneNumbers`
+- `phoneNumbers`, `normalizedPhoneNumbers`
 - `email`
 - `jobTitle`, `company`
 - `createdAt`, `updatedAt`
@@ -151,7 +161,13 @@ Important fields:
 - `defaultPlanId`
 - `transcriptionMultipliers.soniox`
 - `transcriptionMultipliers.elevenlabs`
+- `transcriptionMultipliers.gemini`
+- `transcriptionMultipliers.openai_compat`
 - `updatedAt`
+
+`pnpm db:init` creates complete settings with a required `defaultPlanId` after
+seeding plans. Repeat initialization preserves existing settings. Admin edits
+require this singleton to exist.
 
 ## Operational Collections
 
@@ -216,6 +232,8 @@ Fields include:
 - `createdAt`, `updatedAt`, `startedAt`, `completedAt`
 
 Each part stores a signed download URL, key, size, and expiration time.
+Every new job includes `parts: []` and `checkpoint: { nextPartNumber: 1 }`.
+Processing persists the cursor and next part number for recovery after interruption.
 
 ### `external_service_incidents`
 

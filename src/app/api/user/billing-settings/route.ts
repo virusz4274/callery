@@ -70,9 +70,9 @@ export async function PATCH(req: NextRequest) {
                 const periodEnd = refreshedUser.stripeCurrentPeriodEnd
                     ? new Date(refreshedUser.stripeCurrentPeriodEnd)
                     : undefined;
-                await setStoragePeakUsed(uid, refreshedUser.storageUsed || 0, periodEnd);
-                await reportUsage(uid, 'storage', refreshedUser.storageUsed || 0, {
-                    identifier: `storage:${uid}:overage-enabled:${periodEnd?.toISOString() ?? 'none'}:${refreshedUser.storageUsed || 0}`,
+                await setStoragePeakUsed(uid, refreshedUser.storageUsed, periodEnd);
+                await reportUsage(uid, 'storage', refreshedUser.storageUsed, {
+                    identifier: `storage:${uid}:overage-enabled:${periodEnd?.toISOString() ?? 'none'}:${refreshedUser.storageUsed}`,
                 });
             }
         }
