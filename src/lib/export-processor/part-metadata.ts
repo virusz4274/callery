@@ -5,25 +5,7 @@ export function getPartKey(authSubject: string, jobId: string, partNumber: numbe
     return `exports/${authSubject}/${jobId}/part_${partNumber}.zip`;
 }
 
-export function inferNextPartNumber(parts: ExportPartMeta[]): number {
-    let maxPart = 0;
-
-    for (const part of parts) {
-        const match = part.key.match(/part_(\d+)\.zip$/);
-        if (!match) {
-            continue;
-        }
-
-        const parsed = Number.parseInt(match[1], 10);
-        if (!Number.isNaN(parsed) && parsed > maxPart) {
-            maxPart = parsed;
-        }
-    }
-
-    return maxPart + 1 || 1;
-}
-
-export function toStorageParts(parts: ExportPartMeta[]): NonNullable<ExportJob['parts']> {
+export function toStorageParts(parts: ExportPartMeta[]): ExportJob['parts'] {
     return parts.map((part) => ({
         key: part.key,
         size: part.size,

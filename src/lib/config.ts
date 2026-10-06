@@ -4,7 +4,6 @@
 // an actionable message naming the missing variable. This keeps `next build`
 // (which imports route modules) working without runtime secrets present.
 
-export type AuthProvider = 'firebase' | 'local';
 export type EmailProvider = 'resend' | 'smtp' | 'none';
 export type TranscriptionProvider = 'soniox' | 'elevenlabs' | 'gemini' | 'openai_compat';
 export type AiProvider = 'gemini' | 'openai_compat';
@@ -30,11 +29,6 @@ function required(name: string): string {
     return value;
 }
 
-/** Which auth backend serves login/signup/sessions. SaaS default: firebase. */
-export function authProvider(): AuthProvider {
-    return oneOf('AUTH_PROVIDER', process.env.AUTH_PROVIDER, ['firebase', 'local'] as const, 'firebase');
-}
-
 /** Which email backend sends verification/reset mails. Default: none (dev). */
 export function emailProvider(): EmailProvider {
     return oneOf('EMAIL_PROVIDER', process.env.EMAIL_PROVIDER, ['resend', 'smtp', 'none'] as const, 'none');
@@ -42,7 +36,7 @@ export function emailProvider(): EmailProvider {
 
 /** Sender identity for verification/reset mails. Required when EMAIL_PROVIDER is resend or smtp. */
 export function emailFrom(): string {
-    return process.env.EMAIL_FROM || required('SMTP_FROM');
+    return required('EMAIL_FROM');
 }
 
 /** Resend API key. Required when EMAIL_PROVIDER=resend. */
@@ -154,7 +148,7 @@ export function compatTranscriptionConfig(): CompatTranscriptionConfig | undefin
     };
 }
 
-/** Emails granted the admin role on first login (local auth bootstrap). */
+/** Emails granted the admin role after verified authentication. */
 export function adminEmails(): string[] {
     return (process.env.ADMIN_EMAILS ?? '')
         .split(',')
@@ -186,8 +180,8 @@ export function storageConfig(): StorageConfig {
         accessKeyId: process.env.R2_ACCESS_KEY_ID as string,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY as string,
         bucket: process.env.R2_BUCKET_NAME as string,
-        region: process.env.S3_REGION || process.env.R2_REGION || 'auto',
-        forcePathStyle: (process.env.S3_FORCE_PATH_STYLE || process.env.R2_FORCE_PATH_STYLE) === 'true',
+        region: process.env.S3_REGION || 'auto',
+        forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
         publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || undefined,
     };
 }
@@ -203,7 +197,7 @@ export function mongoUri(): string {
  * degrade gracefully, transcription throws an actionable error.
  */
 export function geminiApiKey(): string | undefined {
-    return process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || undefined;
+    return process.env.GOOGLE_GENERATIVE_AI_API_KEY || undefined;
 }
 
 /** Billed-unit multiplier for one provider (managed metering). Unknown providers bill at 1x. */

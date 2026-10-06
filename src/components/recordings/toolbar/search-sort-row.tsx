@@ -135,9 +135,8 @@ export function SearchSortRow({
                             {activeFilterCount} active
                         </Chip>
                     )}
-                    <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-                        {!isMobile && <Sparkles className="h-3.5 w-3.5" />}
-                        {!isMobile && 'Search tools'}
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-muted">
+                        {!isMobile && 'Search recordings'}
                         <ContextHelp
                             title="Unified search"
                             description="Use one search surface for both exact text filtering and AI search."
@@ -150,11 +149,12 @@ export function SearchSortRow({
                         />
                     </div>
                 </div>
-                <div className="inline-flex items-center rounded-full border border-default-200 bg-background/80 p-1">
+                <div className="inline-flex items-center rounded-lg border border-border bg-surface-secondary p-1">
                     <Button
                         size="sm"
                         variant={searchMode === 'text' ? 'secondary' : 'ghost'}
-                        className="rounded-full px-3"
+                        className="rounded-lg px-3"
+                        aria-pressed={searchMode === 'text'}
                         onPress={() => onSearchModeChange('text')}
                     >
                         Text
@@ -162,7 +162,8 @@ export function SearchSortRow({
                     <Button
                         size="sm"
                         variant={searchMode === 'semantic' ? 'secondary' : 'ghost'}
-                        className="rounded-full px-3"
+                        className="rounded-lg px-3"
+                        aria-pressed={searchMode === 'semantic'}
                         onPress={() => onSearchModeChange('semantic')}
                     >
                         AI search
@@ -186,10 +187,10 @@ export function SearchSortRow({
                             className="w-full"
                             variant="secondary"
                         >
-                            <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
+                            <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-lg border border-border bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
                                 <SearchField.SearchIcon className="mr-2 text-default-400" />
                                 <SearchField.Input
-                                    className="w-full border-none bg-transparent p-0 text-small placeholder:text-default-400 focus:ring-0"
+                                    className="w-full border-none bg-transparent p-0 text-base placeholder:text-default-400 focus:ring-0"
                                     placeholder="AI search: payment confirmation calls"
                                 />
                                 <SearchField.ClearButton />
@@ -233,10 +234,10 @@ export function SearchSortRow({
                         className="w-full"
                         variant="secondary"
                     >
-                        <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-2xl border border-default-200 bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
+                        <SearchField.Group className="flex h-10 items-center overflow-hidden rounded-lg border border-border bg-background px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 md:h-12">
                             <Filter className="mr-2 h-4 w-4 text-default-400" />
                             <SearchField.Input
-                                className="w-full border-none bg-transparent p-0 text-small placeholder:text-default-400 focus:ring-0"
+                                className="w-full border-none bg-transparent p-0 text-base placeholder:text-default-400 focus:ring-0"
                                 placeholder="Filter by contact, summary, transcript..."
                             />
                             <SearchField.ClearButton />
@@ -259,7 +260,6 @@ export function SearchSortRow({
 
             <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                 <Popover>
-                    <Popover.Trigger>
                         <Button
                             variant={hasContact || hasDateRange || hasNonDefaultSort ? 'secondary' : 'ghost'}
                             className="rounded-full"
@@ -268,7 +268,6 @@ export function SearchSortRow({
                             <SlidersHorizontal className="h-4 w-4" />
                             More filters
                         </Button>
-                    </Popover.Trigger>
                     <Popover.Content placement="bottom start" offset={10} className="w-[min(94vw,24rem)] p-3">
                         <Popover.Dialog className="space-y-4">
                             <div className="space-y-1">
@@ -426,11 +425,13 @@ export function SearchSortRow({
                     </Popover.Content>
                 </Popover>
 
-                <div className="inline-flex items-center rounded-full border border-default-200 bg-background/80 p-1">
+                <div className="inline-flex items-center rounded-lg border border-border bg-surface-secondary p-1">
                     <Button
                         size="sm"
                         variant={density === 'comfortable' ? 'secondary' : 'ghost'}
-                        className="rounded-full"
+                        className="rounded-lg"
+                        aria-label="Comfortable density"
+                        aria-pressed={density === 'comfortable'}
                         onPress={() => onDensityChange('comfortable')}
                     >
                         <LayoutGrid className="h-3.5 w-3.5" />
@@ -439,7 +440,9 @@ export function SearchSortRow({
                     <Button
                         size="sm"
                         variant={density === 'dense' ? 'secondary' : 'ghost'}
-                        className="rounded-full"
+                        className="rounded-lg"
+                        aria-label="Dense density"
+                        aria-pressed={density === 'dense'}
                         onPress={() => onDensityChange('dense')}
                     >
                         <Rows3 className="h-3.5 w-3.5" />

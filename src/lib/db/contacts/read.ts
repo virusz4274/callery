@@ -2,13 +2,6 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { Contact } from '../types';
 import { normalizeContactName, normalizeContactPhoneNumber } from './normalize';
 
-function buildGoogleContactQuery(authSubject: string) {
-    return {
-        authSubject,
-        googleContactId: { $type: 'string' as const },
-    };
-}
-
 /**
  * Get all contacts for a user.
  */
@@ -23,7 +16,7 @@ export async function getContactsByUser(
 
     return db
         .collection<Contact>(Collections.CONTACTS)
-        .find(buildGoogleContactQuery(authSubject))
+        .find({ authSubject })
         .sort({ normalizedName: 1, name: 1 })
         .skip(options?.skip || 0)
         .limit(options?.limit || 0)
@@ -43,7 +36,7 @@ export async function findContactByPhone(authSubject: string, phoneNumber: strin
 
     const matches = await db.collection<Contact>(Collections.CONTACTS)
         .find({
-            ...buildGoogleContactQuery(authSubject),
+            authSubject,
             normalizedPhoneNumbers: normalizedPhoneNumber,
         })
         .limit(2)
@@ -65,7 +58,7 @@ export async function findContactByName(authSubject: string, name: string): Prom
 
     const matches = await db.collection<Contact>(Collections.CONTACTS)
         .find({
-            ...buildGoogleContactQuery(authSubject),
+            authSubject,
             normalizedName,
         })
         .limit(2)
@@ -80,5 +73,5 @@ export async function findContactByName(authSubject: string, name: string): Prom
 export async function countContactsByUser(authSubject: string): Promise<number> {
     const db = await getMongoDb();
 
-    return db.collection<Contact>(Collections.CONTACTS).countDocuments(buildGoogleContactQuery(authSubject));
+    return db.collection<Contact>(Collections.CONTACTS).countDocuments({ authSubject });
 }

@@ -21,7 +21,7 @@ Integration branch: `codex/reconcile-branches`. Worktree: `C:\Users\virus\.codex
 | Topic | Choice |
 | --- | --- |
 | Hosting | One codebase for self-hosted and managed deployments |
-| Auth | Local Better Auth or Firebase, selected per deployment |
+| Auth | Better Auth + MongoDB for every deployment |
 | Billing | Optional; managed storage bills the period's highest stored bytes |
 | Web | Keep `new-works` UI, sharing, exports, notifications, contacts and admin features |
 | Android | Archive wrapper/native UI; retain upload and sync APIs for a future client |
@@ -31,8 +31,8 @@ Integration branch: `codex/reconcile-branches`. Worktree: `C:\Users\virus\.codex
 
 ## Combined behavior
 
-- Server actions, API routes and UI share the selected auth provider. Disabled/deleted profiles cannot continue using cookies or sync tokens. Local signup policy runs before identity creation, and verified bootstrap admins work with both providers.
-- Configuration and external clients initialize only when needed. Billing-off local deployments build and run without Firebase or Stripe credentials.
+- Server actions, API routes and UI now share Better Auth. Disabled/deleted profiles cannot continue using cookies or sync tokens. Signup policy runs before identity creation, and admin bootstrap requires verified authentication.
+- Configuration and external clients initialize only when needed. Billing-off local deployments build and run without Stripe credentials.
 - Upload and playback URLs are signed for the public storage host; metadata, duration reads and exports use the internal endpoint.
 - The shared pipeline and UI support Soniox, ElevenLabs, Gemini and a Whisper-compatible server. User overrides or the instance default select transcription. Gemini or a compatible local server can enrich transcripts.
 - Storage and peak counters update atomically. Deletion frees current capacity without lowering that period's peak. Subscription renewal starts a fresh storage baseline and transcription allowance.
@@ -44,9 +44,9 @@ Integration branch: `codex/reconcile-branches`. Worktree: `C:\Users\virus\.codex
 
 ## Verification boundaries
 
-Checks cover TypeScript, lint, unit/regression tests, isolated real MongoDB integration tests, production builds for both auth profiles, PWA output, and a production web/API run with local auth and a local storage/provider fixture. Logs and fixture scripts are in the recovery directory.
+At reconciliation, checks covered TypeScript, lint, unit/regression tests, isolated real MongoDB integration tests, production builds for the former auth profiles, PWA output, and a production web/API run with a local storage/provider fixture. Logs and fixture scripts are in the recovery directory. Current authentication validation is recorded in the [setup guide](setup-guide.md).
 
-The fixture checks request flow, ownership, retries and accounting. Real Firebase login, Stripe payments, storage signing, SMTP and cloud speech quality still need configured end-to-end checks; no external customer data or payment service was used.
+The fixture checks request flow, ownership, retries and accounting. Live Google login, Stripe payments, storage signing, SMTP and cloud speech quality still need configured end-to-end checks; no external customer data or payment service was used.
 
 The Cloudflare bundle builds, but deployment/runtime compatibility and PWA parity remain experimental. Docker Engine is unavailable on this host, so container startup has not been verified; the underlying Node app and database initialization were exercised.
 

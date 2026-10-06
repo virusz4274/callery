@@ -4,20 +4,19 @@ import { createUser, findUserByAuthSubject, getRequiredDefaultPlan, getRequiredS
 
 /**
  * Ensure a user profile exists, creating one if necessary.
- * This is called after Firebase Auth login.
+ * Called after Better Auth signup, verification, and login.
  */
 export async function ensureUserProfile(
     authSubject: string,
     email: string,
     displayName?: string,
     photoURL?: string,
-    provider: 'firebase' | 'local' = 'firebase',
     emailVerified?: boolean
 ): Promise<{ user: User; wasCreated: boolean }> {
     const existingUser = await findUserByAuthSubject(authSubject);
 
     if (existingUser) {
-        if (!existingUser.disabled && emailVerified && isBootstrapAdminEmail(email) && existingUser.role !== 'admin') {
+        if (!existingUser.disabled && !existingUser.softDelete?.isDeleted && emailVerified && isBootstrapAdminEmail(email) && existingUser.role !== 'admin') {
             const promoted = await updateUser(authSubject, { role: 'admin' });
             if (promoted) return { user: promoted, wasCreated: false };
         }
@@ -26,7 +25,7 @@ export async function ensureUserProfile(
 
     const settings = await getRequiredSystemSettings();
 
-    if (settings && !settings.allowSignups) {
+    if (!settings.allowSignups) {
         throw new Error('New signups are currently disabled.');
     }
 
@@ -39,7 +38,6 @@ export async function ensureUserProfile(
     try {
         const newUser = await createUser({
             authSubject,
-            authProvider: provider,
             email,
             firstName,
             lastName,

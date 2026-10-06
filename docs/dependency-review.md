@@ -17,6 +17,11 @@ Upgrades include Next.js 16.3.8, Better Auth 1.7.7, Serwist 9.5.13, Sentry 11.4,
 
 ## Security fixes
 
+Auth unification removes both identity SDK packages and their transitive build
+allowances. The current audit also requires `source-map-js` 1.2.2, selected with
+a narrow override for older versions; see the
+[maintainer release](https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2).
+
 The initial audit had seven findings: two Browserslist findings, two gRPC findings, UUID, fflate and braces. Serwist's update resolves Browserslist. Narrow overrides select patched UUID 11, fflate 0.7.5 and gRPC 1.14 versions for SDKs that still request vulnerable dependencies. UUID 11 preserves CommonJS compatibility for gaxios 6.
 
 `braces` has no published patched release for [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). `patches/braces@3.0.3.patch` bounds parser nesting to 100 and checks supplied ASTs before recursive compilation, expansion or stringification. It covers parentheses as well as braces and rejects cyclic/deep ASTs. Ordinary patterns and escaped/quoted literal braces continue to work. Tests reproduce the reported 4,000-level input and verify normal expansions.
@@ -36,16 +41,16 @@ corepack pnpm build
 corepack pnpm build:vinext
 ```
 
-`pnpm run audit` is the verified-patch gate; bare `pnpm audit` is the raw registry scan and still reports the braces finding. Neither check relies on an npm lockfile or the old blanket Firebase low-severity allowance.
+`pnpm run audit` is the verified-patch gate; bare `pnpm audit` is the raw registry scan and still reports the braces finding. Neither check relies on an npm lockfile or the old blanket low-severity allowance.
 
-Runtime verification uses disposable MongoDB and storage/provider fixtures. Live Firebase, Stripe, SMTP and a deployed Worker require operator credentials; Docker container startup also requires Docker Engine. Those are separate from local package/build checks.
+Runtime verification uses disposable MongoDB and storage/provider fixtures. Live Google OAuth, Stripe, SMTP and a deployed Worker require operator credentials; Docker container startup also requires Docker Engine. Those are separate from local package/build checks.
 
 ## Verified results
 
 - Frozen lockfile installation and peer dependency validation passed. The only registry `outdated` entry is the intentional Node 24 type declaration hold.
 - Type checking and full-repository ESLint 10 passed.
 - All 92 application tests passed against disposable MongoDB, with no skipped tests. All five dependency/ZIP/Windows standalone regression tests passed.
-- Production Node builds passed for local auth/billing off and Firebase auth/billing on, including service-worker and manifest verification. The experimental Cloudflare build also passed.
+- Before auth unification, production Node builds passed for the former auth modes with billing off/on, including service-worker and manifest verification. The experimental Cloudflare build also passed.
 - All five Playwright browser tests passed against the production standalone app, including signup, upload, support and workspace navigation.
 - Isolated API checks passed for cookie/bearer auth, admin bootstrap, sync tokens, direct upload and duplicate completion, ownership, playback ranges, search/date filters, billing off, transcription/AI accounting and disabled-session/signup enforcement.
 - Full and production audit gates passed with the exact braces patch verified. The raw registry scan retains its one version-based braces finding.

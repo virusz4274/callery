@@ -13,6 +13,7 @@ function createUser(overrides: Partial<User> = {}): User {
     return {
         _id: new ObjectId(),
         authSubject: 'user-1',
+        googleSync: { status: 'not_connected' },
         email: 'user@example.com',
         firstName: 'Test',
         lastName: 'User',
@@ -35,6 +36,7 @@ function createUser(overrides: Partial<User> = {}): User {
             deletionPolicy: 'never',
         },
         storageUsed: 95,
+        storagePeakUsed: 95,
         storageAllocation: 100,
         transcriptionUsed: 0,
         transcriptionAllocation: 3600,

@@ -57,7 +57,7 @@ export function UsageStorageCard({
     const transcriptionPercentage = (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100;
 
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">Usage overview</Chip>

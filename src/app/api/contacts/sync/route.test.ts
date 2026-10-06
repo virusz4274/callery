@@ -36,7 +36,7 @@ test('contacts sync route returns 400 when Google is not connected', async () =>
     const { createPostContactsSyncHandler } = await import('@/app/api/contacts/sync/handler');
     const POST = createPostContactsSyncHandler({
         getAuthSubjectFromSession: async () => 'user-1',
-        findUserByAuthSubject: async () => ({ authSubject: 'user-1', googleSync: undefined } as never),
+        findUserByAuthSubject: async () => ({ authSubject: 'user-1', googleSync: { status: 'not_connected' } } as never),
         readStoredGoogleRefreshToken: () => null,
         prepareGoogleContactsSync: async () => {
             throw new Error('should not prepare sync');

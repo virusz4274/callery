@@ -3,6 +3,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { collectDigestStats, digestWindow, sendDigestEmail } from '@/lib/email/notifications';
 import type { User } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 /**
  * GET /api/cron/digest
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${secret}`) {
+    if (!isAuthorizedCronRequest(auth, secret)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         let sent = 0;
         let skipped = 0;
         for (const user of users) {
-            const preference = user.notificationSettings?.activityDigest ?? 'off';
+            const preference = user.notificationSettings.activityDigest;
             const window = digestWindow(preference, now);
             if (!window) {
                 skipped++;

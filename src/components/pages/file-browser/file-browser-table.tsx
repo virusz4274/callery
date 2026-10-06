@@ -29,14 +29,14 @@ export function FileBrowserTable({
     const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
 
     return (
-        <Card className="overflow-visible rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="gap-0 overflow-visible rounded-xl border border-border bg-surface p-0 shadow-none">
             <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 px-6 py-6">
                 <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
                             Current directory
                         </div>
-                        <div className="text-2xl font-bold tracking-[-0.03em] text-foreground">{currentLocation}</div>
+                        <div className="text-2xl font-semibold tracking-tight text-foreground">{currentLocation}</div>
                     </div>
                     <Chip variant="soft" color="default" className="rounded-full">
                         {items.length} visible item{items.length === 1 ? '' : 's'}

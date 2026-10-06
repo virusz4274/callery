@@ -2,13 +2,13 @@ import { timingSafeEqual } from 'node:crypto';
 
 /**
  * Timing-safe comparison of an Authorization header bearer token against the
- * expected secret. Accepts both `Bearer TOKEN` and bare `TOKEN`.
+ * expected secret. Requires the Bearer authentication scheme.
  */
 export function isAuthorizedCronRequest(authHeader: string | null, expectedSecret: string): boolean {
     if (!authHeader || !expectedSecret) {
         return false;
     }
-    const provided = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const provided = authHeader.match(/^Bearer\s+(.+)$/i)?.[1].trim();
     if (!provided) {
         return false;
     }

@@ -1,6 +1,4 @@
-// Email provider seam. Local auth (better-auth) sends verification and
-// password-reset mails through this interface; Firebase mode keeps using
-// Firebase's own emails and never touches these services.
+// Better Auth verification and recovery share the configured email service.
 
 export interface SendEmailInput {
     to: string;

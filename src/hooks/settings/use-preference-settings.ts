@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { AppUser as FirebaseUser } from '@/lib/auth/types';
+import type { AppUser } from '@/lib/auth/types';
 import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
@@ -13,7 +13,7 @@ async function getErrorMessage(response: Response, fallback: string): Promise<st
     }
 }
 
-export function usePreferenceSettings(user: FirebaseUser | null, userProfile: UserProfile | null) {
+export function usePreferenceSettings(user: AppUser | null, userProfile: UserProfile | null) {
     const { toast } = useToast();
 
     // General State
@@ -27,7 +27,7 @@ export function usePreferenceSettings(user: FirebaseUser | null, userProfile: Us
         transcriptionSettings: { autoTranscribe: boolean; defaultProvider?: UserProfile['transcriptionSettings']['defaultProvider'] };
     }>({
         deletionPolicy: 'never',
-        transcriptionSettings: { autoTranscribe: true, defaultProvider: 'soniox' }
+        transcriptionSettings: { autoTranscribe: true }
     });
     const [isSavingData, setSavingData] = useState(false);
     const dataDirtyRef = useRef(false);
@@ -37,13 +37,10 @@ export function usePreferenceSettings(user: FirebaseUser | null, userProfile: Us
             if (!generalDirtyRef.current) setGeneralState({ timezone: userProfile.timezone || '' });
             if (!dataDirtyRef.current) {
                 setDataState({
-                    deletionPolicy: userProfile.storageSettings?.deletionPolicy || 'never',
+                    deletionPolicy: userProfile.storageSettings.deletionPolicy,
                     transcriptionSettings: {
-                        autoTranscribe: userProfile.transcriptionSettings?.autoTranscribe ?? true,
-                        defaultProvider:
-                            userProfile.transcriptionSettings?.defaultProvider === 'elevenlabs'
-                                ? 'elevenlabs'
-                                : 'soniox',
+                        autoTranscribe: userProfile.transcriptionSettings.autoTranscribe,
+                        defaultProvider: userProfile.transcriptionSettings.defaultProvider,
                     },
                 });
             }

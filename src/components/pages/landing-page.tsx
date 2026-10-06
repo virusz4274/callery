@@ -99,7 +99,7 @@ function SectionHeading({
       <div className="text-xs font-semibold uppercase tracking-[0.26em] text-primary">
         {eyebrow}
       </div>
-      <h2 className="text-3xl font-black tracking-[-0.04em] text-foreground sm:text-4xl md:text-5xl">
+      <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
         {title}
       </h2>
       {description ? (
@@ -120,7 +120,7 @@ export function LandingPage({
 }) {
   return (
     <div className="relative overflow-hidden bg-background text-foreground selection:bg-primary/15">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[760px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.18),transparent_36%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.16),transparent_30%),linear-gradient(to_bottom,rgba(255,255,255,0),rgba(255,255,255,0.6))]" />
+
 
       <main className="relative">
         <section className="border-b border-default-100/80">
@@ -131,7 +131,7 @@ export function LandingPage({
               </Chip>
 
               <div className="space-y-5">
-                <h1 className="max-w-5xl text-5xl font-black tracking-[-0.06em] text-foreground sm:text-6xl md:text-7xl">
+                <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-foreground sm:text-6xl md:text-7xl">
                   Turn call recordings into a searchable archive.
                 </h1>
                 <p className="max-w-3xl text-lg leading-8 text-default-600 md:text-xl">
@@ -161,7 +161,7 @@ export function LandingPage({
                   <Surface
                     key={signal.title}
                     variant="secondary"
-                    className="h-full rounded-[1.5rem] border border-default-200/80 bg-background/90 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]"
+                    className="h-full rounded-xl border border-border bg-surface p-5 shadow-none"
                   >
                     <div className="space-y-2">
                       <div className="text-sm font-semibold text-foreground">{signal.title}</div>
@@ -173,14 +173,14 @@ export function LandingPage({
             </div>
 
             <div className="relative min-h-[460px]">
-              <div className="absolute inset-10 rounded-[2.75rem] bg-linear-to-br from-primary/12 via-transparent to-secondary/10 blur-3xl" />
+
 
               <Surface
                 variant="default"
-                className="relative ml-auto overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 p-4 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] md:max-w-[38rem] md:p-5"
+                className="relative ml-auto overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-none md:max-w-[38rem] md:p-5"
               >
                 <div className="grid gap-4">
-                  <Card variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-5">
+                  <Card variant="secondary" className="rounded-xl border border-default-200/80 p-5">
                     <Card.Header className="gap-4 px-0 pt-0">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                         <Search className="h-5 w-5" />
@@ -262,7 +262,7 @@ export function LandingPage({
 
             <div className="grid gap-4 md:grid-cols-3">
               {workflowSteps.map((step, index) => (
-                <Card key={step.title} className="rounded-[2rem] border border-default-200/80 bg-background/90 p-6">
+                <Card key={step.title} className="rounded-2xl border border-border bg-surface p-6">
                   <Card.Header className="px-0 pt-0">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                       {index + 1}
@@ -293,7 +293,7 @@ export function LandingPage({
                 return (
                   <Card
                     key={benefit.title}
-                    className="h-full rounded-[2rem] border border-default-200/80 bg-background/90 p-6 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]"
+                    className="h-full rounded-2xl border border-border bg-surface p-6 shadow-none"
                   >
                     <Card.Header className="gap-4 px-0 pt-0">
                       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${benefit.accentClass}`}>
@@ -324,13 +324,13 @@ export function LandingPage({
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
-          <Surface variant="secondary" className="rounded-[2rem] border border-default-200/80 p-6 md:p-8">
+          <Surface variant="secondary" className="rounded-2xl border border-default-200/80 p-6 md:p-8">
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
               <div className="space-y-3">
                 <Chip variant="soft" color="accent" size="sm">
                   Why not native storage?
                 </Chip>
-                <h2 className="text-3xl font-black tracking-[-0.04em] text-foreground md:text-4xl">
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                   Phones are built to save recordings. Archives are built to retrieve them later.
                 </h2>
               </div>
@@ -364,7 +364,7 @@ export function LandingPage({
 
             <div className="grid gap-4 md:grid-cols-2">
               {landingPageFaqs.map((item) => (
-                <Card key={item.question} className="h-full rounded-[2rem] border border-default-200/80 bg-background/90 p-6">
+                <Card key={item.question} className="h-full rounded-2xl border border-border bg-surface p-6">
                   <Card.Header className="px-0 pt-0">
                     <Card.Title className="text-lg">{item.question}</Card.Title>
                   </Card.Header>
@@ -379,13 +379,13 @@ export function LandingPage({
 
         <section className="px-4 pb-20 md:px-6 md:pb-24">
           <div className="mx-auto max-w-7xl">
-            <Card className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-linear-to-br from-background via-background to-default-50 p-6 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)] md:p-10">
+            <Card className="overflow-hidden rounded-2xl border border-default-200/80 bg-linear-to-br from-background via-background to-default-50 p-6 shadow-none md:p-10">
               <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="space-y-4">
                   <Chip variant="soft" color="accent" size="sm">
                     Ready when you are
                   </Chip>
-                  <h2 className="max-w-3xl text-3xl font-black tracking-[-0.04em] text-foreground sm:text-4xl">
+                  <h2 className="max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                     Turn scattered recordings into a searchable call archive.
                   </h2>
                   <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">

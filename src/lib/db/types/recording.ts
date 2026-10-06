@@ -57,12 +57,6 @@ export interface Recording {
     transcriptionUsageReportId?: string;
     transcriptionUsageReportedAt?: Date;
 
-
-    // Future-proof fields for translations/transliterations
-    transliteratedTranscript?: string; // e.g., Manglish
-    translatedTranscript?: string; // e.g., English translation
-    additionalTranscriptions?: Record<string, string>; // Flexible bucket for other variations
-
     // Summary & Embeddings
     summary?: string; // English summary for search
     summaryEmbedding?: number[]; // Vector embedding of the summary

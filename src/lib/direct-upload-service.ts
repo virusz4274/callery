@@ -7,7 +7,6 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { checkStorageAccess, checkUserAccess } from '@/lib/access-control';
 import { createRecording, getRecordingByR2Key } from '@/lib/db/recordings';
 import {
-    checkAndResetUsageCycle,
     findUserByAuthSubject,
     incrementStorageUsed,
 } from '@/lib/db/users';
@@ -54,7 +53,7 @@ async function updateStorageUsageForUpload(authSubject: string, fileSize: number
         return;
     }
 
-    await reportUsage(authSubject, 'storage', updatedUser.storagePeakUsed || updatedUser.storageUsed);
+    await reportUsage(authSubject, 'storage', updatedUser.storagePeakUsed);
 }
 
 export async function initializeDirectUploadForUser(
@@ -91,8 +90,7 @@ export async function initializeDirectUploadForUser(
             return { success: false, error: generalAccess.reason || 'Access denied' };
         }
 
-        const currentUser = await checkAndResetUsageCycle(user);
-        const storageAccess = checkStorageAccess(currentUser, input.fileSize);
+        const storageAccess = checkStorageAccess(user, input.fileSize);
         if (!storageAccess.allowed) {
             return { success: false, error: storageAccess.reason || 'Storage limit exceeded' };
         }
@@ -205,8 +203,7 @@ export async function completeDirectUploadForUser(
             return { success: false, error: `Invalid uploaded MIME type: ${effectiveMimeType}` };
         }
 
-        const currentUser = await checkAndResetUsageCycle(user);
-        const storageAccess = checkStorageAccess(currentUser, uploadedSize);
+        const storageAccess = checkStorageAccess(user, uploadedSize);
         if (!storageAccess.allowed) {
             return { success: false, error: storageAccess.reason || 'Storage limit exceeded' };
         }
@@ -243,7 +240,7 @@ export async function completeDirectUploadForUser(
         return {
             success: true,
             recordingId: createdRecording._id.toString(),
-            shouldStartAutoTranscription: Boolean(user.transcriptionSettings?.autoTranscribe),
+            shouldStartAutoTranscription: user.transcriptionSettings.autoTranscribe,
         };
     } catch (error) {
         logger.error('[directUpload] completeDirectUpload failed:', error);

@@ -12,12 +12,10 @@ export {
 } from './users/lookup';
 
 export { ensureUserProfile } from './users/ensure-profile';
+export { updateUserProfile } from './users/profile';
 
 export {
-    bumpStoragePeakUsed,
-    checkAndResetUsageCycle,
     decrementStorageUsed,
-    incrementContactCount,
     incrementStorageUsed,
     incrementTranscriptionUsed,
     setContactCount,

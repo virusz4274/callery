@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { brandLogoSrc } from '@/lib/brand-image';
 import { siteProfile } from '@/lib/site-profile';
 
 export const alt = 'Site preview';
@@ -39,14 +40,16 @@ export default function OpenGraphImage() {
               width: '64px',
               height: '64px',
               borderRadius: '18px',
-              background: 'rgba(255,255,255,0.16)',
+              background: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 30,
+              overflow: 'hidden',
             }}
           >
-            C
+            {/* ImageResponse renders HTML images directly. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={brandLogoSrc} alt="" width={96} height={96} style={{ flexShrink: 0 }} />
           </div>
           <span>{siteProfile.siteName}</span>
         </div>

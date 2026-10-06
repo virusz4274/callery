@@ -1,7 +1,7 @@
-import type { Db } from 'mongodb';
+import { ObjectId, type Db } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { deleteFromR2 } from '@/lib/r2';
-import { authProvider, billingEnabled } from '@/lib/config';
+import { billingEnabled } from '@/lib/config';
 import { removeStoredObjects } from '@/lib/storage-cleanup';
 import type { ExportJob, Recording, User } from './types';
 
@@ -23,19 +23,11 @@ interface CleanupDependencies {
 }
 
 async function removeIdentity(db: Db, user: User): Promise<void> {
-    if ((user.authProvider || authProvider()) === 'local') {
-        await db.collection('session').deleteMany({ userId: user.authSubject });
-        await db.collection('account').deleteMany({ userId: user.authSubject });
-        // Mongo adapter stores its auth id as ObjectId.
-        const { ObjectId } = await import('mongodb');
-        if (ObjectId.isValid(user.authSubject)) await db.collection('user').deleteOne({ _id: new ObjectId(user.authSubject) });
-    } else {
-        const { getAdminAuth } = await import('@/lib/firebase/admin');
-        try { await getAdminAuth().deleteUser(user.authSubject); }
-        catch (error) {
-            if ((error as { code?: string }).code !== 'auth/user-not-found') throw error;
-        }
-    }
+    const userId = new ObjectId(user.authSubject);
+    await db.collection('session').deleteMany({ userId });
+    await db.collection('account').deleteMany({ userId });
+    await db.collection('verification').deleteMany({ value: user.authSubject });
+    await db.collection('user').deleteOne({ _id: userId });
 }
 
 export async function deleteUserData(subject: string, dependencies?: CleanupDependencies): Promise<DeleteUserDataResult> {
@@ -70,7 +62,7 @@ export async function deleteUserData(subject: string, dependencies?: CleanupDepe
     const exports = await db.collection<ExportJob>(Collections.EXPORT_JOBS).find({ authSubject: subject }).toArray();
     result.r2Failures = await removeStoredObjects([
         ...recordings.map(recording => recording.r2Key),
-        ...exports.flatMap(job => job.parts?.map(part => part.key) || []),
+        ...exports.flatMap(job => job.parts.map(part => part.key)),
     ], dependencies?.removeObject || deleteFromR2);
     if (result.r2Failures.length) return result;
 

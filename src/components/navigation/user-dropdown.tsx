@@ -14,13 +14,13 @@ interface UserDropdownProps {
 export function UserDropdown({ user, onLogout }: UserDropdownProps) {
     return (
         <Dropdown>
-            <Dropdown.Trigger className="ml-2 cursor-pointer">
+            <Dropdown.Trigger aria-label="Open account menu" className="flex size-11 cursor-pointer items-center justify-center rounded-full">
                 <Avatar
                     className="transition-transform"
                     color="accent"
                     size="sm"
                 >
-                    <Avatar.Image src={user.image || undefined} />
+                    <Avatar.Image src={user.image || undefined} alt={user.name || 'Your avatar'} />
                     <Avatar.Fallback>{(user.name || user.email || "U").charAt(0).toUpperCase()}</Avatar.Fallback>
                 </Avatar>
             </Dropdown.Trigger>

@@ -274,7 +274,7 @@ export async function syncSubscription(subscriptionId: string) {
 }
 
 /**
- * Links a Stripe Customer ID to a Firebase User ID.
+ * Links a Stripe Customer ID to a auth subject.
  * Called when a Checkout Session is completed.
  */
 export async function linkCustomerToUser(stripeCustomerId: string, authSubject: string) {

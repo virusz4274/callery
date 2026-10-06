@@ -2,7 +2,8 @@ import { ObjectId } from 'mongodb';
 import { getExportJob, updateExportJob } from '@/lib/db/export-jobs';
 import type { RecordingExportCursor } from '@/lib/db/recordings';
 import { findUserByAuthSubject } from '@/lib/db/users';
-import { sendEmail } from '@/lib/email';
+import { sendNotificationEmail } from '@/lib/email';
+import { logger } from '@/lib/logger';
 import { createNotification } from '@/lib/notifications';
 import { getSignedR2Url } from '@/lib/r2';
 import { DOWNLOAD_LINK_TTL_SECONDS } from './constants';
@@ -47,6 +48,9 @@ export async function finalizeJob(
         return;
     }
 
+    const job = await getExportJob(jobId, authSubject);
+    if (!job) return;
+
     const signedParts = await Promise.all(
         parts.map(async (part) => ({
             key: part.key,
@@ -60,7 +64,7 @@ export async function finalizeJob(
         status: 'completed',
         progress: 100,
         completedAt: new Date(),
-        processedRecordings: signedParts.length > 0 ? (await getExportJob(jobId, authSubject))?.processedRecordings || 0 : 0,
+        processedRecordings: job.processedRecordings,
         parts: signedParts,
         checkpoint: {
             nextPartNumber: signedParts.length + 1,
@@ -76,7 +80,7 @@ export async function finalizeJob(
             )
             .join('');
 
-        await sendEmail({
+        await sendNotificationEmail({
             to: email,
             subject: 'Your Call Organizer Export is Ready',
             html: `
@@ -86,7 +90,7 @@ export async function finalizeJob(
                 <ul>${linksHtml}</ul>
                 <p>Each archive contains a viewer that allows you to browse that specific part. Extract all parts to the same folder to merge them.</p>
             `,
-        });
+        }).catch(error => logger.warn('Failed to send export notification email:', error));
 
         await createNotification(
             new ObjectId(user._id),

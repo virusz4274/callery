@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { Button, Modal } from "@heroui/react";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/auth/client";
-import { useUserProfile } from "@/hooks/firebase/use-user-profile";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
 import { Ellipsis, LogIn, ArrowLeft, Settings, type LucideIcon } from 'lucide-react';
 
@@ -56,21 +56,22 @@ export function MobileNav() {
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/80 backdrop-blur-lg md:hidden pb-[env(safe-area-inset-bottom)]">
-        <nav className="flex items-center justify-around px-2 pt-3 pb-3">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md md:hidden pb-[env(safe-area-inset-bottom)]">
+        <nav aria-label="Mobile workspace" className="flex items-center justify-around gap-1 px-2 py-2">
           {displayItems.map((item) => {
             const isAdminRoute = pathname.startsWith('/admin');
             let isActive = false;
             if (isAdminRoute && userProfile?.role === 'admin') {
               isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
             } else {
-              isActive = pathname === item.href;
+              isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             }
 
             return (
               <Link
                 key={item.name}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1.5 rounded-xl p-2 min-w-[64px] transition-all duration-200",
                   isActive
@@ -78,8 +79,8 @@ export function MobileNav() {
                     : "text-default-500 hover:text-foreground hover:bg-default-100/50"
                 )}
               >
-                <item.icon className={cn("h-5 w-5", isActive && "fill-current")} />
-                <span className="text-[10px] font-medium text-center leading-none">{item.name}</span>
+                <item.icon className="h-5 w-5" aria-hidden="true" />
+                <span className="text-xs font-medium text-center leading-none">{item.name}</span>
               </Link>
             )
           })}

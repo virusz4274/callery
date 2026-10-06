@@ -17,7 +17,7 @@ import type {
     ExternalServiceIncidentResponse,
 } from '@/lib/db/types';
 import { logAdminAction } from '@/app/actions/audit-log';
-import { sendEmail } from '@/lib/email';
+import { sendNotificationEmail } from '@/lib/email';
 
 type ServiceStatus = {
     name: string;
@@ -143,35 +143,31 @@ export async function sendAdminTestEmail(recipient?: string) {
     }
 
     const sentAt = new Date();
-    const response = await sendEmail({
-        to: parsed.data,
-        subject: '[Callery] Admin test email',
-        html: `
-            <h2>Admin test email</h2>
-            <p>This email confirms SMTP notifications are working from the Callery admin console.</p>
-            <ul>
-                <li><strong>Triggered by:</strong> ${admin.email}</li>
-                <li><strong>Sent to:</strong> ${parsed.data}</li>
-                <li><strong>Sent at:</strong> ${sentAt.toISOString()}</li>
-            </ul>
-            <p>If you received this, admin email delivery is configured correctly.</p>
-        `,
-    });
+    try {
+        const sent = await sendNotificationEmail({
+            to: parsed.data,
+            subject: '[Callery] Admin test email',
+            html: `
+                <h2>Admin test email</h2>
+                <p>This email confirms SMTP notifications are working from the Callery admin console.</p>
+                <ul>
+                    <li><strong>Triggered by:</strong> ${admin.email}</li>
+                    <li><strong>Sent to:</strong> ${parsed.data}</li>
+                    <li><strong>Sent at:</strong> ${sentAt.toISOString()}</li>
+                </ul>
+                <p>If you received this, admin email delivery is configured correctly.</p>
+            `,
+        });
 
-    if (!response.success) {
-        const errorMessage = response.error instanceof Error
-            ? response.error.message
-            : typeof response.error === 'string'
-                ? response.error
-                : 'Failed to send test email';
-
-        return { success: false, error: errorMessage };
+        if (!sent) return { success: false, error: 'Email delivery is disabled.' };
+    } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to send test email' };
     }
 
     await logAdminAction(
         admin._id.toString(),
         'TEST_EMAIL_SEND',
-        { recipient: parsed.data, messageId: response.messageId },
+        { recipient: parsed.data },
         undefined,
         'SYSTEM'
     );
@@ -179,6 +175,5 @@ export async function sendAdminTestEmail(recipient?: string) {
     return {
         success: true,
         recipient: parsed.data,
-        messageId: response.messageId,
     };
 }

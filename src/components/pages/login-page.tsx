@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuthActions, useUser } from '@/lib/auth/client';
-import { isGoogleSignInCancelledError } from '@/lib/firebase/google-sign-in';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   buildAuthPageHref,
@@ -26,7 +25,7 @@ export function LoginPage() {
   const [isCompletingSignIn, setIsCompletingSignIn] = useState(false);
 
   const auth = useAuthActions();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userError } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -68,20 +67,11 @@ export function LoginPage() {
     setAuthMessage(null);
 
     try {
-      const result = await auth.signInGoogle();
-      if (!result) return; // Local OAuth completes through its redirect.
-
-      router.replace(postAuthPath);
+      await auth.signInGoogle(postAuthPath);
     } catch (error: unknown) {
-      const firebaseError = error as { message?: string };
-      if (!isGoogleSignInCancelledError(error)) {
-        setAuthMessage(firebaseError.message || 'Could not sign in with Google.');
-        toast({
-          title: 'Google Sign-In Failed',
-          description: firebaseError.message || 'Could not sign in with Google.',
-          status: 'danger',
-        });
-      }
+      const message = error instanceof Error ? error.message : 'Could not sign in with Google.';
+      setAuthMessage(message);
+      toast({ title: 'Google Sign-In Failed', description: message, status: 'danger' });
     } finally {
       setGoogleLoading(false);
       setIsCompletingSignIn(false);
@@ -112,11 +102,11 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSignIn} className="space-y-5">
-        {authMessage && (
+        {(authMessage || userError?.message || searchParams.get('error')) && (
           <Alert status="danger">
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Description>{authMessage}</Alert.Description>
+              <Alert.Description>{authMessage || userError?.message || 'Google sign-in could not be completed. Please try again.'}</Alert.Description>
             </Alert.Content>
           </Alert>
         )}
@@ -169,7 +159,7 @@ export function LoginPage() {
                   autoComplete="email"
                   inputMode="email"
                   placeholder="you@company.com"
-                  className="bg-background"
+                  className="bg-field text-base"
                 />
               </TextField>
 
@@ -180,7 +170,7 @@ export function LoginPage() {
                     type="password"
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="bg-background"
+                    className="bg-field text-base"
                   />
                 </TextField>
 
@@ -195,7 +185,7 @@ export function LoginPage() {
               </div>
 
               <Button
-                className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+                className="h-12 w-full rounded-lg font-medium"
                 variant="primary"
                 size="lg"
                 type="submit"
@@ -208,6 +198,7 @@ export function LoginPage() {
           </div>
         ) : (
           <>
+{auth.googleEnabled && (
             <div className="flex items-center gap-3">
               <Separator className="flex-1" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-default-400">
@@ -215,6 +206,7 @@ export function LoginPage() {
               </span>
               <Separator className="flex-1" />
             </div>
+            )}
 
             <div className="grid gap-4">
               <TextField value={email} onChange={setEmail} isRequired className="gap-2">
@@ -224,7 +216,7 @@ export function LoginPage() {
                   autoComplete="email"
                   inputMode="email"
                   placeholder="you@company.com"
-                  className="bg-default-50/60"
+                  className="bg-field text-base"
                 />
               </TextField>
 
@@ -235,7 +227,7 @@ export function LoginPage() {
                     type="password"
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="bg-default-50/60"
+                    className="bg-field text-base"
                   />
                 </TextField>
 
@@ -251,7 +243,7 @@ export function LoginPage() {
             </div>
 
             <Button
-              className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+              className="h-12 w-full rounded-lg font-medium"
               variant="primary"
               size="lg"
               type="submit"

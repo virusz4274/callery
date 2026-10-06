@@ -1,19 +1,5 @@
 // Custom Service Worker for handling Push Notifications
-// This file will be injected into the next-pwa generated service worker
-
-const LEGACY_RUNTIME_CACHES = ['apis', 'start-url'];
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) =>
-            Promise.all(
-                cacheNames
-                    .filter((cacheName) => LEGACY_RUNTIME_CACHES.includes(cacheName))
-                    .map((cacheName) => caches.delete(cacheName))
-            )
-        )
-    );
-});
+// Imported by the Serwist service worker.
 
 self.addEventListener('push', (event) => {
     console.log('[Service Worker] Push Received.');
@@ -27,11 +13,11 @@ self.addEventListener('push', (event) => {
         data = { body: event.data.text() };
     }
 
-    const title = data.title || 'Vosift';
+    const title = data.title || 'Callery';
     const options = {
-        body: data.body || data.message || 'New notification',
-        icon: data.icon || '/icons/android-chrome-192x192.png',
-        badge: '/icons/android-chrome-192x192.png',
+        body: data.body || 'New notification',
+        icon: data.icon || '/icons/callery/android-chrome-192x192.png',
+        badge: '/icons/callery/android-chrome-192x192.png',
         tag: data.tag || 'callery-notification',
         data: {
             url: data.url || '/',

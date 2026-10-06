@@ -21,12 +21,11 @@ export interface GoogleSyncDuplicatePhoneIssue {
 
 /**
  * User document stored in MongoDB.
- * Links to Firebase Auth via authSubject.
+ * Links to Better Auth via authSubject.
  */
 export interface User {
     _id: ObjectId;
     authSubject: string;
-    authProvider?: 'firebase' | 'local';
     email: string;
     firstName: string;
     lastName: string;
@@ -54,8 +53,8 @@ export interface User {
     };
     storageUsed: number;
     storageAllocation: number;
-    storagePeakUsed?: number;
-    storagePeakPeriodEnd?: Date;
+    storagePeakUsed: number;
+    storagePeakPeriodEnd?: Date | null;
     transcriptionUsed: number;
     transcriptionAllocation: number;
     totalContacts: number;
@@ -85,7 +84,7 @@ export interface User {
     pushSubscriptions?: PushSubscriptionEntry[];
 
     // Google Contacts integration state
-    googleSync?: {
+    googleSync: {
         status: 'not_connected' | 'syncing' | 'completed' | 'failed';
         connectedAt?: Date;
         lastAttemptAt?: Date;
@@ -163,7 +162,7 @@ export interface UserResponse {
         previousDisabled: boolean;
         deletedByAdminId?: string;
     };
-    googleSync?: {
+    googleSync: {
         status: 'not_connected' | 'syncing' | 'completed' | 'failed';
         connectedAt?: string;
         lastAttemptAt?: string;

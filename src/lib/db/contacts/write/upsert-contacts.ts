@@ -21,7 +21,6 @@ export async function upsertContacts(
     let updated = 0;
     const existingContacts = await collection.find({
         authSubject,
-        googleContactId: { $type: 'string' },
     }).toArray();
     const existingByGoogleId = new Map(existingContacts.map((contact) => [contact.googleContactId, contact]));
     const syncedGoogleContactIds = new Set<string>();
@@ -98,7 +97,6 @@ export async function upsertContacts(
         authSubject,
         await collection.countDocuments({
             authSubject,
-            googleContactId: { $type: 'string' },
         })
     );
 

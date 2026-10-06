@@ -91,23 +91,17 @@ export async function linkRecordingsToContact(
     const db = await getMongoDb();
     const cId = new ObjectId(contactId);
 
-    if (!phoneNumbers || phoneNumbers.length === 0) {
-        return { totalRecordings: 0, lastRecordingAt: null };
-    }
     const normalizedPhoneNumbers = normalizeContactPhoneNumbers(phoneNumbers);
 
     const resolvedContactName = contactName === undefined
-        ? (await db.collection<Contact>(Collections.CONTACTS).findOne({ _id: cId }))?.name ?? null
+        ? (await db.collection<Contact>(Collections.CONTACTS).findOne({ _id: cId, authSubject }))?.name ?? null
         : contactName;
 
     await db.collection(Collections.RECORDINGS).updateMany(
         {
             authSubject,
             contactId: cId,
-            $and: [
-                { normalizedPhoneNumber: { $nin: normalizedPhoneNumbers } },
-                { phoneNumber: { $nin: phoneNumbers } },
-            ],
+            normalizedPhoneNumber: { $nin: normalizedPhoneNumbers },
         },
         {
             $set: {
@@ -121,10 +115,7 @@ export async function linkRecordingsToContact(
         {
             authSubject,
             contactId: { $ne: cId },
-            $or: [
-                { normalizedPhoneNumber: { $in: normalizedPhoneNumbers } },
-                { phoneNumber: { $in: phoneNumbers } },
-            ],
+            normalizedPhoneNumber: { $in: normalizedPhoneNumbers },
         },
         {
             $set: {

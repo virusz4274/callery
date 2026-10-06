@@ -22,7 +22,7 @@ interface NotificationsSettingsProps {
 export function NotificationsSettings({ settings, onSettingsChange, onSave, isSaving }: NotificationsSettingsProps) {
     return (
         <SettingsSection title="Notifications" description="Manage your email notifications and alerts.">
-            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+            <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                 <Card.Content className="space-y-5 p-5 sm:p-6">
                     <div className="flex flex-wrap items-center gap-2">
                         <Chip variant="soft" color="accent">
@@ -106,7 +106,7 @@ export function NotificationsSettings({ settings, onSettingsChange, onSave, isSa
                     </div>
                 </Card.Content>
                 <Card.Footer className="justify-end border-t border-default-100/80 px-5 py-4 md:px-6">
-                    <Button onPress={onSave} isPending={isSaving} variant="primary" className="rounded-full px-6 font-semibold">
+                    <Button onPress={onSave} isPending={isSaving} variant="primary" className="rounded-lg px-5 font-medium">
                         {isSaving ? <Spinner color="current" size="sm" /> : "Save Notifications"}
                     </Button>
                 </Card.Footer>

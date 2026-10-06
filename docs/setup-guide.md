@@ -3,8 +3,9 @@
 VoSift supports self-hosted and managed SaaS deployments from one codebase.
 The Docker deployment uses Next.js standalone on Node. Set public settings
 before building; `NEXT_PUBLIC_*` values are compiled into the browser bundle.
-`.env.example` is the full variable reference; `.env.selfhost.example` is the
-short Docker self-host template.
+`.env.example` is the single complete template for native self-hosting, Docker
+Compose, and managed deployments. Copy it once and follow the profile comments;
+every optional integration is included in that same file.
 
 ## Prerequisites
 
@@ -20,13 +21,41 @@ short Docker self-host template.
 
 Everything else is optional and degrades gracefully (details below).
 
-## Quickstart (self-host)
+## Quickstart (self-host without Docker)
+
+Use your MongoDB server or Atlas cluster and an existing S3-compatible bucket
+(such as Cloudflare R2). Set a database name in `MONGODB_URI`; `db:init` creates
+the collections, indexes and initial settings, so you do not need to create the
+database manually. MongoDB credentials must permit those operations.
 
 ```bash
-cp .env.selfhost.example .env
-# Set BETTER_AUTH_SECRET, CRON_SECRET, ADMIN_EMAILS, and storage credentials/endpoints.
+cp .env.example .env
+# PowerShell: Copy-Item .env.example .env
+# Keep billing disabled. Set BETTER_AUTH_SECRET, ADMIN_EMAILS,
+# MONGODB_URI and the four R2_* values. Follow the storage recipe in the template.
+# Configure every REQUIRED IF field for the optional integrations you enable.
+pnpm install --frozen-lockfile
+pnpm run db:init
+pnpm run dev
+```
+
+Open `http://localhost:9000`. The template defaults to this app URL, R2's `auto`
+region and path style off. It leaves storage endpoints and credentials blank
+so you can supply your own backend. For an upload/playback-only test, disable
+automatic transcription in Settings → Data Processing before uploading.
+
+Run `corepack enable pnpm` once to use the package manager version pinned by this
+repository, or prefix commands with `corepack pnpm` if another pnpm version is
+installed globally.
+
+## Quickstart (self-host with Docker Compose)
+
+```bash
+cp .env.example .env
+# Apply the Docker Compose settings listed at the top of the template.
+# Set BETTER_AUTH_SECRET, CRON_SECRET, ADMIN_EMAILS, and MinIO credentials.
 # Configure a transcription backend if you want transcription.
-docker compose --profile selfhost up   # app (port 3000) + MongoDB + MinIO
+docker compose --profile selfhost up --build -d   # app (port 3000) + MongoDB + MinIO
 docker compose ps -a
 ```
 
@@ -48,52 +77,21 @@ The app and MongoDB run locally; hosted transcription and AI providers still
 receive audio/text. Choose the local Whisper + Ollama recipe below when those
 operations also need to stay on your infrastructure.
 
-Prefer local dev outside Docker? `pnpm run dev` serves on
-`http://localhost:9000` (with MongoDB + storage reachable from your machine).
-Use `.env.example` and run `pnpm install` then `pnpm run db:init` first.
-Run `corepack enable pnpm` once to use the package manager version pinned by this repository,
-or prefix commands with `corepack pnpm` if another pnpm version is installed globally.
-
-Minimal self-host `.env` (local auth, no billing, no email):
-
-```env
-AUTH_PROVIDER=local
-NEXT_PUBLIC_AUTH_PROVIDER=local
-NEXT_PUBLIC_ENABLE_BILLING=false
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-BETTER_AUTH_SECRET=<openssl rand -base64 32>
-ADMIN_EMAILS=you@example.com
-MONGODB_URI=mongodb://mongo:27017/vosift
-R2_ENDPOINT=http://minio:9000
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=vosift
-S3_REGION=us-east-1
-S3_FORCE_PATH_STYLE=true
-S3_PUBLIC_ENDPOINT=http://localhost:9000
-TRANSCRIPTION_PROVIDER=soniox
-SONIOX_API_KEY=...
-AI_PROVIDER=gemini
-EMAIL_PROVIDER=none
-```
-
 For access from another computer, replace both localhost URLs with the
 browser-reachable app/storage addresses. Use HTTPS for a remote deployment
 and PWA installation. `EMAIL_PROVIDER=none` skips email verification and cannot
 send password resets; configure SMTP or Resend for those features.
 
 When changing public settings, run the Compose command with `--build` again.
-Compose derives both client and server auth settings from `AUTH_PROVIDER`,
-so local accounts do not accidentally build a Firebase login screen.
 Runtime secrets are excluded from the Docker build context and supplied via
 `env_file`. For a direct `docker build`, pass the corresponding public settings
-using `--build-arg`; the Dockerfile defaults to local auth with billing disabled.
+using `--build-arg`; the Dockerfile defaults to billing disabled.
 
 ## Deployment profiles
 
 | Concern | Self-host | Managed (SaaS) |
 |---|---|---|
-| Auth (`AUTH_PROVIDER`) | `local` (built-in email/password) or `firebase` | `firebase` |
+| Auth | Better Auth + MongoDB (email/password and optional Google) | Same |
 | Billing | Off by default (set nothing, or `NEXT_PUBLIC_ENABLE_BILLING=false`) | `NEXT_PUBLIC_ENABLE_BILLING=true` + Stripe keys |
 | Email (`EMAIL_PROVIDER`) | `smtp` / `resend` / `none` | `resend` |
 | Transcription | Your Soniox / ElevenLabs / Gemini key | Same, metered with multipliers |
@@ -102,11 +100,15 @@ using `--build-arg`; the Dockerfile defaults to local auth with billing disabled
 
 Auth notes:
 
-*   `local` uses email/password with sessions in your MongoDB. First login by
-    an `ADMIN_EMAILS` address bootstraps the admin role.
-*   `firebase` needs the usual `NEXT_PUBLIC_FIREBASE_*` + admin credentials.
-*   Both modes can additionally offer Google sign-in when the Google OAuth
-    variables are set.
+*   Better Auth stores users, linked accounts and sessions in MongoDB for both
+    deployment types. Standalone MongoDB works with adapter transactions disabled.
+*   Set a randomly generated `BETTER_AUTH_SECRET` of at least 32 characters.
+    `ADMIN_EMAILS` grants admin access after verified authentication, including
+    email-verification completion. Signup restrictions and disabled/deleted
+    profiles are enforced on the server. Missing profiles are repaired idempotently.
+*   Google sign-in is enabled when both Google OAuth credentials exist.
+    `GET /api/auth/capabilities` reports login, verification and recovery availability
+    without connecting to MongoDB or disclosing credentials.
 
 Billing notes:
 
@@ -130,7 +132,7 @@ The app speaks plain S3 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`,
 **Bundled MinIO** (compose `selfhost` profile): included automatically —
 `R2_ENDPOINT=http://minio:9000`, `S3_REGION=us-east-1`,
 `S3_FORCE_PATH_STYLE=true`, `S3_PUBLIC_ENDPOINT=http://localhost:9000`
-(see `.env.selfhost.example`); the bucket is created on first start.
+(see the Docker Compose recipe in `.env.example`); the bucket is created on first start.
 
 **External MinIO** (if you run it yourself outside compose):
 
@@ -218,21 +220,51 @@ semantic search falls back to keywords; regular MongoDB supports keyword search.
 
 ## Email
 
-Local auth sends verification and password-reset mail via `EMAIL_PROVIDER`:
+Better Auth sends verification and password-reset mail via `EMAIL_PROVIDER`:
 
 *   `resend` — recommended for anything real. Needs `RESEND_API_KEY` + `EMAIL_FROM`.
-*   `smtp` — your own relay (`SMTP_HOST`, optional port/secure/user/pass).
-*   `none` — no mail; accounts verify implicitly. Development only.
+*   `smtp` — your own relay (`SMTP_HOST` + `EMAIL_FROM`, optional port/secure/user/pass).
+*   `none` — testing only: accounts verify automatically and recovery is unavailable.
 
-Deliverability (SPF/DKIM/domain warmup) is the operator's job either way;
-Firebase mode keeps using Firebase's own emails and ignores these settings.
+Configure SMTP or Resend for deployed verification and recovery. Signup without
+a session shows a check-email confirmation; duplicate signup responses stay generic.
+Verification returns to login with the sanitized destination preserved.
+Password resets revoke existing sessions. Password controls appear only for linked
+credential accounts; Google-only accounts have no current password to change.
+Deliverability (SPF/DKIM/domain warmup) is the operator's job.
+
+## Google login and Contacts
+
+Create one OAuth **Web application** client and set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+and server-only `GOOGLE_CLIENT_SECRET`. Register both exact callbacks on that client:
+
+| Flow | Native development callback |
+|---|---|
+| Login/signup | `http://localhost:9000/api/auth/callback/google` |
+| Contacts connection | `http://localhost:9000/api/auth/google/callback` |
+
+Use your HTTPS app origin for deployments (Compose defaults to localhost:3000).
+`NEXT_PUBLIC_GOOGLE_REDIRECT_URI` overrides only the Contacts callback. Enable
+the People API, configure the consent screen and add test users when required.
+Login requests identity permissions only; users connect Contacts separately in
+Settings to authorize `contacts.readonly`. Login does not start Contacts sync.
+Partial credentials produce an error naming the missing variable without its value.
+Each request's redirect URI must exactly match its registered callback; see
+[Google OAuth guidance](https://developers.google.com/identity/protocols/oauth2/web-server).
 
 ## Optional integrations
 
 All of these can be absent — the app stays fully usable:
 
-*   **Google Contacts sync** — needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (+ secret).
-    The connect UI hides when unconfigured; contacts from uploads still work.
+*   **Google Contacts sync** — configure `NEXT_PUBLIC_GOOGLE_CLIENT_ID`,
+    `GOOGLE_CLIENT_SECRET`, and `GOOGLE_TOKEN_ENCRYPTION_KEY` together in the
+    template's Google section. `GOOGLE_TOKEN_ENCRYPTION_KEY_VERSION` defaults
+    to `v1`. The callback is `${NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    unless `NEXT_PUBLIC_GOOGLE_REDIRECT_URI` is set; register the exact callback
+    URL in your Google OAuth client. Keep the encryption key stable or reconnect
+    Google accounts after replacing it. Authorization requires both OAuth
+    credentials. Recordings can still be uploaded, searched, and played without
+    synced contacts. The Gemini API key is separate from this integration.
 *   **AI features** (summaries, transliteration, embeddings) — need
     `GOOGLE_GENERATIVE_AI_API_KEY` or an `openai_compat` server (see Text AI
     above). Without either, transcripts save without AI extras.
@@ -247,3 +279,21 @@ All of these can be absent — the app stays fully usable:
 *   `pnpm run lint`: Run ESLint.
 *   `pnpm run typecheck`: Run TypeScript compiler check.
 *   `pnpm run db:init`: Init database (indexes + seed plans; exits nonzero on failure).
+
+`pnpm check` runs typechecking, lint, tests, dependency checks, and the security
+audit. MongoDB integration tests are opt-in: set `VOSIFT_TEST_MONGODB_URI` to a
+reachable test MongoDB before running it. Each integration suite creates and
+drops a randomly named database; it does not use the application database.
+Without that variable, the integration suites are reported as skipped.
+
+Auth unification was verified on 2026-10-06 with `pnpm run check` (112 application
+tests, including isolated standalone MongoDB auth/cleanup tests, and five dependency
+tests), production builds with billing off/on, and eight Playwright browser tests.
+Browser upload/transcription checks used local storage and AI fixtures. Verification
+and recovery used captured email fixtures. Google credentials were saved during
+verification and preserved untouched. Live Google login succeeded, preserved the
+requested destination, and left Contacts disconnected; the registered callbacks
+were verified on the same web client. Live Contacts sync was skipped at the user's
+request; no Contacts permission was granted or contacts imported. Callback, scope
+and redirect separation was also checked with fixtures.
+Docker container startup and live SMTP/Resend delivery were not exercised.

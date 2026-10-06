@@ -63,9 +63,12 @@ export function createSiteMetadata(config: SiteSeoConfig): Metadata {
       title: config.siteName,
     },
     icons: {
-      icon: '/icons/android-chrome-192x192.png',
-      apple: '/icons/android-chrome-192x192.png',
-      shortcut: '/icons/android-chrome-192x192.png',
+      icon: [
+        { url: '/icons/callery/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+        { url: '/icons/callery/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      ],
+      apple: { url: '/icons/callery/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      shortcut: '/favicon.ico',
     },
     referrer: 'strict-origin-when-cross-origin',
     formatDetection: {
@@ -181,7 +184,7 @@ export function buildOrganizationSchema(config: SiteSeoConfig): SchemaNode {
     '@type': 'Organization',
     name: config.siteName,
     url: config.siteOrigin,
-    logo: absoluteUrl('/icons/android-chrome-512x512.png', config),
+    logo: absoluteUrl('/brand/callery-logo.png', config),
     email: config.supportEmail,
     sameAs: sameAs.length > 0 ? sameAs : undefined,
     contactPoint: [

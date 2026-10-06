@@ -3,89 +3,61 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button, Modal } from "@heroui/react";
-import { Menu } from 'lucide-react';
+import { Button, Modal } from '@heroui/react';
+import { CircleHelp, Menu, Settings } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
 import type { User as UserProfile } from '@/lib/types';
 import type { AppUser as User } from '@/lib/auth/types';
 
-interface MobileMenuProps {
-    user: User | null;
-    userProfile: UserProfile | null;
-}
+type MobileMenuProps = { user: User | null; userProfile: UserProfile | null };
 
-export function MobileMenu({
-    user,
-    userProfile,
-}: MobileMenuProps) {
-    const pathname = usePathname();
-    const [isOpen, setIsOpen] = React.useState(false);
+export function MobileMenu({ user, userProfile }: MobileMenuProps) {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const items = user
+    ? [...navigationConfig.main, { href: '/settings', name: 'Settings', icon: Settings }, { href: '/support', name: 'Help & support', icon: CircleHelp },
+        ...(userProfile?.role === 'admin' ? [navigationConfig.adminLink] : [])]
+    : navigationConfig.public;
 
-    const handleClose = () => setIsOpen(false);
-
-    // Combine items based on auth state
-    let items = user ? [...navigationConfig.main] : [...navigationConfig.public];
-
-
-    if (user && userProfile?.role === 'admin') {
-        items.push(navigationConfig.adminLink);
-    }
-
-    return (
-        <>
-            <Button variant="ghost" isIconOnly className="md:hidden mr-2" onPress={() => setIsOpen(true)}>
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-            </Button>
-
-            <Modal isOpen={isOpen} onOpenChange={setIsOpen}>
-                <Modal.Backdrop>
-                    <Modal.Container>
-                        <Modal.Dialog className="h-[100dvh] max-h-[100dvh] w-screen max-w-full rounded-none m-0 bg-background">
-                            <Modal.CloseTrigger />
-                            <Modal.Header className="flex flex-row items-center justify-between p-4 border-b border-default-100">
-                                <div className="flex items-center gap-2">
-                                    <Logo className="h-6 w-6 text-primary" />
-                                    <span className="font-bold text-lg">Callery</span>
-                                </div>
-                            </Modal.Header>
-                            <Modal.Body className="p-4 gap-6">
-                                <div className="flex flex-col gap-2">
-                                    {items.map((item) => (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            className={cn(
-                                                "flex items-center gap-4 p-4 rounded-xl transition-all",
-                                                pathname === item.href
-                                                    ? "bg-primary/10 text-primary font-semibold"
-                                                    : "text-foreground hover:bg-default-100"
-                                            )}
-                                            onClick={handleClose}
-                                        >
-                                            <item.icon className="h-5 w-5" />
-                                            {item.name}
-                                        </Link>
-                                    ))}
-                                </div>
-
-                                {!user && (
-                                    <div className="flex flex-col gap-3 mt-auto mb-6">
-                                        <Link href="/login" className="w-full" onClick={handleClose}>
-                                            <Button variant="ghost" fullWidth size="lg">Login</Button>
-                                        </Link>
-                                        <Link href="/signup" className="w-full" onClick={handleClose}>
-                                            <Button fullWidth size="lg" variant="primary">Sign Up</Button>
-                                        </Link>
-                                    </div>
-                                )}
-                            </Modal.Body>
-                        </Modal.Dialog>
-                    </Modal.Container>
-                </Modal.Backdrop>
-            </Modal>
-        </>
-    );
+  return (
+    <>
+      <Button variant="ghost" isIconOnly className="size-11 rounded-lg md:hidden" onPress={() => setIsOpen(true)} aria-label="Toggle navigation menu">
+        <Menu className="size-5" />
+      </Button>
+      <Modal isOpen={isOpen} onOpenChange={setIsOpen}>
+        <Modal.Backdrop>
+          <Modal.Container className="items-stretch justify-start p-0">
+            <Modal.Dialog aria-label="Navigation" className="m-0 h-dvh max-h-dvh w-80 max-w-[90vw] rounded-none bg-surface">
+              <Modal.CloseTrigger aria-label="Close navigation" />
+              <Modal.Header className="border-b border-border px-5 py-5">
+                <div className="flex items-center gap-2.5 text-lg font-semibold"><Logo className="size-7" />Callery</div>
+              </Modal.Header>
+              <Modal.Body className="gap-6 p-3">
+                <nav aria-label="Mobile workspace" className="space-y-1">
+                  {items.map((item) => {
+                    const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} aria-current={active ? 'page' : undefined}
+                        className={cn('flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors',
+                          active ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-surface-secondary hover:text-foreground')}>
+                        <item.icon className="size-[18px]" aria-hidden="true" />{item.name}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                {!user && (
+                  <div className="mt-auto space-y-3 px-2 pb-4">
+                    <Link href="/login" className="button button--secondary w-full" onClick={() => setIsOpen(false)}>Log in</Link>
+                    <Link href="/signup" className="button button--primary w-full" onClick={() => setIsOpen(false)}>Sign up</Link>
+                  </div>
+                )}
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+    </>
+  );
 }

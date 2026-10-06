@@ -16,6 +16,11 @@ Primary action directories:
 
 File: `src/app/actions/recordings.ts`
 
+`getRecordingsAction` accepts `page` (1-based), `limit`, and `search`, along with
+archive, contact, date, and sort filters. The REST endpoint uses the same
+pagination and search parameter names. The recordings page uses `q` in its
+browser URL and passes that value as `search` to the action.
+
 - `getRecordingsAction`
 - `getRecordingDetailsAction`
 - `getPlaybackUrlAction`
@@ -27,10 +32,8 @@ File: `src/app/actions/recordings.ts`
 Files:
 
 - `src/app/actions/upload/direct-upload.ts`
-- `src/app/actions/upload/upload-single-file.ts`
 - `src/app/actions/upload/transcription.ts`
 - `src/app/actions/upload/prepare-upload-context.ts`
-- `src/app/actions/upload/validation.ts`
 
 Main browser flow:
 
@@ -38,10 +41,6 @@ Main browser flow:
 2. client `PUT` to R2
 3. `completeDirectUpload`
 4. optional auto-transcription start with `after(...)`
-
-Legacy fallback:
-
-- `src/app/actions/upload-recordings.ts`
 
 ### Search And Transcription
 
@@ -66,7 +65,6 @@ Main actions:
 
 Files:
 
-- `src/app/actions/contacts.ts`
 - `src/app/actions/google-auth.ts`
 - `src/app/actions/save-contacts.ts`
 
@@ -136,8 +134,19 @@ Main admin capabilities:
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | creates a server session from the authenticated Firebase user |
-| `GET`, `POST` | `/api/auth/logout` | clears the current session |
+| `GET` | `/api/auth/capabilities` | public googleEnabled, emailVerificationRequired, passwordResetEnabled; Cache-Control: no-store |
+| `POST` | `/api/auth/sign-up/email` | email signup; no session when verification is required |
+| `POST` | `/api/auth/sign-in/email` | email/password sign-in |
+| `POST` | `/api/auth/sign-in/social` | starts optional Google login/signup |
+| `GET` | `/api/auth/callback/google` | Better Auth Google identity callback |
+| `GET` | `/api/auth/get-session` | resolves cookie or bearer session |
+| `POST` | `/api/auth/sign-out` | revokes the current session |
+| `GET` | `/api/auth/list-accounts` | linked login methods; credential accounts enable password changes |
+| `POST` | `/api/auth/send-verification-email` | sends verification mail when email is configured |
+| `GET` | `/api/auth/verify-email` | completes verification and verified admin bootstrap |
+| `POST` | `/api/auth/change-password` | changes credential password and revokes other sessions |
+| `POST` | `/api/auth/request-password-reset` | generic recovery request; disabled with EMAIL_PROVIDER=none |
+| `POST` | `/api/auth/reset-password` | consumes recovery token and revokes all sessions |
 | `GET` | `/api/auth/google/callback` | handles Google Contacts OAuth callback |
 | `GET`, `PATCH` | `/api/user/profile` | reads or updates the current profile via cookie or bearer sessions |
 | `POST` | `/api/user/ensure-profile` | ensures a MongoDB user exists for the current authenticated identity |
@@ -241,12 +250,14 @@ The webhook processor records state in `stripe_webhook_events`.
 
 ## Deployment authentication and retained APIs
 
-In local mode, Better Auth serves `/api/auth/*` including email signup/sign-in/session routes. Firebase-only `/api/auth/login` is unavailable. The shared product APIs resolve either the instance's cookie or bearer session and reject disabled/deleted profiles.
+Better Auth serves `/api/auth/*` for every deployment. Browser API requests send cookies through `authFetch`; other clients may send `Authorization: Bearer <session-token>`. The shared product APIs resolve either the instance's cookie or bearer session and reject disabled/deleted profiles.
 
 `POST /api/mobile/sync-session` accepts instance-native cookie/bearer auth. The upload init/complete endpoints accept that identity or a limited sync token; upload completion tokens cannot be used for sync authentication.
 
 `POST /api/transcribe` accepts `recordingId` and optional `provider`/`model`; configured providers are `soniox`, `elevenlabs`, `gemini` and `openai_compat`. Successful scheduling returns 202.
 
-`GET /api/recordings` supports owner-scoped search with Atlas/regex fallback and inclusive full-day date filters. `GET /api/recordings/[id]/play` returns a public-host signed playback URL.
+`GET /api/recordings` accepts `page`, `limit`, and `search` for owner-scoped search
+with Atlas/regex fallback and inclusive full-day date filters.
+`GET /api/recordings/[id]/play` returns a public-host signed playback URL.
 
 `GET /api/health` checks process/database readiness. `GET /api/cron/process-usage` retries persisted managed meter events; see [scheduled jobs](cron-jobs.md).

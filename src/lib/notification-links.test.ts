@@ -13,9 +13,9 @@ test('builds explicit recordings deep links for notification targets', () => {
     );
 });
 
-test('normalizes legacy home-route recording links into recordings deep links', () => {
+test('keeps current recording deep links unchanged', () => {
     assert.equal(
-        normalizeNotificationLink('/?id=recording-123'),
+        normalizeNotificationLink('/recordings?id=recording-123'),
         '/recordings?id=recording-123'
     );
 });

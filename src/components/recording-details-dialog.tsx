@@ -15,7 +15,7 @@ import { useToast } from './toast-provider';
 import { getAvailableProviders } from '@/app/actions/transcription-providers';
 import type { TranscriptionProviderId } from '@/services/transcription/factory';
 import { useUser } from '@/lib/auth/client';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;

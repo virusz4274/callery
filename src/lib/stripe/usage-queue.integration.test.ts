@@ -64,7 +64,7 @@ test('MongoDB usage delivery and account cleanup survive duplicates and external
         await t.test('failed object deletion leaves all metadata and disables access until a successful retry', async () => {
             process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
             const id = new ObjectId();
-            await db.collection('users').insertOne({ _id: id, authSubject: 'cleanup', email: 'cleanup@example.com', authProvider: 'local', disabled: false, softDelete: { isDeleted: false } });
+            await db.collection('users').insertOne({ _id: id, authSubject: 'cleanup', email: 'cleanup@example.com', disabled: false, softDelete: { isDeleted: false } });
             await db.collection('recordings').insertOne({ authSubject: 'cleanup', r2Key: 'audio' });
             await db.collection('export_jobs').insertOne({ authSubject: 'cleanup', parts: [{ key: 'archive' }] });
             let identitiesRemoved = 0;

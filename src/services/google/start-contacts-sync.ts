@@ -161,8 +161,8 @@ export async function prepareGoogleContactsSync(authSubject: string, credentials
     await updateGoogleSyncState(authSubject, {
         status: 'syncing',
         connectedAt: credentials.refreshToken
-            ? user?.googleSync?.connectedAt || now
-            : user?.googleSync?.connectedAt,
+            ? user?.googleSync.connectedAt || now
+            : user?.googleSync.connectedAt,
         lastAttemptAt: now,
         lastError: null,
         refreshToken: credentials.refreshToken,
@@ -171,15 +171,15 @@ export async function prepareGoogleContactsSync(authSubject: string, credentials
     });
 }
 
-export function isGoogleSyncStale(googleSync?: User['googleSync']) {
-    if (googleSync?.status !== 'syncing' || !googleSync.lastAttemptAt) {
+export function isGoogleSyncStale(googleSync: User['googleSync']) {
+    if (googleSync.status !== 'syncing' || !googleSync.lastAttemptAt) {
         return false;
     }
 
     return Date.now() - googleSync.lastAttemptAt.getTime() >= GOOGLE_SYNC_STALE_AFTER_MS;
 }
 
-export async function recoverStaleGoogleSync(authSubject: string, googleSync?: User['googleSync']) {
+export async function recoverStaleGoogleSync(authSubject: string, googleSync: User['googleSync']) {
     if (!isGoogleSyncStale(googleSync)) {
         return false;
     }
@@ -217,10 +217,10 @@ export async function runGoogleContactsSyncWithDependencies(
         lastImportedCount: syncResult.importedCount,
         lastError: null,
         refreshToken,
-        scopes: user.googleSync?.scopes,
+        scopes: user.googleSync.scopes,
         tokenExpiresAt: typeof backgroundClient.credentials.expiry_date === 'number'
             ? new Date(backgroundClient.credentials.expiry_date)
-            : user.googleSync?.tokenExpiresAt,
+            : user.googleSync.tokenExpiresAt,
         duplicatePhoneIssueCount,
         duplicatePhoneIssues: syncResult.duplicatePhoneIssues,
         duplicatePhoneIssueDetectedAt,
@@ -327,7 +327,7 @@ export async function startGoogleContactsSyncWithDependencies(
         if (!user) {
             return { success: false, error: 'User profile not found' };
         }
-        if (user.googleSync?.status === 'syncing') {
+        if (user.googleSync.status === 'syncing') {
             const recovered = await dependencies.recoverStaleGoogleSync(userId, user.googleSync);
             if (!recovered) {
                 return { success: false, error: 'Google Contacts sync is already in progress.' };
@@ -336,7 +336,7 @@ export async function startGoogleContactsSyncWithDependencies(
 
         const existingRefreshToken = dependencies.readStoredGoogleRefreshToken(user.googleSync);
         const refreshToken = tokens.refresh_token || existingRefreshToken;
-        const scopes = parseScopes(tokens.scope) || user.googleSync?.scopes;
+        const scopes = parseScopes(tokens.scope) || user.googleSync.scopes;
 
         if (!refreshToken) {
             return { success: false, error: 'Google did not return a refresh token. Please reconnect and grant access again.' };

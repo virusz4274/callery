@@ -7,13 +7,17 @@ import { Button, Input, Label, Spinner, TextField } from '@heroui/react';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuthActions } from '@/lib/auth/client';
 import { useToast } from '@/components/toast-provider';
+import { buildAuthPageHref, resolvePostAuthRedirect } from '@/lib/auth-redirect';
 
 export function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const auth = useAuthActions();
   const { toast } = useToast();
+  const destination = resolvePostAuthRedirect(searchParams.get('redirect'));
+  const loginHref = buildAuthPageHref('/login', destination);
+  const recoveryHref = buildAuthPageHref('/forgot-password', destination);
 
-  const initialCode = useMemo(() => searchParams.get('token') || searchParams.get('oobCode') || '', [searchParams]);
+  const initialCode = useMemo(() => searchParams.get('token') || '', [searchParams]);
 
   const [editedCode, setResetCode] = useState<string | null>(null);
   const resetCode = editedCode ?? initialCode;
@@ -46,10 +50,10 @@ export function ResetPasswordPage() {
       await auth.confirmPasswordReset(trimmedCode, password);
       setIsSuccess(true);
     } catch (error) {
-      const firebaseError = error as { code?: string; message?: string };
+      const authError = error as { code?: string; message?: string };
       toast({
         title: 'Reset Failed',
-        description: firebaseError.message || 'Failed to reset password',
+        description: authError.message || 'Failed to reset password',
         status: 'danger',
       });
     } finally {
@@ -65,7 +69,7 @@ export function ResetPasswordPage() {
       footer={
         <p className="text-sm text-default-500">
           Need a new code?{' '}
-          <Link href="/forgot-password" className="font-semibold text-primary transition-colors hover:text-primary/80">
+          <Link href={recoveryHref} className="font-semibold text-primary transition-colors hover:text-primary/80">
             Request another reset email
           </Link>
         </p>
@@ -73,19 +77,21 @@ export function ResetPasswordPage() {
     >
       {isSuccess ? (
         <div className="space-y-4">
-          <div className="rounded-[1.5rem] border border-success/20 bg-success/10 px-5 py-4">
+          <div className="rounded-xl border border-success/20 bg-success/10 px-5 py-4">
             <p className="text-sm font-semibold text-foreground">Password updated successfully.</p>
             <p className="mt-2 text-sm text-default-500">
               Sign in with your new password to continue where you left off.
             </p>
           </div>
 
-          <Link href="/login" className="block">
-            <Button variant="primary" className="h-12 w-full rounded-full font-semibold">
+          <Link href={loginHref} className="block">
+            <Button variant="primary" className="h-12 w-full rounded-lg font-medium">
               Sign In
             </Button>
           </Link>
         </div>
+      ) : !auth.passwordResetEnabled ? (
+        <p className="text-sm text-default-600">Password recovery is unavailable on this instance. Contact its administrator.</p>
       ) : (
         <form className="space-y-5" onSubmit={handleSubmit}>
           <TextField value={resetCode} onChange={setResetCode} isRequired className="gap-2">
@@ -126,7 +132,7 @@ export function ResetPasswordPage() {
           <Button
             type="submit"
             variant="primary"
-            className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+            className="h-12 w-full rounded-lg font-medium"
             isDisabled={isSubmitting}
             isPending={isSubmitting}
           >

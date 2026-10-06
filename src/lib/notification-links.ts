@@ -26,11 +26,6 @@ export function normalizeNotificationLink(link?: string | null): string | undefi
       return undefined;
     }
 
-    const recordingId = parsed.pathname === '/' ? parsed.searchParams.get('id') : null;
-    if (recordingId) {
-      return buildRecordingNotificationLink(recordingId);
-    }
-
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return undefined;

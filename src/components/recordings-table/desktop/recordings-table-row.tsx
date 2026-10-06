@@ -1,4 +1,4 @@
-import { Avatar, Checkbox, Chip } from '@heroui/react';
+import { Avatar, Button, Checkbox, Chip } from '@heroui/react';
 import type { Recording } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import { ExpandableSummary } from '@/components/expandable-summary';
@@ -72,9 +72,18 @@ export function RecordingsTableRow({
 
             <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
                 <div className="flex flex-col gap-1">
+                    <Button variant="ghost" onPress={() => onOpenDialog(recording)}
+                        className="h-auto min-h-8 max-w-xs justify-start rounded-sm p-0 text-left text-sm font-medium text-foreground hover:text-accent">
+                        <span className="truncate" title={recording.standardizedDisplayName || recording.fileName}>
+                            {recording.standardizedDisplayName || recording.fileName}
+                        </span>
+                    </Button>
                     <div className="flex items-center gap-2">
-                        <Chip variant="soft" color="default" size="sm">
+                        <span className="text-xs tabular-nums text-muted">
                             {formatDuration(recording.duration)}
+                        </span>
+                        <Chip variant="soft" color={recording.transcriptionStatus === 'completed' ? 'success' : recording.transcriptionStatus === 'failed' ? 'danger' : 'default'} size="sm">
+                            {recording.transcriptionStatus === 'completed' ? 'Transcribed' : recording.transcriptionStatus === 'processing' ? 'Processing' : recording.transcriptionStatus === 'failed' ? 'Failed' : 'Not transcribed'}
                         </Chip>
                     </div>
                     <div className="opacity-80 group-hover:opacity-100 transition-opacity max-w-[200px] lg:max-w-xs text-wrap">
@@ -84,7 +93,7 @@ export function RecordingsTableRow({
                                 (recording.fullTranscript && recording.fullTranscript[0]?.text) ||
                                 'No transcript available...'
                             }
-                            compactMaxLength={density === 'dense' ? 40 : 60}
+                            compactMaxLength={density === 'dense' ? 72 : 100}
                             className="text-default-500"
                         />
                     </div>

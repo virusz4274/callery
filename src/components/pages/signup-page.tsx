@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuthActions, useUser } from '@/lib/auth/client';
-import { isGoogleSignInCancelledError } from '@/lib/firebase/google-sign-in';
 import {
   buildAuthPageHref,
   getAuthRedirectCopy,
@@ -27,9 +26,10 @@ export function SignupPage() {
   const passwordError = confirmPassword && password !== confirmPassword ? 'Passwords do not match' : '';
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isCompletingSignup, setIsCompletingSignup] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const auth = useAuthActions();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userError } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
@@ -52,9 +52,9 @@ export function SignupPage() {
     setIsCompletingSignup(true);
     setAuthMessage(null);
     try {
-      await auth.signUpEmail(`${firstName} ${lastName}`.trim(), email, password);
-
-      router.replace(postAuthPath);
+      const status = await auth.signUpEmail(`${firstName} ${lastName}`.trim(), email, password, postAuthPath);
+      if (status === 'verification-required') setVerificationSent(true);
+      else router.replace(postAuthPath);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       setAuthMessage(errorMessage);
@@ -71,20 +71,11 @@ export function SignupPage() {
     setAuthMessage(null);
 
     try {
-      const result = await auth.signInGoogle();
-      if (!result) return; // Local OAuth completes through its redirect.
-
-      router.replace(postAuthPath);
+      await auth.signInGoogle(postAuthPath);
     } catch (error: unknown) {
-      const firebaseError = error as { message?: string };
-      if (!isGoogleSignInCancelledError(error)) {
-        setAuthMessage(firebaseError.message || 'Could not sign in with Google.');
-        toast({
-          title: 'Google Sign-In Failed',
-          description: firebaseError.message || 'Could not sign in with Google.',
-          status: 'danger',
-        });
-      }
+      const message = error instanceof Error ? error.message : 'Could not sign in with Google.';
+      setAuthMessage(message);
+      toast({ title: 'Google Sign-In Failed', description: message, status: 'danger' });
     } finally {
       setGoogleLoading(false);
       setIsCompletingSignup(false);
@@ -113,12 +104,16 @@ export function SignupPage() {
         </p>
       }
     >
-      <form onSubmit={handleSignUp} className="space-y-5">
-        {authMessage && (
+      {verificationSent ? (
+        <div className="space-y-4">
+          <p className="text-sm text-default-600">Check your email for a verification link. If an account already exists, sign in or use password recovery.</p>
+        </div>
+      ) : <form onSubmit={handleSignUp} className="space-y-5">
+        {(authMessage || userError?.message || searchParams.get('error')) && (
           <Alert status="danger">
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Description>{authMessage}</Alert.Description>
+              <Alert.Description>{authMessage || userError?.message || 'Google signup could not be completed. Please try again.'}</Alert.Description>
             </Alert.Content>
           </Alert>
         )}
@@ -127,7 +122,7 @@ export function SignupPage() {
           <Button
             type="button"
             variant="ghost"
-            className="h-12 justify-center rounded-2xl border border-default-200 bg-background/70 text-foreground transition-colors hover:border-primary/20 hover:bg-primary/5"
+            className="h-12 justify-center rounded-lg border border-border bg-background/70 text-foreground transition-colors hover:border-primary/20 hover:bg-primary/5"
             onPress={handleGoogleSignIn}
             isDisabled={!auth.googleEnabled || isGoogleLoading || isLoading || isCompletingSignup}
           >
@@ -204,7 +199,7 @@ export function SignupPage() {
         </div>
 
         <Button
-          className="h-12 w-full rounded-full font-semibold shadow-lg shadow-primary/20"
+          className="h-12 w-full rounded-lg font-medium"
           variant="primary"
           size="lg"
           type="submit"
@@ -213,7 +208,7 @@ export function SignupPage() {
         >
           {isLoading ? <Spinner color="current" size="sm" /> : 'Create account'}
         </Button>
-      </form>
+      </form>}
     </AuthShell>
   );
 }

@@ -47,7 +47,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                     return (
                         <div
                             key={rec.id}
-                            className={`${density === 'dense' ? 'p-2' : 'p-3'} transition-colors ${selected ? 'bg-primary/5' : ''}`}
+                            className={`${density === 'dense' ? 'p-4' : 'p-5'} transition-colors ${selected ? 'bg-primary/5' : ''}`}
                         >
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -140,7 +140,11 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                             </div>
 
                             <div className="pl-[46px]" onClick={() => isSelectionMode ? toggleSelect(rec.id) : onOpenDialog(rec)}>
-                                <div className="mb-1.5 bg-default-100/30 p-2 rounded-lg border border-default-100/50" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" onPress={() => onOpenDialog(rec)}
+                                    className="mb-2 h-auto min-h-8 w-full justify-start rounded-sm p-0 text-left text-sm font-medium">
+                                    <span className="truncate">{rec.standardizedDisplayName || rec.fileName}</span>
+                                </Button>
+                                <div className="mb-2 text-muted" onClick={(e) => e.stopPropagation()}>
                                     <ExpandableSummary
                                         text={rec.summary || (rec.fullTranscript && rec.fullTranscript[0]?.text) || "No transcript available..."}
                                         compactMaxLength={density === 'dense' ? 70 : 100}
@@ -151,7 +155,10 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                                     <Chip variant="soft" color="default" size="sm">
                                         {formatDurationLocal(rec.duration)}
                                     </Chip>
-                                    <span className="text-[10px] text-default-400">
+                                    <Chip variant="soft" color={rec.transcriptionStatus === 'completed' ? 'success' : rec.transcriptionStatus === 'failed' ? 'danger' : 'default'} size="sm">
+                                        {rec.transcriptionStatus === 'completed' ? 'Transcribed' : rec.transcriptionStatus === 'processing' ? 'Processing' : rec.transcriptionStatus === 'failed' ? 'Failed' : 'Not transcribed'}
+                                    </Chip>
+                                    <span className="text-xs text-muted">
                                         <ClientFormattedDate date={rec.recordedAt} formatString="h:mm a" />
                                     </span>
                                     {/* Provider Badge with Cost */}

@@ -18,11 +18,8 @@ export function SettingsPage() {
     const isDetailView = state.view === 'detail';
 
     return (
-        <div className="relative min-h-screen">
-            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.14),transparent_32%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_28%)]" />
-
-            <div className="mx-auto max-w-[1600px] space-y-6 sm:space-y-8">
-                {isMobile && (
+        <div className="min-w-0">
+            <div className="space-y-6">
                     <SettingsHeader
                         activeTab={state.activeTab}
                         isMobile={isMobile}
@@ -30,9 +27,8 @@ export function SettingsPage() {
                         view={state.view}
                         onBack={state.handleBack}
                     />
-                )}
 
-                <div className="grid gap-6 lg:min-h-[calc(100dvh-10rem)] lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start xl:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[224px_minmax(0,1fr)] lg:items-start">
                     <SettingsSidebar
                         activeTab={state.activeTab}
                         tabs={state.tabs}

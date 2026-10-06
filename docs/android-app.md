@@ -8,6 +8,6 @@ The web app/PWA and reusable backend endpoints remain active:
 - `POST /api/mobile/direct-upload/init`: validate metadata and sign a storage upload.
 - `POST /api/mobile/direct-upload/complete`: verify the object, create the recording and schedule optional transcription. Repeating completion returns the existing recording.
 
-A future client must use its instance's login mechanism: Better Auth or Firebase. Configure the instance URL, log in, then authenticate the sync-token request. Upload and sync tokens use separate audiences/signing keys and cannot replace each other.
+A future client must use its instance's login mechanism: Better Auth. Configure the instance URL, log in, then authenticate the sync-token request. Upload and sync tokens use separate audiences/signing keys and cannot replace each other.
 
 There are no active Capacitor build/sync scripts in this branch.

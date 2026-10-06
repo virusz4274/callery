@@ -7,14 +7,15 @@ import { RecordingsToolbar } from '@/components/recordings/recordings-toolbar';
 import { RecordingsTable } from '@/components/recordings-table';
 import { useRecordings } from '@/hooks/use-recordings';
 import { useUser } from '@/lib/auth/client';
-import { Button, Chip, Spinner, Surface } from '@heroui/react';
+import { Alert, Button, Chip, Spinner, Surface } from '@heroui/react';
 import { useStats } from '@/hooks/use-stats';
 import { useContacts } from '@/hooks/use-contacts';
 import { useToast } from '@/components/toast-provider';
 import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
 import type { Recording } from '@/lib/types';
 import type { SavedRecordingsView, SmartCollection } from '@/components/recordings/toolbar/types';
-import { ArrowRight, CheckCircle2, X } from 'lucide-react';
+import { Upload, CheckCircle2, X } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { getRecordingDetailsAction } from '@/app/actions/recordings';
 import { useLocalStorage } from '@/hooks/use-local-storage';
@@ -66,20 +67,7 @@ export function RecordingsPage() {
     const [savedViews, setSavedViews] = useLocalStorage<SavedRecordingsView[]>(SAVED_VIEWS_STORAGE_KEY, EMPTY_SAVED_VIEWS);
     const [isChecklistDismissed, setIsChecklistDismissed] = useLocalStorage<boolean>(CHECKLIST_DISMISSED_STORAGE_KEY, false);
 
-    // Density uses a raw (non-JSON) localStorage value, so we manage it manually to avoid breaking existing preferences.
-    const [density, setDensity] = useState<'comfortable' | 'dense'>(() => {
-        if (typeof window === 'undefined') return 'dense';
-        try {
-            return window.localStorage.getItem(DENSITY_STORAGE_KEY) === 'comfortable' ? 'comfortable' : 'dense';
-        } catch {
-            return 'dense';
-        }
-    });
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
-        }
-    }, [density]);
+    const [density, setDensity] = useLocalStorage<'comfortable' | 'dense'>(DENSITY_STORAGE_KEY, 'dense');
 
     const [linkedRecording, setLinkedRecording] = useState<Recording | null>(null);
 
@@ -88,8 +76,8 @@ export function RecordingsPage() {
         () => ({ page, limit, search, sortBy, sortOrder, startDate, endDate, contactId, includeArchived: false }),
         [page, limit, search, sortBy, sortOrder, startDate, endDate, contactId]
     );
-    const { data: recordings, totalCount, isLoading: isLoadingRecordings, refetch } = useRecordings(queryOptions);
-    const { data: contacts } = useContacts();
+    const { data: recordings, totalCount, isLoading: isLoadingRecordings, error: recordingsError, refetch } = useRecordings(queryOptions);
+    const { data: contacts, isLoading: isLoadingContacts } = useContacts();
     const { stats } = useStats();
 
     // -- Saved views --
@@ -159,7 +147,7 @@ export function RecordingsPage() {
             collection: undefined,
             page: '1',
         });
-    }, [clearSemanticSearch, updateUrl]);
+    }, [clearSemanticSearch, setDensity, updateUrl]);
 
     const handleLinkedRecordingUpdated = useCallback(async (recording: Recording) => {
         setLinkedRecording(recording);
@@ -196,7 +184,7 @@ export function RecordingsPage() {
         { id: 'semantic', title: 'Run one AI search', done: hasRunSemanticSearch, href: '#semantic-search' },
     ];
     const completedChecklistCount = checklistItems.filter((item) => item.done).length;
-    const shouldShowChecklist = !isChecklistDismissed && (!hasRecordings || !hasContacts);
+    const shouldShowChecklist = !isChecklistDismissed && !isLoadingRecordings && !isLoadingContacts && !recordingsError && (!hasRecordings || !hasContacts);
 
     // -- Effects --
     useEffect(() => {
@@ -245,58 +233,25 @@ export function RecordingsPage() {
     }
 
     return (
-        <div className="relative space-y-5">
-            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
+        <div className="min-w-0 space-y-6">
 
-            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className={`grid gap-5 px-5 md:px-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center ${
-                    hasRecordings ? 'py-4 md:py-5' : 'py-5 md:py-6'
-                }`}>
-                    <div className="space-y-3">
-                        <Chip variant="soft" color="accent" size="sm">Call library</Chip>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="mr-1 text-3xl font-black tracking-[-0.05em] text-foreground md:text-4xl">
-                                Recordings
-                            </h1>
-                            <Chip variant="soft" color="success">
-                                {isShowingSemanticResults ? `${displayTotalCount} AI matches` : `${displayTotalCount} recordings`}
-                            </Chip>
-                            {isShowingSemanticResults && <Chip variant="soft" color="accent">AI search</Chip>}
-                            {activeCollectionName && <Chip variant="soft" color="warning">{activeCollectionName}</Chip>}
-                            {activeViewName && <Chip variant="soft" color="default">{activeViewName}</Chip>}
-                        </div>
-                        <p className="max-w-2xl text-sm leading-6 text-default-500">
-                            {hasRecordings
-                                ? 'Search, filter, and open calls without leaving the main library.'
-                                : 'Upload recordings to start building your searchable archive.'}
-                        </p>
-                        {(filteredContactName || activeCollectionName) && (
-                            <div className="flex flex-wrap items-center gap-2">
-                                {filteredContactName && <Chip variant="soft" color="default">Contact: {filteredContactName}</Chip>}
-                                {activeCollectionName && <Chip variant="soft" color="warning">Collection: {activeCollectionName}</Chip>}
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
-                        <Link href="/upload">
-                            <Button className="w-full rounded-full px-6 font-semibold">
-                                Upload recordings
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        {!hasContacts && (
-                            <Link href="/contacts">
-                                <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
-                                    Review contacts
-                                </Button>
-                            </Link>
-                        )}
-                    </div>
+
+            <PageHeader
+                title="Recordings"
+                description={hasRecordings ? 'Your conversations, ready to search and revisit.' : 'Build your searchable archive by uploading your first recording.'}
+                meta={<Chip variant="soft" color="default" size="sm">{isShowingSemanticResults ? `${displayTotalCount} AI matches` : `${displayTotalCount} recordings`}</Chip>}
+                actions={<Button onPress={() => router.push('/upload')}><Upload className="size-4" />Upload recordings</Button>}
+            />
+            {(filteredContactName || activeCollectionName || activeViewName) && (
+                <div className="flex flex-wrap items-center gap-2">
+                    {filteredContactName && <Chip variant="soft" color="default">Contact: {filteredContactName}</Chip>}
+                    {activeCollectionName && <Chip variant="soft" color="accent">{activeCollectionName}</Chip>}
+                    {activeViewName && <Chip variant="soft" color="default">{activeViewName}</Chip>}
                 </div>
-            </section>
+            )}
 
             {shouldShowChecklist && (
-                <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-3 md:p-4">
+                <Surface variant="default" className="rounded-xl border border-border bg-surface p-4 shadow-none">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="warning">Setup {completedChecklistCount}/{checklistItems.length}</Chip>
@@ -364,7 +319,18 @@ export function RecordingsPage() {
 
                 <section>
                     <div className="min-h-[400px]">
-                        {isLoadingRecordings && !isShowingSemanticResults ? (
+                        {recordingsError && !isShowingSemanticResults ? (
+                            <Alert status="danger">
+                                <Alert.Indicator />
+                                <Alert.Content>
+                                    <Alert.Title>Unable to load your recordings</Alert.Title>
+                                    <Alert.Description>Please try again to reconnect to your library.</Alert.Description>
+                                    <Button variant="secondary" size="sm" className="mt-3" onPress={async () => {
+                                        try { await refetch(); } catch { /* The fetch error stays visible until recovery. */ }
+                                    }}>Try again</Button>
+                                </Alert.Content>
+                            </Alert>
+                        ) : isLoadingRecordings && !isShowingSemanticResults ? (
                             <div className="flex justify-center items-center h-64">
                                 <Spinner size="lg" />
                             </div>

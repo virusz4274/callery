@@ -111,9 +111,8 @@ export function NotificationCenter() {
 
     return (
         <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
-            <Popover.Trigger>
                 <Badge.Anchor>
-                    <Button variant="ghost" isIconOnly className="rounded-full" aria-label="Notifications">
+                    <Button variant="ghost" isIconOnly className="size-11 rounded-lg" aria-label="Notifications">
                         <Bell className="size-5 text-default-500" />
                     </Button>
                     {unreadCount > 0 ? (
@@ -122,8 +121,7 @@ export function NotificationCenter() {
                         </Badge>
                     ) : null}
                 </Badge.Anchor>
-            </Popover.Trigger>
-            <Popover.Content className="w-[380px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom end">
+            <Popover.Content className="w-[380px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-border bg-overlay p-0 shadow-overlay" placement="bottom end">
                 <Popover.Dialog className="flex max-h-[560px] flex-col">
                     <div className="border-b border-default-100/80 bg-background/90 px-4 py-4 backdrop-blur-md">
                         <div className="flex items-start justify-between gap-3">

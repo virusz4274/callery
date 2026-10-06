@@ -17,7 +17,7 @@ void _output;
 
 // The MongoDB driver's `require("punycode/")` (via tr46) is handled by
 // patches/tr46@5.1.1.patch. This alias additionally redirects any other bare
-// `punycode` require (e.g. the firebase-admin chain's tr46@0.0.3) to the same
+// `punycode` require to the same
 // package's ESM build, which bundles cleanly in dev and production.
 // NOTE: exact-string aliases, not a regex — the dev runner receives a
 // serialized config where regex `find` patterns do not survive.

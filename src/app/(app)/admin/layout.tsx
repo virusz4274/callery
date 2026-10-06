@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { useUser } from '@/lib/auth/client';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { useRouter, usePathname } from 'next/navigation';
 import { Card } from '@/components/ui-primitives';
 import Link from 'next/link';

@@ -103,7 +103,7 @@ export function toExportJobResponse(job: ExportJob) {
         id: job._id.toString(),
         status: job.status,
         progress: job.progress,
-        parts: job.parts?.map(p => ({
+        parts: job.parts.map(p => ({
             url: p.url,
             expiresAt: p.expiresAt.toISOString(),
         })),

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { useToast } from '@/components/toast-provider';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { useGoogleSync } from '@/hooks/settings/use-google-sync';
 import { useNotificationSettings } from '@/hooks/settings/use-notification-settings';
 import { usePreferenceSettings } from '@/hooks/settings/use-preference-settings';
@@ -138,8 +138,7 @@ export function useSettingsPage() {
             toast({ title: 'Password Changed', description: 'Please log in again.', status: 'success' });
             setTimeout(() => auth.signOut(), 3000);
         } catch (error: unknown) {
-            const firebaseError = error as { code?: string; message?: string };
-            const message = firebaseError.code === 'auth/wrong-password' ? 'Incorrect password.' : firebaseError.message;
+            const message = error instanceof Error ? error.message : 'Password change failed.';
             toast({ title: 'Password Change Failed', description: message, status: 'danger' });
         } finally {
             setSavingPassword(false);

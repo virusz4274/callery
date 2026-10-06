@@ -25,8 +25,8 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
         return billingIssue;
     }
 
-    const currentUsage = user.transcriptionUsed || 0;
-    const allocation = user.transcriptionAllocation || 0;
+    const currentUsage = user.transcriptionUsed;
+    const allocation = user.transcriptionAllocation;
     const newUsage = currentUsage + secondsToAdd;
 
     if (isFreeTrialPlanKey(user.planKey)) {
@@ -41,7 +41,7 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
         return { allowed: true };
     }
 
-    const allowOverage = user.billingSettings?.allowOverage ?? false;
+    const allowOverage = user.billingSettings.allowOverage;
     if (!allowOverage && newUsage > allocation) {
         const remaining = Math.max(0, allocation - currentUsage);
         return {

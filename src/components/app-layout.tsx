@@ -8,13 +8,12 @@ import { MobileNav } from './mobile-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ClientOnly } from './client-only';
 import { useUser, useAuthActions } from '@/lib/auth/client';
-import { useUserProfile } from '@/hooks/firebase/use-user-profile';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { Spinner } from '@heroui/react';
 import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 import { PublicHeader } from '@/components/public-header';
 import { ProductSidebar } from '@/components/navigation/product-sidebar';
 import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
-import { clearPrivatePwaCaches } from '@/lib/pwa-cache';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { publicEnv } from '@/lib/public-env';
 
@@ -144,12 +143,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
   const mainClassName = isMinimalLayoutRoute || isMarketingLayoutRoute
     ? 'flex flex-1 flex-col'
-    : `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-6 md:py-6 ${
+    : `flex min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8 ${
         showBottomNav
           ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
           : 'pb-6'
       }`;
-  const desktopProductMainClassName = `flex flex-1 flex-col gap-3 px-3 py-3 md:gap-8 md:px-8 md:py-6 ${
+  const desktopProductMainClassName = `mx-auto flex w-full max-w-[1440px] min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8 lg:px-10 ${
     showBottomNav
       ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
       : 'pb-6'
@@ -158,7 +157,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      await clearPrivatePwaCaches();
       router.push('/');
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -207,7 +205,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     return (
       <div className="flex min-h-dvh w-full bg-background">
         <ProductSidebar userProfile={userProfile} />
-        <div className="flex min-h-dvh flex-1 flex-col">
+        <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+          <a href="#main-content" className="sr-only z-50 rounded-lg bg-accent px-4 py-3 text-accent-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to content</a>
           {showAppHeader && (
             <AppHeader
               user={user}
@@ -217,7 +216,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               compact
             />
           )}
-          <main className={desktopProductMainClassName}>
+          <main id="main-content" tabIndex={-1} className={desktopProductMainClassName}>
             {showProductChrome && (
               <WorkspaceStatusRail
                 user={user}
@@ -248,7 +247,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
 
-      <main className={mainClassName}>
+      <main id="main-content" tabIndex={-1} className={mainClassName}>
         {showProductChrome && (
           <WorkspaceStatusRail
             user={user}

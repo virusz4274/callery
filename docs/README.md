@@ -4,7 +4,7 @@ This folder contains the maintained documentation for the current Callery codeba
 
 ## Start Here
 
-- [Setup Guide](setup-guide.md): step-by-step local setup, environment variables, service wiring (Firebase, R2, Stripe, transcription providers, push, SMTP), and first-login admin bootstrap
+- [Setup Guide](setup-guide.md): step-by-step local setup, environment variables, service wiring (Better Auth, R2, Stripe, transcription providers, push, SMTP), and first-login admin bootstrap
 - [User Guide](user-guide.md): end-user workflow across recordings, contacts, files, sharing, settings, support, and the web PWA
 - [Admin Guide](admin-guide.md): admin routes, health checks, incidents, async jobs, plans, announcements, and operator runbook
 
@@ -25,7 +25,7 @@ This folder contains the maintained documentation for the current Callery codeba
 - Recording archive with transcripts, summaries, tags, star/archive state, and semantic search support
 - Google Contacts sync plus contact-linked recording history
 - Export jobs with downloadable archive parts and an offline viewer
-- Local Better Auth or Firebase authentication, selected per deployment
+- Better Auth authentication backed by MongoDB in every deployment
 - Optional Stripe billing, browser push, SMTP delivery, and transcription providers
 - Archived Android wrapper; reusable upload/sync APIs remain for a future client
 - Admin health combines live checks for MongoDB and Gemini with lighter configuration checks for R2 and transcription providers

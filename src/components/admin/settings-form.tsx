@@ -17,7 +17,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
 
     const [allowSignups, setAllowSignups] = useState(settings.allowSignups);
     const [maintenanceMode, setMaintenanceMode] = useState(settings.maintenanceMode);
-    const [defaultPlanId, setDefaultPlanId] = useState(settings.defaultPlanId || '');
+    const [defaultPlanId, setDefaultPlanId] = useState(settings.defaultPlanId);
     const [sonioxMultiplier, setSonioxMultiplier] = useState(
         settings.transcriptionMultipliers?.soniox ?? 1.0
     );
@@ -31,7 +31,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                 await updateSystemSettings({
                     allowSignups,
                     maintenanceMode,
-                    defaultPlanId: defaultPlanId || undefined,
+                    defaultPlanId,
                     transcriptionMultipliers: {
                         soniox: sonioxMultiplier,
                         elevenlabs: elevenlabsMultiplier,

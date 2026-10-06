@@ -1,10 +1,11 @@
 'use server';
 
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
-import { findUserByAuthSubject, updateUser } from '@/lib/db/users';
+import { updateUserProfile } from '@/lib/db/users';
 import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
 import { TranscriptionProviderId } from '@/services/transcription/factory';
+import { TranscriptionSettingsSchema } from '@/lib/schemas';
 
 export async function updateTranscriptionSettings(data: {
     autoTranscribe?: boolean;
@@ -16,20 +17,16 @@ export async function updateTranscriptionSettings(data: {
         return { success: false, error: 'Unauthorized' };
     }
 
+    const parsed = TranscriptionSettingsSchema.partial().strict().safeParse(data);
+    if (!parsed.success) {
+        return { success: false, error: 'Invalid transcription settings' };
+    }
+
     try {
-        const user = await findUserByAuthSubject(authSubject);
+        const user = await updateUserProfile(authSubject, { transcriptionSettings: parsed.data });
         if (!user) {
             return { success: false, error: 'User not found' };
         }
-
-        const currentSettings = user.transcriptionSettings || { autoTranscribe: true };
-
-        await updateUser(authSubject, {
-            transcriptionSettings: {
-                ...currentSettings,
-                ...data,
-            }
-        });
 
         logger.info(`[Settings] Updated transcription settings for ${authSubject}:`, data);
         revalidatePath('/settings');

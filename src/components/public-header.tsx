@@ -1,8 +1,7 @@
-"use client";
+'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@heroui/react';
 import { Logo } from '@/components/icons';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { cn } from '@/lib/utils';
@@ -16,85 +15,30 @@ const marketingLinks = [
 
 export function PublicHeader() {
   const pathname = usePathname();
+  const links = marketingLinks.map((item) => (
+    <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}
+      className={cn('inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors',
+        pathname === item.href ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-surface-secondary hover:text-foreground')}>
+      {item.label}
+    </Link>
+  ));
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-default-200/70 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-default-200 bg-default-50 text-primary shadow-sm">
-              <Logo className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold uppercase tracking-[0.22em] text-default-500">
-                Callery
-              </div>
-              <div className="hidden text-sm text-default-600 sm:block">
-                Call Archive & AI Search
-              </div>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-1 rounded-full border border-default-200/80 bg-background/80 p-1 md:flex">
-            {marketingLinks.map((item) => {
-              const isActive = pathname === item.href;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-default-500 hover:bg-default-100 hover:text-foreground'
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 md:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo className="size-7" />
+          <span className="text-lg font-semibold tracking-tight">Callery</span>
+          <span className="sr-only">Call Archive & AI Search</span>
+        </Link>
+        <nav aria-label="Main navigation" className="hidden items-center gap-1 md:flex">{links}</nav>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeSwitcher />
-          <Link
-            href="/login"
-            className="hidden rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-default-100 sm:block"
-          >
-            Log in
-          </Link>
-          <Link href="/signup">
-            <Button size="sm" variant="primary" className="rounded-full px-6 font-semibold">
-              Start free
-            </Button>
-          </Link>
+          <Link href="/login" className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-secondary sm:inline-flex">Log in</Link>
+          <Link href="/signup" className="button button--primary button--sm px-4">Start free</Link>
         </div>
       </div>
-
-      <div className="border-t border-default-200/70 md:hidden">
-        <nav className="mx-auto flex w-full max-w-7xl gap-2 overflow-x-auto px-4 py-2">
-          {marketingLinks.map((item) => {
-            const isActive = pathname === item.href;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-default-100 text-default-600'
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+      <nav aria-label="Mobile site navigation" className="flex justify-center gap-1 border-t border-border px-3 py-1 md:hidden">{links}</nav>
     </header>
   );
 }

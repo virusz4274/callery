@@ -29,17 +29,7 @@ export function useRecordings(
             throw new Error(response.error);
         }
 
-        // Convert the clean response to what SWR expects
-        // Note: getRecordingsAction returns { recordings, totalCount, ... }
-        // The original API returned JSON which was parsed. The action returns the object directly.
-        // We need to ensure the types match RecordingResponse[] which are the JSON-serializable types.
-        // The action returns DB entity types (Dates as Date objects), but RecordingResponse expects strings for dates.
-        // In Next.js Server Actions, Date objects are serialized. We might need to ensure consistency.
-        // Let's assume the components handle Date objects or strings, or we map them here.
-        // Actually, the action returns serialization-safe objects (Next.js handles this).
-        // BUT, our types might mismatch if we strictly enforced string dates in RecordingResponse.
-        // Let's cast for now, effectively trusting the serialization.
-        return response as { recordings: RecordingResponse[]; totalCount: number; };
+        return response;
     }, {
         // SWR Configuration
         revalidateOnFocus: false,

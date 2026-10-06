@@ -38,22 +38,22 @@ export function createPostContactsSyncHandler(dependencies: ContactsSyncRouteDep
             );
         }
 
-        if (user.googleSync?.status === 'syncing' && !isGoogleSyncStale(user.googleSync)) {
+        if (user.googleSync.status === 'syncing' && !isGoogleSyncStale(user.googleSync)) {
             return NextResponse.json(
                 { success: false, error: 'Google Contacts sync is already in progress.' },
                 { status: 409 }
             );
         }
 
-        if (user.googleSync?.status === 'syncing') {
+        if (user.googleSync.status === 'syncing') {
             await dependencies.recoverStaleGoogleSync(authSubject, user.googleSync);
         }
 
         try {
             await dependencies.prepareGoogleContactsSync(authSubject, {
                 refreshToken,
-                scopes: user.googleSync?.scopes,
-                expiryDate: user.googleSync?.tokenExpiresAt?.getTime(),
+                scopes: user.googleSync.scopes,
+                expiryDate: user.googleSync.tokenExpiresAt?.getTime(),
             });
 
             const syncResult = await dependencies.runGoogleContactsSync(authSubject);

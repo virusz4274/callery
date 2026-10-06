@@ -9,7 +9,7 @@ import {
 } from '@/lib/export-processor/constants';
 import { ensurePartUploaded } from '@/lib/export-processor/archive';
 import { finalizeJob, persistCheckpoint } from '@/lib/export-processor/lifecycle';
-import { inferNextPartNumber, toStorageParts, upsertPart } from '@/lib/export-processor/part-metadata';
+import { toStorageParts, upsertPart } from '@/lib/export-processor/part-metadata';
 import type { ExportPartMeta } from '@/lib/export-processor/types';
 import { logger } from '@/lib/logger';
 
@@ -26,22 +26,22 @@ export async function processExport(jobId: string, authSubject: string) {
             throw new Error('Export job not found');
         }
 
-        let totalRecordings = existingJob.totalRecordings || 0;
+        let totalRecordings = existingJob.totalRecordings;
         if (!totalRecordings) {
             totalRecordings = await countRecordingsForExport(authSubject);
         }
 
-        const initialParts: ExportPartMeta[] = (existingJob.parts || []).map((part) => ({
+        const initialParts: ExportPartMeta[] = existingJob.parts.map((part) => ({
             key: part.key,
             size: part.size,
         }));
 
         let parts = initialParts;
-        let processedRecordings = existingJob.processedRecordings || 0;
-        let nextPartNumber = existingJob.checkpoint?.nextPartNumber || inferNextPartNumber(parts);
+        let processedRecordings = existingJob.processedRecordings;
+        let nextPartNumber = existingJob.checkpoint.nextPartNumber;
         let cursor: RecordingExportCursor | undefined;
 
-        if (existingJob.checkpoint?.cursorRecordedAt && existingJob.checkpoint.cursorId) {
+        if (existingJob.checkpoint.cursorRecordedAt && existingJob.checkpoint.cursorId) {
             cursor = {
                 recordedAt: new Date(existingJob.checkpoint.cursorRecordedAt),
                 id: existingJob.checkpoint.cursorId,

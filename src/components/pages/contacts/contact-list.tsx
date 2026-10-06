@@ -27,7 +27,7 @@ export function ContactList({
     onContactClick,
 }: ContactListProps) {
     return (
-        <div className="flex min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-none">
             {Object.keys(groupedContacts).length > 0 ? (
                 Object.entries(groupedContacts).map(([letter, contacts]) => (
                     <div key={letter} id={`letter-group-${letter}`} className="pt-0">
@@ -43,15 +43,16 @@ export function ContactList({
                                 >
                                     <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                         <Avatar className="h-11 w-11 ring-2 ring-transparent shadow-sm transition-all group-hover:ring-primary/20 md:h-12 md:w-12">
-                                            <Avatar.Fallback className="text-lg bg-gradient-to-br from-primary/20 to-secondary/20 text-foreground">
+                                            <Avatar.Fallback className="bg-surface-secondary text-base text-muted">
                                                 {contact.name.charAt(0)}
                                             </Avatar.Fallback>
                                         </Avatar>
 
                                         <div className="min-w-0 flex-1">
-                                            <p className="truncate text-base font-semibold text-foreground transition-colors group-hover:text-primary sm:text-lg">
+                                            <button type="button" onClick={(event) => { event.stopPropagation(); onContactClick(contact.id); }}
+                                                aria-label={`Open ${contact.name}`} className="block min-h-8 max-w-full cursor-pointer truncate rounded-sm text-left text-base font-medium text-foreground transition-colors hover:text-accent">
                                                 {contact.name}
-                                            </p>
+                                            </button>
 
                                             {(contact.jobTitle || contact.company) && (
                                                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-small text-default-500">
@@ -70,11 +71,6 @@ export function ContactList({
                                                     <Mic className="mr-1 h-3 w-3" />
                                                     {contact.totalRecordings} recording{contact.totalRecordings === 1 ? '' : 's'}
                                                 </Chip>
-                                                {contact.company && (
-                                                    <Chip size="sm" variant="soft" color="default">
-                                                        {contact.company}
-                                                    </Chip>
-                                                )}
                                             </div>
                                         </div>
                                     </div>

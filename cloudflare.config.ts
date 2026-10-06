@@ -18,8 +18,6 @@ export default defineConfig({
       ASSETS: bindings.assets(),
       IMAGES: bindings.images(),
       // --- Non-secret configuration (safe to commit) ---
-      AUTH_PROVIDER: bindings.text("local"),
-      NEXT_PUBLIC_AUTH_PROVIDER: bindings.text("local"),
       EMAIL_PROVIDER: bindings.text("resend"),
       // --- Secrets (set via `cf workers secrets`, never commit values) ---
       // MONGODB_URI: bindings.secret(),

@@ -1,5 +1,12 @@
-// Shared auth types. Provider-agnostic: both `firebase` and `local`
-// implementations map to these shapes. No runtime imports — safe anywhere.
+// Application auth types. No runtime imports — safe anywhere.
+
+export interface AuthCapabilities {
+    googleEnabled: boolean;
+    emailVerificationRequired: boolean;
+    passwordResetEnabled: boolean;
+}
+
+export type SignUpStatus = 'signed-in' | 'verification-required';
 
 /** Authenticated identity resolved on the server. */
 export interface SessionUser {
@@ -8,7 +15,6 @@ export interface SessionUser {
     email: string;
     name?: string | null;
     image?: string | null;
-    provider: 'firebase' | 'local';
     emailVerified?: boolean;
 }
 

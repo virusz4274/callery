@@ -1,20 +1,24 @@
-import type { SVGProps } from 'react';
+import Image from 'next/image';
+import type { ComponentProps } from 'react';
+import { cn } from '@/lib/utils';
 
-export function Logo(props: SVGProps<SVGSVGElement>) {
+type LogoProps = Omit<ComponentProps<'span'>, 'children'> & { alt?: string };
+
+export function Logo({ className, alt = '', ...props }: LogoProps) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <span
       {...props}
+      className={cn('relative inline-block size-8 shrink-0 overflow-hidden align-middle', className)}
     >
-      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" />
-      <path d="M12 8v4l3 3" />
-      <path d="M16 6.12a5 5 0 0 0-8 0" />
-    </svg>
+      <Image
+        src="/brand/callery-logo.png"
+        alt={alt}
+        fill
+        sizes="72px"
+        loading="eager"
+        // Fill the icon slot using the mark inside the asset's transparent padding.
+        className="scale-150 object-contain"
+      />
+    </span>
   );
 }

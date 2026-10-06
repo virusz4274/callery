@@ -1,7 +1,6 @@
 import { Button } from '@heroui/react';
-import { ContextHelp } from '@/components/context-help';
-import { ChevronLeft, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronLeft } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 import type { SettingsTab } from '@/hooks/use-settings-page';
 
 type SettingsHeaderProps = {
@@ -14,53 +13,19 @@ type SettingsHeaderProps = {
 
 export function SettingsHeader({ activeTab, isMobile, tabs, view, onBack }: SettingsHeaderProps) {
     const activeTabConfig = tabs.find((tab) => tab.id === activeTab) || tabs[0];
-    const ActiveTabIcon = activeTabConfig?.icon || Sparkles;
-    const title = view === 'detail' && isMobile ? activeTabConfig?.label : 'Settings';
-    const helpTitle = view === 'detail' && activeTabConfig ? activeTabConfig.label : 'Settings';
-    const helpDescription =
-        view === 'detail' && activeTabConfig?.description
-            ? activeTabConfig.description
-            : 'Open account, data, notifications, billing, and workspace preferences from one place.';
+    const showDetail = view === 'detail' && isMobile;
 
     return (
-        <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-            <div className="flex items-center justify-between gap-3 px-4 py-4">
-                <div className="flex min-w-0 items-center gap-3">
-                    <Button
-                        isIconOnly
-                        variant="secondary"
-                        onPress={onBack}
-                        className={cn('rounded-full', view === 'list' && 'hidden')}
-                    >
-                        <ChevronLeft className="h-5 w-5" />
-                    </Button>
-
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent shadow-[inset_0_0_0_1px_rgba(38,132,255,0.12)]">
-                        <ActiveTabIcon className="h-4.5 w-4.5" />
-                    </div>
-
-                    <div className="min-w-0 space-y-1">
-                        <div className="truncate text-lg font-bold tracking-[-0.03em] text-foreground">
-                            {title}
-                        </div>
-                        {view === 'detail' && activeTabConfig && (
-                            <div className="text-sm text-default-500">
-                                {activeTabConfig.description}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <ContextHelp
-                    title={helpTitle}
-                    description={helpDescription}
-                    points={[
-                        'Use the left rail to jump between sections quickly.',
-                        'Open only the active panel instead of scanning a long settings page.',
-                        'Billing, data, and profile changes stay grouped by task.',
-                    ]}
-                />
-            </div>
-        </section>
+        <div className="space-y-3">
+            {view === 'detail' && (
+                <Button variant="ghost" size="sm" onPress={onBack} className="-ml-2 lg:hidden" aria-label="Back to settings">
+                    <ChevronLeft className="size-4" />All settings
+                </Button>
+            )}
+            <PageHeader
+                title={showDetail ? activeTabConfig?.label || 'Settings' : 'Settings'}
+                description={showDetail ? activeTabConfig?.description || 'Manage your workspace preferences.' : 'Make this workspace yours. Manage your account, sources, and preferences.'}
+            />
+        </div>
     );
 }

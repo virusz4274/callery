@@ -15,11 +15,7 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-// `defaultCache` covers everything the old next-pwa `runtimeCaching` did
-// (Google Fonts, font/image assets, next/image, /api/*) with the same
-// strategies, plus page/RSC/static-asset and range-request (audio/video)
-// caching suited to this app. No offline fallback: there is no offline
-// route, matching the previous setup.
+// Cache public assets; private routes and signed audio always use the network.
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
