@@ -200,6 +200,14 @@ export function geminiApiKey(): string | undefined {
     return process.env.GOOGLE_GENERATIVE_AI_API_KEY || undefined;
 }
 
+export type GeminiFeature = 'transcription' | 'summary' | 'transliteration' | 'embedding';
+
+/** Resolve each Gemini feature's model at use time, including blank env values. */
+export function geminiModel(feature: GeminiFeature): string {
+    const name = `GEMINI_MODEL_${feature.toUpperCase()}`;
+    return process.env[name]?.trim() || (feature === 'embedding' ? 'gemini-embedding-001' : 'gemini-3.8-flash');
+}
+
 /** Billed-unit multiplier for one provider (managed metering). Unknown providers bill at 1x. */
 export function transcriptionMultiplier(provider: string): number {
     return transcriptionPricing()[provider] ?? 1;
@@ -211,10 +219,21 @@ export function transcriptionPricing(): Record<string, number> {
     const raw = process.env.TRANSCRIPTION_PRICING_JSON;
     if (!raw) return defaults;
     try {
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (error) {
+            // Some env writers escape JSON quotes; dotenv retains those backslashes.
+            // Only normalize after ordinary JSON parsing fails, preserving valid keys.
+            if (!raw.includes('\\"')) throw error;
+            parsed = JSON.parse(raw.replace(/\\"/g, '"'));
+        }
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('expected an object mapping providers to positive numbers');
+        }
         const merged = { ...defaults };
         for (const [provider, multiplier] of Object.entries(parsed)) {
-            if (typeof multiplier !== 'number' || multiplier <= 0) {
+            if (typeof multiplier !== 'number' || !Number.isFinite(multiplier) || multiplier <= 0) {
                 throw new Error(`multiplier for ${JSON.stringify(provider)} must be a positive number`);
             }
             merged[provider] = multiplier;

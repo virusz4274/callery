@@ -1,8 +1,10 @@
 import { normalizeEndDate } from './recordings';
+import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { getAiService } from '@/services/ai';
 import { Recording } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
+import { hydrateRecordingContacts } from './recordings/hydrate-contacts';
 
 
 const VECTOR_SEARCH_INDEX = 'recordings_vector_search';
@@ -136,10 +138,11 @@ export async function searchRecordingsByVector(
 ): Promise<{
     results: SearchResult[];
     totalCount: number;
+    hasMore: boolean;
     mode: SemanticSearchMode;
     fallbackReason?: SemanticFallbackReason;
 }> {
-    if (!query) return { results: [], totalCount: 0, mode: 'vector' };
+    if (!query) return { results: [], totalCount: 0, hasMore: false, mode: 'vector' };
 
     try {
         const db = await getMongoDb();
@@ -148,7 +151,7 @@ export async function searchRecordingsByVector(
         const pageWindow = safePage * safePageSize;
         const pageStart = (safePage - 1) * safePageSize;
 
-        const keywordSearch = await searchRecordingsByKeyword(query, authSubject, pageWindow);
+        const keywordSearch = await searchRecordingsByKeyword(query, authSubject, pageWindow + 1);
         const queryEmbedding = await getAiService().generateEmbedding(query);
         let vectorResults: SearchResult[] = [];
         let mode: SemanticSearchMode = 'vector';
@@ -199,12 +202,13 @@ export async function searchRecordingsByVector(
 
         const mergedResults = mergeSearchResults(keywordSearch.results, vectorResults);
         if (mergedResults.length === 0) {
-            return { results: [], totalCount: 0, mode, fallbackReason };
+            return { results: [], totalCount: 0, hasMore: false, mode, fallbackReason };
         }
 
         return {
-            results: mergedResults.slice(pageStart, pageStart + safePageSize),
+            results: await hydrateRecordingContacts(authSubject, mergedResults.slice(pageStart, pageStart + safePageSize)),
             totalCount: Math.max(keywordSearch.totalCount, mergedResults.length),
+            hasMore: mergedResults.length > pageWindow || keywordSearch.totalCount > pageWindow,
             mode,
             fallbackReason,
         };
@@ -220,6 +224,8 @@ export interface PaginatedSearchResult {
 }
 
 export interface AtlasSearchOptions {
+    needsTranscription?: boolean;
+    contactId?: string;
     limit?: number;
     skip?: number;
     includeArchived?: boolean;
@@ -283,6 +289,8 @@ export async function searchRecordingsByAtlas(
 
     // Post-search match for filters not covered by the search index.
     const match: Record<string, unknown> = { authSubject };
+    if (options?.needsTranscription) match.transcriptionStatus = { $ne: 'completed' };
+    if (options?.contactId) match.contactId = new ObjectId(options.contactId);
     if (!options?.includeArchived) {
         match.isArchived = { $ne: true };
     }
@@ -332,7 +340,7 @@ export async function searchRecordingsByAtlas(
     ]);
 
     return {
-        results: results as SearchResult[],
+        results: await hydrateRecordingContacts(authSubject, results as SearchResult[]),
         totalCount: (countDocs[0]?.total as number) ?? 0,
     };
 }

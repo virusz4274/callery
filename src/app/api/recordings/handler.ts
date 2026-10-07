@@ -19,6 +19,7 @@ function clampInt(value: string | null, fallback: number, min: number, max: numb
  * - limit: number (default 20, max 100)
  * - page: number, 1-based (default 1)
  * - includeArchived: boolean (default false)
+ * - needsTranscription: boolean (default false), excludes completed transcripts
  * - contactName: exact contact name, or 'Unknown' for unlinked recordings
  * - sortBy: 'date' | 'duration'
  * - sortOrder: 'asc' | 'desc'
@@ -47,6 +48,8 @@ export function createGetRecordingsHandler(dependencies = {
             const { searchParams } = new URL(request.url);
             const limit = clampInt(searchParams.get('limit'), 20, 1, 100);
             const includeArchived = searchParams.get('includeArchived') === 'true';
+            const needsTranscription = searchParams.get('needsTranscription') === 'true';
+            const contactId = searchParams.get('contactId') || undefined;
             const contactName = searchParams.get('contactName') || undefined;
 
             const sortBy = (searchParams.get('sortBy') as 'date' | 'duration') || undefined;
@@ -63,6 +66,8 @@ export function createGetRecordingsHandler(dependencies = {
                 limit,
                 skip,
                 includeArchived,
+                needsTranscription,
+                contactId,
                 contactName,
                 sortBy,
                 sortOrder,
@@ -102,6 +107,8 @@ export function createGetRecordingsHandler(dependencies = {
                 dependencies.getRecordingsForApi(authSubject, options),
                 dependencies.countRecordingsByUser(authSubject, {
                     includeArchived,
+                    needsTranscription,
+                    contactId,
                     contactName,
                     startDate,
                     endDate,

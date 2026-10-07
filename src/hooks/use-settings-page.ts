@@ -65,7 +65,7 @@ export function useSettingsPage() {
     });
 
     const activeTab = defaultTab;
-    const [view, setView] = useState<'list' | 'detail'>('list');
+    const view = searchParams.has('tab') ? 'detail' as const : 'list' as const;
 
     const {
         isSyncing,
@@ -111,7 +111,6 @@ export function useSettingsPage() {
         if (success) {
             toast({
                 title: 'Payment Successful',
-                description: 'Your billing details have been updated.',
                 status: 'success',
             });
         }
@@ -147,11 +146,9 @@ export function useSettingsPage() {
     };
 
     const handleTabSelect = (tabId: string) => {
-        setView('detail');
-
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tabId);
-        router.replace(buildSettingsPath(params));
+        window.history.pushState({ vosiftSettingsSection: true }, '', buildSettingsPath(params));
     };
 
     const tabs = useMemo<SettingsTab[]>(
@@ -203,7 +200,7 @@ export function useSettingsPage() {
         setDataState,
         updateDataState,
         activeTab,
-        view: searchParams.has('tab') ? 'detail' as const : view,
+        view,
         tabs,
         showBilling,
         isSyncing,
@@ -228,10 +225,10 @@ export function useSettingsPage() {
         onDialogConfirm,
         handleTabSelect,
         handleBack: () => {
-            setView('list');
+            if (window.history.state?.vosiftSettingsSection) { window.history.back(); return; }
             const params = new URLSearchParams(searchParams.toString());
             params.delete('tab');
-            router.replace(buildSettingsPath(params));
+            window.history.replaceState(null, '', buildSettingsPath(params));
         },
         exportJob,
         isExportStarting,

@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ClientOnly } from './client-only';
 import { useUser, useAuthActions } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useContactSyncRevalidation } from '@/hooks/use-contact-sync-revalidation';
 import { Spinner } from '@heroui/react';
 import { InstallPwaPrompt } from '@/components/pwa/install-prompt';
 import { PublicHeader } from '@/components/public-header';
@@ -45,6 +46,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Data fetching and auth logic is now in the layout container
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
+  useContactSyncRevalidation(user?.id, userProfile?.googleSync);
   const auth = useAuthActions();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
@@ -143,12 +145,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
   const mainClassName = isMinimalLayoutRoute || isMarketingLayoutRoute
     ? 'flex flex-1 flex-col'
-    : `flex min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8 ${
+    : `flex min-w-0 flex-1 flex-col gap-4 px-3 py-4 md:gap-6 md:px-8 md:py-8 ${
         showBottomNav
           ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
           : 'pb-6'
       }`;
-  const desktopProductMainClassName = `mx-auto flex w-full max-w-[1440px] min-w-0 flex-1 flex-col gap-6 px-4 py-6 md:px-8 md:py-8 lg:px-10 ${
+  const desktopProductMainClassName = `mx-auto flex w-full max-w-[1440px] min-w-0 flex-1 flex-col gap-4 px-3 py-4 md:gap-6 md:px-8 md:py-8 lg:px-10 ${
     showBottomNav
       ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6'
       : 'pb-6'
@@ -226,9 +228,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             )}
             {children}
           </main>
+          <ClientOnly>
+            {showInstallPrompt && <InstallPwaPrompt />}
+          </ClientOnly>
         </div>
         <ClientOnly>
-          {showInstallPrompt && <InstallPwaPrompt />}
           {showBottomNav && <MobileNav />}
         </ClientOnly>
       </div>

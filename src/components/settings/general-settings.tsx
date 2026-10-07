@@ -1,5 +1,5 @@
 'use client';
-import { Button, Card, Chip, Label, ListBox, Select, Spinner } from '@heroui/react';
+import { Button, Card, Label, ListBox, Select, Spinner } from '@heroui/react';
 import { SettingsSection } from './settings-section';
 
 const timezones = [
@@ -39,17 +39,9 @@ interface GeneralSettingsProps {
 
 export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }: GeneralSettingsProps) {
     return (
-        <SettingsSection title="Localization" description="Set your preferred language and timezone for date and time display.">
+        <SettingsSection title="Timezone">
             <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                 <Card.Content className="space-y-5 p-5 sm:p-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Chip variant="soft" color="accent">
-                            Workspace defaults
-                        </Chip>
-                        <Chip variant="soft" color="default">
-                            Current timezone: {settings.timezone || 'Not set'}
-                        </Chip>
-                    </div>
 
                     <Select
                         placeholder="Select a timezone"

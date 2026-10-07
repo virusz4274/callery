@@ -1,4 +1,4 @@
-import { Card, Chip, ListBox, Select, Switch } from '@heroui/react';
+import { Card, ListBox, Select, Switch } from '@heroui/react';
 import { AudioLines } from 'lucide-react';
 import type { AvailableProvider } from '@/app/actions/transcription-providers';
 import type { TranscriptionProvider } from '@/lib/config';
@@ -19,12 +19,6 @@ export function TranscriptionSettingsCard({
     return (
         <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Chip size="sm" variant="soft" color="accent">AI processing</Chip>
-                    <Chip size="sm" variant="soft" color={autoTranscribe ? 'success' : 'default'}>
-                        {autoTranscribe ? 'Automatic' : 'Manual'}
-                    </Chip>
-                </div>
 
                 <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4 sm:p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -35,7 +29,7 @@ export function TranscriptionSettingsCard({
                             <div className="space-y-2">
                                 <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">Auto-transcribe new recordings</h4>
                                 <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                    Turn this on to generate transcripts as new calls arrive. This uses your monthly transcription allowance.
+                                    Uses your monthly transcription allowance.
                                 </p>
                             </div>
                         </div>
@@ -49,9 +43,11 @@ export function TranscriptionSettingsCard({
                             }}
                             aria-label="Auto-Transcribe"
                         >
-                            <Switch.Control>
-                                <Switch.Thumb />
-                            </Switch.Control>
+                            <Switch.Content>
+                                <Switch.Control>
+                                    <Switch.Thumb />
+                                </Switch.Control>
+                            </Switch.Content>
                         </Switch>
                     </div>
                 </div>
@@ -62,7 +58,7 @@ export function TranscriptionSettingsCard({
                             <div className="space-y-2">
                                 <h4 className="text-base font-semibold text-foreground">Transcription provider</h4>
                                 <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                    Balance speed, quality, and cost for default transcription jobs. These settings apply to future automated work.
+                                    Applies to future automatic transcriptions.
                                 </p>
                             </div>
                             <div className="w-full lg:w-72">
@@ -90,7 +86,7 @@ export function TranscriptionSettingsCard({
                                                     <div className="flex flex-col">
                                                         <span>{provider.name}</span>
                                                         <span className="text-xs text-default-400">
-                                                            {provider.description} · {provider.multiplier}x cost
+                                                            {provider.description}
                                                         </span>
                                                     </div>
                                                 </ListBox.Item>

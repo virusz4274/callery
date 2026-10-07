@@ -3,6 +3,8 @@
 import React from 'react';
 import { Card, Spinner } from '@heroui/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { auditCalendarDate } from '@/lib/admin-validation';
+import { AdminFeedback } from './admin-feedback';
 import type { AdminLogResponse } from '@/lib/db/types';
 import { AuditLogsFilters } from './audit-logs/audit-logs-filters';
 import { AuditLogsPagination } from './audit-logs/audit-logs-pagination';
@@ -10,7 +12,8 @@ import { AuditLogsTableContent } from './audit-logs/audit-logs-table-content';
 
 type AuditLogsTableProps = {
     initialLogs: AdminLogResponse[];
-    totalLogs: number;
+    totalLogs: number | null;
+    loadError?: string | null;
     currentPage: number;
     totalPages: number;
     initialActionFilter?: string;
@@ -20,6 +23,7 @@ type AuditLogsTableProps = {
 
 export function AuditLogsTable({
     initialLogs,
+    loadError,
     totalLogs,
     currentPage,
     totalPages,
@@ -31,6 +35,7 @@ export function AuditLogsTable({
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const [isPending, startTransition] = React.useTransition();
+    const [dateError, setDateError] = React.useState<string | null>(null);
 
     const navigateWithParams = (mutate: (params: URLSearchParams) => void) => {
         const params = new URLSearchParams(searchParams);
@@ -68,6 +73,10 @@ export function AuditLogsTable({
     };
 
     const handleDateChange = (type: 'startDate' | 'endDate', value: string) => {
+        const start = type === 'startDate' ? value : auditCalendarDate(initialStartDate);
+        const end = type === 'endDate' ? value : auditCalendarDate(initialEndDate);
+        if (start && end && start > end) { setDateError('Choose an end date on or after the start date.'); return; }
+        setDateError(null);
         navigateWithParams((params) => {
             if (value) {
                 params.set(type, getDateBoundaryIso(value, type === 'startDate' ? 'start' : 'end'));
@@ -79,6 +88,7 @@ export function AuditLogsTable({
     };
 
     const handleClearFilters = () => {
+        setDateError(null);
         navigateWithParams((params) => {
             params.delete('action');
             params.delete('startDate');
@@ -88,11 +98,10 @@ export function AuditLogsTable({
     };
 
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] sm:p-5">
+        <Card className="p-4 sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h3 className="text-xl font-bold tracking-[-0.03em] text-foreground">System audit logs</h3>
-                    <p className="text-sm text-default-500">{totalLogs} matching events across admin actions, account changes, and system controls.</p>
+                    <p aria-live="polite" className="text-sm text-muted">{totalLogs === null ? 'Count unavailable' : `${totalLogs} matching events`}</p>
                 </div>
                 {isPending && <Spinner size="sm" />}
             </div>
@@ -106,13 +115,14 @@ export function AuditLogsTable({
                 onClearFilters={handleClearFilters}
             />
 
-            <AuditLogsTableContent logs={initialLogs} />
+            {dateError && <p role="alert" className="mb-4 text-sm text-danger">{dateError}</p>}
+            {loadError ? <AdminFeedback title="Could not load audit logs" message={loadError} onRetry={() => startTransition(() => router.refresh())} pending={isPending} /> : <AuditLogsTableContent logs={initialLogs} /> }
 
-            <AuditLogsPagination
+            {!loadError && <AuditLogsPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
-            />
+            />}
         </Card>
     );
 }

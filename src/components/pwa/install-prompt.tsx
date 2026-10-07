@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Chip } from '@heroui/react';
+import { Button, Chip, Card } from '@heroui/react';
 import { Download, Share2, Smartphone, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Logo } from '@/components/icons';
 
 type DeferredInstallPrompt = {
@@ -12,6 +12,7 @@ type DeferredInstallPrompt = {
 };
 
 export function InstallPwaPrompt() {
+    const reduceMotion = useReducedMotion();
     const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPrompt | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const [showIosSteps, setShowIosSteps] = useState(false);
@@ -92,13 +93,13 @@ export function InstallPwaPrompt() {
     return (
         <AnimatePresence>
             <motion.div
-                initial={{ y: 200, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 200, opacity: 0 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 500 }}
-                className="fixed bottom-24 left-4 right-4 z-[60] md:bottom-4 md:left-auto md:right-4 md:w-[24rem]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.15 }}
+                className="relative mx-3 my-2 md:pointer-fine:fixed md:pointer-fine:bottom-4 md:pointer-fine:left-auto md:pointer-fine:right-4 md:pointer-fine:z-[60] md:pointer-fine:m-0 md:pointer-fine:w-[24rem]"
             >
-                <div className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/96 p-4 shadow-[0_24px_64px_-40px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+                <Card className="overflow-hidden p-4">
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
@@ -106,45 +107,45 @@ export function InstallPwaPrompt() {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Install Callery</h3>
+                                    <h3 className="text-sm font-semibold text-foreground">Install Callery</h3>
                                     <Chip size="sm" variant="soft" color="accent">
                                         {isIOS ? 'iPhone / iPad' : 'App install available'}
                                     </Chip>
                                 </div>
-                                <p className="text-sm leading-6 text-default-500">
+                                <p className="text-sm leading-6 text-muted">
                                     {isIOS
                                         ? 'Add Callery to your home screen for faster access to your call archive.'
                                         : 'Install the app for quicker access, better launch behavior, and a more reliable mobile workflow.'}
                                 </p>
                             </div>
                         </div>
-                        <Button isIconOnly variant="ghost" size="sm" onPress={handleDismiss} aria-label="Dismiss install prompt">
+                        <Button isIconOnly variant="ghost" size="sm" className="size-11 shrink-0" onPress={handleDismiss} aria-label="Dismiss install prompt">
                             <X className="size-4" />
                         </Button>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Why install</p>
-                            <p className="mt-2 text-sm leading-6 text-default-500">
+                    <div className="mt-4 hidden gap-3 md:grid md:grid-cols-2">
+                        <div className="rounded-xl border border-border bg-default-50/70 p-3">
+                            <p className="text-xs font-semibold uppercase text-muted">Why install</p>
+                            <p className="mt-2 text-sm leading-6 text-muted">
                                 Faster returning sessions, cleaner fullscreen feel, and easier access while reviewing calls on mobile.
                             </p>
                         </div>
-                        <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-default-400">Prompt timing</p>
-                            <p className="mt-2 text-sm leading-6 text-default-500">
+                        <div className="rounded-xl border border-border bg-default-50/70 p-3">
+                            <p className="text-xs font-semibold uppercase text-muted">Prompt timing</p>
+                            <p className="mt-2 text-sm leading-6 text-muted">
                                 If you dismiss this, we will wait a week before asking again.
                             </p>
                         </div>
                     </div>
 
                     {isIOS && showIosSteps && (
-                        <div className="mt-4 rounded-xl border border-default-200/80 bg-background p-4">
+                        <div className="mt-4 rounded-xl border border-border bg-background p-4">
                             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                 <Share2 className="size-4 text-primary" />
                                 Install on iPhone or iPad
                             </div>
-                            <ol className="mt-3 space-y-2 text-sm leading-6 text-default-500">
+                            <ol className="mt-3 space-y-2 text-sm leading-6 text-muted">
                                 <li>1. Open the browser share menu.</li>
                                 <li>2. Choose <span className="font-medium text-foreground">Add to Home Screen</span>.</li>
                                 <li>3. Confirm the app name, then tap <span className="font-medium text-foreground">Add</span>.</li>
@@ -153,15 +154,15 @@ export function InstallPwaPrompt() {
                     )}
 
                     <div className="mt-4 flex gap-3">
-                        <Button variant="ghost" className="flex-1 rounded-full" onPress={handleDismiss}>
+                        <Button variant="ghost" className="flex-1" onPress={handleDismiss}>
                             Not now
                         </Button>
-                        <Button size="sm" variant="primary" onPress={handleInstallClick} className="flex-1 rounded-full font-semibold">
+                        <Button size="sm" variant="primary" onPress={handleInstallClick} className="flex-1 font-semibold">
                             {isIOS ? <Smartphone className="mr-2 size-4" /> : <Download className="mr-2 size-4" />}
                             {isIOS ? (showIosSteps ? 'Hide steps' : 'Show steps') : 'Install app'}
                         </Button>
                     </div>
-                </div>
+                </Card>
             </motion.div>
         </AnimatePresence>
     );

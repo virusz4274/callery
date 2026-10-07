@@ -1,8 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { ActionLink } from '@/components/action-link';
 import { Button, Card, Chip, Spinner } from '@heroui/react';
 import { CheckCircle2, Clock3, File, Loader2, TriangleAlert, X } from 'lucide-react';
+import { publicEnv } from '@/lib/public-env';
 import { cn } from '@/lib/utils';
 import type { UploadItem } from './types';
 
@@ -30,8 +31,8 @@ export function UploadItemsCard({
 
     return (
         <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
-            <Card.Content className="p-5 sm:p-6">
-                <div className="flex flex-col gap-5 border-b border-default-100 pb-5">
+            <Card.Content className="p-3 md:p-6">
+                <div className="flex flex-col gap-3 border-b md:gap-5 border-default-100 pb-5">
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="default">
@@ -46,7 +47,7 @@ export function UploadItemsCard({
                         </h2>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="hidden flex-wrap gap-2 md:flex">
                         {[
                             {
                                 label: 'Pending',
@@ -98,7 +99,7 @@ export function UploadItemsCard({
                         })}
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
                         <div className="text-sm text-default-500">
                             {isUploading ? 'Uploading — completed files stay marked in the queue.' : 'Clear or upload all pending and failed files.'}
                         </div>
@@ -131,12 +132,12 @@ export function UploadItemsCard({
                     </div>
                 </div>
 
-                <ul className="mt-6 space-y-3">
+                <ul className="mt-3 space-y-3 pb-28 md:mt-6 md:pb-0">
                     {uploadItems.map((item) => (
                         <li
                             key={item.id}
                             className={cn(
-                                'group flex items-center justify-between p-4 rounded-xl border transition-all duration-200',
+                                'group flex items-center justify-between gap-2 p-3 md:p-4 rounded-xl border transition-all duration-200',
                                 item.status === 'error'
                                     ? 'border-danger/50 bg-danger/5'
                                     : item.status === 'success'
@@ -144,7 +145,7 @@ export function UploadItemsCard({
                                         : 'border-default-200 bg-background/40 hover:bg-default-100/50'
                             )}
                         >
-                            <div className="flex items-center gap-4 overflow-hidden w-full">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
                                 <div
                                     className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                         item.isDuplicate
@@ -163,8 +164,8 @@ export function UploadItemsCard({
                                     )}
                                 </div>
                                 <div className="flex flex-col overflow-hidden min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium truncate text-foreground">{item.file.name}</span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="w-full break-words text-sm font-medium md:w-auto md:truncate text-foreground">{item.file.name}</span>
                                         {item.status === 'success' && (
                                             <Chip variant="soft" color="success" size="sm">
                                                 Uploaded
@@ -191,7 +192,7 @@ export function UploadItemsCard({
                                             </Chip>
                                         )}
                                     </div>
-                                    <span className="text-xs text-default-500 font-mono flex items-center gap-2">
+                                    <span className="text-xs text-default-500 font-mono flex flex-wrap items-center gap-2">
                                         {(item.file.size / 1024 / 1024).toFixed(2)} MB
                                         {item.error && <span className="text-danger">- {item.error}</span>}
                                     </span>
@@ -202,7 +203,7 @@ export function UploadItemsCard({
                                 isIconOnly
                                 size="sm"
                                 onPress={() => onRemoveFile(item.id)}
-                                className="text-default-400 hover:text-danger hover:bg-danger/10"
+                                className="size-11 shrink-0 text-default-400 hover:text-danger hover:bg-danger/10" aria-label={`Remove ${item.file.name}`}
                                 isDisabled={isUploading}
                             >
                                 <X className="h-4 w-4" />
@@ -211,15 +212,17 @@ export function UploadItemsCard({
                     ))}
                 </ul>
 
+                <div data-testid="upload-action-bar" className="fixed inset-x-0 z-[51] border-t border-border bg-background p-3 md:hidden" style={{ bottom: publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU ? 'env(safe-area-inset-bottom)' : 'calc(4.5rem + env(safe-area-inset-bottom))' }}>
+                    <div className="mb-2 text-sm text-muted" role="status">{successCount} of {uploadItems.length} uploaded{errorCount ? ` · ${errorCount} failed` : ''}{duplicateCount ? ` · ${duplicateCount} duplicates` : ''}</div>
+                    <div className="flex gap-2"><Button variant="ghost" className="min-h-11" isDisabled={isUploading} onPress={onClearAll}>Clear All</Button><Button className="min-h-11 flex-1" onPress={onUploadAll} isPending={isUploading} isDisabled={isUploading || uploadItems.every(item => item.status === 'success' || item.isDuplicate)}>{isUploading ? 'Uploading…' : 'Upload All'}</Button></div>
+                </div>
                 {successCount > 0 && !isUploading && (
                     <div className="mt-6 rounded-xl border border-success/20 bg-success/5 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-sm font-semibold text-success">Files uploaded successfully</div>
-                            <Link href="/recordings">
-                                <Button variant="secondary" className="rounded-full font-medium">
+                            <ActionLink href="/recordings" variant="secondary" className="font-medium">
                                     Go to recordings
-                                </Button>
-                            </Link>
+                                </ActionLink>
                         </div>
                     </div>
                 )}

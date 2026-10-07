@@ -4,6 +4,7 @@ export const GetRecordingsOptionsSchema = z.object({
     limit: z.number().min(1).max(100).optional().default(100),
     page: z.number().min(1).optional().default(1),
     includeArchived: z.boolean().optional(),
+    needsTranscription: z.boolean().optional(),
     search: z.string().optional(),
     contactName: z.string().optional(),
     contactId: z.string().optional(),

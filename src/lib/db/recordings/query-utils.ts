@@ -47,6 +47,9 @@ export function buildRecordingsQuery(
     if (!options?.includeArchived) {
         query.isArchived = { $ne: true };
     }
+    if (options?.needsTranscription) {
+        query.transcriptionStatus = { $ne: 'completed' };
+    }
 
     if (options?.contactName) {
         query.contactName = options.contactName === 'Unknown' ? null : options.contactName;

@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { waitUntil } from '@vercel/functions';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { getOAuth2Client } from '@/services/google/oauth';
@@ -230,13 +231,15 @@ export async function runGoogleContactsSyncWithDependencies(
 }
 
 export async function runGoogleContactsSync(authSubject: string) {
-    return runGoogleContactsSyncWithDependencies(authSubject, {
+    const result = await runGoogleContactsSyncWithDependencies(authSubject, {
         findUserByAuthSubject,
         readStoredGoogleRefreshToken,
         getOAuth2Client,
         syncContactsBackground,
         updateGoogleSyncState,
     });
+    for (const path of ['/contacts', '/recordings', '/files']) revalidatePath(path);
+    return result;
 }
 
 export async function markGoogleContactsSyncFailed(authSubject: string, errorMessage: string) {

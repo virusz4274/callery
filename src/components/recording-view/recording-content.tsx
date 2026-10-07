@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Recording } from '@/lib/types';
-import { Button, ScrollShadow, Avatar, Accordion } from '@heroui/react';
-import { Loader2, Wand2, ChevronDown } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Button, Avatar, Accordion, Tabs } from '@heroui/react';
+import { Loader2, Wand2 } from 'lucide-react';
+import { RecordingProviderBadge } from './recording-provider-badge';
+import { SummaryContent } from './summary-content';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { TranscriptionProviderId } from '@/services/transcription/factory';
 
 type RecordingContentProps = {
   recording: Recording;
   playbackUrl: string | null;
+  autoPlay?: boolean;
   isLoadingUrl?: boolean;
   onTranscribe?: () => void;
   isProcessing?: boolean;
@@ -17,26 +20,47 @@ type RecordingContentProps = {
   clipStartSeconds?: number;
   clipEndSeconds?: number;
   isClipAudioRestricted?: boolean;
+  workspace?: boolean;
+  mobilePanel?: ReactNode;
+  mobilePanelActive?: boolean;
 };
 
 export function RecordingContent({
   recording,
   playbackUrl,
+  autoPlay = false,
   isLoadingUrl = false,
   onTranscribe,
   isProcessing = false,
   activeTranscriptionProvider = null,
   clipStartSeconds,
   clipEndSeconds,
-  isClipAudioRestricted = false
+  isClipAudioRestricted = false,
+  workspace = false,
+  mobilePanel,
+  mobilePanelActive = false,
 }: RecordingContentProps) {
   const [showTransliteration, setShowTransliteration] = useState(false);
+  const isMobile = useIsMobile();
+  const [tab, setTab] = useState<'transcript' | 'summary'>('transcript');
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollPositions = useRef({ transcript: 0, summary: 0 });
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (content) content.scrollTop = scrollPositions.current[tab];
+  }, [tab]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playbackNeedsGesture, setPlaybackNeedsGesture] = useState(false);
+  useEffect(() => {
+    if (!autoPlay || !playbackUrl) return;
+    let active = true;
+    audioRef.current?.play().catch(() => { if (active) setPlaybackNeedsGesture(true); });
+    return () => { active = false; };
+  }, [autoPlay, playbackUrl]);
 
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
+    const whole = Math.max(0, Math.floor(seconds));
+    return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
   };
 
   const visibleTranscript = useMemo(() => {
@@ -88,180 +112,112 @@ export function RecordingContent({
     audio.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
+      audio.pause();
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [clipEndSeconds, clipStartSeconds, playbackUrl]);
 
-  return (
-    <div className="flex flex-col gap-4 h-full">
-      {(typeof clipStartSeconds === 'number' || typeof clipEndSeconds === 'number') && (
-        <div className="rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
-          Sharing clip
-          {typeof clipStartSeconds === 'number' ? ` from ${formatDuration(clipStartSeconds)}` : ''}
-          {typeof clipEndSeconds === 'number' ? ` to ${formatDuration(clipEndSeconds)}` : ''}
-          .
-        </div>
-      )}
+  const speakers = Array.from(new Set(recording.fullTranscript?.map(segment => segment.speakerId).filter(Boolean)));
+  const speakerColors = ['bg-primary/20 text-primary', 'bg-secondary/20 text-secondary', 'bg-success/20 text-success', 'bg-warning/20 text-warning', 'bg-danger/20 text-danger'];
+  const changeTab = (next: 'transcript' | 'summary') => {
+    if (contentRef.current) scrollPositions.current[tab] = contentRef.current.scrollTop;
+    setTab(next);
+  };
 
-      {/* Audio Player */}
-      <div className="flex-shrink-0 w-full bg-default-50 rounded-xl p-2 border border-default-100 min-h-[54px] flex items-center justify-center">
-        {isLoadingUrl ? (
-          <div className="flex items-center gap-2 text-default-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Loading audio...</span>
-          </div>
-        ) : playbackUrl ? (
-          <audio controls className="w-full h-10" key={recording.id} ref={audioRef}>
-            <source src={playbackUrl} type="audio/mpeg" />
-            Your browser does not support the audio element.
-          </audio>
-        ) : (
-          <div className="text-sm text-danger">
-            {isClipAudioRestricted ? 'Audio playback is disabled for clipped shares.' : 'Audio unavailable'}
-          </div>
-        )}
-      </div>
-
-      {/* Summary Section - Expandable Accordion */}
-      {recording.summary && (
-        <Accordion
-          className="flex-shrink-0 bg-primary/5 rounded-xl border border-primary/10"
-          hideSeparator
-        >
-          <Accordion.Item id="summary">
-            <Accordion.Heading>
-              <Accordion.Trigger className="px-3 py-2 sm:px-4 sm:py-3 hover:bg-primary/10 rounded-xl transition-colors">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 sm:p-1.5 bg-primary/20 rounded-lg">
-                    <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold text-primary">AI Summary</span>
-                </div>
-                <Accordion.Indicator className="text-primary/60">
-                  <ChevronDown className="w-4 h-4" />
-                </Accordion.Indicator>
-              </Accordion.Trigger>
-            </Accordion.Heading>
-            <Accordion.Panel>
-              <Accordion.Body className="px-3 pb-3 sm:px-4 sm:pb-4 pt-0">
-                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                  {recording.summary}
-                </p>
-              </Accordion.Body>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
-      )}
-
-      {/* Transcript Section */}
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex items-center justify-between mb-2 sm:mb-3 py-2">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-base sm:text-lg">Transcript</h3>
-            {visibleTranscript && visibleTranscript.length > 0 && (
-              <span className="text-[10px] font-mono text-default-400 bg-default-100 px-2 py-0.5 rounded-full border border-default-200">
-                DIARIZED
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Transliteration Toggle */}
-            {visibleTranscript?.some(s => s.transliteratedText) && (
-              <div className="flex items-center bg-default-100/50 rounded-lg p-1 gap-1 h-8 sm:h-9 border border-default-200/50">
-                <button
-                  onClick={() => setShowTransliteration(false)}
-                  className={`relative px-2 sm:px-3 h-full rounded-md text-[10px] sm:text-xs font-medium transition-colors z-10 ${!showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"}`}
-                >
-                  {!showTransliteration && (
-                    <motion.div
-                      layoutId="active-pill"
-                      className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  Original
-                </button>
-                <button
-                  onClick={() => setShowTransliteration(true)}
-                  className={`relative px-2 sm:px-3 h-full rounded-md text-[10px] sm:text-xs font-medium transition-colors z-10 ${showTransliteration ? "text-white" : "text-default-500 hover:text-default-700"}`}
-                >
-                  {showTransliteration && (
-                    <motion.div
-                      layoutId="active-pill"
-                      className="absolute inset-0 bg-[#006FEE] rounded-md shadow-sm z-[-1]"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  Transliteration
-                </button>
+  const transcriptContent = (
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className={`text-lg font-bold ${isMobile && recording.summary ? 'sr-only' : ''}`}>Transcript</h3>
+                <RecordingProviderBadge recording={recording} />
+              </div>
+              {onTranscribe && <Button variant={hasTranscript ? 'ghost' : 'primary'} className="min-h-11 md:min-h-8" size="sm"
+                isPending={isProcessing} isDisabled={isProcessing} onPress={onTranscribe}>
+                {!isProcessing && <Wand2 className="size-4" />}
+                {isProcessing ? (activeTranscriptionProvider === 'elevenlabs' ? 'Transcribing Premium…' : 'Transcribing…') : transcribeButtonLabel}
+              </Button>}
+            </div>
+            {visibleTranscript?.some(segment => segment.transliteratedText) && (
+              <div role="group" aria-label="Transcript script" className="mb-4 flex w-full gap-2 rounded-lg bg-surface-secondary p-1 md:ml-auto md:w-fit">
+                <Button size="sm" className="min-h-11 flex-1 md:min-h-8" variant={!showTransliteration ? 'secondary' : 'ghost'} aria-pressed={!showTransliteration} onPress={() => setShowTransliteration(false)}>Original</Button>
+                <Button size="sm" className="min-h-11 flex-1 md:min-h-8" variant={showTransliteration ? 'secondary' : 'ghost'} aria-pressed={showTransliteration} onPress={() => setShowTransliteration(true)}>Transliteration</Button>
               </div>
             )}
-
-            {onTranscribe && (
-              <Button
-                size="sm"
-                variant="ghost"
-                isPending={isProcessing}
-                onPress={onTranscribe}
-                isDisabled={isProcessing}
-                className="h-7 sm:h-8"
-              >
-                {!isProcessing && (
-                  <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-                )}
-                {isProcessing
-                  ? activeTranscriptionProvider === 'elevenlabs'
-                    ? 'Transcribing Premium...'
-                    : 'Transcribing...'
-                  : transcribeButtonLabel}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <ScrollShadow className="flex-1 w-full rounded-xl border border-default-200/60 bg-default-50/50 p-3 sm:p-4 overflow-y-auto">
-          {visibleTranscript && visibleTranscript.length > 0 ? (
-            <div className="space-y-3 sm:space-y-4">
-              {visibleTranscript.map((segment, index) => (
-                <div key={index} className="flex gap-2 sm:gap-3 group">
-                  <Avatar className="flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 mt-0.5 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-                    <Avatar.Fallback className={`text-[9px] sm:text-xs font-bold ${segment.speakerId === 'Speaker 0' ? 'bg-primary/20 text-primary' :
-                      segment.speakerId === 'Speaker 1' ? 'bg-secondary/20 text-secondary' :
-                        'bg-default-100 text-default-600'
-                      }`}>
-                      {segment.speakerId ? segment.speakerId.replace('Speaker ', 'S') : '??'}
-                    </Avatar.Fallback>
-                  </Avatar>
-                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <span className="text-xs sm:text-sm font-semibold text-foreground">
-                        {segment.speakerId || 'Unknown Speaker'}
-                      </span>
-                      <span className="text-[9px] sm:text-[10px] text-default-400 font-mono bg-default-100 px-1 sm:px-1.5 rounded">
-                        {formatDuration(segment.start ?? 0)}
-                      </span>
+            <div className={`${workspace ? '' : 'md:max-h-[50vh] md:overflow-y-auto'} md:rounded-xl md:border md:border-border md:bg-surface-secondary md:p-4`} data-testid="transcript-content">
+              {hasTranscript ? <div className="space-y-5 md:space-y-4">
+                {visibleTranscript!.map((segment, index) => {
+                  const speaker = segment.speakerId ? speakers.indexOf(segment.speakerId) + 1 : 0;
+                  return <div key={index} className="flex gap-3">
+                    <Avatar aria-hidden="true" className="mt-0.5 size-7 shrink-0 md:size-9"><Avatar.Fallback className={`text-[10px] font-bold md:text-xs ${speaker ? speakerColors[(speaker - 1) % speakerColors.length] : 'bg-surface-secondary text-muted'}`}>{speaker ? `S${speaker}` : '?'}</Avatar.Fallback></Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2 text-xs text-muted">
+                        <span className="font-semibold text-foreground">{speaker ? `Speaker ${speaker}` : 'Unknown speaker'}</span>
+                        <span className="font-mono">{formatDuration(segment.start ?? 0)}</span>
+                      </div>
+                      <p className="break-words text-base leading-7 text-foreground md:text-sm md:leading-relaxed">{showTransliteration ? (segment.transliteratedText || segment.text) : segment.text}</p>
                     </div>
-                    <p className="text-sm text-default-700 leading-relaxed">
-                      {showTransliteration ? (segment.transliteratedText || segment.text) : segment.text}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                  </div>;
+                })}
+              </div> : <div className="flex min-h-40 flex-col items-center justify-center gap-4 text-muted" role="status">
+                {isProcessing && <Loader2 className="size-6 animate-spin motion-reduce:animate-none" />}
+                <p>{isProcessing ? 'Generating transcript…' : recording.transcriptionStatus === 'failed' ? 'Transcription failed. You can try again.' : 'No transcript available'}</p>
+              </div>}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-muted-foreground/50 gap-4">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-primary/50" />
-                  <p className="text-xs sm:text-sm font-medium">Generating transcript...</p>
-                </>
-              ) : (
-                <p className="text-xs sm:text-sm italic">No transcript available</p>
-              )}
+          </div>
+  );
+  const clipNotice = (typeof clipStartSeconds === 'number' || typeof clipEndSeconds === 'number') && (
+    <p className="rounded-lg border border-accent/30 bg-accent/10 p-3 text-sm text-accent">
+      Sharing clip{typeof clipStartSeconds === 'number' ? ` from ${formatDuration(clipStartSeconds)}` : ''}{typeof clipEndSeconds === 'number' ? ` to ${formatDuration(clipEndSeconds)}` : ''}.
+    </p>
+  );
+  return (
+    <div className={workspace ? 'flex h-full min-h-0 flex-col md:gap-4' : 'flex flex-col gap-4'}>
+      <div data-testid="recording-audio" className={`order-last shrink-0 border-t border-border bg-background px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:order-first md:rounded-xl md:border md:bg-default-50 md:p-2 ${workspace ? '' : 'sticky bottom-0 z-10'}`}>
+        {isLoadingUrl ? (
+          <div className="flex min-h-11 items-center justify-center gap-2 text-muted" role="status">
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />Loading audio…
+          </div>
+        ) : playbackUrl ? (
+          <audio controls aria-label="Recording audio" className="h-11 w-full" key={recording.id} ref={audioRef} onPlay={() => setPlaybackNeedsGesture(false)}>
+            <source src={playbackUrl} type={recording.mimeType || 'audio/mpeg'} />Your browser does not support the audio element.
+          </audio>
+        ) : (
+          <p className="py-3 text-sm text-danger">{isClipAudioRestricted ? 'Audio playback is disabled for clipped shares.' : 'Audio unavailable'}</p>
+        )}
+        {playbackNeedsGesture && <p className="px-2 text-xs text-muted" role="status">Press play in the audio controls to start playback.</p>}
+      </div>
+
+      {isMobile && mobilePanelActive && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4" data-testid="recording-subview">{mobilePanel}</div>}
+      <div hidden={isMobile && mobilePanelActive} className={`${workspace ? 'min-h-0 flex-1 flex flex-col' : ''} ${isMobile && mobilePanelActive ? '!hidden' : ''}`}>
+        {isMobile && recording.summary ? (
+          <Tabs selectedKey={tab} onSelectionChange={key => changeTab(key as 'transcript' | 'summary')} className="flex min-h-0 flex-1 flex-col">
+            <Tabs.ListContainer className="shrink-0 px-4 py-2">
+              <Tabs.List aria-label="Recording content" className="w-full">
+                <Tabs.Tab id="transcript" className="min-h-11 flex-1">Transcript<Tabs.Indicator /></Tabs.Tab>
+                <Tabs.Tab id="summary" className="min-h-11 flex-1">Summary<Tabs.Indicator /></Tabs.Tab>
+              </Tabs.List>
+            </Tabs.ListContainer>
+            <div ref={contentRef} data-testid="recording-scroll" className={`${workspace ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : ''} space-y-4 px-4 py-4`}>
+              {clipNotice}
+              <Tabs.Panel id="transcript">{transcriptContent}</Tabs.Panel>
+              <Tabs.Panel id="summary"><SummaryContent text={recording.summary} /></Tabs.Panel>
             </div>
-          )}
-        </ScrollShadow>
+          </Tabs>
+        ) : (
+          <div ref={contentRef} data-testid="recording-scroll" className={`${workspace ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : ''} space-y-4 px-4 py-4 md:p-0`}>
+            {clipNotice}
+            {recording.summary && <Accordion hideSeparator>
+              <Accordion.Item id="summary">
+                <Accordion.Heading><Accordion.Trigger>
+                  <span className="flex items-center gap-2 text-sm font-semibold"><Wand2 className="size-4" />AI Summary</span><Accordion.Indicator />
+                </Accordion.Trigger></Accordion.Heading>
+                <Accordion.Panel><Accordion.Body className="text-sm"><SummaryContent text={recording.summary} /></Accordion.Body></Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>}
+            {transcriptContent}
+          </div>
+        )}
       </div>
     </div>
   );

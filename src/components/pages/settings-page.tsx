@@ -18,8 +18,8 @@ export function SettingsPage() {
     const isDetailView = state.view === 'detail';
 
     return (
-        <div className="min-w-0">
-            <div className="space-y-6">
+        <div className="mobile-settings min-w-0">
+            <div className="space-y-4 md:space-y-6">
                     <SettingsHeader
                         activeTab={state.activeTab}
                         isMobile={isMobile}
@@ -28,7 +28,7 @@ export function SettingsPage() {
                         onBack={state.handleBack}
                     />
 
-                <div className="grid min-w-0 gap-6 lg:grid-cols-[224px_minmax(0,1fr)] lg:items-start">
+                <div className="grid min-w-0 gap-6 md:grid-cols-[224px_minmax(0,1fr)] md:items-start">
                     <SettingsSidebar
                         activeTab={state.activeTab}
                         tabs={state.tabs}

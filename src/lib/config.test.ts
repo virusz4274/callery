@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emailFrom, geminiApiKey, storageConfig } from './config';
+import { emailFrom, geminiApiKey, storageConfig, transcriptionMultiplier, transcriptionPricing } from './config';
 import { isBootstrapAdminEmail } from './admin-bootstrap';
 
 test('only canonical configuration names activate the corresponding options', () => {
@@ -36,5 +36,46 @@ test('only canonical configuration names activate the corresponding options', ()
             if (value === undefined) delete process.env[key];
             else process.env[key] = value;
         }
+    }
+});
+
+test('transcription pricing accepts JSON with env-escaped quotes without changing multipliers', () => {
+    const previous = process.env.TRANSCRIPTION_PRICING_JSON;
+    try {
+        delete process.env.TRANSCRIPTION_PRICING_JSON;
+        assert.deepEqual(transcriptionPricing(), { soniox: 1, elevenlabs: 5, gemini: 0.5, openai_compat: 0.1 });
+
+        const configured = { soniox: 2, gemini: 0.25, custom: 3 };
+        const json = JSON.stringify(configured);
+        for (const raw of [json, json.replace(/"/g, '\\"')]) {
+            process.env.TRANSCRIPTION_PRICING_JSON = raw;
+            assert.deepEqual(transcriptionPricing(), { ...configured, elevenlabs: 5, openai_compat: 0.1 });
+            assert.equal(transcriptionMultiplier('gemini'), 0.25);
+            assert.equal(transcriptionMultiplier('unknown'), 1);
+        }
+
+        // Already-valid JSON must keep escaped characters in provider names.
+        process.env.TRANSCRIPTION_PRICING_JSON = JSON.stringify({ 'custom"provider': 2 });
+        assert.equal(transcriptionMultiplier('custom"provider'), 2);
+    } finally {
+        if (previous === undefined) delete process.env.TRANSCRIPTION_PRICING_JSON;
+        else process.env.TRANSCRIPTION_PRICING_JSON = previous;
+    }
+});
+
+test('transcription pricing still rejects malformed JSON and invalid multipliers', () => {
+    const previous = process.env.TRANSCRIPTION_PRICING_JSON;
+    try {
+        for (const raw of [
+            '{soniox:1}', '{"soniox":}', 'null', '[]', '1', '"value"',
+            '{"soniox":0}', '{"soniox":-1}', '{"soniox":"2"}', '{"soniox":1e309}',
+            String.raw`{\"soniox\":0}`, String.raw`{\"soniox\":}`,
+        ]) {
+            process.env.TRANSCRIPTION_PRICING_JSON = raw;
+            assert.throws(transcriptionPricing, /Invalid TRANSCRIPTION_PRICING_JSON:/);
+        }
+    } finally {
+        if (previous === undefined) delete process.env.TRANSCRIPTION_PRICING_JSON;
+        else process.env.TRANSCRIPTION_PRICING_JSON = previous;
     }
 });

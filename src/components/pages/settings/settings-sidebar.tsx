@@ -12,8 +12,8 @@ type SettingsSidebarProps = {
 
 export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: SettingsSidebarProps) {
     return (
-        <nav aria-label="Settings sections" className={cn('min-w-0', view === 'detail' && 'hidden lg:block')}>
-            <Card className="rounded-xl border border-border bg-surface p-2 shadow-none lg:sticky lg:top-24">
+        <nav aria-label="Settings sections" className={cn('min-w-0', view === 'detail' && 'hidden md:block')}>
+            <Card className="rounded-xl border border-border bg-surface p-2 shadow-none md:sticky md:top-24">
                 <Card.Content className="space-y-1 p-0">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
@@ -26,9 +26,9 @@ export function SettingsSidebar({ activeTab, tabs, view, onSelectTab }: Settings
                                 <Icon className="size-[18px] shrink-0" aria-hidden="true" />
                                 <span className="min-w-0 flex-1">
                                     <span className="block text-sm font-medium">{tab.label}</span>
-                                    <span className="mt-1 block whitespace-normal text-sm font-normal text-muted lg:hidden">{tab.description}</span>
+                                    <span className="mt-1 block whitespace-normal text-sm font-normal text-muted md:hidden">{tab.description}</span>
                                 </span>
-                                <ChevronRight className="size-4 shrink-0 lg:hidden" aria-hidden="true" />
+                                <ChevronRight className="size-4 shrink-0 md:hidden" aria-hidden="true" />
                             </Button>
                         );
                     })}

@@ -84,14 +84,14 @@ services:
   # Without the profile, the app uses whatever MONGODB_URI points at
   # (usually a MongoDB Atlas cluster) and this service stays down.
   #
-  # TRADE-OFF — semantic search is Atlas-only: vector search ($vectorSearch)
-  # and full-text search ($search) need Atlas Search indexes (the index JSON
-  # is printed by `pnpm run db:init`). On this self-hosted MongoDB, semantic
-  # search uses keyword matching and keyword search automatically falls
-  # back to regex (works, but no fuzzy matching). Everything else — auth,
-  # uploads, playback, transcription, AI summaries — works identically.
-  # If you need semantic search, point MONGODB_URI at an Atlas cluster and
-  # create the two Search indexes from the `db:init` output.
+  # This mongo:8 service has no mongot search process. Vector search
+  # ($vectorSearch) and full-text search ($search) require a search-enabled
+  # MongoDB deployment and separately created Search indexes. db:init prints
+  # their definitions but creates only ordinary indexes and seed data.
+  # Here AI search can return keyword matches and ordinary search uses regex.
+  # For vector search, use Atlas or separately configured self-managed mongot;
+  # create recordings_vector_search on recordings (see docs/setup-guide.md).
+  # recordings_text_search is optional for fuzzy API text search.
   mongo:
     profiles: [selfhost]
     image: mongo:8
@@ -112,8 +112,9 @@ services:
   # from R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY in .env, data persists in
   # the minio-data volume. Prefer R2 / AWS / an external MinIO instead?
   # Point R2_ENDPOINT (+ S3_PUBLIC_ENDPOINT) at that backend — the app
-  # speaks plain S3. Changing the root credentials later requires resetting
-  # the minio-data volume (MinIO stores them on first start).
+  # speaks plain S3. Root credentials come from the environment at startup;
+  # recreate MinIO and app containers after changing them, preserving the
+  # minio-data volume. Update external clients that use the old credentials.
   # NOTE: `pnpm run dev` also uses port 9000 — stop the dev server or remap
   # these ports before running both on one machine.
   minio:

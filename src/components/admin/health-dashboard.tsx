@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Card, Chip, Button, Spinner, Surface } from '@heroui/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, Chip, Button, Input, Spinner, Surface } from '@heroui/react';
 import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Server, Database, Cloud, Cpu, Siren, BellRing } from 'lucide-react';
 import {
     checkSystemHealth,
@@ -9,6 +9,7 @@ import {
     clearServiceIncident,
     sendAdminTestEmail,
 } from '@/app/actions/admin-health';
+import { AdminFeedback } from './admin-feedback';
 import type { ExternalServiceIncidentResponse } from '@/lib/db/types';
 import { useToast } from '@/components/toast-provider';
 
@@ -31,33 +32,27 @@ export function HealthDashboard() {
     const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
 
     const [checkedAt, setCheckedAt] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const requestId = useRef(0);
 
-    const fetchHealth = async () => {
-        setLoading(true);
+    const fetchHealth = useCallback(async () => {
+        const request = ++requestId.current;
+        setLoading(true); setError(null);
         try {
             const data = await checkSystemHealth();
-            setCheckedAt(data.checkedAt);
-            setStatuses(data.services);
-            setIncidents(data.incidents.recent);
-            setOpenIncidentCount(data.incidents.openCount);
+            if (request !== requestId.current) return;
+            setCheckedAt(data.checkedAt); setStatuses(data.services);
+            setIncidents(data.incidents.recent); setOpenIncidentCount(data.incidents.openCount);
         } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+            if (request === requestId.current) setError(error instanceof Error ? error.message : 'Please try again.');
+        } finally { if (request === requestId.current) setLoading(false); }
+    }, []);
     useEffect(() => {
         let active = true;
-        checkSystemHealth().then(data => {
-            if (!active) return;
-            setCheckedAt(data.checkedAt);
-            setStatuses(data.services);
-            setIncidents(data.incidents.recent);
-            setOpenIncidentCount(data.incidents.openCount);
-        }).catch(console.error).finally(() => { if (active) setLoading(false); });
-        return () => { active = false; };
-    }, []);
+        const requests = requestId;
+        void Promise.resolve().then(() => { if (active) void fetchHealth(); });
+        return () => { active = false; requests.current++; };
+    }, [fetchHealth]);
 
     const handleClearIncident = async (incidentId: string) => {
         setClearingIncidentId(incidentId);
@@ -167,27 +162,32 @@ export function HealthDashboard() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-bold tracking-[-0.03em] text-foreground">System health</h2>
-                    <p className="text-sm text-default-500">Check the core services that keep storage, billing, and transcription running.</p>
+                    <h2 className="text-xl font-bold text-foreground">System health</h2>
+                    <p className="text-sm text-muted">Check the core services that keep storage, billing, and transcription running.</p>
                 </div>
                 <Button
-                    size="sm"
+                    aria-label="Refresh system health"
+                    className="size-11 shrink-0"
+                    isIconOnly
                     variant="ghost"
-                    onPress={fetchHealth}
+                    onPress={() => void fetchHealth()}
                     isPending={loading}
-                    className="rounded-full"
+                    isDisabled={loading}
+
                 >
                     <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {checkedAt > 0 && <p className="text-xs text-muted">Last checked: {new Date(checkedAt).toLocaleString()}{error ? ' · Data may be out of date' : loading ? ' · Refreshing…' : ''}</p>}
+            {error && <AdminFeedback title="Could not check system health" message={error} onRetry={() => void fetchHealth()} pending={loading} />}
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                 {statuses.map((service) => (
-                    <Card key={service.name} className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
-                        <div className="flex items-start justify-between mb-2">
-                            <div className="rounded-2xl bg-default-100 p-2 text-default-600">
+                    <Card key={service.name} className="p-4">
+                        <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                            <div className="rounded-2xl bg-surface-secondary p-2 text-muted">
                                 {getIcon(service.name)}
                             </div>
                             <Chip
@@ -207,13 +207,13 @@ export function HealthDashboard() {
                         <div>
                             <h3 className="font-semibold text-sm text-foreground">{service.name}</h3>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-default-500">Latency:</span>
-                                <span className={`text-xs font-mono ${service.latency > 500 ? 'text-warning' : 'text-success'}`}>
-                                    {service.latency}ms
+                                <span className="text-xs text-muted">Latency:</span>
+                                <span className={`text-xs font-mono ${service.status === 'down' ? 'text-danger' : service.latency > 500 ? 'text-warning' : 'text-muted'}`}>
+                                    {service.status === 'configured' || service.status === 'disabled' ? 'Not tested' : `${service.latency}ms`}
                                 </span>
                             </div>
                             {service.message && (
-                                <p className="mt-2 rounded-xl bg-danger/10 p-2 text-xs text-danger">
+                                <p className={`mt-2 break-words rounded-xl p-2 text-sm ${service.status === 'down' ? 'bg-danger/10 text-danger' : service.status === 'degraded' ? 'bg-warning/10 text-warning' : 'bg-surface-secondary text-muted'}`}>
                                     {service.message}
                                 </p>
                             )}
@@ -223,15 +223,15 @@ export function HealthDashboard() {
 
                 {loading && statuses.length === 0 && (
                     <>
-                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
-                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
-                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
-                        <Surface variant="secondary" className="flex h-32 items-center justify-center rounded-[1.5rem] border border-default-200/80"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center"><Spinner /></Surface>
+                        <Surface variant="secondary" className="flex h-32 items-center justify-center"><Spinner /></Surface>
                     </>
                 )}
             </div>
 
-            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+            <Card className="p-4">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <div className="flex items-center gap-3">
@@ -240,7 +240,7 @@ export function HealthDashboard() {
                             </div>
                             <div>
                                 <h3 className="text-base font-semibold text-foreground">Service incidents</h3>
-                                <p className="text-sm text-default-500">
+                                <p className="text-sm text-muted">
                                     Deduped runtime failures from Gemini, transcription providers, Stripe, and other external services.
                                 </p>
                             </div>
@@ -248,19 +248,20 @@ export function HealthDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <Chip color={openIncidentCount > 0 ? 'warning' : 'success'} variant="soft">
+                        <Chip color={!checkedAt ? 'default' : openIncidentCount > 0 ? 'warning' : 'success'} variant="soft">
                             <span className="flex items-center gap-1">
                                 <BellRing className="size-3" />
-                                {openIncidentCount > 0 ? `${openIncidentCount} open` : 'No open incidents'}
+                                {!checkedAt ? loading ? 'Checking incidents…' : 'Incidents unavailable' : openIncidentCount > 0 ? `${openIncidentCount} open` : 'No open incidents'}
                             </span>
                         </Chip>
-                        {openIncidentCount > 0 && (
+                        {checkedAt > 0 && openIncidentCount > 0 && (
                             <Button
-                                size="sm"
+                                className="min-h-11"
                                 variant="ghost"
                                 onPress={handleClearAll}
                                 isPending={isClearingAll}
-                                className="rounded-full"
+                                isDisabled={!!clearingIncidentId || isClearingAll || loading}
+
                             >
                                 Clear all
                             </Button>
@@ -269,8 +270,8 @@ export function HealthDashboard() {
                 </div>
 
                 <div className="mt-4 space-y-3">
-                    {incidents.length === 0 ? (
-                        <div className="rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-success-700">
+                    {!checkedAt ? <p className="text-sm text-muted">{loading ? 'Loading incidents…' : 'Retry the health check to load incidents.'}</p> : incidents.length === 0 ? (
+                        <div className="rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-success">
                             No active external-service incidents right now.
                         </div>
                     ) : (
@@ -300,19 +301,21 @@ export function HealthDashboard() {
                                                 {incident.errorKind}
                                             </Chip>
                                         </div>
-                                        <p className="text-sm leading-6 text-default-600">{incident.message}</p>
+                                        <p className="text-sm leading-6 text-muted">{incident.message}</p>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-2 text-xs text-default-500 md:justify-end">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted md:justify-end">
                                         <span>Seen {incident.occurrenceCount}x</span>
                                         <span>Last {formatRelativeTime(incident.lastSeenAt)}</span>
                                         {incident.httpStatus ? <span>HTTP {incident.httpStatus}</span> : null}
                                         <Button
-                                            size="sm"
+                                            className="min-h-11"
+                                            aria-label={`Clear incident for ${incident.service}`}
                                             variant="ghost"
                                             onPress={() => handleClearIncident(incident.id)}
                                             isPending={clearingIncidentId === incident.id}
-                                            className="rounded-full"
+                                            isDisabled={!!clearingIncidentId || isClearingAll || loading}
+
                                         >
                                             Clear
                                         </Button>
@@ -324,26 +327,28 @@ export function HealthDashboard() {
                 </div>
             </Card>
 
-            <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+            <Card className="p-4">
                 <div className="space-y-4">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">Email test</h3>
-                        <p className="text-sm text-default-500">
+                        <p className="text-sm text-muted">
                             Send a test admin notification email to verify SMTP delivery.
                         </p>
                     </div>
                     <div className="flex flex-col gap-3 md:flex-row">
-                        <input
+                        <Input
                             type="email"
+                            aria-label="Test email recipient"
                             value={testEmailRecipient}
                             onChange={(event) => setTestEmailRecipient(event.target.value)}
                             placeholder="Leave blank to send to your admin email"
-                            className="w-full rounded-xl border border-default-200 bg-default-50 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="min-h-11 min-w-0 flex-1"
                         />
                         <Button
-                            className="rounded-full md:min-w-44"
+                            className="md:min-w-44"
                             onPress={handleSendTestEmail}
                             isPending={isSendingTestEmail}
+                            isDisabled={isSendingTestEmail}
                         >
                             Send test email
                         </Button>

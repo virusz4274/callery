@@ -18,7 +18,7 @@ export default async function AnnouncementsPage() {
         <AdminPageShell
             eyebrow="Broadcasts"
             title="Announcements"
-            description="Manage banners and time-bound product notices that affect every user in the application."
+
             stats={[
                 {
                     label: 'Announcements',
@@ -27,9 +27,9 @@ export default async function AnnouncementsPage() {
                     iconName: 'Megaphone',
                 },
                 {
-                    label: 'Active',
+                    label: 'Enabled',
                     value: announcements.filter((announcement) => announcement.isActive).length,
-                    helper: 'Notices currently enabled for display',
+                    helper: 'Notices enabled during their schedule',
                     iconName: 'BellRing',
                 },
                 {

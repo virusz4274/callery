@@ -30,43 +30,43 @@ export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
         {
             id: 'profile',
             label: 'Profile',
-            description: 'Manage identity details, login credentials, and personal account info.',
+            description: 'Name, email, and password.',
             icon: UserRound,
         },
         {
             id: 'general',
             label: 'General',
-            description: 'Set workspace defaults like timezone and other everyday preferences.',
+            description: 'Timezone.',
             icon: Settings2,
         },
         {
             id: 'sources',
             label: 'Sources',
-            description: 'Manage Google Contacts sync and other incoming data connections.',
+            description: 'Google Contacts sync.',
             icon: ContactRound,
         },
         {
             id: 'processing',
             label: 'Processing',
-            description: 'Control transcription defaults and automated AI behavior.',
+            description: 'Automatic transcription and provider.',
             icon: Sparkles,
         },
         {
             id: 'retention',
             label: 'Retention',
-            description: 'Review usage, storage, and automatic deletion policy.',
+            description: 'Usage and automatic deletion.',
             icon: Database,
         },
         {
             id: 'export',
             label: 'Export',
-            description: 'Build offline archives and download data packages.',
+            description: 'Download your library.',
             icon: CloudDownload,
         },
         {
             id: 'notifications',
             label: 'Notifications',
-            description: 'Choose which system updates and digests the workspace should send.',
+            description: 'Browser alerts and email preferences.',
             icon: BellRing,
         },
         ...(showBilling
@@ -74,7 +74,7 @@ export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
                   {
                       id: 'billing',
                       label: 'Billing',
-                      description: 'Review your plan, invoices, usage, and upgrade options.',
+                      description: 'Plan, invoices, and usage.',
                       icon: CreditCard,
                   },
               ]

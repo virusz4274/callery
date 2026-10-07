@@ -1,4 +1,4 @@
-import { Card, Chip, Label, ListBox, Select } from '@heroui/react';
+import { Card, Label, ListBox, Select } from '@heroui/react';
 import { Database, FileAudio2, ShieldEllipsis } from 'lucide-react';
 import type { User } from '@/lib/types';
 
@@ -59,10 +59,6 @@ export function UsageStorageCard({
     return (
         <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Chip size="sm" variant="soft" color="accent">Usage overview</Chip>
-                    <Chip size="sm" variant="soft" color="default">Retention policy</Chip>
-                </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     <UsageMeter

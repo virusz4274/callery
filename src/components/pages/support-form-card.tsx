@@ -72,16 +72,16 @@ export function SupportFormCard() {
   };
 
   return (
-    <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+    <Card>
       <Card.Content className="p-6 sm:p-7">
         <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+          <div className="text-xs font-semibold uppercase text-muted">
             Contact the team
           </div>
-          <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
+          <h2 className="text-2xl font-semibold text-foreground">
             Send a support message
           </h2>
-          <p className="text-sm leading-6 text-default-500">
+          <p className="text-sm leading-6 text-muted">
             We read better bug reports when the context is specific, so include the affected page,
             rough time, and expected result.
           </p>
@@ -140,7 +140,7 @@ export function SupportFormCard() {
           )}
 
           <div className="flex justify-end pt-2">
-            <Button className="rounded-full px-6 font-semibold" type="submit" isPending={isSubmitting}>
+            <Button className="px-6 font-semibold" type="submit" isPending={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send message'}
             </Button>
           </div>

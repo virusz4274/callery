@@ -22,48 +22,32 @@ export default async function AuditPage({
 
     // Fetch logs
     let logs: AdminLogResponse[] = [];
-    let total = 0;
+    let total: number | null = null;
+    let loadError: string | null = null;
     let totalPages = 0;
     try {
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(endDate) : undefined;
+        if ((start && !Number.isFinite(start.getTime())) || (end && !Number.isFinite(end.getTime())) || (start && end && start > end)) throw new Error('Choose a valid date range with the end date after the start date.');
         const result = await getAuditLogs(page, 20, actionParam, undefined, start, end);
         logs = result.logs;
         total = result.total;
         totalPages = result.totalPages;
     } catch (error) {
         console.error('Failed to fetch audit logs:', error);
-        // Provide empty state or handle error UI if needed
+        loadError = error instanceof Error ? error.message : 'Please retry loading audit logs.';
     }
 
     return (
         <AdminPageShell
             eyebrow="Accountability"
             title="Audit logs"
-            description="Review administrative actions and time-bound system changes with filters for action type and date range."
-            stats={[
-                {
-                    label: 'Results',
-                    value: total,
-                    helper: 'Log entries available for the current filter scope',
-                    iconName: 'ScrollText',
-                },
-                {
-                    label: 'Action filter',
-                    value: actionParam || 'All',
-                    helper: 'Current action type restriction',
-                    iconName: 'Activity',
-                },
-                {
-                    label: 'Date range',
-                    value: startDate || endDate ? 'Filtered' : 'All time',
-                    helper: 'Whether the log timeline is date constrained',
-                    iconName: 'CalendarDays',
-                },
-            ]}
+
+
         >
             <AuditLogsTable
                 initialLogs={logs}
+                loadError={loadError}
                 totalLogs={total}
                 currentPage={page}
                 totalPages={totalPages}

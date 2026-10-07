@@ -1,6 +1,14 @@
+import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { Contact } from '../types';
 import { normalizeContactName, normalizeContactPhoneNumber } from './normalize';
+import { buildContactSearchFilter } from './search';
+
+export async function findContactById(authSubject: string, contactId: string): Promise<Contact | null> {
+    if (!ObjectId.isValid(contactId)) return null;
+    const db = await getMongoDb();
+    return db.collection<Contact>(Collections.CONTACTS).findOne({ _id: new ObjectId(contactId), authSubject });
+}
 
 /**
  * Get all contacts for a user.
@@ -10,14 +18,15 @@ export async function getContactsByUser(
     options?: {
         limit?: number;
         skip?: number;
+        search?: string;
     }
 ): Promise<Contact[]> {
     const db = await getMongoDb();
 
     return db
         .collection<Contact>(Collections.CONTACTS)
-        .find({ authSubject })
-        .sort({ normalizedName: 1, name: 1 })
+        .find(buildContactSearchFilter(authSubject, options?.search))
+        .sort({ normalizedName: 1, name: 1, _id: 1 })
         .skip(options?.skip || 0)
         .limit(options?.limit || 0)
         .toArray();
@@ -70,8 +79,8 @@ export async function findContactByName(authSubject: string, name: string): Prom
 /**
  * Count all contacts for a user.
  */
-export async function countContactsByUser(authSubject: string): Promise<number> {
+export async function countContactsByUser(authSubject: string, search?: string): Promise<number> {
     const db = await getMongoDb();
 
-    return db.collection<Contact>(Collections.CONTACTS).countDocuments({ authSubject });
+    return db.collection<Contact>(Collections.CONTACTS).countDocuments(buildContactSearchFilter(authSubject, search));
 }

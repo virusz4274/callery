@@ -27,6 +27,8 @@ export interface Recording {
     contactName: string | null;
     phoneNumber: string;
     normalizedPhoneNumber: string;
+    /** How the caller was identified. Only set for new uploads; never exposed in API responses. */
+    contactMatchSource?: 'phone' | 'name';
 
     // File metadata
     r2Key: string;

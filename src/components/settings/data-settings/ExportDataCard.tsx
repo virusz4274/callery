@@ -1,5 +1,6 @@
+import { ActionLink } from '@/components/action-link';
 import { Button, Card, Chip, Spinner } from '@heroui/react';
-import { Archive, Download, FolderArchive, Hourglass } from 'lucide-react';
+import { Archive, Download } from 'lucide-react';
 import type { ExportJobResponse } from '@/lib/db/types';
 
 interface ExportDataProps {
@@ -20,10 +21,6 @@ export function ExportDataCard({
     return (
         <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Chip size="sm" variant="soft" color="accent">Portable archive</Chip>
-                    <Chip size="sm" variant="soft" color="default">Offline viewer included</Chip>
-                </div>
 
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex items-start gap-4">
@@ -33,7 +30,7 @@ export function ExportDataCard({
                         <div className="space-y-2">
                             <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">Export your full library</h4>
                             <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                Build a downloadable archive of recordings, transcripts, and metadata organized by contact and date, with an offline browser for review.
+                                Download audio, transcripts, metadata, and an offline viewer.
                             </p>
                         </div>
                     </div>
@@ -58,27 +55,7 @@ export function ExportDataCard({
                         )}
                     </Button>
                 </div>
-
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <FolderArchive className="h-4 w-4 text-primary" />
-                            What you get
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-default-500">
-                            Audio files, transcripts, metadata, and a standalone viewer so your team can browse history without logging into the app.
-                        </p>
-                    </div>
-                    <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Hourglass className="h-4 w-4 text-primary" />
-                            Delivery
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-default-500">
-                            Large libraries may take a while. Links expire after 7 days once the export is complete.
-                        </p>
-                    </div>
-                </div>
+                <p className="text-sm text-muted">Large exports may take a while. Download links expire after 7 days.</p>
 
                 {exportJob && (
                     <div className="rounded-xl border border-default-200/80 bg-background p-4 sm:p-5">
@@ -98,7 +75,7 @@ export function ExportDataCard({
 
                         {exportJob.status === 'pending' && (
                             <div className="mt-4 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning-700">
-                                Your export is queued and will begin processing shortly.
+                                Export queued.
                             </div>
                         )}
 
@@ -125,12 +102,10 @@ export function ExportDataCard({
                                 <p className="text-sm font-medium text-foreground">Download packages</p>
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     {exportJob.parts.map((part, index) => (
-                                        <a key={index} href={part.url} target="_blank" rel="noopener noreferrer" className="block">
-                                            <Button size="sm" variant="outline" className="w-full justify-center gap-2">
+                                        <ActionLink key={index} href={part.url} target="_blank" rel="noopener noreferrer" size="sm" variant="outline" className="w-full justify-center gap-2">
                                                 <Download className="h-4 w-4" />
                                                 Download part {index + 1}
-                                            </Button>
-                                        </a>
+                                            </ActionLink>
                                     ))}
                                 </div>
                             </div>

@@ -89,7 +89,9 @@ The public pricing page only publishes plans that are active, non-default, and h
 - `allowSignups`
 - `maintenanceMode`
 - `defaultPlanId`
-- transcription multipliers for Soniox and ElevenLabs
+- transcription multipliers for Soniox, ElevenLabs, Gemini, and Compatible server
+
+The multiplier controls show stored overrides, falling back to the configured billing defaults when a value is missing. Multipliers must be finite numbers greater than zero; fractions such as `0.25` are supported. Changes apply to future transcription jobs and do not recalculate existing usage.
 
 These settings apply to every workspace on the instance.
 If `system_settings` is missing on a fresh database, the page now fails with an initialization message instead of silently recreating defaults. Run `npm run db:init` to restore the required seed data.

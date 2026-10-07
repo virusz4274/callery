@@ -1,15 +1,19 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Avatar, Button, Chip, Skeleton, Surface } from '@heroui/react';
-import { ContextHelp } from '@/components/context-help';
-import { QuickStartPopover } from '@/components/quick-start-popover';
+import { Accordion, Alert, Avatar, Button, Card, Chip, Link, RouterProvider, Skeleton } from '@heroui/react';
+import { ArrowLeft, ArrowRight, Play } from 'lucide-react';
+import { format } from 'date-fns';
 import { useUser } from '@/lib/auth/client';
-import { useContacts } from '@/hooks/use-contacts';
+import { buildLoginRedirectHref } from '@/lib/auth-redirect';
+import { useContactDetails } from '@/hooks/use-contact-details';
+import { useRecordingWorkspace } from '@/hooks/use-recording-workspace';
 import { useRecordings } from '@/hooks/use-recordings';
-import { ArrowLeft, ArrowRight, Building2, CalendarClock, Phone, Tag, UserRound } from 'lucide-react';
+import { RecordingWorkspace } from '@/components/recording-view/recording-workspace';
+import { ClientFormattedDate } from '@/components/client-formatted-date';
+import { SummaryExpansionProvider, SummaryPreview } from '@/components/recordings-table/summary-preview';
+import { ContactPhoneDisplay } from './contacts/contact-phone-display';
 
 function formatDuration(totalSeconds: number) {
     const mins = Math.floor(totalSeconds / 60);
@@ -17,285 +21,137 @@ function formatDuration(totalSeconds: number) {
     return `${mins}m ${secs}s`;
 }
 
+// Scope HeroUI's client-side routing to this page; modified clicks retain native link behavior.
 export function ContactDetailsPage() {
-    const params = useParams<{ id: string }>();
+    const router = useRouter();
+    const { id } = useParams<{ id: string }>();
+    const navigate = (href: string) => {
+        if (href === '/contacts') {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem('vosift:contacts-return') || 'null');
+                if (saved?.id === id && /^\/contacts(?:\?|$)/.test(saved.href)) {
+                    router.push(saved.href, { scroll: false });
+                    return;
+                }
+            } catch { /* Direct visits return to the directory. */ }
+        }
+        router.push(href);
+    };
+    return <RouterProvider navigate={navigate}><ContactDetailsContent /></RouterProvider>;
+}
+
+function ContactDetailsContent() {
+    const { id: contactId } = useParams<{ id: string }>();
     const router = useRouter();
     const { user, isUserLoading } = useUser();
-    const { data: contacts, isLoading: isContactsLoading } = useContacts();
-    const contactId = params?.id;
-
-    const {
-        data: recordings,
-        isLoading: isRecordingsLoading,
-        totalCount,
-    } = useRecordings({
-        page: 1,
-        limit: 30,
-        contactId,
-        sortBy: 'date',
-        sortOrder: 'desc',
+    const { data: contact, error: contactError, isLoading: isContactsLoading, mutate: retryContact } = useContactDetails(user?.id, contactId);
+    const { data: recordings, isLoading: isRecordingsLoading, totalCount, error: recordingsError, refetch: retryRecordings } = useRecordings({
+        page: 1, limit: 30, contactId, sortBy: 'date', sortOrder: 'desc',
     });
+    const workspace = useRecordingWorkspace(recordings || []);
 
-    React.useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.replace('/login');
-        }
-    }, [isUserLoading, router, user]);
+    useEffect(() => {
+        if (!isUserLoading && !user) router.replace(buildLoginRedirectHref(`/contacts/${contactId}`));
+    }, [contactId, isUserLoading, router, user]);
 
-    if (isUserLoading || isContactsLoading || (isRecordingsLoading && !recordings)) {
-        return (
-            <div className="space-y-6">
-                <Skeleton className="h-40 rounded-[2rem]" />
-                <div className="grid gap-4 lg:grid-cols-3">
-                    <Skeleton className="h-56 rounded-[2rem]" />
-                    <Skeleton className="h-56 rounded-[2rem]" />
-                    <Skeleton className="h-56 rounded-[2rem]" />
-                </div>
-            </div>
-        );
+    const backLink = <Link href="/contacts" className="min-h-11 gap-2 text-sm"><ArrowLeft aria-hidden="true" className="size-4" />Back to contacts</Link>;
+
+    if (isUserLoading || !user || isContactsLoading) {
+        return <div className="space-y-6" role="status" aria-label="Loading contact">
+            <Skeleton className="h-11 w-40" />
+            <Card><Card.Content><Skeleton className="h-16" /><Skeleton className="mt-3 h-20" /></Card.Content></Card>
+            <Card><Card.Content>{[1, 2, 3].map(item => <Skeleton key={item} className="mb-3 h-20" />)}</Card.Content></Card>
+        </div>;
     }
 
-    const contact = contacts?.find((item) => item.id === contactId);
-    if (!contact) {
-        return (
-            <Surface variant="default" className="rounded-[2rem] border border-default-200/80 p-6">
-                <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Contact not found</h1>
-                <p className="mt-2 text-sm text-default-500">
-                    We could not find that contact in your workspace. It may have been merged or removed.
-                </p>
-                <Link href="/contacts" className="mt-4 inline-flex">
-                    <Button variant="secondary" className="rounded-full">
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to contacts
-                    </Button>
-                </Link>
-            </Surface>
-        );
+    if (contactError || !contact) {
+        return <div className="space-y-4">
+            {backLink}
+            <Card>
+                <Card.Header><h1 className="text-xl font-semibold">{contactError ? 'Unable to load contact' : 'Contact not found'}</h1></Card.Header>
+                <Card.Content><p className="text-sm text-muted">{contactError ? 'Please try again to load this contact.' : 'This contact may have been merged or removed from your workspace.'}</p></Card.Content>
+                {contactError && <Card.Footer><Button variant="secondary" className="min-h-11" onPress={() => void retryContact().catch(() => {})}>Try again</Button></Card.Footer>}
+            </Card>
+        </div>;
     }
 
-    const allRecordings = recordings || [];
-    const totalDuration = allRecordings.reduce((sum, item) => sum + item.duration, 0);
-    const recentRecordings = allRecordings.slice(0, 6);
-    const timeline = [...allRecordings].sort(
-        (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
-    );
-    const lastCall = timeline[0];
-    const extractedTags = Array.from(
-        new Set(
-            allRecordings
-                .flatMap((recording) => recording.tags || [])
-                .filter((tag): tag is string => Boolean(tag && tag.trim()))
-        )
-    ).slice(0, 10);
+    const timeline = [...(recordings || [])].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    const recordingCount = recordings ? totalCount : contact.totalRecordings;
+    const lastCallAt = contact.lastRecordingAt || timeline[0]?.recordedAt;
+    const topics = Array.from(new Set(timeline.flatMap(recording => recording.tags || []).filter(tag => tag?.trim()))).slice(0, 10);
+    const recordingsHref = `/recordings?contact=${contact.id}`;
 
-    return (
-        <div className="relative space-y-8">
-            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_right,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_28%)]" />
-
-            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
-                    <div className="space-y-4">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <Link href="/contacts" className="inline-flex items-center gap-2 text-sm font-medium text-default-500 hover:text-foreground">
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to contacts
-                            </Link>
-                            <ContextHelp
-                                title="Contact detail view"
-                                description="Use this page to review a person’s recent calls, identity details, and recurring tags."
-                                points={[
-                                    'Jump to the filtered recordings workspace when you need the full library.',
-                                    'Use the timeline to scan recent conversations quickly.',
-                                    'Tags help spot themes that repeat across calls.',
-                                ]}
-                                placement="right"
-                            />
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-16 w-16 ring-2 ring-default-200/70">
-                                <Avatar.Fallback className="text-xl font-semibold bg-primary/15 text-primary">
-                                    {(contact.name || 'U').charAt(0).toUpperCase()}
-                                </Avatar.Fallback>
-                            </Avatar>
-                            <div>
-                                <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                                    {contact.name}
-                                </h1>
-                                <p className="mt-1 text-sm text-default-500">
-                                    {contact.jobTitle || 'Contact'}{contact.company ? ` · ${contact.company}` : ''}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="soft" color="default">{totalCount || contact.totalRecordings} recordings</Chip>
-                            <Chip variant="soft" color="success">{formatDuration(totalDuration)} total talk time</Chip>
-                            {lastCall && (
-                                <Chip variant="soft" color="accent">
-                                    Last call {new Date(lastCall.recordedAt).toLocaleDateString()}
-                                </Chip>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-                        <QuickStartPopover
-                            title="Get value from a contact page"
-                            description="This view is best when you want one person’s history without extra filtering."
-                            steps={[
-                                {
-                                    title: 'Scan the latest activity',
-                                    description: 'Use the header chips and timeline to see how recently this contact appeared.',
-                                },
-                                {
-                                    title: 'Open the filtered recordings view',
-                                    description: 'Jump into the recordings workspace when you need deeper search or pagination.',
-                                    href: `/recordings?contact=${contact.id}`,
-                                },
-                                {
-                                    title: 'Add more related calls',
-                                    description: 'Upload new recordings to keep this contact history current.',
-                                    href: '/upload',
-                                },
-                            ]}
-                        />
-                        <Link href={`/recordings?contact=${contact.id}`}>
-                            <Button className="w-full rounded-full px-6 font-semibold">
-                                Open recordings view
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <Link href="/upload">
-                            <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
-                                Upload new calls
-                            </Button>
-                        </Link>
+    return <div className="min-w-0 space-y-6">
+        {backLink}
+        <Card className="min-w-0" data-testid="contact-profile">
+            <Card.Header className="gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Avatar size="lg" className="shrink-0"><Avatar.Fallback>{(contact.name || 'U').charAt(0).toUpperCase()}</Avatar.Fallback></Avatar>
+                    <div className="min-w-0">
+                        <h1 className="break-words text-xl font-semibold tracking-tight text-foreground [overflow-wrap:anywhere] md:text-3xl">{contact.name}</h1>
+                        {(contact.jobTitle || contact.company) && <p className="mt-1 break-words text-sm text-muted [overflow-wrap:anywhere]">{[contact.jobTitle, contact.company].filter(Boolean).join(' · ')}</p>}
                     </div>
                 </div>
-
-                <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 xl:grid-cols-4 md:px-8">
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <UserRound className="h-3.5 w-3.5" />
-                                Identity
-                            </div>
-                            <div className="text-lg font-bold text-foreground">{contact.firstName} {contact.lastName}</div>
-                            <div className="text-sm text-default-500">{contact.email || 'No email linked'}</div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Phone className="h-3.5 w-3.5" />
-                                Phone
-                            </div>
-                            <div className="text-lg font-bold text-foreground">{contact.phoneNumbers[0] || 'Unavailable'}</div>
-                            <div className="text-sm text-default-500">{contact.phoneNumbers.length} phone number(s)</div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Building2 className="h-3.5 w-3.5" />
-                                Company
-                            </div>
-                            <div className="text-lg font-bold text-foreground">{contact.company || 'No company'}</div>
-                            <div className="text-sm text-default-500">{contact.jobTitle || 'Role not set'}</div>
-                        </div>
-                    </Surface>
-                    <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-4">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <CalendarClock className="h-3.5 w-3.5" />
-                                Activity
-                            </div>
-                            <div className="text-lg font-bold text-foreground">
-                                {lastCall ? new Date(lastCall.recordedAt).toLocaleDateString() : 'No calls yet'}
-                            </div>
-                            <div className="text-sm text-default-500">Most recent conversation date</div>
-                        </div>
-                    </Surface>
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                    <Button onPress={() => router.push(recordingsHref)} className="min-h-11">View recordings<ArrowRight aria-hidden="true" className="size-4" /></Button>
+                    <Link href="/upload" className="min-h-11 text-sm">Upload recordings</Link>
                 </div>
-            </section>
+            </Card.Header>
+            <Card.Content>
+                <dl className="grid min-w-0 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+                    <div className="min-w-0"><dt className="text-sm text-muted">Phone</dt><dd><ContactPhoneDisplay phoneNumbers={contact.phoneNumbers} contactName={contact.name} /></dd></div>
+                    <div className="min-w-0"><dt className="text-sm text-muted">Email</dt><dd className="flex min-h-6 items-center break-all text-sm text-foreground lg:min-h-11">{contact.email || 'No email linked'}</dd></div>
+                </dl>
+            </Card.Content>
+            <Card.Footer className="flex-wrap gap-x-3 gap-y-1 border-t border-border pt-3 text-sm text-muted">
+                <span className="tabular-nums">{recordingCount} recording{recordingCount === 1 ? '' : 's'}</span>
+                {lastCallAt && <><span aria-hidden="true">·</span><span>Last call <ClientFormattedDate date={lastCallAt} formatString="MMM d, yyyy" /></span></>}
+            </Card.Footer>
+        </Card>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
-                    <div className="space-y-4">
-                        <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                Timeline
-                            </div>
-                            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Recent call timeline</h2>
-                        </div>
-                        <div className="space-y-3">
-                            {timeline.length === 0 && (
-                                <div className="rounded-xl border border-default-200 bg-default-50/70 px-4 py-5 text-sm text-default-500">
-                                    No recordings linked to this contact yet.
+        <Card className="min-w-0" data-testid="contact-call-history">
+            <Card.Header className="gap-1">
+                <h2 className="text-base font-semibold">Recent calls</h2>
+                <Card.Description>{recordings ? `Showing ${timeline.length} of ${totalCount} recordings, newest first.` : 'Review conversations linked to this contact.'}</Card.Description>
+            </Card.Header>
+            <Card.Content>
+                {recordingsError && <Alert status="danger">
+                    <Alert.Indicator />
+                    <Alert.Content><Alert.Title>Could not load call history</Alert.Title><Alert.Description>Try again to refresh the calls linked to this contact.</Alert.Description>
+                        <Button variant="secondary" size="sm" className="mt-2 min-h-11" onPress={() => void retryRecordings().catch(() => {})}>Retry calls</Button>
+                    </Alert.Content>
+                </Alert>}
+                {isRecordingsLoading && !recordings ? <div role="status" aria-label="Loading call history" className="space-y-3">
+                    {[1, 2, 3].map(item => <Skeleton key={item} className="h-20" />)}
+                </div> : !recordingsError && !timeline.length ? <p className="py-4 text-sm text-muted">No recordings linked to this contact yet.</p> : null}
+                <SummaryExpansionProvider>
+                    <ul className="divide-y divide-border">
+                        {timeline.map(recording => <li key={recording.id} className="py-4 first:pt-0 last:pb-0" data-testid="contact-call-row">
+                            <div className="mb-2 flex min-w-0 items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <Button variant="ghost" className="h-auto min-h-11 max-w-full justify-start whitespace-normal px-0 text-left" aria-label={`Open recording from ${format(new Date(recording.recordedAt), 'PPp')}`}
+                                        onPress={() => workspace.open(recording)}>
+                                        <ClientFormattedDate date={recording.recordedAt} formatString="MMM d, yyyy · p" />
+                                    </Button>
+                                    <p className="text-sm tabular-nums text-muted">{formatDuration(recording.duration)}</p>
                                 </div>
-                            )}
-                            {timeline.map((recording) => (
-                                <article key={recording.id} className="rounded-xl border border-default-200 bg-background px-4 py-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div>
-                                            <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
-                                            <div className="text-xs text-default-500">{new Date(recording.recordedAt).toLocaleString()}</div>
-                                        </div>
-                                        <Chip size="sm" variant="soft" color="default">
-                                            {formatDuration(recording.duration)}
-                                        </Chip>
-                                    </div>
-                                    {recording.summary && (
-                                        <p className="mt-2 line-clamp-2 text-sm text-default-600">{recording.summary}</p>
-                                    )}
-                                </article>
-                            ))}
-                        </div>
-                    </div>
-                </Surface>
-
-                <div className="space-y-6">
-                    <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
-                        <div className="space-y-4">
-                            <div>
-                                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                    Recent calls
-                                </div>
-                                <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">Recent call summaries</h2>
+                                <Button isIconOnly variant="ghost" className="size-11 shrink-0" aria-label={`Play recording from ${format(new Date(recording.recordedAt), 'PPp')}`}
+                                    onPress={() => workspace.open(recording, true)}><Play aria-hidden="true" className="size-4" /></Button>
                             </div>
-                            <div className="space-y-3">
-                                {recentRecordings.map((recording) => (
-                                    <div key={recording.id} className="rounded-xl border border-default-200 bg-default-50/60 px-4 py-3">
-                                        <div className="text-sm font-semibold text-foreground">{recording.standardizedDisplayName}</div>
-                                        <div className="mt-1 text-xs text-default-500">
-                                            {new Date(recording.recordedAt).toLocaleDateString()} · {formatDuration(recording.duration)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </Surface>
-
-                    <Surface variant="default" className="rounded-[1.5rem] border border-default-200/80 p-5">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                                <Tag className="h-3.5 w-3.5" />
-                                Tags and themes
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {extractedTags.length === 0 && (
-                                    <span className="text-sm text-default-500">No tags detected yet.</span>
-                                )}
-                                {extractedTags.map((tagValue) => (
-                                    <Chip key={tagValue} variant="soft" color="accent">
-                                        {tagValue}
-                                    </Chip>
-                                ))}
-                            </div>
-                        </div>
-                    </Surface>
-                </div>
-            </div>
-        </div>
-    );
+                            <SummaryPreview recording={recording} density="dense" />
+                        </li>)}
+                    </ul>
+                </SummaryExpansionProvider>
+            </Card.Content>
+            {timeline.length > 0 && <Card.Footer className="flex-col items-start gap-3 border-t border-border pt-3">
+                <Link href={recordingsHref} className="min-h-11 text-sm">View all {totalCount} recording{totalCount === 1 ? '' : 's'}<Link.Icon><ArrowRight className="size-4" /></Link.Icon></Link>
+                {topics.length > 0 && <Accordion className="w-full" hideSeparator>
+                    <Accordion.Item id="topics"><Accordion.Heading><Accordion.Trigger className="min-h-11 text-sm">Topics in recent calls<Accordion.Indicator /></Accordion.Trigger></Accordion.Heading>
+                        <Accordion.Panel><Accordion.Body><div className="flex flex-wrap gap-2">{topics.map(topic => <Chip key={topic} size="sm" variant="soft">{topic}</Chip>)}</div></Accordion.Body></Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>}
+            </Card.Footer>}
+        </Card>
+        <RecordingWorkspace workspace={workspace} />
+    </div>;
 }

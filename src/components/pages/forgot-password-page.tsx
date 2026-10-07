@@ -1,5 +1,6 @@
 'use client';
 
+import { ActionLink } from '@/components/action-link';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -53,9 +54,9 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      badge="Password Recovery"
+
       title="Reset your password"
-      description="Enter the email tied to your workspace and we will send a reset link if an account exists."
+      description="Enter your email to request a reset link."
       footer={
         <p className="text-sm text-default-500">
           Remembered it?{' '}
@@ -81,11 +82,9 @@ export function ForgotPasswordPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link href={loginHref} className="block">
-              <Button variant="primary" className="h-12 w-full rounded-lg font-medium">
+            <ActionLink href={loginHref} variant="primary" className="h-12 w-full font-medium">
                 Back to Sign In
-              </Button>
-            </Link>
+              </ActionLink>
             <Button
               variant="ghost"
               className="h-12 rounded-full border border-default-200 bg-background/60"

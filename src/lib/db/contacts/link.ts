@@ -1,6 +1,5 @@
 import { ObjectId } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
-import { normalizeContactPhoneNumbers } from './normalize';
 import type { Contact } from '../types';
 
 export async function recalculateContactStats(
@@ -65,7 +64,7 @@ export async function incrementContactRecordings(
     };
 
     if (amount > 0) {
-        (update.$set as Record<string, unknown>).lastRecordingAt = recordingDate;
+        update.$max = { lastRecordingAt: recordingDate };
     }
 
     await db.collection<Contact>(Collections.CONTACTS).updateOne(
@@ -76,54 +75,4 @@ export async function incrementContactRecordings(
     if (amount < 0) {
         await recalculateContactStats(contactId, authSubject);
     }
-}
-
-/**
- * Link existing recordings to a contact based on phone numbers.
- * Recalculates and returns total recording count and last recording date.
- */
-export async function linkRecordingsToContact(
-    contactId: string | ObjectId,
-    phoneNumbers: string[],
-    authSubject: string,
-    contactName?: string | null
-): Promise<{ totalRecordings: number; lastRecordingAt: Date | null }> {
-    const db = await getMongoDb();
-    const cId = new ObjectId(contactId);
-
-    const normalizedPhoneNumbers = normalizeContactPhoneNumbers(phoneNumbers);
-
-    const resolvedContactName = contactName === undefined
-        ? (await db.collection<Contact>(Collections.CONTACTS).findOne({ _id: cId, authSubject }))?.name ?? null
-        : contactName;
-
-    await db.collection(Collections.RECORDINGS).updateMany(
-        {
-            authSubject,
-            contactId: cId,
-            normalizedPhoneNumber: { $nin: normalizedPhoneNumbers },
-        },
-        {
-            $set: {
-                contactId: null,
-                contactName: resolvedContactName,
-            },
-        }
-    );
-
-    await db.collection(Collections.RECORDINGS).updateMany(
-        {
-            authSubject,
-            contactId: { $ne: cId },
-            normalizedPhoneNumber: { $in: normalizedPhoneNumbers },
-        },
-        {
-            $set: {
-                contactId: cId,
-                contactName: resolvedContactName,
-            },
-        }
-    );
-
-    return recalculateContactStats(cId, authSubject);
 }

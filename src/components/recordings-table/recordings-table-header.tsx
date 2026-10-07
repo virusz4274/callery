@@ -11,6 +11,7 @@ type RecordingsTableHeaderProps = {
     onDeleteSelection: () => void;
     variant?: 'default' | 'flat';
     density?: 'comfortable' | 'dense';
+    isSemantic?: boolean;
 };
 
 export function RecordingsTableHeader({
@@ -23,23 +24,26 @@ export function RecordingsTableHeader({
     onDeleteSelection,
     variant = 'default',
     density = 'comfortable',
+    isSemantic = false,
 }: RecordingsTableHeaderProps) {
     return (
         <Card.Header
-            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 ${
-                density === 'dense' ? 'py-2.5 md:px-5 md:py-3.5' : 'py-3 md:gap-4 md:p-6'
+            role={isSelectionMode ? "region" : undefined}
+            aria-label={isSelectionMode ? "Recording selection" : undefined}
+            className={`flex flex-row items-center justify-between gap-3 px-4 ${
+                density === 'dense' ? 'py-2.5 md:px-3 md:py-3' : 'py-3 md:px-4'
             } ${
                 variant === 'flat' ? 'px-0 py-2 border-none' : 'border-b border-default-100/50'
             }`}
         >
             <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                    {selectedCount > 0 ? 'Selection active' : 'Library results'}
+                <h2 className="sr-only">
+                    {selectedCount > 0 ? 'Selection active' : isSemantic ? 'AI search results' : 'Recordings'}
                 </h2>
-                <p className="text-sm text-default-500">
-                    {selectedCount > 0
-                        ? `${selectedCount} item(s) selected`
-                        : `Showing ${displayedCount} of ${totalCount} recordings`}
+                <p className="text-sm text-muted">
+                    {isSelectionMode || selectedCount > 0
+                        ? `${selectedCount} selected`
+                        : isSemantic ? `${displayedCount} matches on this page · Ranked by relevance` : `Showing ${displayedCount} of ${totalCount} recordings`}
                 </p>
             </div>
 
@@ -50,24 +54,24 @@ export function RecordingsTableHeader({
                         size="sm"
                         onPress={onDeleteSelection}
                         isDisabled={isDeleting}
-                        className="animate-appearance-in font-medium"
+                        className="min-h-11 font-medium md:min-h-8"
                     >
                         {isDeleting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                             <Trash2 className="mr-2 h-4 w-4" />
                         )}
-                        Delete Selection ({selectedCount})
+                        Delete ({selectedCount})
                     </Button>
                 )}
 
-                <div className="md:hidden">
+                <div className="lg:hidden">
                     {isSelectionMode ? (
-                        <Button size="sm" variant="ghost" onPress={onToggleSelectionMode}>
+                        <Button size="sm" variant="ghost" className="min-h-11 md:min-h-8" onPress={onToggleSelectionMode}>
                             Cancel
                         </Button>
                     ) : (
-                        <Button size="sm" variant="ghost" onPress={onToggleSelectionMode}>
+                        <Button size="sm" variant="ghost" className="min-h-11 md:min-h-8" onPress={onToggleSelectionMode}>
                             Select items
                         </Button>
                     )}

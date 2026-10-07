@@ -76,7 +76,7 @@ export function BillingSettings({ userProfile }: BillingSettingsProps) {
     }, []);
 
     return (
-        <SettingsSection title="Billing & Plans" description="Manage your subscription, limits, and usage preferences.">
+        <SettingsSection title="Billing & Plans">
             <div className="space-y-6">
                 <CurrentPlanCard
                     planName={planName}

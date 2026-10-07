@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Alert, Button, Card, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
+import { Alert, Button, Chip, SearchField, Skeleton, Surface } from '@heroui/react';
 import type { Contact } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUserProfile } from '@/hooks/use-user-profile';
@@ -17,32 +17,26 @@ type ContactsPageProps = {
     loadMore?: () => void;
     hasMore?: boolean;
     isLoadingMore?: boolean;
-    totalCount?: number;
+    totalCount: number;
+    isLoading?: boolean;
+    hasError?: boolean;
+    hasListError?: boolean;
+    isLoadMoreError: boolean;
+    retry: () => void;
+    libraryTotalCount?: number;
+    isLibraryCountLoading: boolean;
+    hasLibraryCountError: boolean;
+    retryLibraryCount: () => void;
 };
 
 function ContactsShellLoadingState() {
     return (
-        <div className="space-y-8">
-            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="space-y-5 px-5 py-6 md:px-8 md:py-8">
-                    <div className="flex gap-2">
-                        <Chip variant="soft" color="default">Contact directory</Chip>
-                        <Chip variant="soft" color="accent">Loading</Chip>
-                    </div>
-                    <div className="space-y-3">
-                        <Skeleton className="h-12 w-40 rounded-2xl" />
-                        <Skeleton className="h-4 w-full max-w-2xl rounded-xl" />
-                        <Skeleton className="h-4 w-full max-w-xl rounded-xl" />
-                    </div>
-                </div>
-            </section>
-            <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 p-5 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
-                <div className="space-y-4">
-                    <Skeleton className="h-10 rounded-2xl" />
-                    <Skeleton className="h-24 rounded-xl" />
-                    <Skeleton className="h-24 rounded-xl" />
-                </div>
-            </Card>
+        <div className="space-y-6" role="status" aria-label="Loading contacts">
+            <Skeleton className="h-10 w-52 rounded-lg" />
+            <Skeleton className="h-28 rounded-xl" />
+            <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+                {[1, 2, 3].map(item => <Skeleton key={item} className="h-20 rounded-lg" />)}
+            </div>
         </div>
     );
 }
@@ -51,16 +45,27 @@ export function ContactsPage({
     allContacts,
     loadMore,
     hasMore = false,
-    totalCount = 0,
+    totalCount,
     isLoadingMore = false,
+    isLoading = false,
+    hasError = false,
+    hasListError = false,
+    isLoadMoreError,
+    retry,
+    libraryTotalCount,
+    isLibraryCountLoading,
+    hasLibraryCountError,
+    retryLibraryCount,
 }: ContactsPageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const searchQuery = searchParams.get('q') || '';
+    const searchValue = searchParams.get('q') || '';
+    const searchQuery = searchValue.trim();
     const { user, isUserLoading } = useUser();
     const { userProfile } = useUserProfile(user);
+    const showGoogleSetup = !!userProfile && !userProfile.googleSync?.hasRefreshToken;
 
-    const { groupedContacts, sortedAndFilteredContacts } = useContactGroups(allContacts, searchQuery);
+    const { groupedContacts } = useContactGroups(allContacts);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
@@ -68,14 +73,9 @@ export function ContactsPage({
         }
     }, [isUserLoading, router, user]);
 
-    const handleContactClick = (contactId?: string) => {
-        if (!contactId) {
-            return;
-        }
-        router.push(`/contacts/${contactId}`);
-    };
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
     const isLoadingMoreRef = useRef(isLoadingMore);
 
     useEffect(() => {
@@ -83,7 +83,7 @@ export function ContactsPage({
     }, [isLoadingMore]);
 
     useEffect(() => {
-        if (!loadMore || !hasMore) {
+        if (!loadMore || !hasMore || hasListError) {
             return;
         }
 
@@ -101,40 +101,58 @@ export function ContactsPage({
         }
 
         return () => observer.disconnect();
-    }, [hasMore, isLoadingMore, loadMore]);
+    }, [hasMore, hasListError, isLoadingMore, loadMore]);
+
+    useEffect(() => {
+        if (isLoading) return;
+        const raw = sessionStorage.getItem('vosift:contacts-return');
+        if (!raw) return;
+        try {
+            const saved = JSON.parse(raw);
+            if (saved.href === window.location.pathname + window.location.search) {
+                const frame = requestAnimationFrame(() => { window.scrollTo({ top: saved.scroll, behavior: 'instant' }); sessionStorage.removeItem('vosift:contacts-return'); });
+                return () => cancelAnimationFrame(frame);
+            }
+        } catch { sessionStorage.removeItem('vosift:contacts-return'); }
+    }, [isLoading, searchQuery]);
 
     if (isUserLoading || !user) {
         return <ContactsShellLoadingState />;
     }
 
-    const displayedCount = searchQuery ? sortedAndFilteredContacts.length : totalCount || sortedAndFilteredContacts.length;
+    const libraryCountLabel = libraryTotalCount !== undefined
+        ? `${libraryTotalCount} contact${libraryTotalCount === 1 ? '' : 's'}`
+        : hasLibraryCountError ? 'Count unavailable' : 'Loading total…';
+    const matchLabel = isLoading ? 'Searching…' : hasError ? 'Matches unavailable'
+        : `${totalCount} match${totalCount === 1 ? '' : 'es'}`;
+    const updateSearch = (value: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value) params.set('q', value);
+        else params.delete('q');
+        const query = params.toString();
+        window.history.replaceState(null, '', query ? `/contacts?${query}` : '/contacts');
+    };
+    const clearSearch = () => {
+        updateSearch('');
+        searchInputRef.current?.focus();
+    };
 
     return (
         <div className="min-w-0 space-y-6">
-
-
             <PageHeader
                 title="Contacts"
-                description="The people behind your conversations. Search names, numbers, and companies."
-                meta={<Chip variant="soft" color="default" size="sm">{displayedCount} contact{displayedCount === 1 ? '' : 's'}</Chip>}
-                actions={<Button variant="secondary" onPress={() => router.push('/settings?tab=sources')}>Manage sources</Button>}
+                meta={<div className="flex flex-wrap items-center gap-2" data-testid="contacts-library-count">
+                    <Chip variant="soft" color="default" size="sm" aria-busy={isLibraryCountLoading}>{libraryCountLabel}</Chip>
+                    {hasLibraryCountError && <Button size="sm" variant="ghost" className="min-h-11 lg:min-h-9" onPress={retryLibraryCount} aria-label="Retry contact total">Retry total</Button>}
+                </div>}
+                actions={<Button variant="secondary" className="min-h-11 lg:min-h-9" onPress={() => router.push('/settings?tab=sources')}>Manage sources</Button>}
             />
-            <div className="space-y-3">
-                        {!userProfile?.googleSync?.hasRefreshToken ? (
-                            <Alert status="accent">
-                                <Alert.Indicator />
-                                <Alert.Content>
-                                    <Alert.Title>Want Google Contacts here?</Alert.Title>
-                                    <Alert.Description>
-                                        Connect Google Contacts in Settings › Sources to import names and numbers.
-                                    </Alert.Description>
-                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
-                                        <Button size="sm" variant="secondary" className="rounded-full">
-                                            Go to Sources
-                                        </Button>
-                                    </Link>
-                                </Alert.Content>
-                            </Alert>
+            {((showGoogleSetup && (isLoading || hasError || allContacts.length > 0 || searchQuery)) || (userProfile?.googleSync?.duplicatePhoneIssueCount || 0) > 0) && <div className="space-y-3">
+                        {showGoogleSetup && (isLoading || hasError || allContacts.length > 0 || searchQuery) ? (
+                            <Surface className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-border bg-surface p-4">
+                                <p className="text-sm text-muted">Connect Google Contacts to import names and numbers.</p>
+                                <Link href="/settings?tab=sources" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Connect Google Contacts</Link>
+                            </Surface>
                         ) : null}
                         {(userProfile?.googleSync?.duplicatePhoneIssueCount || 0) > 0 ? (
                             <Alert status="warning">
@@ -144,15 +162,11 @@ export function ContactsPage({
                                     <Alert.Description>
                                         {userProfile?.googleSync?.duplicatePhoneIssueCount} phone number{userProfile?.googleSync?.duplicatePhoneIssueCount === 1 ? '' : 's'} currently appear on multiple Google contacts. Vosift keeps them separate until you fix them in Google Contacts.
                                     </Alert.Description>
-                                    <Link href="/settings?tab=sources" className="mt-2 inline-block">
-                                        <Button size="sm" variant="secondary" className="rounded-full">
-                                            Review sync issues
-                                        </Button>
-                                    </Link>
+                                    <Link href="/settings?tab=sources" className="mt-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-accent focus-visible:outline-2 focus-visible:outline-accent">Review sync issues</Link>
                                 </Alert.Content>
                             </Alert>
                         ) : null}
-            </div>
+            </div>}
 
             <Surface
                 variant="default"
@@ -163,56 +177,61 @@ export function ContactsPage({
                         <div className="text-sm font-medium text-muted">
                             Search directory
                         </div>
-                        {searchQuery ? (
-                            <Chip variant="soft" color="warning" size="sm">
-                                {displayedCount} match{displayedCount === 1 ? '' : 'es'}
-                            </Chip>
-                        ) : (
-                            <Chip variant="soft" color="default" size="sm">
-                                {displayedCount} visible
-                            </Chip>
-                        )}
+                        {searchQuery && <span role="status" className="text-sm text-muted" data-testid="contacts-match-count">{matchLabel}</span>}
                     </div>
 
                     <SearchField
                         aria-label="Search contacts"
-                        value={searchQuery}
-                        onChange={(value) => {
-                            const params = new URLSearchParams(searchParams.toString());
-                            if (value) {
-                                params.set('q', value);
-                            } else {
-                                params.delete('q');
-                            }
-                            const query = params.toString();
-                            router.replace(query ? `/contacts?${query}` : '/contacts');
-                        }}
+                        value={searchValue}
+                        onChange={updateSearch}
                         variant="secondary"
                         className="w-full"
                     >
                         <SearchField.Group className="flex h-11 items-center overflow-hidden rounded-lg border border-border bg-field px-3 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
-                            <SearchField.SearchIcon className="mr-2 text-default-400" />
+                            <SearchField.SearchIcon className="mr-2 shrink-0 text-muted" />
                             <SearchField.Input
-                                className="w-full bg-transparent p-0 text-base text-foreground placeholder:text-default-400"
+                                ref={searchInputRef}
+                                maxLength={200}
+                                className="min-w-0 w-full bg-transparent p-0 text-base text-foreground placeholder:text-muted"
                                 placeholder="Search by name, number, role, or company"
                             />
-                            <SearchField.ClearButton />
+                            <SearchField.ClearButton className="min-h-11 min-w-11 shrink-0" />
                         </SearchField.Group>
                     </SearchField>
                 </div>
             </Surface>
 
-            <ContactList
-                groupedContacts={groupedContacts}
-                searchQuery={searchQuery}
-                hasMore={hasMore}
-                onContactClick={handleContactClick}
-                showGoogleSetup={!userProfile?.googleSync?.hasRefreshToken}
-                setSentinelRef={(node) => {
-                    sentinelRef.current = node;
-                }}
-                isLoadingMore={isLoadingMore}
-            />
+            {hasError && <Alert status="danger">
+                <Alert.Indicator />
+                <Alert.Content>
+                    <Alert.Title>Could not load contacts</Alert.Title>
+                    <Alert.Description>Try again to load {searchQuery ? 'these search results' : 'the directory'}.</Alert.Description>
+                    <Button variant="secondary" size="sm" className="min-h-11 lg:min-h-9" onPress={retry}>Retry</Button>
+                </Alert.Content>
+            </Alert>}
+            {isLoading ? (
+                <div role="status" aria-label="Loading contacts" className="space-y-3 rounded-xl border border-border bg-surface p-4">
+                    {[1, 2, 3].map(item => <Skeleton key={item} className="h-20 rounded-xl" />)}
+                </div>
+            ) : hasError ? null : (
+                <ContactList
+                    groupedContacts={groupedContacts}
+                    searchQuery={searchQuery}
+                    hasMore={hasMore}
+                    showGoogleSetup={showGoogleSetup}
+                    setSentinelRef={(node) => {
+                        sentinelRef.current = node;
+                    }}
+                    isLoadingMore={isLoadingMore}
+                    hasError={hasListError}
+                    isLoadMoreError={isLoadMoreError}
+                    retry={retry}
+                    loadMore={loadMore}
+                    loadedCount={allContacts.length}
+                    totalCount={totalCount}
+                    clearSearch={clearSearch}
+                />
+            )}
         </div>
     );
 }

@@ -2,6 +2,8 @@ import { ITranscriptionService, TranscriptionResult, TranscribeOptions } from '.
 import { getGeminiClient, hasGeminiKey } from '@/services/ai/client';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
+import { geminiModel } from '@/lib/config';
+import { AudioTranscriptionConfigMode, type Transcription } from '@google/genai';
 
 /**
  * Expected shape of the model's JSON answer. Everything is optional at the
@@ -86,18 +88,43 @@ Return ONLY valid JSON, no markdown fences, with this exact shape:
 {"language": "<bcp47 or 'unknown'>", "segments": [{"speaker": "SPEAKER_0", "text": "...", "start": 0.0, "end": 1.2, "words": [{"text": "...", "start": 0.0, "end": 0.4}]}]}
 Rules: start/end are seconds (float) into the audio. Every segment needs words with timestamps. Start a new segment when the speaker changes.`;
 
-export class GeminiTranscriptionService implements ITranscriptionService {
-    private model: string;
+/** Native ASR returns speaker turns and protobuf duration strings instead of prompted JSON. */
+export function parseNativeGeminiTranscript(transcriptions: Transcription[], durationSeconds?: number) {
+    const seconds = (offset: string | undefined): number | undefined =>
+        offset && /^\d+(?:\.\d+)?s$/.test(offset) ? Number(offset.slice(0, -1)) : undefined;
+    return parseGeminiTranscript({
+        language: transcriptions.find(part => part.languageCode)?.languageCode,
+        segments: transcriptions.map(part => {
+            const words = (part.words ?? []).map(word => ({
+                text: word.word,
+                start: seconds(word.startOffset),
+                end: seconds(word.endOffset),
+            }));
+            return {
+                speaker: part.speakerLabel,
+                text: part.text || words.map(word => word.text).filter(Boolean).join(' '),
+                start: words[0]?.start,
+                end: words.at(-1)?.end ?? durationSeconds,
+                words,
+            };
+        }),
+    }, durationSeconds);
+}
 
+export class GeminiTranscriptionService implements ITranscriptionService {
     constructor() {
         if (!hasGeminiKey()) {
             logger.warn('GOOGLE_GENERATIVE_AI_API_KEY is not defined. Gemini transcription will fail.');
         }
-        this.model = process.env.GEMINI_MODEL_TRANSCRIPTION || 'gemini-2.5-flash';
     }
 
     async transcribe(fileUrl: string, options?: TranscribeOptions): Promise<TranscriptionResult> {
+        const model = options?.model?.trim() || geminiModel('transcription');
         const durationSeconds = options?.durationSeconds;
+        const nativeTranscription = model.replace(/^models\//, '') === 'gemini-3.5-transcribe';
+        if (nativeTranscription && durationSeconds !== undefined && durationSeconds > 1800) {
+            throw new Error('gemini-3.5-transcribe supports at most 30 minutes with speaker labels and word timestamps. Choose gemini-3.8-flash in GEMINI_MODEL_TRANSCRIPTION for longer recordings.');
+        }
         const ai = getGeminiClient();
 
         // The Files API needs bytes, not a URL — download the (presigned) audio first.
@@ -125,23 +152,38 @@ export class GeminiTranscriptionService implements ITranscriptionService {
             }
 
             const response = await ai.models.generateContent({
-                model: options?.model || this.model,
+                model,
                 contents: [
                     { fileData: { fileUri: uploaded.uri, mimeType: uploaded.mimeType || mimeType } },
-                    { text: TRANSCRIPTION_PROMPT },
+                    ...(nativeTranscription ? [] : [{ text: TRANSCRIPTION_PROMPT }]),
                 ],
-                config: { responseMimeType: 'application/json' },
+                config: nativeTranscription
+                    ? { audioTranscriptionConfig: { mode: AudioTranscriptionConfigMode.VERBATIM, diarization: true, wordTimestamp: true } }
+                    : { responseMimeType: 'application/json' },
             });
 
-            const rawText = (response.text || '').trim().replace(/^```(?:json)?\n?|\n?```$/g, '');
-            let parsed: unknown = null;
-            try {
-                parsed = rawText ? (JSON.parse(rawText) as unknown) : null;
-            } catch {
-                logger.warn('[Gemini] Transcription response was not valid JSON; using untimed fallback.');
+            let transcript: { languageCode: string; segments: TranscriptionSegment[] };
+            let fallbackText = '';
+            if (nativeTranscription) {
+                const parts = response.candidates?.[0]?.content?.parts ?? [];
+                transcript = parseNativeGeminiTranscript(
+                    parts.flatMap(part => !part.thought && part.audioTranscription ? [part.audioTranscription] : []),
+                    durationSeconds,
+                );
+                fallbackText = parts.filter(part => !part.thought).map(part => part.text ?? '').join('').trim();
+            } else {
+                const rawText = (response.text || '').trim().replace(/^```(?:json)?\n?|\n?```$/g, '');
+                let parsed: unknown = null;
+                try {
+                    parsed = rawText ? (JSON.parse(rawText) as unknown) : null;
+                } catch {
+                    logger.warn('[Gemini] Transcription response was not valid JSON; using untimed fallback.');
+                }
+                transcript = parseGeminiTranscript(parsed, durationSeconds);
+                fallbackText = typeof parsed === 'string' ? parsed : rawText;
             }
 
-            const { languageCode, segments } = parseGeminiTranscript(parsed, durationSeconds);
+            const { languageCode, segments } = transcript;
             logger.info(`[Gemini] Processed ${segments.length} segments. Language: ${languageCode}`);
 
             const finalSegments =
@@ -150,7 +192,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
                     : [
                           {
                               speakerId: 'Unknown',
-                              text: typeof parsed === 'string' ? parsed : '',
+                              text: fallbackText,
                               start: 0,
                               end: durationSeconds ?? 0,
                               words: [],
@@ -159,7 +201,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
 
             return {
                 provider: 'gemini',
-                model: options?.model || this.model,
+                model,
                 text: finalSegments.map((s) => s.text).join(' '),
                 languageCode,
                 segments: finalSegments,
@@ -176,14 +218,10 @@ export class GeminiTranscriptionService implements ITranscriptionService {
         }
     }
 
-    async deleteTranscript(transcriptionId: string): Promise<void> {
-        // transcribe() already deletes its upload; this covers orphans from
-        // runs that crashed before cleanup.
-        if (!transcriptionId || !transcriptionId.startsWith('files/')) return;
-        try {
-            await getGeminiClient().files.delete({ name: transcriptionId });
-        } catch (error) {
-            logger.warn('[Gemini] Delete Error:', error);
-        }
+    async deleteTranscript(_transcriptionId: string): Promise<void> {
+        // Gemini retains no separate transcript resource. transcribe() owns
+        // its temporary audio upload and deletes it in finally, on success
+        // or failure. Job runners call this shared hook after saving results;
+        // deleting the same upload again produces a misleading 403.
     }
 }

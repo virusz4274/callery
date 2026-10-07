@@ -43,7 +43,7 @@ export function useExportJob(toast: ToastFn) {
             if (result.success) {
                 toast({
                     title: 'Export Queued',
-                    description: 'We queued your archive and will email you when it is ready to download.',
+                    description: 'We will email you when it is ready.',
                     status: 'success',
                 });
                 setExportJob({ id: result.jobId, status: 'pending', progress: 0, parts: [], createdAt: new Date().toISOString() });

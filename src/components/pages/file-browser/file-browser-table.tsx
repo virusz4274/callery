@@ -1,205 +1,76 @@
 'use client';
 
-import React from 'react';
-import { Button, Card, Chip, Dropdown } from '@heroui/react';
-import { ChevronRight, FileText, Folder, MoreVertical, PlayCircle, Trash2 } from 'lucide-react';
+import { Accordion, Breadcrumbs, Button, Card, Dropdown, Table } from '@heroui/react';
+import { ArrowLeft, FileText, Folder, MoreVertical } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { FileSystemNode } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 
-type BreadcrumbItem = {
-    name: string;
-    newPath: string[];
-};
-
 type FileBrowserTableProps = {
     items: FileSystemNode[];
-    breadcrumbItems: BreadcrumbItem[];
+    breadcrumbItems: { name: string; newPath: string[] }[];
     onBreadcrumbClick: (newPath: string[]) => void;
     onNodeClick: (node: FileSystemNode) => void | Promise<void>;
     onDeleteClick: (node: FileSystemNode) => void;
 };
 
-export function FileBrowserTable({
-    items,
-    breadcrumbItems,
-    onBreadcrumbClick,
-    onNodeClick,
-    onDeleteClick,
-}: FileBrowserTableProps) {
-    const currentLocation = breadcrumbItems[breadcrumbItems.length - 1]?.name || 'Root';
+export function FileBrowserTable({ items, breadcrumbItems, onBreadcrumbClick, onNodeClick, onDeleteClick }: FileBrowserTableProps) {
+    const isMobile = useIsMobile();
+    const currentLocation = breadcrumbItems.at(-1)?.name || 'Root';
+    const breadcrumbs = <Breadcrumbs aria-label="Folder breadcrumbs" className="flex-wrap">
+        {breadcrumbItems.map((item, index) => <Breadcrumbs.Item key={index} onPress={() => onBreadcrumbClick(item.newPath)} className="min-h-11 max-w-full break-words">{item.name}</Breadcrumbs.Item>)}
+    </Breadcrumbs>;
+    const openButton = (item: FileSystemNode) => <Button variant="ghost" className="h-auto min-h-11 min-w-0 max-w-full justify-start whitespace-normal text-left" aria-label={`Open ${item.name}`} onPress={() => void onNodeClick(item)}>
+        {item.type === 'folder' ? <Folder className="size-5 shrink-0 text-accent" /> : <FileText className="size-5 shrink-0 text-muted" />}
+        <span className="min-w-0 break-words [overflow-wrap:anywhere]">{item.name}</span>
+    </Button>;
+    const actions = (item: FileSystemNode) => item.type === 'file' && <Dropdown>
+        <Button isIconOnly variant="ghost" className="size-11 shrink-0" aria-label={`Actions for ${item.name}`}><MoreVertical className="size-5" /></Button>
+        <Dropdown.Popover><Dropdown.Menu aria-label="File actions">
+            <Dropdown.Item id="view" onPress={() => void onNodeClick(item)}>Open recording</Dropdown.Item>
+            <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteClick(item)}>Delete</Dropdown.Item>
+        </Dropdown.Menu></Dropdown.Popover>
+    </Dropdown>;
 
-    return (
-        <Card className="gap-0 overflow-visible rounded-xl border border-border bg-surface p-0 shadow-none">
-            <Card.Header className="flex flex-col items-start gap-4 border-b border-default-100/70 px-6 py-6">
-                <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                            Current directory
-                        </div>
-                        <div className="text-2xl font-semibold tracking-tight text-foreground">{currentLocation}</div>
-                    </div>
-                    <Chip variant="soft" color="default" className="rounded-full">
-                        {items.length} visible item{items.length === 1 ? '' : 's'}
-                    </Chip>
-                </div>
+    if (isMobile) return <Card className="min-w-0">
+        <Card.Header className="flex flex-row items-center gap-2">
+            {breadcrumbItems.length > 1 && <Button isIconOnly variant="ghost" className="size-11 shrink-0" aria-label="Parent folder" onPress={() => onBreadcrumbClick(breadcrumbItems[breadcrumbItems.length - 2].newPath)}><ArrowLeft className="size-5" /></Button>}
+            <h2 className="min-w-0 flex-1 break-words text-base font-semibold">{currentLocation}</h2>
+            <span className="shrink-0 text-xs text-muted">{items.length} items</span>
+        </Card.Header>
+        <Card.Content className="min-w-0">
+            {breadcrumbItems.length > 1 && <Accordion><Accordion.Item id="path">
+                <Accordion.Heading><Accordion.Trigger className="min-h-11">Folder path<Accordion.Indicator /></Accordion.Trigger></Accordion.Heading>
+                <Accordion.Panel><Accordion.Body>{breadcrumbs}</Accordion.Body></Accordion.Panel>
+            </Accordion.Item></Accordion>}
+            <ul className="divide-y divide-border">
+                {items.map(item => <li key={item.id} className="flex min-w-0 items-start gap-2 py-3">
+                    <div className="min-w-0 flex-1">{openButton(item)}<p className="mt-1 pl-3 text-xs text-muted">{item.type === 'folder' ? 'Folder' : <>{item.size || '—'} · <ClientFormattedDate date={item.lastModified} formatString="MMM d, yyyy · p" /></>}</p></div>
+                    {actions(item)}
+                </li>)}
+                {!items.length && <li className="py-6 text-center text-sm text-muted">This folder is empty</li>}
+            </ul>
+        </Card.Content>
+    </Card>;
 
-                <div className="flex items-center flex-wrap gap-1 text-sm text-default-500">
-                    {breadcrumbItems.map((item, index) => {
-                        const isLast = index === breadcrumbItems.length - 1;
-
-                        return (
-                            <React.Fragment key={index}>
-                                {index > 0 && <ChevronRight className="h-4 w-4" />}
-                                {isLast ? (
-                                    <span className="flex h-7 items-center px-2 font-semibold text-foreground">
-                                        {item.name}
-                                    </span>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onPress={() => onBreadcrumbClick(item.newPath)}
-                                        className="h-7 min-w-0 px-2 text-default-500 hover:text-primary"
-                                    >
-                                        {item.name}
-                                    </Button>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                </div>
-            </Card.Header>
-
-            <Card.Content className="px-0 pb-8 sm:px-6">
-                <div className="mt-6 overflow-hidden rounded-xl border border-default-200/80 bg-background/60 shadow-sm">
-                    <table className="w-full text-sm text-left table-fixed sm:table-auto">
-                        <thead className="border-b border-default-100/70 bg-default-50/70 text-default-500 font-medium">
-                            <tr>
-                                <th className="h-12 px-4 align-middle pl-6 w-full sm:w-[400px]">Name</th>
-                                <th className="h-12 px-4 align-middle hidden sm:table-cell w-[100px]">Type</th>
-                                <th className="h-12 px-4 align-middle hidden sm:table-cell w-[100px]">Size</th>
-                                <th className="h-12 px-4 align-middle text-right pr-6 hidden sm:table-cell w-[150px]">
-                                    Last Modified
-                                </th>
-                                <th className="h-12 px-4 align-middle w-[50px]"></th>
-                            </tr>
-                        </thead>
-
-                        <tbody className="divide-y divide-default-100">
-                            {items.length > 0 ? (
-                                items.map((item) => (
-                                    <tr
-                                        key={item.id}
-                                            className={`transition-colors group ${
-                                                item.type === 'folder' ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-default-50'
-                                            }`}
-                                    >
-                                        <td className="p-4 align-middle pl-6 truncate" onClick={() => onNodeClick(item)}>
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className={`p-2 rounded-lg flex-shrink-0 ${
-                                                        item.type === 'folder'
-                                                            ? 'bg-primary/10 text-primary'
-                                                            : 'bg-default-100 text-default-500'
-                                                    }`}
-                                                >
-                                                    {item.type === 'folder' ? (
-                                                        <Folder className="h-4 w-4" />
-                                                    ) : (
-                                                        <FileText className="h-4 w-4" />
-                                                    )}
-                                                </div>
-                                                <span
-                                                    className={`font-medium truncate ${
-                                                        item.type === 'folder'
-                                                            ? 'text-foreground group-hover:text-primary transition-colors'
-                                                            : 'text-default-700'
-                                                    }`}
-                                                >
-                                                    {item.name}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td
-                                            className="p-4 align-middle capitalize text-default-500 hidden sm:table-cell"
-                                            onClick={() => onNodeClick(item)}
-                                        >
-                                            <span className="px-2 py-1 rounded-md bg-default-100/50 text-xs font-medium">
-                                                {item.type}
-                                            </span>
-                                        </td>
-                                        <td
-                                            className="p-4 align-middle text-default-500 font-mono text-xs hidden sm:table-cell"
-                                            onClick={() => onNodeClick(item)}
-                                        >
-                                            {item.size || '—'}
-                                        </td>
-                                        <td
-                                            className="p-4 align-middle text-right text-default-500 pr-6 hidden sm:table-cell"
-                                            onClick={() => onNodeClick(item)}
-                                        >
-                                            <ClientFormattedDate date={item.lastModified} formatString="PP" />
-                                        </td>
-                                        <td className="p-0 align-middle text-right pr-2 w-[50px]">
-                                            {item.type === 'file' && (
-                                                <Dropdown>
-                                                    <Button
-                                                        isIconOnly
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-default-400 hover:text-foreground"
-                                                    >
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                    <Dropdown.Popover>
-                                                        <Dropdown.Menu aria-label="File Actions">
-                                                            <Dropdown.Item
-                                                                key="view"
-                                                                textValue="View Details"
-                                                                onPress={() => onNodeClick(item)}
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <PlayCircle className="h-4 w-4" /> View Details
-                                                                </div>
-                                                            </Dropdown.Item>
-                                                            <Dropdown.Item
-                                                                key="delete"
-                                                                className="text-danger"
-                                                                textValue="Delete"
-                                                                onPress={() => onDeleteClick(item)}
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <Trash2 className="h-4 w-4" /> Delete
-                                                                </div>
-                                                            </Dropdown.Item>
-                                                        </Dropdown.Menu>
-                                                    </Dropdown.Popover>
-                                                </Dropdown>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={5} className="p-16 text-center text-default-500">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-default-100 text-default-300">
-                                                <Folder className="h-7 w-7" />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-foreground">This folder is empty</p>
-                                                <p className="mt-1 text-sm text-default-500">
-                                                    Use the breadcrumbs to move elsewhere or return later after new uploads land.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </Card.Content>
-        </Card>
-    );
+    return <Card className="min-w-0">
+        <Card.Header className="flex flex-col items-start gap-3">
+            <div className="flex w-full items-center justify-between gap-3"><h2 className="min-w-0 break-words text-xl font-semibold">{currentLocation}</h2><span className="shrink-0 text-sm text-muted">{items.length} items</span></div>
+            {breadcrumbs}
+        </Card.Header>
+        <Card.Content className="min-w-0">
+            <Table><Table.ScrollContainer><Table.Content aria-label="Files">
+                <Table.Header><Table.Column id="name" isRowHeader>Name</Table.Column><Table.Column id="type">Type</Table.Column><Table.Column id="size">Size</Table.Column><Table.Column id="date">Call date</Table.Column><Table.Column id="actions" aria-label="Actions">Actions</Table.Column></Table.Header>
+                <Table.Body renderEmptyState={() => <p className="py-8 text-center text-muted">This folder is empty</p>}>
+                    {items.map(item => <Table.Row key={item.id} id={item.id} textValue={item.name}>
+                        <Table.Cell className="max-w-sm">{openButton(item)}</Table.Cell>
+                        <Table.Cell className="capitalize text-muted">{item.type}</Table.Cell>
+                        <Table.Cell className="text-muted">{item.size || '—'}</Table.Cell>
+                        <Table.Cell className="text-muted">{item.type === 'file' ? <ClientFormattedDate date={item.lastModified} formatString="PP · p" /> : '—'}</Table.Cell>
+                        <Table.Cell>{actions(item)}</Table.Cell>
+                    </Table.Row>)}
+                </Table.Body>
+            </Table.Content></Table.ScrollContainer></Table>
+        </Card.Content>
+    </Card>;
 }

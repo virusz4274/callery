@@ -22,11 +22,11 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
         <div
             className={cn(
                 'w-full min-w-0 flex-1',
-                isMobileDetailView ? 'block' : 'hidden lg:block'
+                isMobileDetailView ? 'block' : 'hidden md:block'
             )}
         >
             <div className="space-y-5">
-                <div className="hidden lg:block">
+                <div className="hidden md:block">
                     <div className="flex items-center gap-4">
                         {ActiveTabIcon && (
                             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
@@ -39,7 +39,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                     </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                     <ClientOnly>
                         {state.activeTab === 'profile' && (
                             <ProfileSettings

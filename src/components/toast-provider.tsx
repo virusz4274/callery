@@ -52,10 +52,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return (
         <ToastContext.Provider value={{ toast, dismiss }}>
             {children}
-            <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-full max-w-sm pointer-events-none">
+            <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex max-h-[calc(100dvh-1.5rem)] flex-col gap-2 overflow-y-auto pointer-events-none md:inset-x-auto md:top-auto md:bottom-4 md:right-4 md:w-full md:max-w-sm">
                 {toasts.map((t) => (
                     <div key={t.id} className="pointer-events-auto animate-in slide-in-from-bottom-5 fade-in duration-300 relative">
-                        <Alert status={t.status} className="pr-10 shadow-lg">
+                        <Alert status={t.status} className="min-w-0 pr-14 shadow-lg [overflow-wrap:anywhere]">
                             <Alert.Indicator />
                             <Alert.Content>
                                 {t.title && <Alert.Title className="font-bold">{t.title}</Alert.Title>}
@@ -67,8 +67,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                             variant="ghost"
                             size="sm"
                             onPress={() => dismiss(t.id)}
-                            className="absolute top-2 right-2 text-foreground/50 hover:text-foreground"
-                            aria-label="Close"
+                            className="absolute top-1 right-1 size-11 text-muted hover:text-foreground"
+                            aria-label="Dismiss notification"
                         >
                             <X className="h-4 w-4" />
                         </Button>

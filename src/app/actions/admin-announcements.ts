@@ -2,6 +2,7 @@
 
 import { logger } from '@/lib/logger';
 
+import { AdminAnnouncementSchema, validationFailure } from '@/lib/admin-validation';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { Announcement, AnnouncementResponse, CreateAnnouncementInput, UpdateAnnouncementInput } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
@@ -78,6 +79,8 @@ export async function getActiveAnnouncements() {
  */
 export async function createAnnouncement(data: CreateAnnouncementInput) {
     const admin = await requireCurrentAdmin();
+    const validation = AdminAnnouncementSchema.safeParse(data);
+    if (!validation.success) return validationFailure(validation.error);
 
     const db = await getMongoDb();
     const now = new Date();
@@ -110,6 +113,11 @@ export async function updateAnnouncement(id: string, data: UpdateAnnouncementInp
 
     const db = await getMongoDb();
     const announcementObjectId = parseObjectId(id, 'announcementId');
+    const existing = await db.collection<Announcement>(Collections.ANNOUNCEMENTS).findOne({ _id: announcementObjectId });
+    if (!existing) throw new Error('Announcement not found');
+    const validation = AdminAnnouncementSchema.safeParse({ ...existing, ...data });
+    if (!validation.success) return validationFailure(validation.error);
+
 
     await db.collection(Collections.ANNOUNCEMENTS).updateOne(
         { _id: announcementObjectId },

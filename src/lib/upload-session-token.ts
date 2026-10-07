@@ -17,6 +17,7 @@ export interface UploadSessionPayload extends JWTPayload {
     contactName: string | null;
     phoneNumber: string;
     googleContactId?: string;
+    contactMatchSource?: 'phone' | 'name';
     recordedAtIso: string;
     standardizedDisplayName: string;
 }
@@ -56,6 +57,7 @@ export async function verifyUploadSessionToken(token: string): Promise<UploadSes
             contactId: typeof payload.contactId === 'string' ? payload.contactId : null,
             contactName: typeof payload.contactName === 'string' ? payload.contactName : null,
             phoneNumber: payload.phoneNumber,
+            contactMatchSource: payload.contactMatchSource === 'phone' || payload.contactMatchSource === 'name' ? payload.contactMatchSource : undefined,
             googleContactId: typeof payload.googleContactId === 'string' ? payload.googleContactId : undefined,
             recordedAtIso: payload.recordedAtIso,
             standardizedDisplayName: payload.standardizedDisplayName,

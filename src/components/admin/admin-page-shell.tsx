@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Chip, Surface } from '@heroui/react';
+import { Card, Surface } from '@heroui/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     Activity,
@@ -54,38 +54,32 @@ type AdminStat = {
 type AdminPageShellProps = {
     eyebrow: string;
     title: string;
-    description: string;
+    description?: string;
     actions?: React.ReactNode;
     stats?: AdminStat[];
     children: React.ReactNode;
 };
 
-export function AdminPageShell({ eyebrow, title, description, actions, stats, children }: AdminPageShellProps) {
+export function AdminPageShell({ title, description, actions, stats, children }: AdminPageShellProps) {
     return (
-        <div className="relative space-y-8">
-            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.14),transparent_34%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_28%)]" />
+        <div className="space-y-6">
 
-            <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-                <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_auto] xl:items-start">
-                    <div className="space-y-4">
-                        <Chip variant="soft" color="accent" size="sm">
-                            {eyebrow}
-                        </Chip>
+            <Card className="gap-0 overflow-hidden p-0">
+                <div className="flex flex-wrap items-start justify-between gap-3 p-4 md:p-5">
+                    <div className="min-w-0 space-y-2">
                         <div className="space-y-3">
-                            <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
+                            <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
                                 {title}
                             </h1>
-                            <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                                {description}
-                            </p>
+                            {description && <p className="max-w-2xl text-sm leading-6 text-muted">{description}</p>}
                         </div>
                     </div>
 
-                    {actions && <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">{actions}</div>}
+                    {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
                 </div>
 
                 {stats && stats.length > 0 && (
-                    <div className="grid gap-3 border-t border-default-100/80 bg-default-50/50 px-5 py-5 md:grid-cols-2 xl:grid-cols-4 md:px-8">
+                    <div style={{ "--admin-stat-count": stats.length } as React.CSSProperties} className="grid grid-cols-1 gap-3 border-t border-border p-4 min-[360px]:grid-cols-2 xl:grid-cols-[repeat(var(--admin-stat-count),minmax(0,1fr))] md:p-5">
                         {stats.map((stat) => {
                             const Icon = stat.iconName ? ADMIN_STAT_ICONS[stat.iconName] : stat.icon;
 
@@ -93,22 +87,22 @@ export function AdminPageShell({ eyebrow, title, description, actions, stats, ch
                                 <Surface
                                     key={stat.label}
                                     variant="secondary"
-                                    className="rounded-[1.5rem] border border-default-200/80 p-4"
+                                    className="p-3"
                                 >
                                     <div className="space-y-1">
-                                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                                        <div className="flex items-center gap-2 text-sm font-medium text-muted">
                                             {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
                                             {stat.label}
                                         </div>
-                                        <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                                        <div className="text-sm text-default-500">{stat.helper}</div>
+                                        <div className="break-words text-2xl font-semibold text-foreground">{stat.value}</div>
+                                        <div className="hidden text-xs leading-5 text-muted md:block">{stat.helper}</div>
                                     </div>
                                 </Surface>
                             );
                         })}
                     </div>
                 )}
-            </section>
+            </Card>
 
             {children}
         </div>

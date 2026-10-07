@@ -1,127 +1,52 @@
-import { Avatar, Button, Checkbox, Chip } from '@heroui/react';
+import { getRecordingCallerLabel } from '@/lib/recording-label';
+import { Avatar, Button, Checkbox, Table } from '@heroui/react';
 import type { Recording } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
-import { ExpandableSummary } from '@/components/expandable-summary';
 import { formatDuration } from '../format-duration';
 import { RecordingActionsMenu } from './recording-actions-menu';
-import { RecordingProviderBadge } from './recording-provider-badge';
+import { SummaryPreview } from '../summary-preview';
 
 type RecordingsTableRowProps = {
     recording: Recording;
     selected: boolean;
-    onToggleSelect: (id: string) => void;
     onOpenDialog: (recording: Recording) => void;
+    onPlayRecording?: (recording: Recording) => void;
     onDeleteRequest: (recordings: Recording[]) => void;
     onRetryTranscription?: (recording: Recording) => void;
     density?: 'comfortable' | 'dense';
 };
 
-export function RecordingsTableRow({
-    recording,
-    selected,
-    onToggleSelect,
-    onOpenDialog,
-    onDeleteRequest,
-    onRetryTranscription,
-    density = 'comfortable',
-}: RecordingsTableRowProps) {
-    return (
-        <tr
-            className={`group transition-all duration-200 ${
-                selected ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-default-100/50'
-            }`}
-        >
-            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
-                <div className="flex items-center justify-center relative h-5 w-5">
-                    <div
-                        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
-                            selected ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'
-                        }`}
-                    >
-                        <Checkbox
-                            isSelected={selected}
-                            onChange={() => onToggleSelect(recording.id)}
-                            aria-label="Select row"
-                        >
-                            <Checkbox.Control>
-                                <Checkbox.Indicator />
-                            </Checkbox.Control>
-                        </Checkbox>
-                    </div>
-                </div>
-            </td>
-
-            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
-                <div className={`flex items-center ${density === 'dense' ? 'gap-3' : 'gap-4'}`}>
-                    <Avatar
-                        className={`${density === 'dense' ? 'h-9 w-9' : 'h-10 w-10'} transition-transform group-hover:scale-105 ring-2 ${
-                            selected ? 'ring-primary' : 'ring-transparent group-hover:ring-default-200'
-                        }`}
-                        color={selected ? 'success' : 'default'}
-                    >
-                        <Avatar.Fallback>{recording.contactName ? recording.contactName.charAt(0) : '#'}</Avatar.Fallback>
-                    </Avatar>
-                    <div>
-                        <div className={`font-semibold ${selected ? 'text-primary' : 'text-foreground'}`}>
-                            {recording.contactName || 'Unknown Caller'}
-                        </div>
-                        <div className="text-xs text-default-500 font-mono">{recording.phoneNumber}</div>
-                    </div>
-                </div>
-            </td>
-
-            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
-                <div className="flex flex-col gap-1">
-                    <Button variant="ghost" onPress={() => onOpenDialog(recording)}
-                        className="h-auto min-h-8 max-w-xs justify-start rounded-sm p-0 text-left text-sm font-medium text-foreground hover:text-accent">
-                        <span className="truncate" title={recording.standardizedDisplayName || recording.fileName}>
-                            {recording.standardizedDisplayName || recording.fileName}
-                        </span>
+export function RecordingsTableRow({ recording, selected, onOpenDialog,
+    onDeleteRequest, onPlayRecording, onRetryTranscription, density = 'comfortable' }: RecordingsTableRowProps) {
+    const caller = getRecordingCallerLabel(recording);
+    const cell = `${density === 'dense' ? 'px-3 py-3' : 'px-4 py-4'} align-top`;
+    return <Table.Row key={recording.id} id={recording.id} textValue={caller} className={`group transition-colors ${selected ? 'bg-accent/10' : 'hover:bg-surface-secondary'}`}>
+        <Table.Cell className={cell}>
+            <div className="flex items-center justify-center"><Checkbox slot="selection" aria-label={`Select ${caller}`}>
+                <Checkbox.Content className="min-h-11 min-w-11 justify-center"><Checkbox.Control className={selected ? undefined : 'border-muted'}><Checkbox.Indicator /></Checkbox.Control></Checkbox.Content>
+            </Checkbox></div>
+        </Table.Cell>
+        <Table.Cell className={cell}>
+            <div className="flex min-w-0 items-start gap-3">
+                <Avatar className="mt-1 size-8 shrink-0" color="default"><Avatar.Fallback>{recording.contactName?.charAt(0) || '#'}</Avatar.Fallback></Avatar>
+                <div className="min-w-0 flex-1">
+                    <Button variant="ghost" type="button" aria-label={caller} onPress={() => onOpenDialog(recording)} className="min-h-11 h-auto max-w-full flex-col items-start justify-start whitespace-normal text-left">
+                        <span className="block break-words text-sm font-semibold leading-5 text-foreground">{caller}</span>
+                        {recording.phoneNumber && recording.phoneNumber !== 'Unknown' && recording.phoneNumber !== caller && <span className="mt-1 block break-all font-mono text-xs leading-5 text-muted">{recording.phoneNumber}</span>}
                     </Button>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs tabular-nums text-muted">
-                            {formatDuration(recording.duration)}
-                        </span>
-                        <Chip variant="soft" color={recording.transcriptionStatus === 'completed' ? 'success' : recording.transcriptionStatus === 'failed' ? 'danger' : 'default'} size="sm">
-                            {recording.transcriptionStatus === 'completed' ? 'Transcribed' : recording.transcriptionStatus === 'processing' ? 'Processing' : recording.transcriptionStatus === 'failed' ? 'Failed' : 'Not transcribed'}
-                        </Chip>
-                    </div>
-                    <div className="opacity-80 group-hover:opacity-100 transition-opacity max-w-[200px] lg:max-w-xs text-wrap">
-                        <ExpandableSummary
-                            text={
-                                recording.summary ||
-                                (recording.fullTranscript && recording.fullTranscript[0]?.text) ||
-                                'No transcript available...'
-                            }
-                            compactMaxLength={density === 'dense' ? 72 : 100}
-                            className="text-default-500"
-                        />
-                    </div>
-                    <div className="flex gap-1 mt-1">
-                        <RecordingProviderBadge recording={recording} />
-                    </div>
                 </div>
-            </td>
-
-            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top`}>
-                <div className="text-sm text-default-600">
-                    <ClientFormattedDate date={recording.recordedAt} formatString="MMM d, yyyy" />
-                </div>
-                <div className="text-xs text-default-400">
-                    <ClientFormattedDate date={recording.recordedAt} formatString="h:mm a" />
-                </div>
-            </td>
-
-            <td className={`${density === 'dense' ? 'px-3 py-2.5' : 'p-4'} align-top text-right`}>
-                <div className="relative flex justify-end items-center gap-2">
-                    <RecordingActionsMenu
-                        recording={recording}
-                        onOpenDialog={onOpenDialog}
-                        onDeleteRequest={onDeleteRequest}
-                        onRetryTranscription={onRetryTranscription}
-                    />
-                </div>
-            </td>
-        </tr>
-    );
+            </div>
+        </Table.Cell>
+        <Table.Cell className={cell}>
+            <SummaryPreview recording={recording} density={density} />
+            <p className="mt-1 text-xs leading-5 tabular-nums text-muted">{formatDuration(recording.duration)}</p>
+        </Table.Cell>
+        <Table.Cell className={cell}>
+            <p className="text-sm leading-5 text-foreground"><ClientFormattedDate date={recording.recordedAt} formatString="MMM d, yyyy" /></p>
+            <p className="mt-1 text-xs leading-5 text-muted"><ClientFormattedDate date={recording.recordedAt} formatString="h:mm a" /></p>
+        </Table.Cell>
+        <Table.Cell className={`${cell} text-right`}><div className="-mt-1 flex items-center justify-end gap-1">
+            <RecordingActionsMenu recording={recording} onOpenDialog={onOpenDialog} onPlayRecording={onPlayRecording} onDeleteRequest={onDeleteRequest} onRetryTranscription={onRetryTranscription} />
+        </div></Table.Cell>
+    </Table.Row>;
 }

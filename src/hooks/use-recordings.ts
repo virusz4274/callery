@@ -32,7 +32,7 @@ export function useRecordings(
         return response;
     }, {
         // SWR Configuration
-        revalidateOnFocus: false,
+        revalidateOnFocus: true,
         dedupingInterval: 5000,
     });
 

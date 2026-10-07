@@ -2,6 +2,7 @@ import type { Contact } from '@/lib/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
 
 export type SavedRecordingsView = {
+    needsTranscription?: boolean;
     id: string;
     name: string;
     search?: string;
@@ -19,6 +20,7 @@ export type SmartCollection = {
 };
 
 export type RecordingsToolbarProps = {
+    onApplyMobileFilters: (filters: MobileRecordingFilters) => void;
     searchMode: 'text' | 'semantic';
     onSearchModeChange: (mode: 'text' | 'semantic') => void;
     search: string;
@@ -33,6 +35,9 @@ export type RecordingsToolbarProps = {
     contactId?: string;
     onContactChange: (id?: string) => void;
     semanticQuery: string;
+    semanticSubmittedQuery?: string;
+    semanticError?: string;
+    onRetrySemanticSearch: () => void;
     onSemanticQueryChange: (val: string) => void;
     onSemanticSearch: () => void;
     onClearSemanticSearch: () => void;
@@ -51,4 +56,16 @@ export type RecordingsToolbarProps = {
     density: 'comfortable' | 'dense';
     onDensityChange: (density: 'comfortable' | 'dense') => void;
     onResetAll: () => void;
+};
+
+export type MobileRecordingFilters = {
+    search: string;
+    contactId?: string;
+    startDate?: string;
+    endDate?: string;
+    sortBy: 'date' | 'duration';
+    sortOrder: 'asc' | 'desc';
+    density: 'comfortable' | 'dense';
+    viewId?: string;
+    collectionId?: string;
 };

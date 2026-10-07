@@ -67,7 +67,7 @@ export function DataSettings({
         <>
             <div className="space-y-6">
                 {mode === 'sources' && (
-                <SettingsSection title="Sources" description="Connect or review the services that supply contacts and incoming data.">
+                <SettingsSection title="Sources">
                     <GoogleConnectCard
                         googleSync={userProfile?.googleSync}
                         isSyncing={isSyncing}
@@ -79,7 +79,7 @@ export function DataSettings({
                 )}
 
                 {mode === 'processing' && (
-                <SettingsSection title="Processing" description="Choose how new recordings are transcribed and which provider runs automated jobs.">
+                <SettingsSection title="Processing">
                     <TranscriptionSettingsCard
                         autoTranscribe={settings.transcriptionSettings.autoTranscribe}
                         defaultProvider={settings.transcriptionSettings.defaultProvider}
@@ -100,7 +100,7 @@ export function DataSettings({
                 )}
 
                 {mode === 'retention' && (
-                <SettingsSection title="Retention" description="Track storage and transcription usage, then tune how aggressively old recordings are removed.">
+                <SettingsSection title="Retention">
                     <UsageStorageCard
                         userProfile={userProfile}
                         deletionPolicy={settings.deletionPolicy}
@@ -117,7 +117,7 @@ export function DataSettings({
                 )}
 
                 {mode === 'export' && (
-                <SettingsSection title="Export" description="Create a portable archive of recordings, transcripts, metadata, and the offline viewer.">
+                <SettingsSection title="Export">
                     <ExportDataCard
                         exportJob={exportJob}
                         isExportStarting={isExportStarting}

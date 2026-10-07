@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 import { getR2ObjectDurationSeconds, storageBucket, getStorageClient, getPresignClient, validateAudioMimeType } from '@/lib/r2';
 import { reportUsage } from '@/lib/stripe/usage';
 import { createUploadSessionToken, verifyUploadSessionToken } from '@/lib/upload-session-token';
-import { prepareUploadContext } from '@/app/actions/upload/prepare-upload-context';
+import { prepareUploadContext, refreshUploadSessionContact } from '@/app/actions/upload/prepare-upload-context';
 
 const DIRECT_UPLOAD_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 15 * 60;
@@ -120,6 +120,7 @@ export async function initializeDirectUploadForUser(
             contactName: prepared.contactName,
             phoneNumber: prepared.phoneNumber,
             googleContactId: prepared.googleContactId,
+            contactMatchSource: prepared.contactMatchSource,
             recordedAtIso: prepared.recordedAt.toISOString(),
             standardizedDisplayName: prepared.standardizedDisplayName,
         });
@@ -215,14 +216,16 @@ export async function completeDirectUploadForUser(
 
         const duration = await getR2ObjectDurationSeconds(payload.r2Key, effectiveMimeType, uploadedSize);
 
+        const caller = await refreshUploadSessionContact(authSubject, payload);
         const createdRecording = await createRecording({
             authSubject,
-            contactId: payload.contactId ? new ObjectId(payload.contactId) : null,
-            contactName: payload.contactName,
-            phoneNumber: payload.phoneNumber,
+            contactId: caller.contactId ? new ObjectId(caller.contactId) : null,
+            contactName: caller.contactName,
+            phoneNumber: caller.phoneNumber,
+            contactMatchSource: caller.contactMatchSource,
             r2Key: payload.r2Key,
             fileName: payload.fileName,
-            standardizedDisplayName: payload.standardizedDisplayName,
+            standardizedDisplayName: caller.standardizedDisplayName,
             fileSize: uploadedSize,
             mimeType: effectiveMimeType,
             duration: Math.round(duration),

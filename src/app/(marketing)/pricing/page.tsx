@@ -39,17 +39,17 @@ export default async function PricingPage() {
   return (
     <div className="relative overflow-hidden">
       <JsonLd data={jsonLd} />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top,rgba(38,132,255,0.16),transparent_42%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.12),transparent_30%)]" />
 
-      <section className="border-b border-default-100/80">
+
+      <section className="border-b border-border">
         <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
           <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
             Pricing
           </span>
-          <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.05em] text-foreground md:text-6xl">
+          <h1 className="mt-4 max-w-4xl text-2xl font-semibold text-foreground md:text-3xl">
             Compare the free, standard, pro, and custom lanes in one place.
           </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-default-600">
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
             Start with a lighter archive, then move into the lane that matches your storage,
             transcription, and rollout needs.
           </p>

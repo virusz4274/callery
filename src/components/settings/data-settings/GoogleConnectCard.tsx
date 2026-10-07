@@ -1,3 +1,4 @@
+import { ActionLink } from '@/components/action-link';
 import { Button, Card, Chip, Spinner } from '@heroui/react';
 import { AlertTriangle, ContactRound, ExternalLink } from 'lucide-react';
 import { GoogleIcon } from '@/components/icons/google-icon';
@@ -34,8 +35,6 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
         <Card className="rounded-2xl border border-border bg-surface shadow-none">
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
-                    <Chip size="sm" variant="soft" color="accent">Directory sync</Chip>
-                    <Chip size="sm" variant="soft" color="default">Google Contacts</Chip>
                     <Chip size="sm" variant="soft" color={status.color}>{status.text}</Chip>
                 </div>
 
@@ -45,9 +44,9 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                             <ContactRound className="h-5 w-5" />
                         </div>
                         <div className="space-y-2">
-                            <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">Match contacts automatically</h4>
+                            <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">Google Contacts</h4>
                             <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                Sync Google Contacts so uploaded calls resolve to real people faster and your recordings workspace stays easier to scan.
+                                Match recordings to your Google contacts.
                             </p>
                             {googleSync?.lastSyncedAt ? (
                                 <p className="text-xs text-default-400">
@@ -100,7 +99,7 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                                     Review duplicate Google numbers
                                 </div>
                                 <p className="text-sm leading-6 text-default-600">
-                                    Vosift is keeping these contacts separate because Google is the source of truth. Review them in Google Contacts and merge or edit them there if needed.
+                                    Merge or edit these contacts in Google Contacts. They stay separate here until synced.
                                 </p>
                                 {googleSync?.duplicatePhoneIssueDetectedAt ? (
                                     <p className="text-xs text-default-400">
@@ -108,17 +107,10 @@ export function GoogleConnectCard({ googleSync, isSyncing, isDisconnecting, onCo
                                     </p>
                                 ) : null}
                             </div>
-                            <a
-                                href="https://contacts.google.com/"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex"
-                            >
-                                <Button variant="secondary" className="rounded-full">
+                            <ActionLink href="https://contacts.google.com/" target="_blank" rel="noreferrer" variant="secondary" className="">
                                     Review in Google Contacts
                                     <ExternalLink className="h-4 w-4" />
-                                </Button>
-                            </a>
+                                </ActionLink>
                         </div>
                         <div className="mt-4 space-y-3">
                             {duplicatePhoneIssues.slice(0, 5).map((issue) => (

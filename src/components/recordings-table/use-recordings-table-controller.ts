@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useRecordingWorkspace } from '@/hooks/use-recording-workspace';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast-provider';
 import { useTableSelection } from '@/hooks/use-table-selection';
@@ -9,11 +10,13 @@ import type { Recording } from '@/lib/types';
 import type { TableSelectionState } from './types';
 
 type UseRecordingsTableControllerOptions = {
+    recordingWorkspace?: ReturnType<typeof useRecordingWorkspace>;
     recordings: Recording[];
     onRecordingsChange?: () => Promise<void> | void;
 };
 
 export function useRecordingsTableController({
+    recordingWorkspace,
     recordings,
     onRecordingsChange,
 }: UseRecordingsTableControllerOptions) {
@@ -36,24 +39,12 @@ export function useRecordingsTableController({
         [selectionHook]
     );
 
-    const [activeRecording, setActiveRecording] = useState<Recording | null>(null);
+    const internalWorkspace = useRecordingWorkspace(recordings, !recordingWorkspace);
+    const workspace = recordingWorkspace || internalWorkspace;
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [recordingsToDelete, setRecordingsToDelete] = useState<string[]>([]);
     const [isDeleting, startDeleteTransition] = useTransition();
     const [isSelectionMode, setIsSelectionMode] = useState(false);
-
-    const openDialog = useCallback((recording: Recording) => {
-        setActiveRecording(recording);
-    }, []);
-
-    const closeDialog = useCallback(() => {
-        setActiveRecording(null);
-    }, []);
-
-    const handleRecordingUpdated = useCallback(async (recording: Recording) => {
-        setActiveRecording(recording);
-        await onRecordingsChange?.();
-    }, [onRecordingsChange]);
 
     const handleDeleteRequest = useCallback((items: Recording[]) => {
         if (items.length === 0) {
@@ -93,29 +84,22 @@ export function useRecordingsTableController({
     }, [onRecordingsChange, recordingsToDelete, router, selection, toast]);
 
     const toggleSelectionMode = useCallback(() => {
-        setIsSelectionMode((prev) => {
-            const next = !prev;
-            if (!next) {
-                selection.clearSelection();
-            }
-            return next;
-        });
-    }, [selection]);
+        if (isSelectionMode) selection.clearSelection();
+        setIsSelectionMode(!isSelectionMode);
+    }, [isSelectionMode, selection]);
 
     return {
-        activeRecording,
+        workspace,
         isDeleting,
         isSelectionMode,
         recordingsToDelete,
         selection,
         showDeleteConfirm,
         setShowDeleteConfirm,
-        closeDialog,
+        openDialog: workspace.open,
         executeDelete,
-        handleRecordingUpdated,
         handleDeleteRequest,
         handleDeleteSelection,
-        openDialog,
         toggleSelectionMode,
     };
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, Chip, Modal } from '@heroui/react';
-import { Layers3 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Button, Modal } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { createPlan, updatePlan } from '@/app/actions/admin-plans';
+import { AdminPlanSchema, validationFailure, type AdminFieldErrors } from '@/lib/admin-validation';
+import { FieldError, focusInvalid } from './admin-form-errors';
 import { useToast } from '@/components/toast-provider';
 import type { PlanResponse } from '@/lib/db/types';
 import { PlanFormBody } from './plan-form-dialog/plan-form-body';
@@ -21,110 +22,81 @@ type PlanFormDialogProps = {
 };
 
 export function PlanFormDialog({ isOpen, onClose, planToEdit }: PlanFormDialogProps) {
+    const [pending, setPending] = useState(false);
     const formKey = `${planToEdit?.id ?? 'new'}-${isOpen ? 'open' : 'closed'}`;
 
     return (
-        <Modal isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <Modal.Backdrop className="bg-background/80 backdrop-blur-md">
-                <Modal.Container>
+        <Modal.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && !pending && onClose()} isDismissable={!pending}>
+                <Modal.Container size="lg" scroll="inside">
                     <Modal.Dialog
                         key={formKey}
-                        className="w-full max-w-4xl overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.55)]"
+                        className="w-full max-w-4xl overflow-hidden p-0"
                     >
-                        <Modal.CloseTrigger />
-                        <Modal.Header className="border-b border-default-100/80 px-6 py-6 sm:px-8">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <Chip variant="soft" color="default" className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                                        Billing catalog
-                                    </Chip>
-                                    <Chip variant="soft" color={planToEdit ? 'accent' : 'success'} className="rounded-full px-3 py-1 text-[11px] font-semibold">
-                                        {planToEdit ? 'Editing live plan' : 'New plan draft'}
-                                    </Chip>
-                                </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                        <Layers3 className="h-5 w-5" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h2 className="text-2xl font-bold tracking-[-0.04em] text-foreground">
-                                            {planToEdit ? 'Update subscription plan' : 'Create subscription plan'}
-                                        </h2>
-                                        <p className="max-w-2xl text-sm leading-6 text-default-500">
-                                            Define pricing, metered usage, and feature packaging in one place so the public pricing page and admin tools stay aligned.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                        <Modal.CloseTrigger className="size-11" aria-label="Close plan editor" isDisabled={pending} />
+                        <Modal.Header className="border-b border-border px-5 py-4 pr-16">
+                            <Modal.Heading className="text-xl font-semibold">{planToEdit ? 'Edit plan' : 'Create plan'}</Modal.Heading>
                         </Modal.Header>
-                        <PlanFormDialogContent planToEdit={planToEdit} onClose={onClose} />
+                        <PlanFormDialogContent planToEdit={planToEdit} onClose={onClose} onPendingChange={setPending} />
                     </Modal.Dialog>
                 </Modal.Container>
             </Modal.Backdrop>
-        </Modal>
     );
 }
 
 type PlanFormDialogContentProps = {
     onClose: () => void;
+    onPendingChange: (pending: boolean) => void;
     planToEdit?: PlanResponse | null;
 };
 
-function PlanFormDialogContent({ onClose, planToEdit }: PlanFormDialogContentProps) {
+function PlanFormDialogContent({ onClose, planToEdit, onPendingChange }: PlanFormDialogContentProps) {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, setIsPending] = useState(false);
+    const [errors, setErrors] = useState<AdminFieldErrors>({});
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const busy = useRef(false);
+    const form = useRef<HTMLFormElement>(null);
+    const mapErrors = (errors: AdminFieldErrors) => Object.fromEntries(Object.entries(errors).map(([key, value]) => [key === 'limits.storage' ? 'storageGB' : key === 'limits.transcription' ? 'transcriptionMinutes' : key, value]));
     const { values, setField } = usePlanFormState(getInitialPlanFormValues(planToEdit));
 
     const handleSubmit = async () => {
-        setIsPending(true);
+        if (busy.current) return;
+        const planData = buildPlanPayload(values, planToEdit);
+        const validation = AdminPlanSchema.safeParse(planData);
+        if (!validation.success) { setErrors(mapErrors(validationFailure(validation.error).fieldErrors)); focusInvalid(form.current); return; }
+        setErrors({}); setSaveError(null); busy.current = true; setIsPending(true); onPendingChange(true);
         try {
-            const planData = buildPlanPayload(values);
-            if (planToEdit) {
-                await updatePlan(planToEdit.id, planData);
-            } else {
-                await createPlan(planData);
-            }
+            const result = planToEdit ? await updatePlan(planToEdit.id, planData) : await createPlan(planData);
+            if (result && 'fieldErrors' in result) { setErrors(mapErrors(result.fieldErrors)); focusInvalid(form.current); return; }
 
             router.refresh();
             toast({
                 title: planToEdit ? 'Plan updated' : 'Plan created',
-                description: `${values.name || 'Plan'} is now synced with the admin catalog.`,
                 status: 'success',
             });
             onClose();
         } catch (error) {
-            console.error('Failed to save plan:', error);
+            setSaveError(error instanceof Error ? error.message : 'Please try again.');
             toast({
                 title: 'Plan save failed',
                 description: error instanceof Error ? error.message : 'Please review the plan details and try again.',
                 status: 'danger',
             });
         } finally {
-            setIsPending(false);
+            busy.current = false; setIsPending(false); onPendingChange(false);
         }
     };
 
     return (
         <>
-            <Modal.Body className="px-6 py-6 sm:px-8">
-                <PlanFormBody values={values} setField={setField} />
+            <Modal.Body className="px-5 py-4">
+                <form ref={form} id="admin-plan-form" noValidate onSubmit={event => { event.preventDefault(); void handleSubmit(); }}><PlanFormBody values={values} setField={setField} errors={errors} />{saveError && <p role="alert" className="mt-4 text-sm text-danger">{saveError} Your changes are retained; try saving again.</p>}<FieldError errors={errors} name="form" /></form>
             </Modal.Body>
 
-            <Modal.Footer className="border-t border-default-100/80 px-6 py-5 sm:px-8">
-                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-default-500">
-                        Changes here affect checkout flows, plan assignment, and what customers see on pricing.
-                    </p>
-                    <div className="flex gap-3 self-end">
-                        <Button variant="ghost" onPress={onClose} isDisabled={isPending}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" onPress={handleSubmit} isDisabled={isPending}>
-                            {isPending ? 'Saving...' : planToEdit ? 'Save changes' : 'Create plan'}
-                        </Button>
-                    </div>
-                </div>
+            <Modal.Footer className="flex-wrap gap-2 border-t border-border px-5 py-4">
+                <Button variant="secondary" className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal py-2" onPress={onClose} isDisabled={isPending}>Cancel</Button>
+                <Button type="submit" form="admin-plan-form" isPending={isPending} className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal py-2">{saveError ? 'Retry save' : planToEdit ? 'Save changes' : 'Create plan'}</Button>
             </Modal.Footer>
         </>
     );

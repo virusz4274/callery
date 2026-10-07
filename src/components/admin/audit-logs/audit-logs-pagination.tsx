@@ -15,8 +15,8 @@ export function AuditLogsPagination({ currentPage, totalPages, onPageChange }: A
     }
 
     return (
-        <div className="mt-6 flex flex-col gap-3 border-t border-default-100/80 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-default-500">
+        <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted">
                 Review adjacent pages to verify who changed what and when.
             </p>
             <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">

@@ -11,6 +11,7 @@ export interface SearchResponse {
     success: boolean;
     results: RecordingResponse[];
     totalCount?: number;
+    hasMore?: boolean;
     mode?: SemanticSearchMode;
     fallbackReason?: SemanticFallbackReason;
     error?: string;
@@ -23,11 +24,11 @@ export async function searchRecordingsAction(query: string, page: number = 1, pa
             return { success: false, results: [], error: 'Unauthorized' };
         }
 
-        const { results: searchResults, totalCount, mode, fallbackReason } = await searchRecordingsByVector(query, uid, page, pageSize);
+        const { results: searchResults, totalCount, hasMore, mode, fallbackReason } = await searchRecordingsByVector(query, uid, page, pageSize);
 
         const formattedResults: RecordingResponse[] = searchResults.map((recording) => toRecordingResponse(recording));
 
-        return { success: true, results: formattedResults, totalCount, mode, fallbackReason };
+        return { success: true, results: formattedResults, totalCount, hasMore, mode, fallbackReason };
     } catch (error) {
         logger.error('Search action error:', error);
         return { success: false, results: [], error: 'Search failed' };

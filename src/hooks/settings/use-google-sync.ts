@@ -92,7 +92,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
                     title: duplicatePhoneIssueCount > 0 ? 'Sync complete with review items' : 'Sync Complete',
                     description: duplicatePhoneIssueCount > 0
                         ? `${result.message || 'Google Contacts were refreshed.'} Review ${duplicatePhoneIssueCount} shared phone number${duplicatePhoneIssueCount === 1 ? '' : 's'} in Google Contacts.`
-                        : result.message || 'Google Contacts were refreshed.',
+                        : undefined,
                     status: 'success',
                 });
                 await refetchProfile();
@@ -140,7 +140,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
 
             toast({
                 title: 'Google Contacts disconnected',
-                description: 'You can now connect a different Google account. Your last synced contacts and recording labels stay available until the next sync.',
+                description: 'Synced contacts stay available until your next sync.',
                 status: 'success',
             });
             await refetchProfile();
@@ -184,7 +184,7 @@ export function useGoogleSync({ googleSync, refetchProfile, searchParams, router
         if (syncStatus === 'started') {
             toast({
                 title: 'Sync Started',
-                description: 'Contacts are syncing in the background.',
+                description: 'Syncing in the background.',
                 status: 'success',
             });
 

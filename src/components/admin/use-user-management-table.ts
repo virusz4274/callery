@@ -1,147 +1,71 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { deleteUser, restoreUser, toggleUserStatus, updateUserLimits, updateUserRole } from '@/app/actions/admin';
+import { useToast } from '@/components/toast-provider';
 import type { UserResponse } from '@/lib/db/types';
 
-const DEFAULT_STORAGE_ALLOCATION = 5 * 1024 * 1024 * 1024;
-const DEFAULT_TRANSCRIPTION_ALLOCATION = 60 * 60;
-
+type UserAction = 'delete' | 'role' | 'status' | 'limits';
 export function useUserManagementTable(initialSearch: string) {
     const [userToManage, setUserToManage] = useState<UserResponse | null>(null);
     const [userToEditLimits, setUserToEditLimits] = useState<UserResponse | null>(null);
     const [userToEditUsage, setUserToEditUsage] = useState<UserResponse | null>(null);
     const [searchTerm, setSearchTerm] = useState(initialSearch);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
-
+    const [pendingUser, setPendingUser] = useState<string | null>(null);
+    const busy = useRef(false);
+    const [confirmation, setConfirmation] = useState<{ user: UserResponse; action: UserAction } | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
     const [isPending, startTransition] = useTransition();
-
-    const updateSearchParams = useCallback(
-        (updates: Record<string, string | null>) => {
-            const params = new URLSearchParams(searchParams);
-
-            Object.entries(updates).forEach(([key, value]) => {
-                if (!value) {
-                    params.delete(key);
-                } else {
-                    params.set(key, value);
-                }
-            });
-
-            return `${pathname}?${params.toString()}`;
-        },
-        [pathname, searchParams]
-    );
-
-    const handleSearch = useCallback(
-        (term: string) => {
-            router.replace(updateSearchParams({ search: term || null, page: '1' }));
-        },
-        [router, updateSearchParams]
-    );
-
+    const { toast } = useToast();
+    const updateSearchParams = useCallback((updates: Record<string, string | null>) => {
+        const params = new URLSearchParams(searchParams);
+        for (const [key, value] of Object.entries(updates)) { if (value) params.set(key, value); else params.delete(key); }
+        return params.size ? `${pathname}?${params}` : pathname;
+    }, [pathname, searchParams]);
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (searchTerm !== initialSearch) {
-                handleSearch(searchTerm);
-            }
+        const timeout = setTimeout(() => {
+            if (searchTerm !== initialSearch) startTransition(() => router.replace(updateSearchParams({ search: searchTerm || null, page: '1' }), { scroll: false }));
         }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [handleSearch, initialSearch, searchTerm]);
-
-    const handlePageChange = (page: number) => {
-        router.push(updateSearchParams({ page: page.toString() }));
-    };
-
-    const handleToggleStatus = (userId: string, currentStatus?: boolean) => {
-        startTransition(async () => {
-            await toggleUserStatus(userId, !currentStatus);
-        });
-    };
-
-    const handleToggleRole = (userId: string, currentRole: 'user' | 'admin') => {
-        const newRole = currentRole === 'admin' ? 'user' : 'admin';
-        startTransition(async () => {
-            await updateUserRole(userId, newRole);
-        });
-    };
-
-    const handleResetLimits = (userId: string) => {
-        if (!confirm('Are you sure you want to reset this users limits to default (5GB, 60min)?')) {
-            return;
-        }
-
-        startTransition(async () => {
-            await updateUserLimits(userId, {
-                storageAllocation: DEFAULT_STORAGE_ALLOCATION,
-                transcriptionAllocation: DEFAULT_TRANSCRIPTION_ALLOCATION,
-            });
-        });
-    };
-
-    const closeDialogs = () => {
-        setUserToManage(null);
-        setUserToEditLimits(null);
-        setUserToEditUsage(null);
-    };
-
-    const handleDeleteUser = async (userId: string) => {
-        if (
-            !confirm(
-                'Are you sure you want to schedule this user for deletion? The account will be disabled immediately and can be restored during the restore window.'
-            )
-        ) {
-            return;
-        }
-
-        setIsDeleting(userId);
+        return () => clearTimeout(timeout);
+    }, [initialSearch, searchTerm, router, updateSearchParams]);
+    useEffect(() => {
+        const restoreSearch = () => setSearchTerm(new URL(location.href).searchParams.get('search') || '');
+        window.addEventListener('popstate', restoreSearch);
+        return () => window.removeEventListener('popstate', restoreSearch);
+    }, []);
+    const runAction = async (user: UserResponse, action: UserAction | 'restore') => {
+        if (busy.current) return;
+        busy.current = true; setPendingUser(user.id); setActionError(null);
         try {
-            await deleteUser(userId);
-            router.refresh();
+            if (action === 'delete') await deleteUser(user.id);
+            if (action === 'restore') await restoreUser(user.id);
+            if (action === 'role') await updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin');
+            if (action === 'status') await toggleUserStatus(user.id, !user.disabled);
+            if (action === 'limits') { const result = await updateUserLimits(user.id, { storageAllocation: 5 * 1024 ** 3, transcriptionAllocation: 3600 }); if (result?.fieldErrors) throw new Error(Object.values(result.fieldErrors).join(' ')); }
+            toast({ title: action === 'restore' ? 'User restored' : 'User updated', status: 'success' });
+            setConfirmation(null); router.refresh();
         } catch (error) {
-            alert('Failed to delete user');
-            console.error(error);
-        } finally {
-            setIsDeleting(null);
-        }
+            const message = error instanceof Error ? error.message : 'Please try again.';
+            setActionError(message); toast({ title: 'Unable to update user', description: message, status: 'danger' });
+        } finally { busy.current = false; setPendingUser(null); }
     };
-
-    const handleRestoreUser = async (userId: string) => {
-        setIsDeleting(userId);
-        try {
-            await restoreUser(userId);
-            router.refresh();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Failed to restore user');
-            console.error(error);
-        } finally {
-            setIsDeleting(null);
-        }
-    };
-
+    const requestAction = (user: UserResponse, action: UserAction) => { setActionError(null); setConfirmation({ user, action }); };
+    const closeDialogs = () => { setUserToManage(null); setUserToEditLimits(null); setUserToEditUsage(null); };
     return {
-        isPending,
-        isDeleting,
-        searchTerm,
-        userToManage,
-        userToEditLimits,
-        userToEditUsage,
-        setSearchTerm,
-        setUserToManage,
-        setUserToEditLimits,
-        setUserToEditUsage,
-        closeDialogs,
-        handleDeleteUser,
-        handleRestoreUser,
-        handlePageChange,
-        handleResetLimits,
-        handleToggleRole,
-        handleToggleStatus,
+        isPending, pendingUser, searchTerm, userToManage, userToEditLimits, userToEditUsage,
+        setSearchTerm, setUserToManage, setUserToEditLimits, setUserToEditUsage, closeDialogs,
+        confirmation, actionError, closeConfirmation: () => { if (!busy.current) setConfirmation(null); },
+        confirmAction: () => { if (confirmation) void runAction(confirmation.user, confirmation.action); },
+        handleDeleteUser: (user: UserResponse) => requestAction(user, 'delete'),
+        handleRestoreUser: (user: UserResponse) => void runAction(user, 'restore'),
+        handleToggleRole: (user: UserResponse) => requestAction(user, 'role'),
+        handleToggleStatus: (user: UserResponse) => requestAction(user, 'status'),
+        handleResetLimits: (user: UserResponse) => requestAction(user, 'limits'),
+        handlePageChange: (page: number) => startTransition(() => router.push(updateSearchParams({ page: String(page) }))),
         router,
     };
 }

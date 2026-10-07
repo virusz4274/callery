@@ -1,3 +1,5 @@
+import { geminiModel } from './config';
+
 // Lazy server configuration: importing a route never requires unused services.
 function numberSetting(name: string, fallback: number): number {
     const raw = process.env[name];
@@ -26,9 +28,10 @@ export const env = {
     get GOOGLE_CLIENT_SECRET() { return process.env.GOOGLE_CLIENT_SECRET || ''; },
     get NEXT_PUBLIC_GOOGLE_REDIRECT_URI() { return process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || ''; },
     get GOOGLE_GENERATIVE_AI_API_KEY() { return process.env.GOOGLE_GENERATIVE_AI_API_KEY || ''; },
-    get GEMINI_MODEL_SUMMARY() { return process.env.GEMINI_MODEL_SUMMARY || 'gemini-2.5-flash'; },
-    get GEMINI_MODEL_TRANSLITERATION() { return process.env.GEMINI_MODEL_TRANSLITERATION || 'gemini-2.5-flash'; },
-    get GEMINI_MODEL_EMBEDDING() { return process.env.GEMINI_MODEL_EMBEDDING || 'gemini-embedding-001'; },
+    get GEMINI_MODEL_TRANSCRIPTION() { return geminiModel('transcription'); },
+    get GEMINI_MODEL_SUMMARY() { return geminiModel('summary'); },
+    get GEMINI_MODEL_TRANSLITERATION() { return geminiModel('transliteration'); },
+    get GEMINI_MODEL_EMBEDDING() { return geminiModel('embedding'); },
     get SONIOX_API_KEY() { return process.env.SONIOX_API_KEY || ''; },
     get SONIOX_API_BASE_URL() { return process.env.SONIOX_API_BASE_URL || 'https://api.soniox.com/v1'; },
     get SONIOX_MODEL_ID() { return process.env.SONIOX_MODEL_ID || 'stt-async-v4'; },

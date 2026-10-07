@@ -14,10 +14,10 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
     const isSoftDeleted = user.softDelete?.isDeleted;
 
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card>
             <Card.Header className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-start">
-                <div className="flex items-start gap-4">
-                <Avatar className="h-16 w-16">
+                <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="size-12 shrink-0">
                     <Avatar.Image src={user.photoURL} alt={user.name} />
                     <Avatar.Fallback>{user.name.charAt(0)}</Avatar.Fallback>
                 </Avatar>
@@ -33,14 +33,13 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                         )}
                     </div>
                     <div>
-                        <h2 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">{user.name}</h2>
-                        <p className="text-default-500">{user.phoneNumber || 'No phone number on file'}</p>
+                        <p className="break-all text-sm text-muted">{user.phoneNumber || 'No phone number on file'}</p>
                     </div>
                 </div>
                 </div>
                 <div className="flex gap-2 md:ml-auto">
                     {isSoftDeleted ? (
-                        <Button variant="secondary" className="rounded-full px-6 font-semibold" isDisabled={isRestoring} onPress={onRestoreUser}>
+                        <Button variant="secondary" className="min-h-11 px-4" isDisabled={isRestoring} onPress={onRestoreUser}>
                             {isRestoring ? (
                                 'Restoring...'
                             ) : (
@@ -51,7 +50,7 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                             )}
                         </Button>
                     ) : (
-                        <Button variant="danger-soft" className="rounded-full px-6 font-semibold" isDisabled={isDeleting} onPress={onDeleteUser}>
+                        <Button variant="danger-soft" className="min-h-11 px-4" isDisabled={isDeleting} onPress={onDeleteUser}>
                             {isDeleting ? (
                                 'Deleting...'
                             ) : (

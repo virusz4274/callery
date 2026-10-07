@@ -24,7 +24,7 @@ export function useUserProfile(user: AppUser | null) {
             if (!response.ok) throw new Error('Failed to fetch user profile');
             return (await response.json()).profile as User;
         },
-        { errorRetryCount: 3, errorRetryInterval: 1000, revalidateOnFocus: true },
+        { errorRetryCount: 3, errorRetryInterval: 1000, revalidateOnFocus: true, refreshInterval: (profile: User | undefined) => profile?.googleSync.status === 'syncing' ? 2000 : 0 },
     );
     return {
         userProfile: user ? data ?? null : null,
