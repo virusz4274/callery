@@ -1,3 +1,4 @@
+import { numericInput } from '@/lib/admin-validation';
 import { useState } from 'react';
 import type { PlanResponse } from '@/lib/db/types';
 import type { PlanFormValues } from './types';
@@ -57,20 +58,20 @@ export function usePlanFormState(initialValues: PlanFormValues) {
     };
 }
 
-export function buildPlanPayload(values: PlanFormValues) {
+export function buildPlanPayload(values: PlanFormValues, original?: PlanResponse | null) {
     return {
         key: values.key.trim(),
-        name: values.name,
+        name: values.name.trim(),
         description: values.description,
         stripePriceId: values.stripePriceId,
         stripeStoragePriceId: values.stripeStoragePriceId,
         stripeTranscriptionPriceId: values.stripeTranscriptionPriceId,
-        price: parseFloat(values.price),
+        price: numericInput(values.price),
         currency: 'USD',
         interval: values.interval,
         limits: {
-            storage: parseFloat(values.storageGB) * 1024 * 1024 * 1024,
-            transcription: parseFloat(values.transcriptionMinutes) * 60,
+            storage: original && values.storageGB === String(original.limits.storage / 1024 ** 3) ? original.limits.storage : numericInput(values.storageGB) * 1024 ** 3,
+            transcription: original && values.transcriptionMinutes === String(original.limits.transcription / 60) ? original.limits.transcription : numericInput(values.transcriptionMinutes) * 60,
         },
         features: values.featuresInput.split('\n').filter((feature) => feature.trim()),
         isDefault: values.isDefault,

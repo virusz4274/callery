@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, usePathname } from 'next/navigation';
 import { buildCurrentPath } from '@/lib/auth-redirect';
 
 export function useRecordingsFilters() {
-    const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
@@ -27,9 +26,14 @@ export function useRecordingsFilters() {
     const updateUrl = useCallback(
         (updates: Record<string, string | undefined>) => {
             const query = createQueryString(updates);
-            router.push(query ? `${pathname}?${query}` : pathname);
+            const url = query ? `${pathname}?${query}` : pathname;
+            if ('q' in updates && Object.keys(updates).every(key => ['q', 'view', 'collection', 'page'].includes(key))) {
+                window.history.replaceState(null, '', url);
+            } else {
+                window.history.pushState(null, '', url);
+            }
         },
-        [router, pathname, createQueryString]
+        [pathname, createQueryString]
     );
 
     const page = Number(searchParams.get('page')) || 1;

@@ -19,7 +19,7 @@ export function UpgradePlanModal({
 }: UpgradePlanModalProps) {
     return (
         <Modal>
-            <Button variant="primary" className="mt-4 rounded-full px-6 font-semibold sm:mt-0" onPress={onOpen}>
+            <Button variant="primary" className="mt-4 px-6 font-semibold sm:mt-0" onPress={onOpen}>
                 Upgrade Plan
             </Button>
             <Modal.Backdrop>
@@ -48,18 +48,18 @@ export function UpgradePlanModal({
                                             <h3 className="font-semibold text-xl">{plan.name}</h3>
                                             <div className="text-2xl font-bold my-2">
                                                 ${plan.price}{' '}
-                                                <span className="text-sm font-normal text-default-500">/{plan.interval}</span>
+                                                <span className="text-sm font-normal text-muted">/{plan.interval}</span>
                                             </div>
                                             <ul className="space-y-2 mb-6">
                                                 {plan.features.slice(0, 4).map((feature, index) => (
-                                                    <li key={index} className="flex items-center gap-2 text-sm text-default-600">
+                                                    <li key={index} className="flex items-center gap-2 text-sm text-muted">
                                                         <Check className="w-4 h-4 text-success" />
                                                         {feature}
                                                     </li>
                                                 ))}
                                             </ul>
                                             <Button
-                                                className="w-full rounded-full font-semibold"
+                                                className="w-full font-semibold"
                                                 variant="primary"
                                                 onPress={() => onCheckout(plan.stripePriceId)}
                                                 isDisabled={isCheckingOut || !plan.isPurchasable}
@@ -73,7 +73,7 @@ export function UpgradePlanModal({
                                                 )}
                                             </Button>
                                             {!plan.isPurchasable && (
-                                                <p className="mt-2 text-xs text-default-500">
+                                                <p className="mt-2 text-xs text-muted">
                                                     This plan is visible here, but checkout is not configured yet.
                                                 </p>
                                             )}

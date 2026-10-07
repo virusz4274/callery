@@ -7,13 +7,20 @@ before building; `NEXT_PUBLIC_*` values are compiled into the browser bundle.
 Compose, and managed deployments. Copy it once and follow the profile comments;
 every optional integration is included in that same file.
 
+Copy the template only for a new installation. Preserve an existing `.env`,
+including its credentials, provider choices, and public URLs; update only the
+settings you intend to change.
+
 ## Prerequisites
 
 *   **Node.js**: v24 or later, with **pnpm 12.9.1** (pinned in `package.json`). `.nvmrc` selects the same Node 24 release line as Docker.
     Docker users only need Docker Engine/Desktop with Compose v2.20 or later.
-*   **MongoDB**: v6.0 or later — local, Docker (compose `selfhost` profile), or Atlas.
-    (Semantic search needs Atlas Search indexes; self-hosted MongoDB gets
-    regex keyword search instead. See docker-compose.yml comments.)
+*   **MongoDB**: v6.0 or later for ordinary database operations — local, Docker
+    (compose `selfhost` profile), or Atlas. Vector search additionally requires
+    MongoDB Search support and the index described in [Search setup](#search-setup).
+    The bundled `mongo:8` service has no `mongot` search process, so it provides
+    regex keyword search. A separately configured self-managed search deployment
+    can support vectors too; follow MongoDB's version and deployment requirements.
 *   **S3-compatible storage**: MinIO, Cloudflare R2, AWS S3, or similar.
 *   **Transcription**: a Soniox, ElevenLabs, or Gemini key, or a local
     Whisper-compatible server (see below). Organizing and playing recordings
@@ -29,11 +36,13 @@ the collections, indexes and initial settings, so you do not need to create the
 database manually. MongoDB credentials must permit those operations.
 
 ```bash
-cp .env.example .env
-# PowerShell: Copy-Item .env.example .env
+# New installation only; skip this if .env already exists.
+cp -n .env.example .env
+# PowerShell: if (!(Test-Path .env)) { Copy-Item .env.example .env }
 # Keep billing disabled. Set BETTER_AUTH_SECRET, ADMIN_EMAILS,
 # MONGODB_URI and the four R2_* values. Follow the storage recipe in the template.
 # Configure every REQUIRED IF field for the optional integrations you enable.
+corepack enable pnpm
 pnpm install --frozen-lockfile
 pnpm run db:init
 pnpm run dev
@@ -44,6 +53,23 @@ region and path style off. It leaves storage endpoints and credentials blank
 so you can supply your own backend. For an upload/playback-only test, disable
 automatic transcription in Settings → Data Processing before uploading.
 
+For a tunnel or deployed site, open the saved `NEXT_PUBLIC_APP_URL` instead.
+It is the public browser origin used for authentication, callbacks, email and
+share links; it is independent of the server's listening address. Keep the
+public HTTPS origin even when Next.js listens on localhost. Register OAuth and
+webhook URLs with that public origin, and preserve the Contacts callback override.
+
+For native production, build first, then start on the intended listening port:
+
+```bash
+pnpm run build
+pnpm run start --port 9000
+```
+
+The example keeps the native development port. `pnpm run start` without a port
+argument listens on 3000; configure the public origin for the deployment before
+building rather than deriving it from the internal port.
+
 Run `corepack enable pnpm` once to use the package manager version pinned by this
 repository, or prefix commands with `corepack pnpm` if another pnpm version is
 installed globally.
@@ -51,7 +77,8 @@ installed globally.
 ## Quickstart (self-host with Docker Compose)
 
 ```bash
-cp .env.example .env
+# New installation only; preserve an existing deployment's .env.
+cp -n .env.example .env
 # Apply the Docker Compose settings listed at the top of the template.
 # Set BETTER_AUTH_SECRET, CRON_SECRET, ADMIN_EMAILS, and MinIO credentials.
 # Configure a transcription backend if you want transcription.
@@ -71,7 +98,16 @@ upload → playback → transcription → search → delete with a sample record
 `GET /api/health` returns 200 when the app can reach MongoDB, or 503 otherwise;
 it does not verify storage credentials or transcription providers. Ordinary
 keyword search has a fallback for self-hosted MongoDB. Semantic vector search
-still requires a MongoDB deployment with the configured vector search index.
+still requires a search-enabled MongoDB deployment with the configured vector
+search index. `db-init` creates ordinary indexes and seed data; it only prints
+the Search/Vector Search definitions. Create those indexes separately below.
+
+With external MongoDB/storage, retain those endpoints, run `pnpm run db:init`
+against the external database, then use
+`docker compose --profile scheduler up --build -d`. This runs the app and
+scheduler without starting the bundled MongoDB/MinIO services. The native
+`db:init` command requires the Node/pnpm prerequisites; all endpoints must also
+be reachable from the app container.
 
 The app and MongoDB run locally; hosted transcription and AI providers still
 receive audio/text. Choose the local Whisper + Ollama recipe below when those
@@ -133,6 +169,10 @@ The app speaks plain S3 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`,
 `R2_ENDPOINT=http://minio:9000`, `S3_REGION=us-east-1`,
 `S3_FORCE_PATH_STYLE=true`, `S3_PUBLIC_ENDPOINT=http://localhost:9000`
 (see the Docker Compose recipe in `.env.example`); the bucket is created on first start.
+MinIO root credentials come from environment variables at startup. If you rotate
+them, recreate the affected containers and update clients using those credentials;
+preserve the `minio-data` volume. See
+[MinIO's configuration reference](https://github.com/minio/minio/blob/master/docs/config/README.md).
 
 **External MinIO** (if you run it yourself outside compose):
 
@@ -162,7 +202,7 @@ browser playback uses `S3_PUBLIC_ENDPOINT`. Those hosts may differ.
 override it in Settings → Data Processing. Keys: `SONIOX_API_KEY`,
 `ELEVENLABS_API_KEY` (+ optional `ELEVENLABS_MODEL_ID`, default `scribe_v2`),
 the Gemini key with optional `GEMINI_MODEL_TRANSCRIPTION`
-(default `gemini-2.5-flash`), or any Whisper-API server via `openai_compat`
+(default `gemini-3.8-flash`), or any Whisper-API server via `openai_compat`
 (`TRANSCRIPTION_COMPAT_BASE_URL` + `TRANSCRIPTION_COMPAT_MODEL`).
 
 Managed metering multiplies raw seconds by `TRANSCRIPTION_PRICING_JSON`
@@ -171,9 +211,14 @@ billed units, recorded in the `usage_events` ledger. Self-host writes the same
 ledger with gates open, so usage stays visible.
 
 Provider tiers: Soniox and ElevenLabs provide word timestamps and speaker
-diarization. Gemini transcription is the budget tier — timestamps are
-best-effort and diarization is approximate (confirm quality with your own audio
-before relying on it). `openai_compat` (Whisper-API servers) gives word
+diarization. Set `GEMINI_MODEL_TRANSCRIPTION=gemini-3.5-transcribe` for Gemini's
+dedicated speech-to-text model with native speaker labels and word timestamps.
+The app uses verbatim mode with both features enabled, which limits recordings
+to 30 minutes; Google describes speaker attribution for 3+ speakers as experimental.
+For longer recordings, use `gemini-3.8-flash` (the blank-value default): its
+prompted timestamps are best-effort and diarization is approximate. See Google's
+[transcription guide](https://ai.google.dev/gemini-api/docs/transcribe).
+`openai_compat` (Whisper-API servers) gives word
 timestamps with no diarization — the fully self-hostable tier.
 
 ## Text AI (summaries, transliteration, embeddings)
@@ -183,6 +228,35 @@ timestamps with no diarization — the fully self-hostable tier.
 transliteration, and embeddings) or `openai_compat` (any OpenAI-API chat +
 embeddings server: `OPENAI_COMPAT_BASE_URL` with `/v1`, `OPENAI_COMPAT_API_KEY`
 if needed, `OPENAI_COMPAT_CHAT_MODEL`, `OPENAI_COMPAT_EMBEDDING_MODEL`).
+
+All Gemini features have independent server-side model settings:
+
+| Feature | Environment variable | Default when blank or unset |
+| --- | --- | --- |
+| Audio transcription | `GEMINI_MODEL_TRANSCRIPTION` | `gemini-3.8-flash` |
+| Summary | `GEMINI_MODEL_SUMMARY` | `gemini-3.8-flash` |
+| Transliteration | `GEMINI_MODEL_TRANSLITERATION` | `gemini-3.8-flash` |
+| Embeddings / semantic search | `GEMINI_MODEL_EMBEDDING` | `gemini-embedding-001` |
+
+For example, choose the dedicated transcription model and a separate text model:
+
+```dotenv
+GEMINI_MODEL_TRANSCRIPTION=gemini-3.5-transcribe
+GEMINI_MODEL_SUMMARY=gemini-3.5-flash-lite
+GEMINI_MODEL_TRANSLITERATION=gemini-3.5-flash-lite
+GEMINI_MODEL_EMBEDDING=gemini-embedding-001
+```
+
+Summary and transliteration settings do not change the audio model. Restart the
+app after editing `.env` (recreate the app container for Docker deployments).
+Changing summary/transliteration models does not change the embedding dimensions.
+
+Choose models available to your API key. Google restricts Gemini 2.5 models
+to existing users; see the [Gemini deprecations guide](https://ai.google.dev/gemini-api/docs/deprecations).
+Changing the embedding model requires re-embedding recordings and matching the
+Atlas vector index dimensions. The model settings do not expose Gemini's full
+generation API: task prompts, response formats, and native transcription options
+are defined in code.
 
 Fully-local example: [Ollama](https://ollama.com) with a chat model plus an
 embedding model covers summaries, transliteration, and embeddings; pair it
@@ -194,6 +268,133 @@ These servers are operator-run (not bundled in compose); point the *_COMPAT_* va
 In Docker, replace localhost with `host.docker.internal` for AI servers running
 on the host, or use their service names on a shared Docker network. Both AI
 servers must be reachable from the app container. They are not bundled here.
+
+## Search setup
+
+Ordinary recording and contact searches query MongoDB before pagination, within
+the authenticated account. Recording text search covers transcript text,
+summaries, contact names, numbers, filenames and tags; contacts search covers
+names, numbers, companies and job titles. These searches work without Search
+indexes. The recording page uses MongoDB regex queries; `/api/recordings` also
+tries the optional full-text index before regex fallback.
+
+AI search combines keyword matches with approximate vector matches from saved
+**summary** embeddings (`recordings.summaryEmbedding`), rather than embedding
+every transcript passage. It excludes archived recordings and filters by
+`authSubject`. Recordings without saved summary embeddings remain eligible for
+keyword matching but cannot match by vector similarity. Vector results are a
+bounded ranked result set; the displayed AI match count is not an exhaustive
+count of every semantically related recording.
+
+MongoDB Atlas manages the search process for you. Self-managed search requires
+an additional `mongot` deployment; it is not included in this repository's
+Compose profile. See MongoDB's
+[self-managed search instructions](https://www.mongodb.com/docs/search/self-managed/current/).
+
+### Required vector index
+
+In Atlas, open Search index management for the **database named in
+`MONGODB_URI`**, select the **`recordings` collection**, and create a
+**Vector Search** index named **`recordings_vector_search`**. Use this JSON
+definition (also printed by `pnpm run db:init`):
+
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "summaryEmbedding",
+      "numDimensions": 3072,
+      "similarity": "cosine"
+    },
+    { "type": "filter", "path": "authSubject" },
+    { "type": "filter", "path": "isArchived" }
+  ]
+}
+```
+
+Both filter fields are required by the app's vector query. The 3072 dimensions
+match the default `gemini-embedding-001` output; the app does not request a
+reduced output width. For another embedding model/provider, use its actual
+output width and use the same model for stored summaries and search queries.
+Equal vector widths alone do not make different models' embeddings compatible.
+See [Google's embedding guide](https://ai.google.dev/gemini-api/docs/embeddings).
+
+This is a `vectorSearch` index, not an ordinary `createIndex()` index or a
+full-text `search` index. Index names are fixed in the current app code.
+If creating it with `mongosh` on Atlas, use
+`db.recordings.createSearchIndex("recordings_vector_search", "vectorSearch", definition)`
+where `definition` is the JSON object above. The account creating the index
+needs the relevant Search index management permission. Refer to
+[MongoDB's createSearchIndex reference](https://www.mongodb.com/docs/manual/reference/method/db.collection.createSearchIndex/).
+
+### Optional full-text index
+
+The API's fuzzy full-text search uses a separate **Search** index named
+**`recordings_text_search`**, on the same collection. It is optional for AI
+vector search and is not needed for ordinary recording-page or contact search.
+Its definition is:
+
+```json
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "authSubject": { "type": "string" },
+      "summary": { "type": "string" },
+      "contactName": { "type": "string" },
+      "fileName": { "type": "string" },
+      "standardizedDisplayName": { "type": "string" },
+      "tags": { "type": "string" },
+      "fullTranscript": {
+        "type": "document",
+        "fields": { "text": { "type": "string" } }
+      }
+    }
+  }
+}
+```
+
+Phone-number queries use the API's regex path because `phoneNumber` is not in
+this full-text mapping.
+
+### Verify readiness and stored embeddings
+
+Index creation is asynchronous. Wait until the vector index is ready and
+`queryable: true`. In `mongosh`, select the application's database and inspect:
+
+```javascript
+db.recordings.aggregate([
+  { $listSearchIndexes: { name: "recordings_vector_search" } }
+]).toArray()
+
+db.recordings.aggregate([
+  { $match: { "summaryEmbedding.0": { $exists: true } } },
+  { $group: { _id: { $size: "$summaryEmbedding" }, recordings: { $sum: 1 } } }
+]).toArray()
+```
+
+The first query must show the correctly named, queryable index; an empty list
+means it is absent in that database/collection. The second reports stored
+embedding widths and counts without displaying transcripts. For the default
+Gemini embedding model, expect `_id: 3072`. An empty result means no saved
+embeddings are available yet. Search indexes are separate from the ordinary
+indexes returned by `getIndexes()`.
+
+Then use AI search with a topic from a completed recording whose summary was
+embedded. A successful transcription alone is insufficient: the app saves a
+summary embedding only when summary generation succeeds. Creating an index
+indexes existing stored vectors; it does not generate missing embeddings.
+Retry transcription to run the current summary/embedding pipeline for an
+individual recording that is missing them. There is no dedicated bulk
+re-embedding command in the current scripts.
+
+If an embedding request fails or MongoDB rejects the vector query, the search
+action reports keyword fallback. A missing index can instead return no vector
+results without throwing, so keyword results or a missing fallback badge do
+not prove vector search works. Verify the index explicitly. `/api/health`
+checks only MongoDB connectivity, and the admin AI probe checks embedding
+generation; neither confirms that the vector index is ready.
 
 ## Operations
 
@@ -214,9 +415,9 @@ under the `selfhost` or `scheduler` profile; set `CRON_SECRET` before starting i
 Next.js builds generate and verify the Serwist service worker. The experimental
 vinext/Cloudflare build is separate and is not required for self-hosting.
 
-Atlas vector-index dimensions must match the configured embedding model.
-If you change models, re-embed stored summaries and update the index. Unavailable
-semantic search falls back to keywords; regular MongoDB supports keyword search.
+Before switching embedding models/providers, plan to regenerate all stored
+summary embeddings with that same model and update the vector index width as
+needed. See [Search setup](#search-setup) for index creation and verification.
 
 ## Email
 
@@ -268,17 +469,20 @@ All of these can be absent — the app stays fully usable:
 *   **AI features** (summaries, transliteration, embeddings) — need
     `GOOGLE_GENERATIVE_AI_API_KEY` or an `openai_compat` server (see Text AI
     above). Without either, transcripts save without AI extras.
-*   **Sentry** — needs `SENTRY_DSN` (+ `SENTRY_ORG` for release tracking).
-    Unset means no error reporting; nothing else changes.
+*   **Sentry** — set `SENTRY_DSN` for server errors and `NEXT_PUBLIC_SENTRY_DSN`
+    for browser errors. Optional build-time source-map uploads require all three
+    of `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`. See the template's
+    Sentry section. With both DSNs absent, error reporting is disabled.
 
 ## Scripts
 
 *   `pnpm run dev`: Start dev server (port 9000).
 *   `pnpm run build`: Production build (runs the PWA check after).
-*   `pnpm run start`: Start production server.
+*   `pnpm run start`: Start the built production server (port 3000 by default).
 *   `pnpm run lint`: Run ESLint.
 *   `pnpm run typecheck`: Run TypeScript compiler check.
-*   `pnpm run db:init`: Init database (indexes + seed plans; exits nonzero on failure).
+*   `pnpm run db:init`: Create ordinary indexes, seed plans/settings, and print
+    Search index definitions; exits nonzero on failure. Does not create Search indexes.
 
 `pnpm check` runs typechecking, lint, tests, dependency checks, and the security
 audit. MongoDB integration tests are opt-in: set `VOSIFT_TEST_MONGODB_URI` to a
@@ -286,7 +490,7 @@ reachable test MongoDB before running it. Each integration suite creates and
 drops a randomly named database; it does not use the application database.
 Without that variable, the integration suites are reported as skipped.
 
-Auth unification was verified on 2026-10-06 with `pnpm run check` (112 application
+The historical auth-unification validation on 2026-10-06 used `pnpm run check` (112 application
 tests, including isolated standalone MongoDB auth/cleanup tests, and five dependency
 tests), production builds with billing off/on, and eight Playwright browser tests.
 Browser upload/transcription checks used local storage and AI fixtures. Verification

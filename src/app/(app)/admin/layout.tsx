@@ -1,11 +1,10 @@
 'use client';
 
+import { ActionLink } from '@/components/action-link';
 import React, { Suspense } from 'react';
 import { useUser } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useRouter, usePathname } from 'next/navigation';
-import { Card } from '@/components/ui-primitives';
-import Link from 'next/link';
 import {
   LayoutDashboard,
   Users,
@@ -15,7 +14,7 @@ import {
   ShieldCheck,
   ScrollText,
 } from 'lucide-react';
-import { Button, Chip } from '@heroui/react';
+import { Card, Label, ListBox, Select } from '@heroui/react';
 import { AdminLoadingState } from '@/components/loading-shells';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -53,97 +52,28 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         { name: 'Settings', href: '/admin/settings', icon: Settings },
       ];
 
+      const selectedSection = navItems.find(item => item.href === pathname || (item.href !== '/admin' && pathname.startsWith(`${item.href}/`)))?.href || '/admin';
       return (
-      <div className="relative min-h-[calc(100vh-8rem)]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_top_left,rgba(38,132,255,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.10),transparent_28%)]" />
-
-        <div className="space-y-6">
-          <section className="overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/90 shadow-[0_24px_64px_-48px_rgba(15,23,42,0.45)]">
-            <div className="grid gap-8 px-5 py-6 md:px-8 md:py-8 xl:grid-cols-[minmax(0,1.05fr)_320px] xl:items-start">
-              <div className="space-y-4">
-                <Chip variant="soft" color="accent" className="rounded-full px-3 py-1 text-xs font-medium">
-                  Admin console
-                </Chip>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-accent/10 text-accent">
-                      <ShieldCheck className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h1 className="text-4xl font-black tracking-[-0.05em] text-foreground md:text-5xl">
-                        Administration
-                      </h1>
-                    </div>
-                  </div>
-                  <p className="max-w-2xl text-base leading-7 text-default-600 md:text-lg">
-                    Manage plans, users, announcements, system settings, and audit visibility from one controlled workspace.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Chip variant="soft" color="success">
-                    Role: {userProfile.role}
-                  </Chip>
-                  <Chip variant="soft" color="default">
-                    {navItems.length} admin sections
-                  </Chip>
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/70 p-4 shadow-none">
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
-                      Current access
-                    </div>
-                    <div className="text-lg font-semibold text-foreground">
-                      {userProfile.firstName || user?.email || 'Admin account'}
-                    </div>
-                    <p className="text-sm leading-6 text-default-500">
-                      Use the navigation map to move between operational, billing, and moderation tasks without leaving admin.
-                    </p>
-                  </div>
-                </Card>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start">
-            <aside className="space-y-3 xl:sticky xl:top-6">
-              <Card className="overflow-hidden rounded-[1.9rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.45)]">
-                <Card.Header className="flex flex-col items-start gap-1 border-b border-default-100/70 px-5 py-5">
-                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">Admin map</div>
-                  <div className="text-xl font-bold tracking-[-0.03em] text-foreground">Navigation</div>
-                  <p className="text-sm leading-6 text-default-500">
-                    Switch between management surfaces without losing context.
-                  </p>
-                </Card.Header>
-                <Card.Content className="space-y-2 p-3">
-                  {navItems.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
-                    return (
-                      <Link key={item.href} href={item.href} className="w-full">
-                        <Button
-                          variant={isActive ? 'secondary' : 'ghost'}
-                          className={`w-full justify-start gap-3 rounded-[1.2rem] px-4 py-6 ${
-                            isActive ? 'font-semibold shadow-[0_20px_44px_-36px_rgba(38,132,255,0.45)]' : 'text-default-600'
-                          }`}
-                        >
-                          <item.icon size={18} />
-                          {item.name}
-                        </Button>
-                      </Link>
-                    );
-                  })}
-                </Card.Content>
-              </Card>
-            </aside>
-
-            <main className="min-w-0 py-1">
-              {children}
-            </main>
+        <div className="mx-auto w-full max-w-[1600px] min-w-0 xl:grid xl:grid-cols-[224px_minmax(0,1fr)] xl:items-start xl:gap-6">
+          <aside className="hidden xl:sticky xl:top-6 xl:block">
+            <Card className="gap-3 p-3">
+              <div className="flex items-center gap-2 px-3 py-2 font-semibold"><ShieldCheck className="size-5 text-accent" />Admin console</div>
+              <nav aria-label="Admin sections" className="space-y-1">
+                {navItems.map(item => <ActionLink key={item.href} href={item.href} aria-current={selectedSection === item.href ? 'page' : undefined} variant={selectedSection === item.href ? 'secondary' : 'ghost'} className="min-h-11 w-full justify-start gap-3">
+                  <item.icon aria-hidden="true" className="size-4 shrink-0" />{item.name}
+                </ActionLink>)}
+              </nav>
+            </Card>
+          </aside>
+          <div className="min-w-0 space-y-5">
+            <Select aria-label="Admin section" selectedKey={selectedSection} onSelectionChange={key => { if (key && key !== selectedSection) router.push(String(key)); }} className="w-full xl:hidden">
+              <Label>Admin console</Label>
+              <Select.Trigger className="min-h-11"><Select.Value /><Select.Indicator /></Select.Trigger>
+              <Select.Popover><ListBox>{navItems.map(item => <ListBox.Item key={item.href} id={item.href} textValue={item.name}><span className="flex items-center gap-2"><item.icon aria-hidden="true" className="size-4 shrink-0" /><span>{item.name}</span></span></ListBox.Item>)}</ListBox></Select.Popover>
+            </Select>
+            <div className="min-w-0">{children}</div>
           </div>
         </div>
-      </div>
       );
     }
 

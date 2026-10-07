@@ -2,6 +2,25 @@
 @import "@heroui/styles";
 @import "../themes/customtheme.css";
 
+/* Explicit clamping also covers summaries rendered by dynamically loaded routes. */
+.recording-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.recording-preview[data-lines="3"] { -webkit-line-clamp: 3; }
+
+@media (max-width: 767px) {
+  .mobile-settings :is(input:not([type="checkbox"]):not([type="radio"]), select, button) {
+    min-height: 44px;
+  }
+  .mobile-settings :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+    font-size: 16px;
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

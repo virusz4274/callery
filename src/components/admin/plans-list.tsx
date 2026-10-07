@@ -1,126 +1,45 @@
 'use client';
-
-import { useState } from 'react';
-import { Card, Button, Chip, Spinner } from '@heroui/react';
+import { useRef, useState } from 'react';
+import { Card, Button, Chip } from '@heroui/react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { PlanResponse } from '@/lib/db/types';
+import type { PlanResponse } from '@/lib/db/types';
 import { deletePlan } from '@/app/actions/admin-plans';
-import { PlanFormDialog } from '@/components/admin/plan-form-dialog';
+import { PlanFormDialog } from './plan-form-dialog';
+import { ConfirmActionDialog } from './confirm-action-dialog';
+import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
-
-type PlansListProps = {
-    initialPlans: PlanResponse[];
-};
-
-export function PlansList({ initialPlans }: PlansListProps) {
-
-    const [isFormOpen, setIsFormOpen] = useState(false);
+export function PlansList({ initialPlans }: { initialPlans: PlanResponse[] }) {
+    const [isFormOpen, setFormOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState<PlanResponse | null>(null);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [deletingPlan, setDeletingPlan] = useState<PlanResponse | null>(null);
+    const [pending, setPending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const busy = useRef(false);
     const router = useRouter();
-
-    const handleCreate = () => {
-        setEditingPlan(null);
-        setIsFormOpen(true);
+    const { toast } = useToast();
+    const create = () => { setEditingPlan(null); setFormOpen(true); };
+    const remove = async () => {
+        if (!deletingPlan || busy.current) return;
+        busy.current = true; setPending(true); setError(null);
+        try { await deletePlan(deletingPlan.id); toast({ title: 'Plan deleted', status: 'success' }); setDeletingPlan(null); router.refresh(); }
+        catch (error) { setError(error instanceof Error ? error.message : 'Please try again.'); }
+        finally { busy.current = false; setPending(false); }
     };
-
-    const handleEdit = (plan: PlanResponse) => {
-        setEditingPlan(plan);
-        setIsFormOpen(true);
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this plan? This will NOT update existing users on this plan.')) {
-            return;
-        }
-        setIsDeleting(id);
-        await deletePlan(id);
-        router.refresh();
-        setIsDeleting(null);
-    };
-
-    const formatCurrency = (amount: number, currency: string) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-end items-center">
-                <Button
-                    onPress={handleCreate}
-                    className="gap-2 rounded-full bg-primary px-5 text-white"
-                >
-                    <Plus className="h-4 w-4" />
-                    Create Plan
-                </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {initialPlans.map((plan) => (
-                    <Card key={plan.id} className={`rounded-[2rem] p-6 border-2 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)] ${plan.isDefault ? 'border-primary' : 'border-default-200/80'}`}>
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-xl font-semibold">{plan.name}</h3>
-                                {plan.isDefault && (
-                                    <Chip size="sm" variant="soft" color="accent" className="mt-1">Default</Chip>
-                                )}
-                                {!plan.isActive && (
-                                    <Chip size="sm" variant="soft" color="default" className="mt-1 ml-2">Inactive</Chip>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                <div className="text-2xl font-bold">
-                                    {plan.price === 0 ? 'Free' : formatCurrency(plan.price, plan.currency)}
-                                </div>
-                                <div className="text-xs text-default-500">/{plan.interval}</div>
-                            </div>
-                        </div>
-
-                        <p className="text-default-500 text-sm mb-6 min-h-[40px]">
-                            {plan.description || 'No description'}
-                        </p>
-
-                        <div className="space-y-2 mb-6 text-sm">
-                            <div className="flex justify-between border-b border-default-100 pb-2">
-                                <span>Storage</span>
-                                <span className="font-semibold">{(plan.limits.storage / (1024 ** 3)).toFixed(0)} GB</span>
-                            </div>
-                            <div className="flex justify-between border-b border-default-100 pb-2">
-                                <span>Transcription</span>
-                                <span className="font-semibold">{(plan.limits.transcription / 60).toFixed(0)} Mins</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2 mt-auto pt-4">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onPress={() => handleEdit(plan)}
-                                className="flex-1 gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Edit
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                isDisabled={plan.isDefault || isDeleting === plan.id}
-                                onPress={() => handleDelete(plan.id)}
-                                isIconOnly
-                                className="text-danger"
-                            >
-                                {isDeleting === plan.id ? <Spinner size="sm" /> : <Trash2 className="h-4 w-4" />}
-                            </Button>
-                        </div>
-                    </Card>
-                ))}
-            </div>
-
-            <PlanFormDialog
-                isOpen={isFormOpen}
-                onClose={() => setIsFormOpen(false)}
-                planToEdit={editingPlan}
-            />
+    return <div className="space-y-5">
+        <div className="flex justify-end"><Button className="min-h-11" onPress={create}><Plus className="size-4" />Create plan</Button></div>
+        {!initialPlans.length && <Card className="items-center gap-3 py-10 text-center"><h2 className="text-lg font-semibold">No plans yet</h2><p className="text-sm text-muted">Create a plan to define pricing and usage allowances.</p><Button variant="secondary" onPress={create} className="min-h-11">Create your first plan</Button></Card>}
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            {initialPlans.map(plan => <Card key={plan.id} variant={plan.isDefault ? 'secondary' : 'default'} className="min-w-0 gap-4 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1"><h2 className="break-words text-lg font-semibold">{plan.name}</h2><div className="mt-2 flex flex-wrap gap-2">{plan.isDefault && <Chip size="sm" color="accent" variant="soft">Default</Chip>}{!plan.isActive && <Chip size="sm" variant="soft">Inactive</Chip>}</div></div>
+                    <div className="break-words text-right"><p className="text-xl font-semibold">{plan.price === 0 ? 'Free' : new Intl.NumberFormat('en-US', { style: 'currency', currency: plan.currency }).format(plan.price)}</p><p className="text-xs text-muted">{plan.interval === 'lifetime' ? 'One-time' : `/${plan.interval}`}</p></div>
+                </div>
+                <p className="break-words text-sm text-muted">{plan.description || 'No description'}</p>
+                <dl className="space-y-2 text-sm"><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Storage</dt><dd>{Number((plan.limits.storage / 1024 ** 3).toFixed(2))} GB</dd></div><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Transcription</dt><dd>{Number((plan.limits.transcription / 60).toFixed(2))} min</dd></div></dl>
+                <div className="mt-auto space-y-2"><div className="flex gap-2"><Button aria-label={`Edit ${plan.name}`} variant="secondary" className="min-h-11 flex-1" onPress={() => { setEditingPlan(plan); setFormOpen(true); }}><Edit className="size-4" />Edit</Button><Button aria-label={`Delete ${plan.name}`} aria-describedby={plan.isDefault ? `default-${plan.id}` : undefined} variant="danger-soft" isIconOnly className="size-11" isDisabled={plan.isDefault || pending} onPress={() => { setError(null); setDeletingPlan(plan); }}><Trash2 className="size-4" /></Button></div>{plan.isDefault && <p id={`default-${plan.id}`} className="text-xs text-muted">The default plan cannot be deleted.</p>}</div>
+            </Card>)}
         </div>
-    );
+        <PlanFormDialog isOpen={isFormOpen} onClose={() => setFormOpen(false)} planToEdit={editingPlan} />
+        {deletingPlan && <ConfirmActionDialog title={`Delete ${deletingPlan.name}?`} description="Delete this pricing plan. Existing users assigned to this plan will not be updated." label="Delete plan" pending={pending} error={error} onConfirm={() => void remove()} onClose={() => setDeletingPlan(null)} />}
+    </div>;
 }

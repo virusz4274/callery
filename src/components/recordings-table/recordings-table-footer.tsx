@@ -6,6 +6,7 @@ type RecordingsTableFooterProps = {
     totalPages: number;
     onPageChange: (page: number) => void;
     variant?: 'default' | 'flat';
+    semanticPagination?: { hasMore: boolean; isLoading: boolean };
 };
 
 export function RecordingsTableFooter({
@@ -13,8 +14,9 @@ export function RecordingsTableFooter({
     totalPages,
     onPageChange,
     variant = 'default',
+    semanticPagination,
 }: RecordingsTableFooterProps) {
-    if (totalPages <= 1) {
+    if (semanticPagination ? page === 1 && !semanticPagination.hasMore : totalPages <= 1) {
         return null;
     }
 
@@ -24,25 +26,25 @@ export function RecordingsTableFooter({
                 variant === 'flat' ? 'px-0 border-none' : 'border-t border-default-100/50'
             }`}
         >
-            <div className="text-xs font-semibold uppercase tracking-widest text-default-400">
-                Page {page} of {totalPages}
+            <div className="text-sm text-muted">
+                Page {page}{!semanticPagination && ` of ${totalPages}`}
             </div>
             <div className="flex gap-2">
                 <Button
                     variant="ghost"
                     size="sm"
                     onPress={() => onPageChange(Math.max(1, page - 1))}
-                    isDisabled={page === 1}
-                    className="bg-default-100/50 backdrop-blur-md"
+                    isDisabled={page === 1 || semanticPagination?.isLoading}
+                    className="min-h-11 md:min-h-8"
                 >
                     <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                 </Button>
                 <Button
                     variant="ghost"
                     size="sm"
-                    onPress={() => onPageChange(Math.min(totalPages, page + 1))}
-                    isDisabled={page === totalPages}
-                    className="bg-default-100/50 backdrop-blur-md"
+                    onPress={() => onPageChange(semanticPagination ? page + 1 : Math.min(totalPages, page + 1))}
+                    isDisabled={semanticPagination ? !semanticPagination.hasMore || semanticPagination.isLoading : page === totalPages}
+                    className="min-h-11 md:min-h-8"
                 >
                     Next <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>

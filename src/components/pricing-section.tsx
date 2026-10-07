@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { ActionLink } from '@/components/action-link';
 import { useState } from 'react';
 import { Button, Card, Chip, Separator, Spinner, Surface } from '@heroui/react';
 import type { LucideIcon } from 'lucide-react';
@@ -298,10 +298,10 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
         <Chip variant="soft" color="accent" size="sm">
           Pricing
         </Chip>
-        <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-foreground md:text-5xl">
+        <h2 className="mt-4 text-3xl font-semibold text-foreground md:text-5xl">
           Pick the plan that matches how much call history you need to rescue and search.
         </h2>
-        <p className="mt-4 text-lg leading-8 text-default-600">
+        <p className="mt-4 text-lg leading-8 text-muted">
           Compare storage, transcription, AI search, support, and hosting before you move more recordings in.
         </p>
         {paidPlans.length === 0 ? (
@@ -319,11 +319,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
             <Card
               key={plan.id}
               variant={plan.featured ? 'tertiary' : 'default'}
-              className={`flex h-full flex-col rounded-[2rem] border p-6 shadow-none ${
-                plan.featured
-                  ? 'border-primary/30 bg-background ring-1 ring-primary/20'
-                  : 'border-default-200/80 bg-background/90'
-              }`}
+              className="h-full"
             >
               <Card.Header className="flex flex-col items-start gap-4 px-0 pt-0">
                 <div className="flex w-full items-start justify-between gap-4">
@@ -345,15 +341,15 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
 
                 <div className="space-y-2">
                   <h3 className="text-2xl font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-sm leading-6 text-default-500">{plan.description}</p>
+                  <p className="text-sm leading-6 text-muted">{plan.description}</p>
                 </div>
 
                 <div className="flex items-end gap-2">
-                  <span className="text-5xl font-black tracking-[-0.05em] text-foreground">
+                  <span className="text-5xl font-semibold text-foreground">
                     {plan.price}
                   </span>
                   {plan.cadence && (
-                    <span className="pb-2 text-sm text-default-500">{plan.cadence}</span>
+                    <span className="pb-2 text-sm text-muted">{plan.cadence}</span>
                   )}
                 </div>
               </Card.Header>
@@ -361,11 +357,11 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
               <Separator className="my-6" />
 
               <Card.Content className="flex-1 gap-3 px-0">
-                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                <div className="text-xs font-semibold uppercase text-muted">
                   Included
                 </div>
                 {plan.highlights.map((item) => (
-                  <div key={item} className="flex items-start gap-3 text-sm leading-6 text-default-600">
+                  <div key={item} className="flex items-start gap-3 text-sm leading-6 text-muted">
                     <Check className="mt-1 h-4 w-4 shrink-0 text-success" />
                     <span>{item}</span>
                   </div>
@@ -374,19 +370,14 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
 
               <Card.Footer className="mt-6 px-0 pb-0">
                 {plan.action === 'signup' && (
-                  <Link href="/signup" className="w-full">
-                    <Button
-                      variant={plan.featured ? 'primary' : 'secondary'}
-                      className="w-full rounded-full font-semibold"
-                    >
+                  <ActionLink href="/signup" variant={plan.featured ? 'primary' : 'secondary'} className="w-full font-semibold">
                       Start on {plan.name}
-                    </Button>
-                  </Link>
+                    </ActionLink>
                 )}
 
                 {plan.action === 'checkout' && plan.sourcePlan && (
                   <Button
-                    className="w-full rounded-full font-semibold"
+                    className="w-full font-semibold"
                     onPress={() => handleSubscribe(plan.sourcePlan!)}
                     isDisabled={isLoading !== null}
                   >
@@ -407,7 +398,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
                 {plan.action === 'contact' && (
                   <Button
                     variant="secondary"
-                    className="w-full rounded-full font-semibold"
+                    className="w-full font-semibold"
                     onPress={() => {
                       window.location.href = `mailto:${salesEmail}`;
                     }}
@@ -421,29 +412,29 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
         })}
       </div>
 
-      <Surface variant="secondary" className="rounded-[2rem] border border-default-200/80 p-6 md:p-7">
+      <Surface variant="secondary" className="p-6 md:p-7">
         <div className="space-y-5">
           <div className="max-w-3xl space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+            <div className="text-xs font-semibold uppercase text-primary">
               Compare what changes
             </div>
-            <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+            <h3 className="text-2xl font-bold text-foreground">
               See the differences without flipping between cards.
             </h3>
-            <p className="text-sm leading-6 text-default-600">
+            <p className="text-sm leading-6 text-muted">
               Every plan keeps the archive organized. The comparison below shows what grows as you need more room, stronger search, or tighter support.
             </p>
           </div>
 
           <div className="space-y-3">
             {comparisonRows.map((row) => (
-              <div
+              <Surface variant="secondary"
                 key={row.label}
-                className="rounded-[1.5rem] border border-default-200/80 bg-background/85 p-4"
+                className="p-4"
               >
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-foreground">{row.label}</div>
-                  <p className="text-sm text-default-500">{row.description}</p>
+                  <p className="text-sm text-muted">{row.description}</p>
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -456,7 +447,7 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
                           : 'border-default-200/70 bg-default-50/60'
                       }`}
                     >
-                      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-default-400">
+                      <div className="text-xs font-semibold uppercase text-muted">
                         {plan.name}
                       </div>
                       <div className="mt-2 text-sm font-medium leading-6 text-foreground">
@@ -465,40 +456,40 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
                     </div>
                   ))}
                 </div>
-              </div>
+              </Surface>
             ))}
           </div>
         </div>
       </Surface>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr_0.9fr]">
-        <Surface variant="secondary" className="rounded-[1.5rem] border border-default-200/80 p-6">
+        <Surface variant="secondary" className="p-6">
           <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+            <div className="text-xs font-semibold uppercase text-primary">
               Billing notes
             </div>
             <h3 className="text-xl font-bold text-foreground">
               Start on free, then upgrade only when your archive needs more room.
             </h3>
-            <p className="text-sm leading-6 text-default-600">
+            <p className="text-sm leading-6 text-muted">
               You can begin without a credit card. Paid plans move through Stripe checkout when you are ready for more storage, deeper history, or stronger retrieval.
             </p>
           </div>
         </Surface>
 
         {addOns.map((item) => (
-          <Card key={item.title} className="rounded-[1.5rem] border border-default-200/80 p-6">
+          <Card key={item.title} className="p-6">
             <Card.Header className="flex flex-row items-start justify-between gap-4 px-0 pt-0">
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                <div className="text-xs font-semibold uppercase text-muted">
                   Add-on
                 </div>
                 <h4 className="text-lg font-bold text-foreground">{item.title}</h4>
-                <p className="text-sm leading-6 text-default-500">{item.detail}</p>
+                <p className="text-sm leading-6 text-muted">{item.detail}</p>
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-2xl font-bold text-foreground">{item.price}</div>
-                <div className="text-sm text-default-500">{item.cadence}</div>
+                <div className="text-sm text-muted">{item.cadence}</div>
               </div>
             </Card.Header>
           </Card>
@@ -507,17 +498,17 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
 
       <Surface
         variant="secondary"
-        className="rounded-[2rem] border border-default-200/80 p-6 md:p-7"
+        className="p-6 md:p-7"
       >
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+            <div className="text-xs font-semibold uppercase text-primary">
               Own your own data
             </div>
-            <h3 className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+            <h3 className="text-2xl font-bold text-foreground">
               Keep Callery on your own server when the archive needs private hosting.
             </h3>
-            <p className="max-w-3xl text-sm leading-6 text-default-600">
+            <p className="max-w-3xl text-sm leading-6 text-muted">
               Individuals can purchase a self-hosted license for{' '}
               <span className="font-semibold text-foreground">$300</span> and keep full control of
               their own recordings, transcripts, and deployment. Teams that want private hosting can
@@ -526,12 +517,10 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <a href={`mailto:${salesEmail}`} className="w-full">
-              <Button className="w-full rounded-full font-semibold">
+            <ActionLink href={`mailto:${salesEmail}`} className="w-full font-semibold">
                 Email about private hosting
-              </Button>
-            </a>
-            <div className="text-sm text-default-500 lg:text-right">{salesEmail}</div>
+              </ActionLink>
+            <div className="text-sm text-muted lg:text-right">{salesEmail}</div>
           </div>
         </div>
       </Surface>

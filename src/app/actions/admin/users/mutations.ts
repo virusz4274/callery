@@ -1,3 +1,4 @@
+import { AdminLimitsSchema, AdminUsageSchema, validationFailure } from '@/lib/admin-validation';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
 import { User } from '@/lib/db/types';
@@ -57,6 +58,9 @@ export async function updateUserLimitsMutation(
     limits: { storageAllocation: number; transcriptionAllocation: number }
 ) {
     const admin = await requireCurrentAdmin();
+    const validation = AdminLimitsSchema.safeParse(limits);
+    if (!validation.success) return validationFailure(validation.error);
+
 
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');
@@ -95,6 +99,9 @@ export async function updateUserUsageMutation(
     usage: { storageUsed: number; transcriptionUsed: number }
 ) {
     const admin = await requireCurrentAdmin();
+    const validation = AdminUsageSchema.safeParse(usage);
+    if (!validation.success) return validationFailure(validation.error);
+
 
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');

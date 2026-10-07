@@ -1,7 +1,11 @@
 
 import { Recording, Contact } from '@/lib/types';
+import type { useRecordingWorkspace } from '@/hooks/use-recording-workspace';
 
 export type RecordingsTableProps = {
+    emptyState?: RecordingEmptyState;
+    semanticPagination?: { hasMore: boolean; isLoading: boolean };
+    recordingWorkspace?: ReturnType<typeof useRecordingWorkspace>;
     recordings: Recording[];
     contacts: Contact[];
     page: number;
@@ -13,6 +17,8 @@ export type RecordingsTableProps = {
     variant?: 'default' | 'flat';
     density?: 'comfortable' | 'dense';
 };
+
+export type RecordingEmptyState = { kind?: 'library' | 'filtered' | 'semantic'; onClear?: () => void };
 
 export type TableSelectionState = {
     selectedIds: Set<string>;

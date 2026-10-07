@@ -19,7 +19,7 @@ export function UsageProgressBar({ label, usedLabel, percent }: UsageProgressBar
             valueLabel={usedLabel}
         >
             <div className="flex justify-between text-sm mb-1">
-                <Label className="text-default-500">{label}</Label>
+                <Label className="text-muted">{label}</Label>
                 <Meter.Output className="font-medium" />
             </div>
             <Meter.Track>

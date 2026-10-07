@@ -1,12 +1,14 @@
 "use client";
 
-import { useTransition } from 'react';
+import { ActionLink } from '@/components/action-link';
+import { useRef, useState } from 'react';
 import { HealthDashboard } from '@/components/admin/health-dashboard';
 import { Users, Phone, HardDrive, FileAudio, AlertTriangle, Trash2, ArrowRight } from 'lucide-react';
 import { Button, Card, Spinner } from '@heroui/react';
-import Link from 'next/link';
 import { cleanupOrphanedRecordings } from '@/app/actions/admin';
 import { useRouter } from 'next/navigation';
+import { ConfirmActionDialog } from '@/components/admin/confirm-action-dialog';
+import { useToast } from '@/components/toast-provider';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
 
 type AdminDashboardProps = {
@@ -21,19 +23,22 @@ type AdminDashboardProps = {
 
 export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
     const { totalUsers, totalRecordings, totalStorageUsed, totalTranscriptionUsed } = stats;
-    const [isPending, startTransition] = useTransition();
+    const [isPending, setPending] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const busy = useRef(false);
+    const { toast } = useToast();
     const router = useRouter();
 
-    const handleCleanup = () => {
-        if (!confirm(`Are you sure you want to delete ${orphanedCount} orphaned recordings?`)) {
-            return;
-        }
-
-        startTransition(async () => {
+    const handleCleanup = async () => {
+        if (busy.current) return;
+        busy.current = true; setPending(true); setError(null);
+        try {
             const result = await cleanupOrphanedRecordings();
-            alert(`Cleanup complete: Removed ${result.deletedDb} database records and ${result.deletedR2} files.`);
-            router.refresh();
-        });
+            toast({ title: 'Cleanup complete', description: `Removed ${result.deletedDb ?? 0} database records and ${result.deletedR2 ?? 0} files.`, status: 'success' });
+            setConfirming(false); router.refresh();
+        } catch (error) { setError(error instanceof Error ? error.message : 'Please try again.'); }
+        finally { busy.current = false; setPending(false); }
     };
 
     // Convert bytes to GB
@@ -47,20 +52,16 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
         <AdminPageShell
             eyebrow="Operations overview"
             title="Admin dashboard"
-            description="Monitor system health, storage, user volume, and maintenance issues from the top-level control surface."
+
             actions={
                 <>
-                    <Link href="/admin/users">
-                        <Button variant="secondary" className="w-full rounded-full px-6 font-semibold">
+                    <ActionLink href="/admin/users" variant="secondary" className="min-h-11 gap-2 px-4">
                             Manage users
-                        </Button>
-                    </Link>
-                    <Link href="/admin/audit">
-                        <Button className="w-full rounded-full px-6 font-semibold">
+                        </ActionLink>
+                    <ActionLink href="/admin/audit" className="min-h-11 gap-2 px-4">
                             Open audit logs
                             <ArrowRight className="h-4 w-4" />
-                        </Button>
-                    </Link>
+                        </ActionLink>
                 </>
             }
             stats={[
@@ -91,10 +92,11 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
             ]}
         >
             <div className="space-y-6">
+                {confirming && <ConfirmActionDialog title="Clean up orphaned recordings?" description={`Permanently delete ${orphanedCount} recordings with no associated user, including their stored audio files.`} label="Clean up recordings" pending={isPending} error={error} onConfirm={() => void handleCleanup()} onClose={() => setConfirming(false)} />}
                 <HealthDashboard />
 
                 {orphanedCount > 0 && (
-                    <Card className="border border-warning/50 bg-warning/5 rounded-[1.5rem] shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+                    <Card className="border-warning/50 bg-warning/5">
                         <Card.Header className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="rounded-2xl bg-warning/10 p-2 text-warning">
@@ -102,16 +104,16 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-foreground">System maintenance required</h3>
-                                    <p className="text-sm text-default-500">
+                                    <p className="text-sm text-muted">
                                         Found {orphanedCount} orphaned recordings with no associated user.
                                     </p>
                                 </div>
                             </div>
                             <Button
                                 variant="ghost"
-                                className="rounded-full text-warning hover:bg-warning/10"
+                                className="text-warning hover:bg-warning/10"
                                 isDisabled={isPending}
-                                onPress={handleCleanup}
+                                onPress={() => { setError(null); setConfirming(true); }}
                             >
                                 {isPending ? <Spinner size="sm" color="warning" /> : (
                                     <div className="flex items-center gap-2">

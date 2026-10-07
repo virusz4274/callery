@@ -1,5 +1,6 @@
 'use server';
 
+import { AdminPlanSchema, validationFailure } from '@/lib/admin-validation';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { CreatePlanInput, Plan, PlanResponse, UpdatePlanInput } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
@@ -56,6 +57,8 @@ export async function getPlanById(id: string) {
 
 export async function createPlan(data: CreatePlanInput) {
     const admin = await requireCurrentAdmin();
+    const validation = AdminPlanSchema.safeParse(data);
+    if (!validation.success) return validationFailure(validation.error);
 
     const db = await getMongoDb();
 
@@ -87,6 +90,8 @@ export async function createPlan(data: CreatePlanInput) {
 
 export async function updatePlan(id: string, data: UpdatePlanInput) {
     const admin = await requireCurrentAdmin();
+    const validation = AdminPlanSchema.partial().safeParse(data);
+    if (!validation.success) return validationFailure(validation.error);
 
     const db = await getMongoDb();
     const planObjectId = parseObjectId(id, 'planId');

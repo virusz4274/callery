@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Button, Card, Chip, FieldError, Input, Label, Spinner, Surface, TextField } from '@heroui/react';
-import { KeyRound } from 'lucide-react';
+import { Button, Card, FieldError, Input, Label, Spinner, TextField } from '@heroui/react';
 import { SettingsSection } from './settings-section';
 import type { UseFormReturn } from 'react-hook-form';
 import type { AppUser as User } from '@/lib/auth/types';
@@ -59,18 +58,10 @@ export function ProfileSettings({
 
     return (
         <div className="space-y-6">
-            <SettingsSection title="Personal information" description="Update your personal information.">
+            <SettingsSection title="Personal information">
                 <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                     <form onSubmit={handleProfileSubmit}>
                         <Card.Content className="space-y-5 p-5 sm:p-6">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Chip variant="soft" color="accent">
-                                    Identity details
-                                </Chip>
-                                <Chip variant="soft" color="default">
-                                    Email stays read-only
-                                </Chip>
-                            </div>
 
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <TextField
@@ -113,19 +104,6 @@ export function ProfileSettings({
                     <Card className="gap-0 rounded-xl border border-border bg-surface p-0 shadow-none">
                         <form onSubmit={handlePasswordSubmit}>
                             <Card.Content className="space-y-5 p-5 sm:p-6">
-                                <Surface variant="secondary" className="rounded-xl border border-default-200/80 p-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="rounded-2xl bg-warning/10 p-2.5 text-warning">
-                                            <KeyRound className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-foreground">Security note</div>
-                                            <p className="mt-1 text-sm leading-6 text-default-500">
-                                                Password changes log you out after success, so make sure the new password is stored somewhere safe.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Surface>
 
                                 <TextField
                                     isInvalid={!!passwordForm.formState.errors.currentPassword}

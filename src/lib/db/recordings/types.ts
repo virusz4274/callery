@@ -4,6 +4,7 @@ export interface RecordingExportCursor {
 }
 
 export interface RecordingQueryOptions {
+    needsTranscription?: boolean;
     limit?: number;
     skip?: number;
     includeArchived?: boolean;
@@ -17,6 +18,7 @@ export interface RecordingQueryOptions {
 }
 
 export interface RecordingCountOptions {
+    needsTranscription?: boolean;
     includeArchived?: boolean;
     search?: string;
     contactName?: string;

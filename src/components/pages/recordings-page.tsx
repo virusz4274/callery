@@ -1,23 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RecordingsToolbar } from '@/components/recordings/recordings-toolbar';
 import { RecordingsTable } from '@/components/recordings-table';
 import { useRecordings } from '@/hooks/use-recordings';
+import { useRecordingWorkspace } from '@/hooks/use-recording-workspace';
+import { RecordingWorkspace } from '@/components/recording-view/recording-workspace';
 import { useUser } from '@/lib/auth/client';
 import { Alert, Button, Chip, Spinner, Surface } from '@heroui/react';
 import { useStats } from '@/hooks/use-stats';
 import { useContacts } from '@/hooks/use-contacts';
-import { useToast } from '@/components/toast-provider';
-import { RecordingDetailsDialog } from '@/components/recording-details-dialog';
-import type { Recording } from '@/lib/types';
 import type { SavedRecordingsView, SmartCollection } from '@/components/recordings/toolbar/types';
 import { Upload, CheckCircle2, X } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { buildLoginRedirectHref } from '@/lib/auth-redirect';
-import { getRecordingDetailsAction } from '@/app/actions/recordings';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useRecordingsFilters } from '@/hooks/use-recordings-filters';
 import { useSemanticSearch } from '@/hooks/use-semantic-search';
@@ -38,12 +36,11 @@ const SMART_COLLECTIONS: SmartCollection[] = [
 export function RecordingsPage() {
     const router = useRouter();
     const { user } = useUser();
-    const { toast } = useToast();
 
     const {
         page, limit, search, sortBy, sortOrder,
         startDate, endDate, contactId,
-        activeViewId, activeSmartCollectionId, linkedRecordingId,
+        activeViewId, activeSmartCollectionId,
         redirectPath, updateUrl,
         handlePageChange, handleSearchChange, handleSortChange,
         handleDateChange, handleContactChange, applySmartCollection,
@@ -55,7 +52,12 @@ export function RecordingsPage() {
         query: semanticQuery,
         setQuery: setSemanticQuery,
         results: semanticResults,
-        totalCount: semanticTotalCount,
+        submittedQuery: semanticSubmittedQuery,
+        page: semanticPage,
+        hasMore: semanticHasMore,
+        changePage: changeSemanticPage,
+        error: semanticError,
+        retry: retrySemanticSearch,
         engineMode: semanticSearchMode,
         fallbackReason: semanticFallbackReason,
         isSearching: isSemanticSearching,
@@ -69,12 +71,11 @@ export function RecordingsPage() {
 
     const [density, setDensity] = useLocalStorage<'comfortable' | 'dense'>(DENSITY_STORAGE_KEY, 'dense');
 
-    const [linkedRecording, setLinkedRecording] = useState<Recording | null>(null);
 
     // -- Data fetching --
     const queryOptions = useMemo(
-        () => ({ page, limit, search, sortBy, sortOrder, startDate, endDate, contactId, includeArchived: false }),
-        [page, limit, search, sortBy, sortOrder, startDate, endDate, contactId]
+        () => ({ page, limit, search, sortBy, sortOrder, startDate, endDate, contactId, includeArchived: false, needsTranscription: activeSmartCollectionId === 'needs-transcription' }),
+        [page, limit, search, sortBy, sortOrder, startDate, endDate, contactId, activeSmartCollectionId]
     );
     const { data: recordings, totalCount, isLoading: isLoadingRecordings, error: recordingsError, refetch } = useRecordings(queryOptions);
     const { data: contacts, isLoading: isLoadingContacts } = useContacts();
@@ -92,7 +93,7 @@ export function RecordingsPage() {
             end: view.endDate || undefined,
             contact: view.contactId || undefined,
             view: view.id,
-            collection: undefined,
+            collection: view.needsTranscription ? 'needs-transcription' : undefined,
             page: '1',
         });
     }, [savedViews, updateUrl]);
@@ -112,18 +113,14 @@ export function RecordingsPage() {
             startDate,
             endDate,
             contactId,
+            needsTranscription: activeSmartCollectionId === 'needs-transcription' || undefined,
         };
         setSavedViews([view, ...savedViews].slice(0, 10));
         updateUrl({ view: view.id });
-    }, [contactId, endDate, savedViews, setSavedViews, search, sortBy, sortOrder, startDate, updateUrl]);
+    }, [activeSmartCollectionId, contactId, endDate, savedViews, setSavedViews, search, sortBy, sortOrder, startDate, updateUrl]);
 
     // -- Misc callbacks --
     const dismissChecklist = useCallback(() => setIsChecklistDismissed(true), [setIsChecklistDismissed]);
-
-    const closeLinkedRecording = useCallback(() => {
-        setLinkedRecording(null);
-        updateUrl({ id: undefined });
-    }, [updateUrl]);
 
     const handleSearchModeChange = useCallback((mode: 'text' | 'semantic') => {
         if (mode === 'text') {
@@ -135,7 +132,6 @@ export function RecordingsPage() {
 
     const handleResetAll = useCallback(() => {
         clearSemanticSearch();
-        setDensity('dense');
         updateUrl({
             q: undefined,
             sortBy: 'date',
@@ -147,36 +143,15 @@ export function RecordingsPage() {
             collection: undefined,
             page: '1',
         });
-    }, [clearSemanticSearch, setDensity, updateUrl]);
-
-    const handleLinkedRecordingUpdated = useCallback(async (recording: Recording) => {
-        setLinkedRecording(recording);
-        await refetch();
-    }, [refetch]);
+    }, [clearSemanticSearch, updateUrl]);
 
     // -- Derived state --
-    const isShowingSemanticResults = !!semanticResults;
-    const displayedRecordings = useMemo(() => {
-        const source = isShowingSemanticResults ? (semanticResults ?? []) : (recordings ?? []);
-        if (activeSmartCollectionId !== 'needs-transcription') return source;
-        return source.filter((r) => r.transcriptionStatus !== 'completed');
-    }, [activeSmartCollectionId, isShowingSemanticResults, recordings, semanticResults]);
-
-    const displayTotalCount = activeSmartCollectionId === 'needs-transcription'
-        ? displayedRecordings.length
-        : (isShowingSemanticResults ? semanticTotalCount : totalCount);
+    const isShowingSemanticResults = searchMode === 'semantic';
+    const displayedRecordings = useMemo(() => isShowingSemanticResults ? (semanticResults ?? []) : (recordings ?? []), [isShowingSemanticResults, recordings, semanticResults]);
+    const displayTotalCount = isShowingSemanticResults ? displayedRecordings.length : totalCount;
     const totalLibraryCount = stats?.totalRecordings ?? totalCount;
     const hasRecordings = totalLibraryCount > 0;
     const hasContacts = (contacts?.length ?? 0) > 0;
-    const activeCollectionName = activeSmartCollectionId
-        ? SMART_COLLECTIONS.find((item) => item.id === activeSmartCollectionId)?.name ?? activeSmartCollectionId
-        : null;
-    const filteredContactName = contactId
-        ? contacts?.find((c) => c.id === contactId)?.name ?? 'Filtered contact'
-        : null;
-    const activeViewName = activeViewId
-        ? savedViews.find((item) => item.id === activeViewId)?.name ?? 'Saved'
-        : null;
 
     const checklistItems = [
         { id: 'upload', title: 'Upload your first recording', done: hasRecordings, href: '/upload' },
@@ -185,44 +160,12 @@ export function RecordingsPage() {
     ];
     const completedChecklistCount = checklistItems.filter((item) => item.done).length;
     const shouldShowChecklist = !isChecklistDismissed && !isLoadingRecordings && !isLoadingContacts && !recordingsError && (!hasRecordings || !hasContacts);
+    const workspace = useRecordingWorkspace(displayedRecordings);
 
     // -- Effects --
     useEffect(() => {
         if (!user) router.replace(buildLoginRedirectHref(redirectPath));
     }, [redirectPath, router, user]);
-
-    useEffect(() => {
-        if (!user || !linkedRecordingId) return;
-
-        const recordingFromList = (recordings ?? []).find((r) => r.id === linkedRecordingId);
-        if (recordingFromList) {
-            // Safe: linkedRecording is not in the dep array, so this can't loop.
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setLinkedRecording(recordingFromList);
-            return;
-        }
-
-        let cancelled = false;
-        void getRecordingDetailsAction(linkedRecordingId)
-            .then((result) => {
-                if (cancelled) return;
-                if ('error' in result) {
-                    setLinkedRecording(null);
-                    updateUrl({ id: undefined });
-                    toast({ title: 'Recording unavailable', description: 'The linked recording could not be opened.', status: 'warning' });
-                    return;
-                }
-                setLinkedRecording(result.recording as Recording);
-            })
-            .catch((error) => {
-                if (cancelled) return;
-                console.error('Failed to open linked recording:', error);
-                setLinkedRecording(null);
-                updateUrl({ id: undefined });
-                toast({ title: 'Recording unavailable', description: 'The linked recording could not be opened.', status: 'warning' });
-            });
-        return () => { cancelled = true; };
-    }, [linkedRecordingId, recordings, toast, updateUrl, user]);
 
     if (!user) {
         return (
@@ -238,20 +181,13 @@ export function RecordingsPage() {
 
             <PageHeader
                 title="Recordings"
-                description={hasRecordings ? 'Your conversations, ready to search and revisit.' : 'Build your searchable archive by uploading your first recording.'}
-                meta={<Chip variant="soft" color="default" size="sm">{isShowingSemanticResults ? `${displayTotalCount} AI matches` : `${displayTotalCount} recordings`}</Chip>}
+
+                meta={<span className="text-sm text-muted">{isShowingSemanticResults ? 'AI search' : `${displayTotalCount} recordings`}</span>}
                 actions={<Button onPress={() => router.push('/upload')}><Upload className="size-4" />Upload recordings</Button>}
             />
-            {(filteredContactName || activeCollectionName || activeViewName) && (
-                <div className="flex flex-wrap items-center gap-2">
-                    {filteredContactName && <Chip variant="soft" color="default">Contact: {filteredContactName}</Chip>}
-                    {activeCollectionName && <Chip variant="soft" color="accent">{activeCollectionName}</Chip>}
-                    {activeViewName && <Chip variant="soft" color="default">{activeViewName}</Chip>}
-                </div>
-            )}
 
             {shouldShowChecklist && (
-                <Surface variant="default" className="rounded-xl border border-border bg-surface p-4 shadow-none">
+                <Surface variant="default" className={`${hasRecordings ? 'hidden md:block' : ''} rounded-xl border border-border bg-surface p-4 shadow-none`}>
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             <Chip variant="soft" color="warning">Setup {completedChecklistCount}/{checklistItems.length}</Chip>
@@ -280,6 +216,13 @@ export function RecordingsPage() {
 
             <div className="flex flex-col gap-6">
                 <RecordingsToolbar
+                    onApplyMobileFilters={(filters) => {
+                        setDensity(filters.density);
+                        if (filters.search !== search) clearSemanticSearch();
+                        updateUrl({ q: filters.search || undefined, contact: filters.contactId,
+                            start: filters.startDate, end: filters.endDate, sortBy: filters.sortBy,
+                            order: filters.sortOrder, view: filters.viewId, collection: filters.collectionId, page: '1' });
+                    }}
                     search={search}
                     onSearchChange={handleSearchChange}
                     sortBy={sortBy}
@@ -292,14 +235,14 @@ export function RecordingsPage() {
                     contactId={contactId}
                     onContactChange={handleContactChange}
                     semanticQuery={semanticQuery}
-                    onSemanticQueryChange={(value) => {
-                        setSearchMode('semantic');
-                        setSemanticQuery(value);
-                    }}
+                    semanticSubmittedQuery={semanticSubmittedQuery}
+                    semanticError={semanticError}
+                    onRetrySemanticSearch={retrySemanticSearch}
+                    onSemanticQueryChange={setSemanticQuery}
                     onSemanticSearch={runSemanticSearch}
                     onClearSemanticSearch={clearSemanticSearch}
                     isSemanticSearching={isSemanticSearching}
-                    semanticResultsCount={isShowingSemanticResults ? semanticTotalCount : undefined}
+                    semanticResultsCount={semanticResults !== null ? displayedRecordings.length : undefined}
                     semanticSearchMode={semanticSearchMode}
                     semanticFallbackReason={semanticFallbackReason}
                     savedViews={savedViews}
@@ -334,13 +277,18 @@ export function RecordingsPage() {
                             <div className="flex justify-center items-center h-64">
                                 <Spinner size="lg" />
                             </div>
+                        ) : isShowingSemanticResults && semanticResults === null ? (
+                            <div className="px-4 py-12 text-center text-sm text-muted">Describe a conversation above to find related recordings.</div>
                         ) : (
                             <RecordingsTable
+                                recordingWorkspace={workspace}
                                 recordings={displayedRecordings}
                                 totalCount={displayTotalCount}
-                                page={isShowingSemanticResults ? 1 : page}
+                                page={isShowingSemanticResults ? semanticPage : page}
                                 itemsPerPage={limit}
-                                setPage={handlePageChange}
+                                setPage={isShowingSemanticResults ? changeSemanticPage : handlePageChange}
+                                semanticPagination={isShowingSemanticResults ? { hasMore: semanticHasMore, isLoading: isSemanticSearching } : undefined}
+                                emptyState={{ kind: isShowingSemanticResults ? 'semantic' : search || contactId || startDate || endDate || activeSmartCollectionId || totalLibraryCount > 0 ? 'filtered' : 'library', onClear: isShowingSemanticResults ? clearSemanticSearch : handleResetAll }}
                                 onRecordingsChange={refetch}
                                 contacts={contacts ?? []}
                                 density={density}
@@ -350,15 +298,8 @@ export function RecordingsPage() {
                 </section>
             </div>
 
-            {linkedRecordingId && linkedRecording && (
-                <RecordingDetailsDialog
-                    recording={linkedRecording}
-                    onOpenChange={(isOpen) => {
-                        if (!isOpen) closeLinkedRecording();
-                    }}
-                    onRecordingUpdated={handleLinkedRecordingUpdated}
-                />
-            )}
+
+            <RecordingWorkspace workspace={workspace} onUpdated={refetch} />
         </div>
     );
 }

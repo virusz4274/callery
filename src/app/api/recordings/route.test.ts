@@ -6,6 +6,7 @@ import { createGetRecordingsHandler } from './handler';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { buildRecordingWriteData } from '@/lib/db/recordings/write';
 import type { RecordingQueryOptions } from '@/lib/db/recordings';
+import type { AtlasSearchOptions } from '@/lib/db/search';
 
 const document = {
     _id: new ObjectId(),
@@ -17,6 +18,27 @@ const document = {
         tags: [], isStarred: false, isArchived: false,
     }, new Date('2026-10-05T00:00:00Z')),
 };
+
+test('transcription collection filters reach paginated reads and counts, including Atlas search', async () => {
+    const queries: unknown[] = [];
+    const dependencies = {
+        getUserFromRequest: async () => 'owner',
+        getRecordingsForApi: async (_owner: string, options?: RecordingQueryOptions) => { queries.push(options); return []; },
+        countRecordingsByUser: async (_owner: string, options?: RecordingQueryOptions) => { queries.push(options); return 12; },
+        searchRecordingsByAtlas: async (_query: string, _owner: string, options?: AtlasSearchOptions) => { queries.push(options); return { results: [], totalCount: 0 }; },
+    };
+    const response = await createGetRecordingsHandler(dependencies)(new NextRequest('https://app.example.com/api/recordings?needsTranscription=true&page=2&limit=5&search=call&contactId=507f1f77bcf86cd799439011'));
+    const body = await response.json();
+    assert.equal(body.totalCount, 12);
+    assert.equal(body.page, 2);
+    assert.equal(body.totalPages, 3);
+    assert.equal(queries.length, 3);
+    for (const query of queries) {
+        assert.equal((query as RecordingQueryOptions).needsTranscription, true);
+        assert.equal((query as RecordingQueryOptions).contactId, '507f1f77bcf86cd799439011');
+    }
+    assert.equal((queries[1] as RecordingQueryOptions).skip, 5);
+});
 
 test('recordings API uses page/search, ignores removed aliases, and returns serialized records', async () => {
     const options: RecordingQueryOptions[] = [];

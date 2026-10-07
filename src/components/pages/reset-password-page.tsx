@@ -1,5 +1,6 @@
 'use client';
 
+import { ActionLink } from '@/components/action-link';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -63,9 +64,9 @@ export function ResetPasswordPage() {
 
   return (
     <AuthShell
-      badge="Set New Password"
+
       title="Create a new password"
-      description="Use the reset code from your email to set a new password and return to your workspace securely."
+      description="Enter your reset code and new password."
       footer={
         <p className="text-sm text-default-500">
           Need a new code?{' '}
@@ -84,11 +85,9 @@ export function ResetPasswordPage() {
             </p>
           </div>
 
-          <Link href={loginHref} className="block">
-            <Button variant="primary" className="h-12 w-full rounded-lg font-medium">
+          <ActionLink href={loginHref} variant="primary" className="h-12 w-full font-medium">
               Sign In
-            </Button>
-          </Link>
+            </ActionLink>
         </div>
       ) : !auth.passwordResetEnabled ? (
         <p className="text-sm text-default-600">Password recovery is unavailable on this instance. Contact its administrator.</p>

@@ -17,27 +17,27 @@ const protectedRouteExpectations = [
   {
     route: '/recordings',
     redirect: '/recordings',
-    helperCopy: 'Sign in to open your recordings workspace and get back to search, filters, and call review.',
+    helperCopy: 'Sign in to view your recordings.',
   },
   {
     route: '/upload',
     redirect: '/upload',
-    helperCopy: 'Sign in to upload recordings and continue building your workspace in one organized flow.',
+    helperCopy: 'Sign in to upload recordings.',
   },
   {
     route: '/contacts',
     redirect: '/contacts',
-    helperCopy: 'Sign in to open your contacts workspace and jump back into linked call history.',
+    helperCopy: 'Sign in to view your contacts.',
   },
   {
     route: '/files',
     redirect: '/files',
-    helperCopy: 'Sign in to inspect your file library, browse stored recordings, and open details with confidence.',
+    helperCopy: 'Sign in to browse your files.',
   },
   {
     route: '/settings',
     redirect: '/settings',
-    helperCopy: 'Sign in to manage your workspace settings, exports, notifications, and plan details.',
+    helperCopy: 'Sign in to manage your settings.',
   },
 ];
 
@@ -94,7 +94,7 @@ test('auth pages preserve redirect links and sanitize invalid redirect values', 
 
   await page.goto(`/login?redirect=${invalidRedirect}`);
   await expect(page.locator('body')).toContainText(
-    'Sign in to open your recordings workspace and get back to search, filters, and call review.'
+    'Sign in to view your recordings.'
   );
   await expect(page.getByRole('link', { name: /Create one/i })).toHaveAttribute(
     'href',

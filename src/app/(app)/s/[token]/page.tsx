@@ -74,10 +74,10 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
 
             {/* Main Content */}
             <main className="flex-1 w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
-                <div className="bg-background rounded-2xl shadow-sm border border-default-200 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+                <div className="bg-background rounded-2xl shadow-sm border border-default-200 flex flex-col md:overflow-hidden md:h-[calc(100vh-140px)]">
                     {/* Recording Header */}
-                    <div className="border-b border-default-100 p-6 bg-default-50/30">
-                        <h1 className="text-2xl font-bold truncate mb-2">
+                    <div className="border-b border-default-100 p-4 md:p-6 bg-default-50/30">
+                        <h1 className="text-xl font-bold break-words md:text-2xl md:truncate mb-2">
                             {recording.contactName || recording.phoneNumber}
                         </h1>
                         <div className="flex flex-wrap gap-4 text-sm text-default-500">
@@ -93,7 +93,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                     </div>
 
                     {/* Content Body */}
-                    <div className="flex-1 overflow-hidden p-6">
+                    <div className="min-h-0 flex-1 md:overflow-y-auto md:p-6">
                         <RecordingContent
                             recording={recordingResponse}
                             playbackUrl={playbackUrl}

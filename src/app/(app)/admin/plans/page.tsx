@@ -16,7 +16,7 @@ export default async function PlansPage() {
         <AdminPageShell
             eyebrow="Billing catalog"
             title="Pricing plans"
-            description="Control the subscription tiers, default onboarding plans, and limit structure offered across the product."
+
             stats={[
                 {
                     label: 'Plans',

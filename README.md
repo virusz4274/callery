@@ -23,7 +23,8 @@ A modern web application for managing, transcribing, and organizing phone call r
     ```
 
 2.  **Set up environment variables**:
-    Copy `.env.example` to `.env`. This is the complete template for native
+    For a new installation, copy `.env.example` to `.env`; preserve an existing
+    deployment's file. This is the complete template for native
     self-hosting, Docker Compose, and managed deployments. Follow its profile
     comments to configure MongoDB, storage, auth, and each optional integration.
 
@@ -38,6 +39,8 @@ A modern web application for managing, transcribing, and organizing phone call r
     ```
 
 Open [http://localhost:9000](http://localhost:9000) with your browser to see the result.
+If the deployment uses a public origin or tunnel, open the saved
+`NEXT_PUBLIC_APP_URL` instead; preserve that origin when the server listens locally.
 
 ## Deployment Profiles
 
@@ -58,7 +61,7 @@ the browser bundle, so changing billing or other public settings requires
 Docker self-host quickstart:
 
 ```bash
-cp .env.example .env
+cp -n .env.example .env  # New installation only; preserve an existing .env.
 # Apply the Docker Compose settings listed at the top of .env.example.
 # Set BETTER_AUTH_SECRET, CRON_SECRET, ADMIN_EMAILS, and MinIO credentials.
 # Configure every required field for any optional integration you enable.
@@ -77,3 +80,7 @@ worker. The experimental vinext/Workers setup is separate; its compatibility
 percentage does not govern the Docker deployment.
 
 See the [Setup Guide](docs/setup-guide.md) for storage, local AI, and every variable.
+For semantic search, follow [Search setup](docs/setup-guide.md#search-setup):
+`db:init` prints the Search index definitions but does not create them.
+The bundled MongoDB service supports ordinary keyword search; vector search
+needs a search-enabled deployment and the `recordings_vector_search` index.

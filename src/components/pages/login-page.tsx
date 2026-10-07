@@ -88,7 +88,7 @@ export function LoginPage() {
 
   return (
     <AuthShell
-      badge="Sign In"
+
       title="Welcome back"
       description={authCopy.loginDescription}
       compactOnMobile
@@ -144,10 +144,6 @@ export function LoginPage() {
             <div className="space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-default-400">
                 Or use email
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-foreground">Email and password</div>
-                <p className="text-sm text-default-500">Use this when Google is not the right account.</p>
               </div>
             </div>
 

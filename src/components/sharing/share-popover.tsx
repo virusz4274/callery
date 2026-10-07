@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { Button, Chip, Input, Label, ListBox, Popover, Select } from '@heroui/react';
-import { Check, Clock, Copy, Link2, Share2 } from 'lucide-react';
+import { Accordion, Button, Input, Label, ListBox, Popover, Select } from '@heroui/react';
+import { Check, Clock, Copy, Share2 } from 'lucide-react';
 import { createShareLink, createShareLinkForClip } from '@/app/actions/sharing';
 import { useToast } from '@/components/toast-provider';
 
@@ -11,19 +11,19 @@ interface SharePopoverProps {
 }
 
 const expirations = [
-    { value: '1h', label: '1 Hour', detail: 'Good for immediate follow-up' },
-    { value: '24h', label: '24 Hours', detail: 'Best default for quick review' },
-    { value: '7d', label: '7 Days', detail: 'Use when collaborators need more time' },
+    { value: '1h', label: '1 Hour' },
+    { value: '24h', label: '24 Hours' },
+    { value: '7d', label: '7 Days' },
 ];
 
-export function SharePopover({ recordingId }: SharePopoverProps) {
-    const [isOpen, setIsOpen] = useState(false);
+export function ShareRecordingForm({ recordingId }: SharePopoverProps) {
     const [loading, setLoading] = useState(false);
     const [link, setLink] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [expiration, setExpiration] = useState<string>('24h');
     const [clipStartInput, setClipStartInput] = useState('');
     const [clipEndInput, setClipEndInput] = useState('');
+    const [clipExpanded, setClipExpanded] = useState(false);
     const { toast } = useToast();
 
     const handleGenerate = async () => {
@@ -81,7 +81,6 @@ export function SharePopover({ recordingId }: SharePopoverProps) {
             setCopied(true);
             toast({
                 title: 'Link copied',
-                description: 'The share link is now in your clipboard.',
                 status: 'success',
             });
             setTimeout(() => setCopied(false), 2000);
@@ -95,161 +94,62 @@ export function SharePopover({ recordingId }: SharePopoverProps) {
         }
     };
 
-    const handleOpenChange = (open: boolean) => {
-        setIsOpen(open);
-        if (!open) {
-            setLink(null);
-            setCopied(false);
-            setClipStartInput('');
-            setClipEndInput('');
-        }
-    };
-
-    const selectedExpiration = expirations.find((item) => item.value === expiration) ?? expirations[1];
-
     return (
-        <Popover isOpen={isOpen} onOpenChange={handleOpenChange}>
+        <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+                <h2 className="flex items-center gap-2 text-base font-semibold"><Share2 className="size-4" aria-hidden="true" />Share recording</h2>
+                <p className="text-sm leading-6 text-muted">Anyone with the link can access this recording until it expires.</p>
+            </div>
+            {!link ? <div className="space-y-4">
+                <Select aria-label="Share link expiration" selectedKey={expiration}
+                    onSelectionChange={(key) => { if (key !== null) setExpiration(key.toString()); }}>
+                    <Label>Expires in</Label>
+                    <Select.Trigger className="min-h-11"><Clock className="mr-2 size-4 text-muted" aria-hidden="true" /><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover><ListBox>{expirations.map((item) =>
+                        <ListBox.Item key={item.value} id={item.value} textValue={item.label}>{item.label}</ListBox.Item>
+                    )}</ListBox></Select.Popover>
+                </Select>
+                <Accordion expandedKeys={clipExpanded ? ['clip'] : []} onExpandedChange={keys => setClipExpanded(keys.has('clip'))}>
+                  <Accordion.Item id="clip"><Accordion.Heading><Accordion.Trigger className="min-h-11">Share a clip<Accordion.Indicator /></Accordion.Trigger></Accordion.Heading>
+                  <Accordion.Panel><Accordion.Body>
+                    <div className="grid gap-3 pb-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <Label htmlFor={`clip-start-${recordingId}`}>Clip start (sec)</Label>
+                            <Input id={`clip-start-${recordingId}`} aria-label="Clip start seconds" className="min-h-11 text-base" type="number" min={0} step={1}
+                                value={clipStartInput} onChange={(event) => { setClipStartInput(event.target.value); if (event.target.value) setClipExpanded(true); }} variant="secondary" placeholder="Optional" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor={`clip-end-${recordingId}`}>Clip end (sec)</Label>
+                            <Input id={`clip-end-${recordingId}`} aria-label="Clip end seconds" className="min-h-11 text-base" type="number" min={0} step={1}
+                                value={clipEndInput} onChange={(event) => { setClipEndInput(event.target.value); if (event.target.value) setClipExpanded(true); }} variant="secondary" placeholder="Optional" />
+                        </div>
+                    </div>
+                </Accordion.Body></Accordion.Panel></Accordion.Item></Accordion>
+                <Button variant="primary" onPress={handleGenerate} isPending={loading} className="min-h-11 w-full rounded-lg">Generate link</Button>
+            </div> : <div className="space-y-3">
+                <Input aria-label="Generated share link" readOnly value={link} variant="secondary" className="min-h-11 text-base" />
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="primary" onPress={handleCopy} className="min-h-11 flex-1 gap-2 rounded-lg">
+                        {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}{copied ? 'Copied' : 'Copy link'}
+                    </Button>
+                    <Button variant="ghost" onPress={() => { setLink(null); if (clipStartInput || clipEndInput) setClipExpanded(true); }} className="min-h-11 rounded-lg">Create another link</Button>
+                </div>
+            </div>}
+        </div>
+    );
+}
+
+export function SharePopover({ recordingId }: SharePopoverProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
             <Popover.Trigger>
-                <Button variant="ghost" size="sm" className="h-8 gap-2 text-default-600">
-                    <Share2 className="size-4" />
-                    <span className="hidden sm:inline">Share</span>
+                <Button variant="ghost" size="sm" className="min-h-11 gap-2 text-default-600" aria-label="Share recording">
+                    <Share2 className="size-4" /><span>Share</span>
                 </Button>
             </Popover.Trigger>
-            <Popover.Content className="w-[360px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[2rem] border border-default-200/80 bg-background/98 p-0 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)]" placement="bottom">
-                <Popover.Dialog className="flex flex-col gap-4 p-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Popover.Heading className="flex items-center gap-2 text-sm font-semibold tracking-[-0.02em]">
-                                <Share2 className="size-4" />
-                                Share recording
-                            </Popover.Heading>
-                            <Chip size="sm" variant="soft" color="accent">Temporary link</Chip>
-                        </div>
-                        <p className="text-sm leading-6 text-default-500">
-                            Create a public review link for this recording and control how long it stays active.
-                        </p>
-                    </div>
-
-                    {!link ? (
-                        <div className="space-y-4">
-                            <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
-                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                    <Clock className="size-4 text-primary" />
-                                    Expiration window
-                                </div>
-                                <p className="mt-2 text-sm leading-6 text-default-500">{selectedExpiration.detail}</p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium">Expires in</Label>
-                                <Select
-                                    aria-label="Share link expiration"
-                                    placeholder="Expires in"
-                                    defaultSelectedKey="24h"
-                                    onSelectionChange={(key) => {
-                                        if (key !== null) {
-                                            setExpiration(key.toString());
-                                        }
-                                    }}
-                                >
-                                    <Select.Trigger>
-                                        <Clock className="mr-2 size-4 text-default-400" />
-                                        <Select.Value />
-                                        <Select.Indicator />
-                                    </Select.Trigger>
-                                    <Select.Popover>
-                                        <ListBox>
-                                            {expirations.map((exp) => (
-                                                <ListBox.Item key={exp.value} id={exp.value} textValue={exp.label}>
-                                                    <div className="flex flex-col">
-                                                        <span>{exp.label}</span>
-                                                        <span className="text-xs text-default-400">{exp.detail}</span>
-                                                    </div>
-                                                </ListBox.Item>
-                                            ))}
-                                        </ListBox>
-                                    </Select.Popover>
-                                </Select>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="space-y-1.5">
-                                    <Label className="text-sm font-medium">Clip start (sec)</Label>
-                                    <Input
-                                        aria-label="Clip start seconds"
-                                        type="number"
-                                        min={0}
-                                        step={1}
-                                        value={clipStartInput}
-                                        onChange={(event) => setClipStartInput(event.target.value)}
-                                        variant="secondary"
-                                        placeholder="Optional"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-sm font-medium">Clip end (sec)</Label>
-                                    <Input
-                                        aria-label="Clip end seconds"
-                                        type="number"
-                                        min={0}
-                                        step={1}
-                                        value={clipEndInput}
-                                        onChange={(event) => setClipEndInput(event.target.value)}
-                                        variant="secondary"
-                                        placeholder="Optional"
-                                    />
-                                </div>
-                            </div>
-
-                            <Button variant="primary" onPress={handleGenerate} isPending={loading} className="w-full rounded-full">
-                                Generate link
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="rounded-xl border border-default-200/80 bg-default-50/70 p-4">
-                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                    <Link2 className="size-4 text-primary" />
-                                    Link ready to share
-                                </div>
-                                <p className="mt-2 text-sm leading-6 text-default-500">
-                                    Anyone with this link can open the shared recording until it expires.
-                                </p>
-                            </div>
-
-                            <div className="relative">
-                                <Input
-                                    aria-label="Generated share link"
-                                    readOnly
-                                    value={link}
-                                    variant="secondary"
-                                    className="pr-12"
-                                />
-                                <div className="absolute right-1 top-1/2 z-10 -translate-y-1/2">
-                                    <Button
-                                        isIconOnly
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 w-7 min-w-7 rounded-full"
-                                        onPress={handleCopy}
-                                        aria-label="Copy share link"
-                                    >
-                                        {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <Button variant="ghost" size="sm" onPress={() => setLink(null)} className="w-full rounded-full">
-                                    Create another link
-                                </Button>
-                                <Button variant="primary" size="sm" onPress={handleCopy} className="w-full rounded-full">
-                                    {copied ? 'Copied' : 'Copy link'}
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </Popover.Dialog>
+            <Popover.Content className="w-[360px] max-w-[calc(100vw-1.5rem)] p-4" placement="bottom">
+                <Popover.Dialog aria-label="Share recording">{isOpen && <ShareRecordingForm recordingId={recordingId} />}</Popover.Dialog>
             </Popover.Content>
         </Popover>
     );

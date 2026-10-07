@@ -27,7 +27,7 @@ export default function AppError({
           </div>
           <div className="space-y-3">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-foreground">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 This page hit an unexpected error.
               </h2>
               <p className="mt-1 text-sm leading-6 text-default-600">

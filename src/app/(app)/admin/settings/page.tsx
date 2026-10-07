@@ -3,6 +3,7 @@ import { getCurrentAdmin } from '@/app/actions/admin';
 import { getSystemSettings } from '@/app/actions/admin-settings';
 import { getPlans } from '@/app/actions/admin-plans';
 import { SettingsForm } from '@/components/admin/settings-form';
+import { AdminPageRetry } from '@/components/admin/admin-feedback';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
 
 export default async function SettingsPage() {
@@ -26,9 +27,8 @@ export default async function SettingsPage() {
             <AdminPageShell
                 eyebrow="Initialization required"
                 title="System settings unavailable"
-                description={initializationError || 'Run `npm run db:init` before using admin settings.'}
             >
-                <div />
+                <AdminPageRetry title="Could not load system settings" message={initializationError || 'Required settings are unavailable.'} />
             </AdminPageShell>
         );
     }
@@ -37,7 +37,7 @@ export default async function SettingsPage() {
         <AdminPageShell
             eyebrow="Global defaults"
             title="System settings"
-            description="Control signup availability, maintenance mode, default onboarding plans, and transcription billing behavior."
+
             stats={[
                 {
                     label: 'Signups',

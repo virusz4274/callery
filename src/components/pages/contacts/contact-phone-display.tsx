@@ -1,48 +1,34 @@
 'use client';
 
-import { useState } from 'react';
-import { Chip } from '@heroui/react';
-import { Phone } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Button } from '@heroui/react';
 
 type ContactPhoneDisplayProps = {
     phoneNumbers?: string[];
+    contactName: string;
 };
 
-export function ContactPhoneDisplay({ phoneNumbers }: ContactPhoneDisplayProps) {
+export function ContactPhoneDisplay({ phoneNumbers, contactName }: ContactPhoneDisplayProps) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const numbersId = useId();
 
     if (!phoneNumbers || phoneNumbers.length === 0) {
-        return null;
+        return <span className="flex min-h-6 items-center text-sm text-muted lg:min-h-11">No phone number</span>;
     }
 
     return (
-        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-            <Chip size="sm" variant="soft" color="default" className="max-w-full">
-                <Phone className="mr-1 h-3 w-3 shrink-0" />
-                <span className="truncate">{phoneNumbers[0]}</span>
-            </Chip>
-
-            {isExpanded &&
-                phoneNumbers.slice(1).map((number, index) => (
-                    <Chip key={index} size="sm" variant="soft" color="default" className="max-w-full">
-                        <Phone className="mr-1 h-3 w-3 shrink-0" />
-                        <span className="truncate">{number}</span>
-                    </Chip>
-                ))}
-
-            {!isExpanded && phoneNumbers.length > 1 && (
-                <div
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        setIsExpanded(true);
-                    }}
-                    role="button"
-                    className="cursor-pointer"
-                >
-                    <Chip size="sm" variant="soft" className="cursor-pointer hover:bg-default-200 transition-colors">
-                        +{phoneNumbers.length - 1} more
-                    </Chip>
-                </div>
+        <div className="min-w-0 text-sm text-muted">
+            <span className="flex min-h-6 items-center break-all tabular-nums lg:min-h-11">{phoneNumbers[0]}</span>
+            <div id={numbersId} hidden={!isExpanded} className="space-y-2 break-all tabular-nums">
+                {phoneNumbers.slice(1).map((number, index) => <p key={index}>{number}</p>)}
+            </div>
+            {phoneNumbers.length > 1 && (
+                <Button variant="ghost" size="sm" type="button" aria-expanded={isExpanded} aria-controls={numbersId}
+                    aria-label={`${isExpanded ? 'Show fewer' : 'Show all'} phone numbers for ${contactName}`}
+                    onPress={() => setIsExpanded(!isExpanded)}
+                    className="min-h-11 text-accent lg:min-h-8">
+                    {isExpanded ? 'Show fewer' : `+${phoneNumbers.length - 1} more`}
+                </Button>
             )}
         </div>
     );

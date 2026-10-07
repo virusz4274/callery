@@ -30,7 +30,7 @@ export async function createRecording(data: CreateRecordingInput): Promise<Recor
     });
 
     if (data.contactId) {
-        await incrementContactRecordings(data.contactId.toString(), data.authSubject, now, 1);
+        await incrementContactRecordings(data.contactId.toString(), data.authSubject, data.recordedAt, 1);
     }
 
     return {

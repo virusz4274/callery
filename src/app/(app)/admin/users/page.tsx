@@ -30,27 +30,8 @@ export default async function UsersPage({
         <AdminPageShell
             eyebrow="Accounts and access"
             title="User management"
-            description="Search accounts, adjust plans and limits, and inspect operational state without leaving the admin console."
-            stats={[
-                {
-                    label: 'Users',
-                    value: data.total,
-                    helper: 'Accounts matching the current system scope',
-                    iconName: 'Users',
-                },
-                {
-                    label: 'Search',
-                    value: search || 'None',
-                    helper: 'Current search filter applied to the table',
-                    iconName: 'Search',
-                },
-                {
-                    label: 'Plans',
-                    value: plans.length,
-                    helper: 'Available plans that can be assigned to users',
-                    iconName: 'ShieldCheck',
-                },
-            ]}
+
+
         >
             <Suspense fallback={<AdminLoadingState />}>
                 <UserManagementTable

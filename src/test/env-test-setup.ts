@@ -19,6 +19,7 @@ const defaultEnv: Record<string, string> = {
     GOOGLE_CLIENT_SECRET: 'test-client-secret',
     NEXT_PUBLIC_GOOGLE_REDIRECT_URI: 'https://app.example.com/api/auth/google/callback',
     GOOGLE_GENERATIVE_AI_API_KEY: 'test',
+    GEMINI_MODEL_TRANSCRIPTION: 'test',
     GEMINI_MODEL_SUMMARY: 'test',
     GEMINI_MODEL_TRANSLITERATION: 'test',
     GEMINI_MODEL_EMBEDDING: 'test',

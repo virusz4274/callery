@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@heroui/react';
-import { RecordingDetailsDialog } from '../recording-details-dialog';
+import { RecordingWorkspace } from '../recording-view/recording-workspace';
 import { DeleteConfirmationModal } from './delete-confirmation-modal';
 import { RecordingsTableDesktop } from './recordings-table-desktop';
 import { RecordingsTableMobile } from './recordings-table-mobile';
@@ -9,8 +9,10 @@ import { RecordingsTableFooter } from './recordings-table-footer';
 import { RecordingsTableHeader } from './recordings-table-header';
 import { useRecordingsTableController } from './use-recordings-table-controller';
 import type { RecordingsTableProps } from './types';
+import { SummaryExpansionProvider } from './summary-preview';
 
 export function RecordingsTable({
+    recordingWorkspace,
     recordings,
     contacts,
     page,
@@ -21,23 +23,23 @@ export function RecordingsTable({
     onRetryTranscription,
     variant = 'default',
     density = 'comfortable',
+    emptyState,
+    semanticPagination,
 }: RecordingsTableProps) {
     const {
-        activeRecording,
+        workspace,
         isDeleting,
         isSelectionMode,
         recordingsToDelete,
         selection,
         showDeleteConfirm,
         setShowDeleteConfirm,
-        closeDialog,
         executeDelete,
-        handleRecordingUpdated,
         handleDeleteRequest,
         handleDeleteSelection,
         openDialog,
         toggleSelectionMode,
-    } = useRecordingsTableController({ recordings, onRecordingsChange });
+    } = useRecordingsTableController({ recordings, onRecordingsChange, recordingWorkspace });
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -48,7 +50,7 @@ export function RecordingsTable({
                     className={`gap-0 p-0 ${
                         variant === 'flat'
                             ? 'bg-transparent border-none shadow-none'
-                            : 'overflow-hidden rounded-xl border border-border bg-surface shadow-none'
+                            : 'overflow-hidden'
                     }`}
                 >
                     <RecordingsTableHeader
@@ -61,28 +63,35 @@ export function RecordingsTable({
                         onDeleteSelection={handleDeleteSelection}
                         variant={variant}
                         density={density}
+                        isSemantic={Boolean(semanticPagination)}
                     />
 
                     <Card.Content className={`p-0 ${variant === 'flat' ? 'mt-2' : ''}`}>
+                        <SummaryExpansionProvider>
                         <RecordingsTableDesktop
                             recordings={recordings}
                             selection={selection}
                             onOpenDialog={openDialog}
+                            onPlayRecording={(recording) => workspace.open(recording, true)}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
                             density={density}
+                            emptyState={emptyState}
                         />
                         <RecordingsTableMobile
                             recordings={recordings}
                             contacts={contacts}
                             selection={selection}
                             onOpenDialog={openDialog}
+                            onPlayRecording={(recording) => workspace.open(recording, true)}
                             onDeleteRequest={handleDeleteRequest}
                             onRetryTranscription={onRetryTranscription}
                             isSelectionMode={isSelectionMode}
                             toggleSelectionMode={toggleSelectionMode}
                             density={density}
+                            emptyState={emptyState}
                         />
+                        </SummaryExpansionProvider>
                     </Card.Content>
 
                     <RecordingsTableFooter
@@ -90,17 +99,12 @@ export function RecordingsTable({
                         totalPages={totalPages}
                         onPageChange={setPage}
                         variant={variant}
+                        semanticPagination={semanticPagination}
                     />
                 </Card>
             </div>
 
-            {activeRecording && (
-                <RecordingDetailsDialog
-                    recording={activeRecording}
-                    onOpenChange={(isOpen) => !isOpen && closeDialog()}
-                    onRecordingUpdated={handleRecordingUpdated}
-                />
-            )}
+            {!recordingWorkspace && <RecordingWorkspace workspace={workspace} onUpdated={onRecordingsChange} />}
 
             {showDeleteConfirm && (
                 <DeleteConfirmationModal

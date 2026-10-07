@@ -92,7 +92,7 @@ export function SignupPage() {
 
   return (
     <AuthShell
-      badge="Create Workspace"
+
       title="Create your account"
       description={authCopy.signupDescription}
       footer={

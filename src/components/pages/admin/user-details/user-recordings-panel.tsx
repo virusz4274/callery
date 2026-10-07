@@ -1,6 +1,7 @@
-import { Card } from '@heroui/react';
+import { Card, Table } from '@heroui/react';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import type { Recording } from '@/lib/types';
+import { recordingPreview } from '@/lib/recording-summary';
 import { formatDuration } from '@/components/recordings-table/format-duration';
 
 type UserRecordingsPanelProps = {
@@ -9,47 +10,37 @@ type UserRecordingsPanelProps = {
 
 export function UserRecordingsPanel({ recordings }: UserRecordingsPanelProps) {
     return (
-        <Card className="rounded-[2rem] border border-default-200/80 bg-background/95 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
-            <Card.Header className="border-b border-default-100/70 px-6 py-5">
+        <Card>
+            <Card.Header className="border-b border-border px-6 py-5">
                 <div className="flex flex-col">
-                    <h3 className="text-lg font-bold tracking-[-0.03em] text-foreground">User recordings</h3>
-                    <p className="text-small text-default-500">A list of all recordings associated with this user.</p>
+                    <h3 className="text-lg font-bold text-foreground">User recordings</h3>
+                    <p className="text-small text-muted">A list of all recordings associated with this user.</p>
                 </div>
             </Card.Header>
             <Card.Content className="p-6">
-                <div className="overflow-hidden rounded-xl border border-default-200/80">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-default-500 font-medium bg-default-50 border-b border-default-200">
-                            <tr>
-                                <th className="h-10 px-4 align-middle">Date</th>
-                                <th className="h-10 px-4 align-middle">Duration</th>
-                                <th className="h-10 px-4 align-middle">Transcript Snippet</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-default-100">
-                            {recordings.length > 0 ? (
+                <div className="min-w-0">
+                    <Table><Table.ScrollContainer><Table.Content aria-label="User recordings">
+                        <Table.Header>
+                                <Table.Column id="column-1" isRowHeader>Date</Table.Column>
+                                <Table.Column id="column-2">Duration</Table.Column>
+                                <Table.Column id="column-3">Conversation</Table.Column>
+                            </Table.Header>
+                        <Table.Body renderEmptyState={() => <p className="py-6 text-center text-muted">No recordings.</p>}>
+                            {(
                                 recordings.map((recording) => (
-                                    <tr key={recording.id}>
-                                        <td className="p-4 align-middle">
+                                    <Table.Row key={recording.id} id={recording.id}>
+                                        <Table.Cell className="p-4 align-middle">
                                             <ClientFormattedDate date={recording.recordedAt} formatString="PPp" />
-                                        </td>
-                                        <td className="p-4 align-middle">{formatDuration(recording.duration)}</td>
-                                        <td className="p-4 align-middle text-default-500 truncate max-w-sm">
-                                            {recording.summary ||
-                                                (recording.fullTranscript && recording.fullTranscript[0]?.text) ||
-                                                '-'}
-                                        </td>
-                                    </tr>
+                                        </Table.Cell>
+                                        <Table.Cell className="p-4 align-middle">{formatDuration(recording.duration)}</Table.Cell>
+                                        <Table.Cell className="p-4 align-middle text-muted max-w-sm break-words">
+                                            <p className="line-clamp-3">{recordingPreview(recording) || 'No summary available'}</p>
+                                        </Table.Cell>
+                                    </Table.Row>
                                 ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={3} className="p-4 text-center">
-                                        No recordings.
-                                    </td>
-                                </tr>
                             )}
-                        </tbody>
-                    </table>
+                        </Table.Body>
+                    </Table.Content></Table.ScrollContainer></Table>
                 </div>
             </Card.Content>
         </Card>

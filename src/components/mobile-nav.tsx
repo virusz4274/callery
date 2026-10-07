@@ -1,19 +1,19 @@
 "use client"
 
 import { useState } from 'react';
-import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Button, Modal } from "@heroui/react";
+import { Button, Link, Modal } from "@heroui/react";
 import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/auth/client";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
-import { Ellipsis, LogIn, ArrowLeft, Settings, type LucideIcon } from 'lucide-react';
+import { Ellipsis, LogIn, ArrowLeft, ChevronRight, CircleHelp, Settings, type LucideIcon } from 'lucide-react';
 
 type NavItem = {
   href: string;
   name: string;
   icon: LucideIcon;
+  description?: string;
 };
 
 export function MobileNav() {
@@ -32,12 +32,14 @@ export function MobileNav() {
       { href: "/", name: "App", icon: ArrowLeft }
     ];
   } else if (user) {
-    navItems = navigationConfig.main.filter(item => item.href !== '/files');
-    secondaryItems.push({ href: "/files", name: "Files", icon: navigationConfig.main[2].icon });
-    navItems.push({ href: "/settings", name: "Settings", icon: Settings });
+    navItems = [...navigationConfig.main];
+    secondaryItems = [
+      { href: '/settings', name: 'Settings', icon: Settings, description: 'Profile, preferences and sources' },
+      { href: '/support', name: 'Help & support', icon: CircleHelp, description: 'Get help with your workspace' },
+    ];
 
     if (userProfile?.role === 'admin') {
-      secondaryItems.push(navigationConfig.adminLink);
+      secondaryItems.push({ ...navigationConfig.adminLink, description: 'Manage users, plans and system settings' });
     }
   } else {
     // Public View
@@ -51,12 +53,12 @@ export function MobileNav() {
   }
 
   // Limit to 5 items max for bottom bar to avoid crowding
-  const displayItems = user ? navItems.slice(0, 4) : navItems.slice(0, 5);
-  const isMoreActive = secondaryItems.some((item) => pathname.startsWith(item.href));
+  const displayItems = user && !pathname.startsWith('/admin') ? navItems.slice(0, 4) : navItems.slice(0, 5);
+  const isMoreActive = secondaryItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md md:hidden pb-[env(safe-area-inset-bottom)]">
+      <div data-mobile-bottom-nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md md:hidden pb-[env(safe-area-inset-bottom)]">
         <nav aria-label="Mobile workspace" className="flex items-center justify-around gap-1 px-2 py-2">
           {displayItems.map((item) => {
             const isAdminRoute = pathname.startsWith('/admin');
@@ -73,67 +75,67 @@ export function MobileNav() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-xl p-2 min-w-[64px] transition-all duration-200",
+                  "no-underline flex flex-col items-center gap-1.5 rounded-xl p-2 min-w-0 flex-1 h-14 transition-colors",
                   isActive
-                    ? "text-primary bg-primary/10"
-                    : "text-default-500 hover:text-foreground hover:bg-default-100/50"
+                    ? "text-accent bg-accent/10"
+                    : "text-muted hover:text-foreground hover:bg-surface-secondary"
                 )}
               >
                 <item.icon className="h-5 w-5" aria-hidden="true" />
-                <span className="text-xs font-medium text-center leading-none">{item.name}</span>
+                <span className="max-w-full break-words text-xs font-medium text-center leading-tight">{item.name}</span>
               </Link>
             )
           })}
 
           {user && secondaryItems.length > 0 && (
-            <Button
-              variant="ghost"
-              onPress={() => setIsMoreOpen(true)}
-              className={cn(
-                "flex min-w-[64px] flex-col items-center gap-1.5 rounded-xl p-2 text-[10px] font-medium leading-none transition-all duration-200",
-                isMoreActive
-                  ? "text-primary bg-primary/10"
-                  : "text-default-500 hover:text-foreground hover:bg-default-100/50"
-              )}
-            >
-              <Ellipsis className="h-5 w-5" />
-              <span className="text-[10px] font-medium text-center leading-none">More</span>
-            </Button>
+            <Modal isOpen={isMoreOpen} onOpenChange={setIsMoreOpen}>
+              <Button
+                variant="ghost"
+                aria-haspopup="dialog"
+                className={cn(
+                  "flex min-w-0 flex-1 h-14 flex-col items-center gap-1.5 rounded-xl p-2 text-xs font-medium leading-none transition-colors",
+                  isMoreActive || isMoreOpen
+                    ? "text-accent bg-accent/10"
+                    : "text-muted hover:text-foreground hover:bg-surface-secondary"
+                )}
+              >
+                <Ellipsis className="h-5 w-5" aria-hidden="true" />
+                <span className="text-xs font-medium text-center leading-none">More</span>
+              </Button>
+              <Modal.Backdrop>
+                <Modal.Container placement="bottom" size="sm" scroll="inside" className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:w-full sm:p-3 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <Modal.Dialog className="p-4">
+                    <Modal.CloseTrigger aria-label="Close more tools" className="size-11" />
+                    <Modal.Header className="min-h-11 justify-center pr-12">
+                      <Modal.Heading className="text-lg font-semibold">More tools</Modal.Heading>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <nav aria-label="More workspace tools" className="space-y-2">
+                        {secondaryItems.map(item => {
+                          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                          return <Link key={item.href} href={item.href} onPress={() => setIsMoreOpen(false)}
+                            aria-label={item.name} aria-current={active ? 'page' : undefined}
+                            className={cn('flex min-h-16 w-full items-center gap-3 rounded-xl p-3 no-underline transition-colors',
+                              active ? 'bg-accent/10 text-accent' : 'text-foreground hover:bg-surface-secondary')}>
+                            <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', active ? 'bg-accent/10 text-accent' : 'bg-surface-secondary text-muted')}>
+                              <item.icon className="size-5" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-base font-medium">{item.name}</span>
+                              <span className="mt-0.5 block text-xs leading-5 text-muted">{item.description}</span>
+                            </span>
+                            <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden="true" />
+                          </Link>;
+                        })}
+                      </nav>
+                    </Modal.Body>
+                  </Modal.Dialog>
+                </Modal.Container>
+              </Modal.Backdrop>
+            </Modal>
           )}
         </nav>
       </div>
-
-      {user && secondaryItems.length > 0 && (
-        <Modal isOpen={isMoreOpen} onOpenChange={setIsMoreOpen}>
-          <Modal.Backdrop>
-            <Modal.Container>
-              <Modal.Dialog className="mx-0 mt-auto w-full max-w-full rounded-t-[1.75rem] rounded-b-none">
-                <Modal.Header className="border-b border-default-100 px-5 py-4">
-                  <div className="text-sm font-semibold text-foreground">More tools</div>
-                </Modal.Header>
-                <Modal.Body className="space-y-2 px-4 py-4">
-                  {secondaryItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMoreOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                        pathname.startsWith(item.href)
-                          ? "border-primary/25 bg-primary/10 text-primary"
-                          : "border-default-200 text-default-700 hover:bg-default-50"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  ))}
-                </Modal.Body>
-              </Modal.Dialog>
-            </Modal.Container>
-          </Modal.Backdrop>
-        </Modal>
-      )}
     </>
   )
 }

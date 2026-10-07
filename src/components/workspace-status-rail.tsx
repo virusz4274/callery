@@ -1,7 +1,7 @@
 'use client';
 
+import { ActionLink } from '@/components/action-link';
 import React from 'react';
-import Link from 'next/link';
 import type { AppUser as User } from '@/lib/auth/types';
 import type { UserResponse, AnnouncementResponse } from '@/lib/db/types';
 import { Button, Spinner, Surface } from '@heroui/react';
@@ -173,11 +173,9 @@ export function WorkspaceStatusRail({
 
                             <div className="flex items-center gap-2">
                                 {item.actionHref && item.actionLabel && (
-                                    <Link href={item.actionHref}>
-                                        <Button size="sm" variant="ghost" className="rounded-full font-medium">
+                                    <ActionLink href={item.actionHref} size="sm" variant="ghost" className="font-medium">
                                             {item.actionLabel}
-                                        </Button>
-                                    </Link>
+                                        </ActionLink>
                                 )}
                                 {item.action && item.actionLabel && (
                                     <Button

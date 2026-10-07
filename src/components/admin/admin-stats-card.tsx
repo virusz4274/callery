@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Chip } from '@heroui/react';
+import { Card } from '@heroui/react';
 
 interface AdminStatsCardProps {
     title: string;
@@ -11,23 +11,23 @@ interface AdminStatsCardProps {
 
 export function AdminStatsCard({ title, value, description, icon }: AdminStatsCardProps) {
     return (
-        <Card className="rounded-[1.5rem] border border-default-200/80 bg-background/95 p-4 shadow-[0_20px_54px_-44px_rgba(15,23,42,0.45)]">
+        <Card className="p-4">
             <div className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-default-400">
+                <div className="text-xs font-semibold uppercase text-muted">
                     {title}
                 </div>
                 {icon && (
-                    <div className="rounded-2xl bg-default-100 p-2 text-default-500">
+                    <div className="rounded-2xl bg-surface-secondary p-2 text-muted">
                         {icon}
                     </div>
                 )}
             </div>
             <div className="flex flex-col gap-1">
-                <div className="text-3xl font-bold tracking-[-0.03em] text-foreground">{value}</div>
+                <div className="text-3xl font-bold text-foreground">{value}</div>
                 {description && (
-                    <Chip size="sm" variant="soft" color="default" className="mt-1 w-fit rounded-full">
+                    <p className="mt-1 text-sm text-muted">
                         {description}
-                    </Chip>
+                    </p>
                 )}
             </div>
         </Card>

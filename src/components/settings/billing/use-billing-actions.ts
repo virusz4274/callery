@@ -101,8 +101,7 @@ export function useBillingActions(toast: ToastFn) {
             }
 
             toast({
-                title: 'Settings Updated',
-                description: `Pay Per Usage is now ${newValue ? 'Enabled' : 'Disabled'}.`,
+                title: `Pay per usage ${newValue ? 'enabled' : 'disabled'}`,
                 status: 'success',
             });
 

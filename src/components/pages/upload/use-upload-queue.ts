@@ -157,8 +157,7 @@ export function useUploadQueue(toast: ToastFn) {
                     });
                 } else {
                     toast({
-                        title: 'Upload Successful',
-                        description: `${successCount} file(s) have been uploaded successfully.`,
+                        title: `${successCount} file${successCount === 1 ? '' : 's'} uploaded`,
                         status: 'success',
                     });
                 }

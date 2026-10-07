@@ -3,6 +3,7 @@ import { Collections, getMongoDb } from '@/lib/mongodb';
 import { toRecordingResponse } from '../converters';
 import { findUserByAuthSubject } from '../users';
 import type { Recording, RecordingResponse } from '../types';
+import { hydrateRecordingContacts } from './hydrate-contacts';
 import { buildRecordingsQuery, buildRecordingsSort } from './query-utils';
 import type { RecordingCountOptions, RecordingExportCursor, RecordingQueryOptions } from './types';
 
@@ -15,13 +16,14 @@ export async function getRecordingsByUser(
 ): Promise<Recording[]> {
     const db = await getMongoDb();
 
-    return db
+    const recordings = await db
         .collection<Recording>(Collections.RECORDINGS)
         .find(buildRecordingsQuery(authSubject, options))
         .sort(buildRecordingsSort(options))
         .skip(options?.skip || 0)
         .limit(options?.limit || 100)
         .toArray();
+    return hydrateRecordingContacts(authSubject, recordings);
 }
 
 /**
@@ -68,10 +70,11 @@ export async function countRecordingsForExport(authSubject: string): Promise<num
 export async function getRecordingById(recordingId: string, authSubject: string): Promise<Recording | null> {
     const db = await getMongoDb();
 
-    return db.collection<Recording>(Collections.RECORDINGS).findOne({
+    const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({
         _id: new ObjectId(recordingId),
         authSubject,
     });
+    return recording ? (await hydrateRecordingContacts(authSubject, [recording]))[0] : null;
 }
 
 /**
@@ -99,10 +102,11 @@ export async function getRecordingsByIds(recordingIds: string[], authSubject: st
     }
 
     const db = await getMongoDb();
-    return db.collection<Recording>(Collections.RECORDINGS).find({
+    const recordings = await db.collection<Recording>(Collections.RECORDINGS).find({
         _id: { $in: objectIds },
         authSubject,
     }).toArray();
+    return hydrateRecordingContacts(authSubject, recordings);
 }
 
 /**

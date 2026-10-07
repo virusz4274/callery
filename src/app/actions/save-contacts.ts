@@ -23,7 +23,7 @@ export async function saveContactsToMongoDB(
     if (!authSubject) {
         throw new Error("auth subject is required to save contacts.");
     }
-    if (!contacts || contacts.length === 0) {
+    if (!contacts) {
         return { created: 0, updated: 0 };
     }
 

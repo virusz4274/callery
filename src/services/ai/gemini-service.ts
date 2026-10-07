@@ -4,6 +4,7 @@ import { getGeminiClient, hasGeminiKey } from './client';
 import { buildSummaryPrompt, buildTransliterationPrompt, mergeTransliteration } from './prompts';
 import { logAiStepFailure } from './failure-events';
 import { logger } from '@/lib/logger';
+import { geminiModel } from '@/lib/config';
 
 export class GeminiService implements IAIService {
     constructor() {
@@ -100,7 +101,7 @@ export class GeminiService implements IAIService {
         if (!transcript || !transcript.trim()) return '';
 
         const prompt = buildSummaryPrompt(transcript, languageCode);
-        const model = process.env.GEMINI_MODEL_SUMMARY || 'gemini-2.5-flash'; // Updated to newer model as default if not set
+        const model = geminiModel('summary');
 
         try {
             const result = await getGeminiClient().models.generateContent({
@@ -125,7 +126,7 @@ export class GeminiService implements IAIService {
         if (!segments || segments.length === 0) return segments;
 
         const prompt = buildTransliterationPrompt(segments, languageCode);
-        const model = process.env.GEMINI_MODEL_TRANSLITERATION || 'gemini-2.5-flash';
+        const model = geminiModel('transliteration');
 
         try {
             const result = await getGeminiClient().models.generateContent({
@@ -151,7 +152,7 @@ export class GeminiService implements IAIService {
     async generateEmbedding(text: string, context?: AiStepContext): Promise<number[]> {
         if (!hasGeminiKey() || !text) return [];
 
-        const model = process.env.GEMINI_MODEL_EMBEDDING || 'gemini-embedding-001';
+        const model = geminiModel('embedding');
         try {
             const result = await getGeminiClient().models.embedContent({
                 model,

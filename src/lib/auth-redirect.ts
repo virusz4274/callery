@@ -6,43 +6,16 @@ type AuthRedirectCopy = {
 };
 
 const GENERIC_AUTH_COPY: AuthRedirectCopy = {
-  loginDescription:
-    'Sign in to open your recordings workspace, search transcripts, and continue review without losing context.',
-  signupDescription:
-    'Set up your workspace to upload recordings, organize contacts, and start searching conversations with structure.',
+  loginDescription: 'Sign in to continue.',
+  signupDescription: 'Create an account to save and transcribe recordings.',
 };
 
 const REDIRECT_COPY: Record<string, AuthRedirectCopy> = {
-  '/recordings': {
-    loginDescription:
-      'Sign in to open your recordings workspace and get back to search, filters, and call review.',
-    signupDescription:
-      'Create your workspace to upload recordings, organize call history, and start reviewing conversations in one place.',
-  },
-  '/contacts': {
-    loginDescription:
-      'Sign in to open your contacts workspace and jump back into linked call history.',
-    signupDescription:
-      'Create your workspace to connect contacts with conversations and keep your call history easier to revisit.',
-  },
-  '/files': {
-    loginDescription:
-      'Sign in to inspect your file library, browse stored recordings, and open details with confidence.',
-    signupDescription:
-      'Create your workspace to keep stored recordings organized, searchable, and easier to inspect later.',
-  },
-  '/upload': {
-    loginDescription:
-      'Sign in to upload recordings and continue building your workspace in one organized flow.',
-    signupDescription:
-      'Create your workspace to upload recordings, keep the original audio safe, and start processing calls in one place.',
-  },
-  '/settings': {
-    loginDescription:
-      'Sign in to manage your workspace settings, exports, notifications, and plan details.',
-    signupDescription:
-      'Create your workspace to manage storage, exports, notifications, and account preferences in one place.',
-  },
+  '/recordings': { loginDescription: 'Sign in to view your recordings.', signupDescription: 'Create an account to save and transcribe recordings.' },
+  '/contacts': { loginDescription: 'Sign in to view your contacts.', signupDescription: 'Create an account to link contacts and recordings.' },
+  '/files': { loginDescription: 'Sign in to browse your files.', signupDescription: 'Create an account to organize your recordings.' },
+  '/upload': { loginDescription: 'Sign in to upload recordings.', signupDescription: 'Create an account to upload recordings.' },
+  '/settings': { loginDescription: 'Sign in to manage your settings.', signupDescription: 'Create an account to manage your recordings and preferences.' },
 };
 
 function toSafeRelativeUrl(raw: string): string | null {

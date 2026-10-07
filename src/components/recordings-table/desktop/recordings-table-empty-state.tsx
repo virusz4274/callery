@@ -1,28 +1,15 @@
-import Link from 'next/link';
+import { ActionLink } from '@/components/action-link';
 import { Button } from '@heroui/react';
 import { FileText } from 'lucide-react';
+import type { RecordingEmptyState } from '../types';
 
-export function RecordingsTableEmptyState() {
-    return (
-        <tr>
-            <td colSpan={5} className="p-24 text-center">
-                <div className="flex flex-col items-center justify-center gap-4">
-                    <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-default-100 to-default-50 shadow-inner border border-default-200/50 flex items-center justify-center mb-2">
-                        <FileText className="h-10 w-10 text-default-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-foreground">No recordings found</h3>
-                        <p className="text-default-500 mt-1 max-w-[250px] mx-auto">
-                            Upload new calls or wait for them to appear here.
-                        </p>
-                    </div>
-                    <Link href="/upload">
-                        <Button variant="secondary" className="rounded-full">
-                            Upload recordings
-                        </Button>
-                    </Link>
-                </div>
-            </td>
-        </tr>
-    );
+export function RecordingsEmptyContent({ kind = 'library', onClear }: RecordingEmptyState) {
+    const library = kind === 'library';
+    return <div className="flex flex-col items-center justify-center gap-3 text-center">
+        <FileText className="size-8 text-muted" aria-hidden="true" />
+        <h3 className="text-lg font-semibold">{library ? 'Your recording library is empty' : 'No matching recordings'}</h3>
+        <p className="max-w-sm text-sm text-muted">{library ? 'Upload a recording to start reviewing your conversations.' : kind === 'semantic' ? 'Try a different description, or return to your library.' : 'Try another search or clear your filters.'}</p>
+        {library ? <ActionLink href="/upload" variant="secondary" className="min-h-11">Upload recordings</ActionLink> :
+            onClear && <Button variant="secondary" className="min-h-11" onPress={onClear}>{kind === 'semantic' ? 'Clear search' : 'Clear filters'}</Button>}
+    </div>;
 }

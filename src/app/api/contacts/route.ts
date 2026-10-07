@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
         if (!queryParsed.success) {
             return NextResponse.json({ error: 'Invalid query' }, { status: 400 });
         }
-        const { limit, skip } = queryParsed.data;
-
-        const contacts = await getContactsByUser(authSubject, { limit, skip });
-
-        const totalCount = await countContactsByUser(authSubject);
+        const { limit, skip, search } = queryParsed.data;
+        const [contacts, totalCount] = await Promise.all([
+            getContactsByUser(authSubject, { limit, skip, search }),
+            countContactsByUser(authSubject, search),
+        ]);
 
         return NextResponse.json({
             contacts: contacts.map(toContactResponse),

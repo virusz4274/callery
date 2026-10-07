@@ -1,7 +1,7 @@
 "use client";
 
+import { ActionLink } from '@/components/action-link';
 import Link from 'next/link';
-import { Button } from "@heroui/react";
 import { Logo } from './icons';
 import { ThemeSwitcher } from './theme-switcher';
 import { NotificationCenter } from './notifications/notification-center';
@@ -37,7 +37,7 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-16 w-full items-center gap-2 px-4 md:px-8">
+      <div className="mx-auto flex h-16 w-full min-w-0 items-center gap-2 px-3 md:px-8">
 
         {/* Mobile Menu - Only show if burger menu is enabled */}
         {showHamburger && (
@@ -48,10 +48,10 @@ export function AppHeader({
         )}
 
         {/* Logo */}
-        <div className={`mr-4 flex ${compact ? 'md:hidden' : ''}`}>
+        <div className={`flex shrink-0 md:mr-4 ${compact ? 'md:hidden' : ''}`}>
           <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-8 w-8" />
-            <span className="text-lg font-semibold tracking-tight">Callery</span>
+            <Logo className="h-8 w-8 shrink-0" />
+            <span className={`${showHamburger ? 'hidden md:inline' : 'hidden min-[360px]:inline'} text-lg font-semibold tracking-tight`}>Callery</span>
           </Link>
         </div>
 
@@ -65,7 +65,7 @@ export function AppHeader({
           </div>
         )}
 
-        <div className="flex flex-1 items-center justify-end gap-2 md:gap-4">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:gap-4">
           <ThemeSwitcher />
 
           {user && <NotificationCenter />}
@@ -77,11 +77,9 @@ export function AppHeader({
               <Link href="/login" className="hidden sm:flex text-sm font-medium text-foreground hover:text-primary transition-colors px-4 py-2">
                 Login
               </Link>
-              <Link href="/signup">
-                <Button size="sm" variant="primary" className="rounded-full px-6 font-semibold">
+              <ActionLink href="/signup" size="sm" variant="primary" className="px-6 font-semibold">
                   Sign Up
-                </Button>
-              </Link>
+                </ActionLink>
             </div>
           )}
         </div>

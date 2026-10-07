@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { Button, Card, Chip, Surface } from '@heroui/react';
+import { ActionLink } from '@/components/action-link';
+import { Card, Chip, Surface } from '@heroui/react';
 import type { LucideIcon } from 'lucide-react';
 import {
   CheckCircle2,
@@ -140,20 +140,12 @@ export function LandingPage({
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Link href="/signup">
-                  <Button size="lg" className="h-12 rounded-full px-7 text-base font-semibold">
+                <ActionLink href="/signup" size="lg" className="h-12 px-7 text-base font-semibold">
                     Start free workspace
-                  </Button>
-                </Link>
-                <Link href="/pricing">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="h-12 rounded-full px-7 text-base font-semibold"
-                  >
+                  </ActionLink>
+                <ActionLink href="/pricing" size="lg" variant="secondary" className="h-12 px-7 text-base font-semibold">
                     Explore plans
-                  </Button>
-                </Link>
+                  </ActionLink>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
@@ -394,20 +386,12 @@ export function LandingPage({
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                  <Link href="/signup">
-                    <Button size="lg" className="w-full rounded-full px-7 text-base font-semibold">
+                  <ActionLink href="/signup" size="lg" className="w-full px-7 text-base font-semibold">
                       Create workspace
-                    </Button>
-                  </Link>
-                  <Link href="/support">
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="w-full rounded-full px-7 text-base font-semibold"
-                    >
+                    </ActionLink>
+                  <ActionLink href="/support" size="lg" variant="secondary" className="w-full px-7 text-base font-semibold">
                       Talk to support
-                    </Button>
-                  </Link>
+                    </ActionLink>
                 </div>
               </div>
             </Card>
