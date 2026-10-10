@@ -7,6 +7,7 @@ test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: 'wait' })
 for (const theme of ['light', 'dark']) {
     for (const width of [375, 768, 1280]) {
         test(`HeroUI public pages fit ${width}px in ${theme}`, async ({ page }, testInfo) => {
+            test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Managed public pages require billing.');
             await page.setViewportSize({ width, height: 900 });
             await page.addInitScript(value => localStorage.setItem('theme', value), theme);
             const unexpected = await mockRecordings(page, { url: '/support', open: false });

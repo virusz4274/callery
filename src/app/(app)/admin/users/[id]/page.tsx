@@ -1,6 +1,7 @@
 import { getCurrentAdmin, getUserById, getUserInvoices, getUserRecordings } from '@/app/actions/admin';
 import { UserDetailsPage } from '@/components/pages/admin/user-details-page';
 import { notFound, redirect } from 'next/navigation';
+import { getTeamSettings } from '@/lib/team-policy';
 
 export default async function UserPage({
     params,
@@ -22,9 +23,10 @@ export default async function UserPage({
         notFound();
     }
 
+    const teamMode = (await getTeamSettings()).enabled;
     const [recordings, invoices] = await Promise.all([
         getUserRecordings(id),
-        getUserInvoices(id),
+        teamMode ? Promise.resolve([]) : getUserInvoices(id),
     ]);
 
     // The admin queries return raw MongoDB documents while UserDetailsPage expects the API
@@ -38,6 +40,7 @@ export default async function UserPage({
             recordings={recordings as any}
             invoices={invoices as any}
             defaultTab={tab}
+            teamMode={teamMode}
         />
     );
     /* eslint-enable @typescript-eslint/no-explicit-any */

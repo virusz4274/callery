@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { GoogleIcon } from '@/components/icons/google-icon';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { useAuthActions, useUser } from '@/lib/auth/client';
+import { useTeamPolicy } from '@/hooks/use-team-policy';
 import {
   buildAuthPageHref,
   getAuthRedirectCopy,
@@ -15,10 +16,12 @@ import {
 } from '@/lib/auth-redirect';
 
 export function SignupPage() {
+  const team = useTeamPolicy();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +34,6 @@ export function SignupPage() {
   const auth = useAuthActions();
   const { user, isUserLoading, userError } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
   const authCopy = getAuthRedirectCopy(redirectParam);
   const postAuthPath = resolvePostAuthRedirect(redirectParam);
@@ -93,8 +95,8 @@ export function SignupPage() {
   return (
     <AuthShell
 
-      title="Create your account"
-      description={authCopy.signupDescription}
+      title={team ? `Join ${team.companyName}` : 'Create your account'}
+      description={team ? 'An invitation is required. Recordings you upload belong to the company archive and can be accessed by its administrator.' : authCopy.signupDescription}
       footer={
         <p className="text-sm text-default-500">
           Already have an account?{' '}

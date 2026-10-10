@@ -1,6 +1,7 @@
 import { getRecordingCallerLabel } from '../../src/lib/recording-label';
 import type { FileSystemNode } from '../../src/lib/types';
 import { expect, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import type { ContactResponse, RecordingResponse, UserResponse } from '../../src/lib/db/types';
 import type { SearchResponse } from '../../src/app/actions/search-actions';
 
@@ -38,6 +39,16 @@ const providers = ['soniox', 'elevenlabs', 'gemini', 'openai_compat'].map(id => 
 export async function mockRecordings(page: Page, options: { profile?: UserResponse; fileSystem?: () => FileSystemNode; recording?: RecordingResponse; recordings?: RecordingResponse[]; failRecordings?: () => boolean; semanticSearch?: (query: string, page: number, limit: number) => Promise<SearchResponse> | SearchResponse; url?: string; open?: boolean; unavailable?: boolean; contacts?: ContactResponse[]; failContacts?: () => boolean; failUploads?: boolean; transcription?: 'complete' | 'fail' } = {}) {
     const fixtureRecording = options.recording || recording;
     const actionNames = new Map<string, string>();
+    // Isolated production builds expose action names in the server manifest,
+    // while development bundles expose them in the served JavaScript below.
+    if (process.env.TEST_ACTION_MANIFEST_PATH) {
+        const manifest = JSON.parse(await readFile(process.env.TEST_ACTION_MANIFEST_PATH, 'utf8'));
+        for (const [id, entry] of Object.entries({ ...manifest.node, ...manifest.edge })) {
+            if (entry && typeof entry === 'object' && 'exportedName' in entry && typeof entry.exportedName === 'string') {
+                actionNames.set(id, entry.exportedName);
+            }
+        }
+    }
     const transcriptionRequests: string[] = [];
     let transcribed = false;
 
@@ -45,15 +56,18 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
     await page.route('**/*', async route => {
         const request = route.request();
         const url = new URL(request.url());
-        if (url.pathname.startsWith('/_next/') && url.pathname.endsWith('.js')) {
+        if (!process.env.TEST_ACTION_MANIFEST_PATH && url.pathname.startsWith('/_next/') && url.pathname.endsWith('.js')) {
             const response = await route.fetch();
             const source = await response.text();
             // Discover action IDs from the served development bundles; IDs change between builds.
-            for (const match of source.matchAll(/createServerReference[^\n]*?\)\("([a-f0-9]{40,64})",[^\n]*?, "(\w+)"\)/g)) {
+            // Webpack embeds modules in escaped eval strings; Turbopack serves plain source.
+            const actionSource = source.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+            for (const match of actionSource.matchAll(/createServerReference[^\n]*?\)\("([a-f0-9]{40,64})",[^\n]*?, "(\w+)"\)/g)) {
                 actionNames.set(match[1], match[2]);
             }
-            for (const match of source.matchAll(/__next_internal_action_entry_do_not_use__ (\[[^\n]+?\]) \*\//g)) {
-                const [entries] = JSON.parse(match[1]);
+            for (const match of actionSource.matchAll(/__next_internal_action_entry_do_not_use__ (\[[^\n]+?\]|\{[^\n]+?\}) \*\//g)) {
+                const parsed = JSON.parse(match[1]);
+                const entries = Array.isArray(parsed) ? parsed[0] : parsed;
                 for (const [id, entry] of Object.entries(entries)) {
                     actionNames.set(id, typeof entry === 'string' ? entry : (entry as { name: string }).name);
                 }

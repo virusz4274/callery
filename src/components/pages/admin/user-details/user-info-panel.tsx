@@ -6,9 +6,15 @@ import { SimpleProgress } from './simple-progress';
 
 type UserInfoPanelProps = {
     user: User;
+    teamMode?: boolean;
 };
 
-export function UserInfoPanel({ user }: UserInfoPanelProps) {
+export function UserInfoPanel({ user, teamMode = false }: UserInfoPanelProps) {
+    if (teamMode) return <Card className="space-y-3 p-6"><h3 className="text-xl font-semibold">Employee usage</h3>
+        <p>{(user.storageUsed / 1024 ** 3).toFixed(2)} GB audio stored · {user.totalRecordings} recordings</p>
+        <p className="text-sm text-muted">Usage is informational. Removing access keeps the company archive.</p>
+        <p className="text-sm text-muted">Last login: {user.lastLoginAt ? <ClientFormattedDate date={user.lastLoginAt} formatString="PPp" /> : 'Never'}</p>
+    </Card>;
     return (
         <Card>
             <Card.Header className="border-b border-border px-6 py-5">

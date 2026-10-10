@@ -9,6 +9,7 @@ export async function GET() {
         return NextResponse.json(
             {
                 maintenanceMode: settings?.maintenanceMode ?? false,
+                ...(settings?.team?.enabled ? { team: settings.team } : {}),
             },
             {
                 headers: {

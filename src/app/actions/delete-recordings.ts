@@ -2,10 +2,14 @@
 
 import { logger } from '@/lib/logger';
 
-import { deleteRecordings as deleteRecordingsFromDb, getRecordingsByIds } from '@/lib/db/recordings';
+import { deleteRecordings as deleteRecordingsFromDb } from '@/lib/db/recordings';
 import { deleteFromR2 } from '@/lib/r2';
 import { decrementStorageUsed } from '@/lib/db/users';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
+import { assertRecordingDeletionAllowed, getRecordingForActor, getTeamSettings } from '@/lib/team-policy';
+import { findUserByAuthSubject } from '@/lib/db/users';
+import { logAdminAction } from './audit-log';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Delete recordings from MongoDB and R2.
@@ -19,12 +23,14 @@ export async function deleteRecordings(
     return { success: false, message: 'Not authenticated' };
   }
 
-  if (!recordingIds || recordingIds.length === 0) {
+  if (!Array.isArray(recordingIds) || recordingIds.length === 0 || recordingIds.length > 100) {
     return { success: false, message: 'No recordings specified' };
   }
 
   try {
-    const candidateRecordings = await getRecordingsByIds(recordingIds, authSubject);
+    await assertRecordingDeletionAllowed(authSubject);
+    const results = await Promise.all([...new Set(recordingIds)].map(id => getRecordingForActor(id, authSubject)));
+    const candidateRecordings = results.filter(recording => recording !== null);
 
     if (candidateRecordings.length === 0) {
       return { success: false, message: 'No recordings found to delete' };
@@ -51,12 +57,21 @@ export async function deleteRecordings(
       };
     }
 
-    const deletedRecordings = await deleteRecordingsFromDb(successfulDeleteIds, authSubject);
-    const totalSizeDeleted = deletedRecordings.reduce((acc, curr) => acc + curr.fileSize, 0);
-
-    if (totalSizeDeleted > 0) {
-      await decrementStorageUsed(authSubject, totalSizeDeleted);
+    const deletedRecordings = [];
+    for (const uploader of new Set(candidateRecordings.map(recording => recording.authSubject))) {
+      const ids = candidateRecordings.filter(recording => recording.authSubject === uploader && successfulDeleteIds.includes(recording._id.toString())).map(recording => recording._id.toString());
+      if (!ids.length) continue;
+      const deleted = await deleteRecordingsFromDb(ids, uploader);
+      await decrementStorageUsed(uploader, deleted.reduce((sum, recording) => sum + recording.fileSize, 0));
+      deletedRecordings.push(...deleted);
     }
+    if ((await getTeamSettings()).enabled) {
+      const admin = await findUserByAuthSubject(authSubject);
+      await logAdminAction(admin!._id.toString(), 'RECORDING_DELETE', { recordingIds: deletedRecordings.map(r => r._id.toString()) }, undefined, 'SYSTEM');
+    }
+    revalidatePath('/admin/recordings');
+    revalidatePath('/recordings');
+    revalidatePath('/files');
 
     if (r2Errors.length > 0) {
       return {

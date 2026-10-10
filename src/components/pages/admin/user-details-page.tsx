@@ -21,9 +21,10 @@ type UserDetailsPageProps = {
     recordings: Recording[];
     invoices: Invoice[];
     defaultTab?: string;
+    teamMode?: boolean;
 };
 
-export function UserDetailsPage({ user, recordings, invoices }: UserDetailsPageProps) {
+export function UserDetailsPage({ user, recordings, invoices, teamMode = false }: UserDetailsPageProps) {
     const router = useRouter();
     const params = useSearchParams();
     const pathname = usePathname();
@@ -39,7 +40,7 @@ export function UserDetailsPage({ user, recordings, invoices }: UserDetailsPageP
     const handleDeleteUser = async () => {
         if (busy.current) return;
         busy.current = true; setIsDeleting(true); setError(null);
-        try { await deleteUser(user.id); toast({ title: 'User scheduled for deletion', status: 'success' }); router.push(returnHref); }
+        try { await deleteUser(user.id); toast({ title: teamMode ? 'Employee access removed' : 'User scheduled for deletion', status: 'success' }); router.push(returnHref); }
         catch (error) { setError(error instanceof Error ? error.message : 'Please try again.'); }
         finally { busy.current = false; setIsDeleting(false); }
     };
@@ -69,18 +70,19 @@ export function UserDetailsPage({ user, recordings, invoices }: UserDetailsPageP
                     helper: 'Calls currently linked to this account',
                     icon: FileAudio,
                 },
-                {
+                ...(!teamMode ? [{
                     label: 'Recent invoices',
                     value: invoices.length,
                     helper: 'Up to 20 most recent billing records',
                     icon: CreditCard,
-                },
+                }] : []),
             ]}
         >
             <div className="space-y-5">
-                {confirming && <ConfirmActionDialog title={`Schedule deletion for ${user.name || user.email}?`} description="The account will be disabled immediately and can be restored during the existing restore window." label="Schedule deletion" pending={isDeleting} error={error} onConfirm={() => void handleDeleteUser()} onClose={() => setConfirming(false)} />}
+                {confirming && <ConfirmActionDialog title={`${teamMode ? 'Remove access for' : 'Schedule deletion for'} ${user.name || user.email}?`} description={teamMode ? 'Employee access will be removed. All company recordings are retained.' : 'The account will be disabled immediately and can be restored during the existing restore window.'} label={teamMode ? 'Remove access' : 'Schedule deletion'} pending={isDeleting} error={error} onConfirm={() => void handleDeleteUser()} onClose={() => setConfirming(false)} />}
                 <UserDetailsHeader
                     user={user}
+                    teamMode={teamMode}
                     isDeleting={isDeleting}
                     isRestoring={isRestoring}
                     onDeleteUser={() => { setError(null); setConfirming(true); }}
@@ -97,21 +99,21 @@ export function UserDetailsPage({ user, recordings, invoices }: UserDetailsPageP
                         <Tabs.List className="gap-2">
                             <Tabs.Tab className="min-h-11 whitespace-nowrap" id="info">User information</Tabs.Tab>
                             <Tabs.Tab className="min-h-11 whitespace-nowrap" id="recordings">Recordings ({recordings.length})</Tabs.Tab>
-                            <Tabs.Tab className="min-h-11 whitespace-nowrap" id="payment-history">Payment history</Tabs.Tab>
+                            {!teamMode && <Tabs.Tab className="min-h-11 whitespace-nowrap" id="payment-history">Payment history</Tabs.Tab>}
                         </Tabs.List>
                     </Tabs.ListContainer>
 
                     <Tabs.Panel id="info" className="pt-5">
-                        <UserInfoPanel user={user} />
+                        <UserInfoPanel user={user} teamMode={teamMode} />
                     </Tabs.Panel>
 
                     <Tabs.Panel id="recordings" className="pt-5">
                         <UserRecordingsPanel recordings={recordings} />
                     </Tabs.Panel>
 
-                    <Tabs.Panel id="payment-history" className="pt-5">
+                    {!teamMode && <Tabs.Panel id="payment-history" className="pt-5">
                         <UserPaymentHistoryPanel invoices={invoices} />
-                    </Tabs.Panel>
+                    </Tabs.Panel>}
                 </Tabs>
             </div>
         </AdminPageShell>

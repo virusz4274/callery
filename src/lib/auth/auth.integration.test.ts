@@ -19,7 +19,7 @@ test('Better Auth authentication, verification and permanent cleanup', {
 }, async t => {
     const saved = { ...process.env };
     const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!);
-    uri.pathname = `/vosift_auth_tests_${randomUUID().replaceAll('-', '')}`;
+    uri.pathname = `/vt_auth_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
     process.env.MONGODB_URI = uri.toString();
     process.env.EMAIL_PROVIDER = 'none';
     process.env.ADMIN_EMAILS = 'bootstrap@example.com,verified-admin@example.com';

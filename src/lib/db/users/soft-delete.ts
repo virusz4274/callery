@@ -5,6 +5,7 @@ import type { User } from '../types';
 
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { getTeamSettings } from '@/lib/team-policy';
 
 export function getSoftDeleteRestoreWindowDays(): number {
     return env.SOFT_DELETE_RESTORE_DAYS;
@@ -16,8 +17,8 @@ export function buildRestoreDeadline(now: Date = new Date()): Date {
     return deadline;
 }
 
-export async function hardDeleteUserData(db: Db, user: User) {
-    const result = await deleteUserData(user.authSubject, { db });
+export async function hardDeleteUserData(db: Db, user: User, accessLockHeld = false) {
+    const result = await deleteUserData(user.authSubject, { db, accessLockHeld });
     return { deletedRecordings: result.recordingsDeleted, r2Errors: result.r2Failures.length, completed: !result.cleanupPending };
 }
 
@@ -27,6 +28,7 @@ export async function purgeExpiredSoftDeletedUsers(limit: number = 50): Promise<
     r2Errors: number;
     userIds: string[];
 }> {
+    if ((await getTeamSettings()).enabled) return { scanned: 0, purged: 0, r2Errors: 0, userIds: [] };
     const db = await getMongoDb();
     const now = new Date();
 

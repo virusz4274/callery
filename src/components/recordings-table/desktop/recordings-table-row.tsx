@@ -32,6 +32,7 @@ export function RecordingsTableRow({ recording, selected, onOpenDialog,
                 <div className="min-w-0 flex-1">
                     <Button variant="ghost" type="button" aria-label={caller} onPress={() => onOpenDialog(recording)} className="min-h-11 h-auto max-w-full flex-col items-start justify-start whitespace-normal text-left">
                         <span className="block break-words text-sm font-semibold leading-5 text-foreground">{caller}</span>
+                        {recording.uploaderName && <span className="text-xs text-muted">Uploaded by {recording.uploaderName}</span>}
                         {recording.phoneNumber && recording.phoneNumber !== 'Unknown' && recording.phoneNumber !== caller && <span className="mt-1 block break-all font-mono text-xs leading-5 text-muted">{recording.phoneNumber}</span>}
                     </Button>
                 </div>

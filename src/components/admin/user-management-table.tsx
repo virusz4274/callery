@@ -20,6 +20,7 @@ type UserManagementTableProps = {
     totalPages: number;
     initialSearch: string;
     plans: PlanResponse[];
+    teamMode?: boolean;
 };
 
 export function UserManagementTable({
@@ -29,6 +30,7 @@ export function UserManagementTable({
     totalPages,
     initialSearch,
     plans,
+    teamMode = false,
 }: UserManagementTableProps) {
     const state = useUserManagementTable(initialSearch);
 
@@ -52,8 +54,8 @@ export function UserManagementTable({
     }, [pathname, params]);
     const clearSearch = () => { state.setSearchTerm(''); searchRef.current?.focus(); };
     const confirmationDescriptions = {
-        delete: 'The account will be disabled immediately and scheduled for deletion. It can be restored during the existing restore window.',
-        role: state.confirmation?.user.role === 'admin' ? 'Remove this account’s administrative access and change its role to User.' : 'Grant this account access to the admin console and administrative actions.',
+        delete: teamMode ? 'Remove access immediately and keep all company recordings. Access can be restored later.' : 'The account will be disabled immediately and scheduled for deletion. It can be restored during the existing restore window.',
+        role: state.confirmation?.user.role === 'admin' ? `Remove this account’s administrative access and change its role to ${teamMode ? 'Member' : 'User'}.` : 'Grant this account access to the admin console and administrative actions.',
         status: state.confirmation?.user.disabled ? 'Enable this account to access the application again.' : 'Disable this account so it can no longer access the application.',
         limits: 'Replace custom allocations with the defaults: 5 GB storage and 60 minutes of transcription.',
     };
@@ -82,7 +84,7 @@ export function UserManagementTable({
                 </Card.Header>
 
                 <Card.Content className="p-0">
-                    <div className="hidden grid-cols-[minmax(180px,1fr)_minmax(0,480px)_44px] gap-4 border-b border-border px-5 py-3 text-sm font-medium text-muted xl:grid" aria-hidden="true">
+                    <div className={`${teamMode ? 'hidden' : 'hidden xl:grid'} grid-cols-[minmax(180px,1fr)_minmax(0,480px)_44px] gap-4 border-b border-border px-5 py-3 text-sm font-medium text-muted`} aria-hidden="true">
                         <span>User</span><div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,0.9fr)] gap-3 text-right"><span>Plan</span><span>Storage</span><span>Transcription</span><span>Last active</span></div><span className="sr-only">Actions</span>
                     </div>
                     <div className="divide-y divide-border">
@@ -91,6 +93,7 @@ export function UserManagementTable({
                                 <UserManagementTableRow
                                     key={user.id}
                                     user={user}
+                                    teamMode={teamMode}
                                     isDeleting={state.pendingUser === user.id}
                                     onManagePlan={state.setUserToManage}
                                     onEditUsage={state.setUserToEditUsage}
@@ -115,7 +118,7 @@ export function UserManagementTable({
                 </Card.Content>
             </Card>
 
-            {state.confirmation && <ConfirmActionDialog title={`${state.confirmation.action === 'delete' ? 'Schedule deletion for' : 'Update'} ${state.confirmation.user.name || state.confirmation.user.email}?`} description={confirmationDescriptions[state.confirmation.action]} label="Confirm" pending={!!state.pendingUser} error={state.actionError} onConfirm={state.confirmAction} onClose={state.closeConfirmation} danger={state.confirmation.action === 'delete' || state.confirmation.action === 'status'} />}
+            {state.confirmation && <ConfirmActionDialog title={`${state.confirmation.action === 'delete' ? (teamMode ? 'Remove access for' : 'Schedule deletion for') : 'Update'} ${state.confirmation.user.name || state.confirmation.user.email}?`} description={confirmationDescriptions[state.confirmation.action]} label="Confirm" pending={!!state.pendingUser} error={state.actionError} onConfirm={state.confirmAction} onClose={state.closeConfirmation} danger={state.confirmation.action === 'delete' || state.confirmation.action === 'status'} />}
             {state.userToManage && (
                 <ManagePlanDialog
                     user={state.userToManage}

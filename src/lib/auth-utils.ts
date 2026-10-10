@@ -8,7 +8,7 @@ import type { SessionUser } from './auth/types';
 async function activeIdentity(identity: SessionUser | null): Promise<SessionUser | null> {
     if (!identity) return null;
     const profile = await findUserByAuthSubject(identity.subject);
-    return profile?.disabled || profile?.softDelete?.isDeleted ? null : identity;
+    return profile?.disabled || profile?.softDelete?.isDeleted || profile?.teamInvitationPending ? null : identity;
 }
 
 export async function getRequestIdentity(request: NextRequest): Promise<SessionUser | null> {
@@ -30,5 +30,6 @@ export async function getMobileSyncUserFromRequest(request: NextRequest): Promis
     const subject = sync?.authSubject ?? await getUserFromRequest(request);
     if (!subject) return null;
     const user = await findUserByAuthSubject(subject);
-    return user && !user.disabled && !user.softDelete?.isDeleted ? subject : null;
+    if (sync && user?.accessRevokedAt && (!sync.iat || sync.iat * 1000 <= user.accessRevokedAt.getTime())) return null;
+    return user && !user.disabled && !user.softDelete?.isDeleted && !user.teamInvitationPending ? subject : null;
 }

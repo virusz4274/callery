@@ -1,4 +1,5 @@
 import { resolveTranscriptionProvider } from '@/services/transcription';
+import { getTeamSettings } from '@/lib/team-policy';
 import { findUserByAuthSubject } from '@/lib/db/users';
 import { claimRecordingForTranscription, getRecordingById, markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
 import { logger } from '@/lib/logger';
@@ -52,7 +53,8 @@ async function runAutoTranscription(
     recording: Recording,
     user: User
 ): Promise<AutoTranscriptionResult> {
-    if (!user?.transcriptionSettings.autoTranscribe) {
+    const team = await getTeamSettings();
+    if (user.disabled || user.softDelete?.isDeleted || user.teamInvitationPending || (team.enabled ? team.transcriptionMode !== 'automatic' : !user?.transcriptionSettings.autoTranscribe)) {
         return { outcome: 'skipped' };
     }
 
@@ -83,8 +85,8 @@ async function runAutoTranscription(
         return { outcome: 'skipped' };
     }
 
-    const providerId: TranscriptionProviderId = resolveTranscriptionProvider(user);
-    const modelId = user.transcriptionSettings.defaultModel;
+    const providerId: TranscriptionProviderId = team.enabled ? team.transcriptionProvider : resolveTranscriptionProvider(user);
+    const modelId = team.enabled ? team.transcriptionModel || undefined : user.transcriptionSettings.defaultModel;
     if (!TranscriptionFactory.isProviderAvailable(providerId)) return { outcome: 'skipped' };
 
     const multiplier = await getProviderMultiplier(providerId);

@@ -5,6 +5,9 @@ import { ObjectId } from 'mongodb';
 import { logger } from '@/lib/logger';
 
 export type LogActionType =
+    | 'TEAM_INVITE'
+    | 'TEAM_INVITE_REVOKE'
+    | 'RECORDING_DELETE'
     | 'USER_BAN'
     | 'USER_UNBAN'
     | 'USER_ROLE_UPDATE'

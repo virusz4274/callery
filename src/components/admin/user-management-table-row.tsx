@@ -8,6 +8,7 @@ import { MoreVertical } from 'lucide-react';
 
 type UserManagementTableRowProps = {
     user: UserResponse;
+    teamMode?: boolean;
     isDeleting: boolean;
     onManagePlan: (user: UserResponse) => void;
     onEditUsage: (user: UserResponse) => void;
@@ -21,6 +22,7 @@ type UserManagementTableRowProps = {
 
 export function UserManagementTableRow({
     user,
+    teamMode = false,
     isDeleting,
     onManagePlan,
     onEditUsage,
@@ -34,6 +36,15 @@ export function UserManagementTableRow({
     const isSoftDeleted = user.softDelete?.isDeleted;
     const [mobileActions, setMobileActions] = useState(false);
     const act = (callback: () => void) => { setMobileActions(false); callback(); };
+    if (teamMode) return <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <div className="min-w-0 space-y-1"><Link href={`/admin/users/${user.id}`} onPress={rememberUsersPosition} className="min-h-11 break-words font-semibold">{user.name || user.email}</Link>
+            <p className="break-all text-sm text-muted">{user.email} · {user.role === 'admin' ? 'Administrator' : 'Member'}{user.disabled ? ' · Access removed' : ''}</p>
+            <p className="text-sm text-muted">{user.totalRecordings} recordings · {(user.storageUsed / 1024 ** 3).toFixed(2)} GB</p>
+        </div>
+        <div className="flex flex-wrap gap-2"><Button variant="secondary" className="min-h-11" isDisabled={isDeleting} onPress={() => onToggleRole(user)}>{user.role === 'admin' ? 'Make member' : 'Make administrator'}</Button>
+            <Button variant={user.disabled ? 'secondary' : 'danger-soft'} className="min-h-11" isDisabled={isDeleting} onPress={() => user.disabled ? onRestoreUser(user) : onDeleteUser(user)}>{user.disabled ? 'Restore access' : 'Remove access'}</Button>
+        </div>
+    </div>;
 
     return (
         <div

@@ -1,3 +1,5 @@
+'use client';
+
 import { Card, Chip, Surface } from '@heroui/react';
 import { ActionLink } from '@/components/action-link';
 import { ArrowRight, Compass, SearchX } from 'lucide-react';

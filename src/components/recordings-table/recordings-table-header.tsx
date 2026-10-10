@@ -1,5 +1,6 @@
 import { Button, Card } from '@heroui/react';
 import { Loader2, Trash2 } from 'lucide-react';
+import { useCanDeleteRecording } from '@/hooks/use-team-policy';
 
 type RecordingsTableHeaderProps = {
     totalCount: number;
@@ -26,6 +27,7 @@ export function RecordingsTableHeader({
     density = 'comfortable',
     isSemantic = false,
 }: RecordingsTableHeaderProps) {
+    const canDelete = useCanDeleteRecording();
     return (
         <Card.Header
             role={isSelectionMode ? "region" : undefined}
@@ -48,7 +50,7 @@ export function RecordingsTableHeader({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-                {selectedCount > 0 && (
+                {canDelete && selectedCount > 0 && (
                     <Button
                         variant="danger"
                         size="sm"

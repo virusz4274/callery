@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
+import { publicSitePolicy, workspaceHomeHref } from '@/lib/public-site-policy';
 import { getPublishedPlans } from '@/app/actions/plans';
 import { HomepageRedirect } from '@/components/marketing/homepage-redirect';
 import { JsonLd } from '@/components/seo/json-ld';
@@ -30,7 +32,12 @@ export const metadata: Metadata = createMarketingMetadata({
   ],
 });
 
-export default async function Home() {
+export default async function Home({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (!publicSitePolicy().marketingEnabled) {
+    redirect(workspaceHomeHref(await searchParams));
+  }
   const publishedPlans = await getPublishedPlans();
   const jsonLd = jsonLdGraph(
     buildOrganizationSchema(siteSeoConfig),

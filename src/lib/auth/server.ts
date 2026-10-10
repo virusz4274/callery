@@ -7,7 +7,9 @@ import { nextCookies } from 'better-auth/next-js';
 import { ObjectId, type Db } from 'mongodb';
 import { getMongoDb } from '@/lib/mongodb';
 import { getAuthCapabilities, getAuthSecret, getGoogleCredentials } from './config';
-import { ensureUserProfile, findUserByAuthSubject, getRequiredSystemSettings } from '@/lib/db/users';
+import { ensureUserProfile, findUserByAuthSubject } from '@/lib/db/users';
+import { assertSignupAllowed } from '@/lib/team-invitations';
+import { getTeamSettings } from '@/lib/team-policy';
 import { sendAuthEmail } from '@/lib/email';
 import type { SessionUser } from './types';
 
@@ -76,9 +78,9 @@ export function createAuth(db: Db, sendEmail: typeof sendAuthEmail = sendAuthEma
             user: {
                 create: {
                     before: async (user) => {
-                        if (!(await getRequiredSystemSettings()).allowSignups) {
-                            throw new APIError('FORBIDDEN', { message: 'New signups are currently disabled.' });
-                        }
+                        try { await assertSignupAllowed(user.email); }
+                        catch (error) { throw new APIError('FORBIDDEN', { message: error instanceof Error ? error.message : 'Registration unavailable.' }); }
+                        if ((await getTeamSettings()).enabled && !emailsEnabled) throw new APIError('FORBIDDEN', { message: 'Company signup requires email verification. Contact the administrator.' });
                         return { data: { ...user, emailVerified: user.emailVerified || !emailsEnabled } };
                     },
                     after: syncProfile,
@@ -93,6 +95,7 @@ export function createAuth(db: Db, sendEmail: typeof sendAuthEmail = sendAuthEma
                         }
                         const user = await db.collection<{ _id: ObjectId; email: string; name?: string; image?: string; emailVerified?: boolean }>('user').findOne({ _id: new ObjectId(session.userId) });
                         if (user) await syncProfile({ ...user, id: session.userId });
+                        if ((await getTeamSettings()).enabled && !user?.emailVerified) throw new APIError('FORBIDDEN', { message: 'Verify your company email before signing in.' });
                         return { data: session };
                     },
                 },

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BellRing, CloudDownload, ContactRound, CreditCard, Database, Settings2, Sparkles, UserRound } from 'lucide-react';
+import { BellRing, CloudDownload, ContactRound, CreditCard, Database, KeyRound, Settings2, Sparkles, UserRound } from 'lucide-react';
 import { z } from 'zod';
 
 export const passwordFormSchema = z
@@ -51,6 +51,7 @@ export function buildSettingsTabs(showBilling: boolean): SettingsTab[] {
             description: 'Automatic transcription and provider.',
             icon: Sparkles,
         },
+        { id: 'integrations', label: 'Integrations', description: 'Sync clients, API tokens, and CRM access.', icon: KeyRound },
         {
             id: 'retention',
             label: 'Retention',

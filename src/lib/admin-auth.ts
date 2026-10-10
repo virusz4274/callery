@@ -15,7 +15,7 @@ export async function getCurrentAdmin() {
         const db = await getMongoDb();
         const admin = await db.collection<User>(Collections.USERS).findOne({ authSubject: subject });
 
-        if (!admin || admin.role !== 'admin' || admin.disabled || admin.softDelete?.isDeleted) return null;
+        if (!admin || admin.role !== 'admin' || admin.disabled || admin.softDelete?.isDeleted || admin.teamInvitationPending) return null;
         return admin;
     } catch {
         return null;

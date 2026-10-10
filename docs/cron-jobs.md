@@ -6,6 +6,7 @@ Each endpoint is a `GET` handler requiring `Authorization: Bearer <CRON_SECRET>`
 | --- | --- | --- |
 | `/api/cron/process-exports` | Every 5 minutes | Claim a pending or stale export and upload archive parts |
 | `/api/cron/process-usage` | Every 5 minutes | Retry persisted Stripe usage events; no-op with billing off |
+| `/api/cron/process-ingestion` | Every 5 minutes | Recover uploads, process persisted transcription work, abort expired sessions, and retry object cleanup |
 | `/api/cron/cleanup-recordings` | Daily at 03:00 | Apply recording retention and retry expired account cleanup |
 | `/api/cron/digest` | Daily at 08:00 | Send eligible weekly/monthly digests when email is configured |
 

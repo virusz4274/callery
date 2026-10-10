@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getUserFromRequest } from '@/lib/auth-utils';
-import { getRecordingById } from '@/lib/db/recordings';
+import { getRecordingForActor, playbackUrlLifetime } from '@/lib/team-policy';
 import { getSignedR2Url } from '@/lib/r2';
 
 export async function GET(
@@ -20,18 +20,19 @@ export async function GET(
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ error: 'Invalid recording id' }, { status: 400 });
         }
-        const recording = await getRecordingById(id, authSubject);
+        const recording = await getRecordingForActor(id, authSubject);
 
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
         // Generate signed URL valid for 1 hour
-        const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+        const lifetime = await playbackUrlLifetime();
+        const playbackUrl = await getSignedR2Url(recording.r2Key, lifetime);
 
         return NextResponse.json({
             playbackUrl,
-            expiresAt: Date.now() + 3600 * 1000
+            expiresAt: Date.now() + lifetime * 1000
         });
     } catch (error) {
         console.error('Error getting playback URL:', error);

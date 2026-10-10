@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { Recording } from '@/lib/db/types';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { logger } from '@/lib/logger';
+import { getTeamSettings } from '@/lib/team-policy';
 
 interface SharedPageProps {
     params: Promise<{
@@ -18,6 +19,7 @@ interface SharedPageProps {
 }
 
 export default async function SharedRecordingPage({ params }: SharedPageProps) {
+    if ((await getTeamSettings()).enabled) notFound();
     const { token } = await params;
 
     // 1. Verify Token

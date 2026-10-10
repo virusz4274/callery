@@ -52,6 +52,8 @@ const nextConfig: NextConfig = {
   // Bundle the S3 SDK so standalone tracing retains its checksum subpath imports.
   transpilePackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   experimental: {
+    // Multiple root layouts need a standalone fallback for unmatched URLs.
+    globalNotFound: true,
     serverActions: {
       bodySizeLimit: '1mb',
       allowedOrigins: publicAppUrl ? [publicAppUrl.host] : undefined,

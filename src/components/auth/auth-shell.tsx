@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { Card } from '@heroui/react';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/icons';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 type AuthShellProps = {
     badge?: string;
@@ -23,9 +24,9 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
                     <Link href="/" className="inline-flex min-h-11 items-center gap-2.5 text-lg font-semibold tracking-tight">
                         <Logo className="size-7" />Callery
                     </Link>
-                    <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-muted transition-colors hover:text-foreground">
+                    {publicSitePolicy().marketingEnabled && <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-muted transition-colors hover:text-foreground">
                         <ArrowLeft className="size-4" aria-hidden="true" />Back to site
-                    </Link>
+                    </Link>}
                 </div>
                 <main className="flex flex-1 items-start justify-center py-6 md:py-12">
                     <Card className="w-full max-w-md gap-0 rounded-2xl border border-border bg-surface p-0 shadow-surface">

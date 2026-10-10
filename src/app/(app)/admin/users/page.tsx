@@ -5,6 +5,8 @@ import { UserManagementTable } from '@/components/admin/user-management-table';
 import { redirect } from 'next/navigation';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
 import { AdminLoadingState } from '@/components/loading-shells';
+import { getTeamAdministration } from '@/app/actions/team';
+import { TeamInvitationsPanel } from '@/components/admin/team-invitations-panel';
 
 export default async function UsersPage({
     searchParams,
@@ -21,18 +23,19 @@ export default async function UsersPage({
     const search = searchParam || '';
 
     // Fetches run in parallel
-    const [data, plans] = await Promise.all([
+    const [data, plans, team] = await Promise.all([
         getUsers(page, 10, search),
-        getPlans()
+        getPlans(), getTeamAdministration(),
     ]);
 
     return (
         <AdminPageShell
             eyebrow="Accounts and access"
-            title="User management"
+            title={team ? 'Employees and access' : 'User management'}
 
 
         >
+            {team && <TeamInvitationsPanel data={team} />}
             <Suspense fallback={<AdminLoadingState />}>
                 <UserManagementTable
                     initialUsers={data.users}
@@ -41,6 +44,7 @@ export default async function UsersPage({
                     totalPages={data.totalPages}
                     initialSearch={search}
                     plans={plans}
+                    teamMode={!!team}
                 />
             </Suspense>
         </AdminPageShell>

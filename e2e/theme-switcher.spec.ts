@@ -1,4 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockRecordings } from './fixtures/recordings';
+
+async function openThemePage(page: Page) {
+  if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true') await page.goto('/');
+  else await mockRecordings(page, { open: false });
+}
+
+test.use({ serviceWorkers: 'block' });
+test.beforeEach(async ({ page }) => {
+  // Theme fixtures must retain their mocked auth responses after reloading.
+  // Disable feature detection too, so registration code never runs in this browser.
+  await page.addInitScript(() => { Reflect.deleteProperty(Navigator.prototype, 'serviceWorker'); });
+});
+test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: 'wait' }); });
 
 function collectHydrationIssues(page: Page) {
   const issues: string[] = [];
@@ -29,7 +43,7 @@ for (const { savedTheme, colorScheme, expectedTheme } of scenarios) {
       else localStorage.setItem('theme', theme);
     }, savedTheme);
 
-    await page.goto('/');
+    await openThemePage(page);
     await expect(page.locator('html')).toHaveClass(expectedTheme);
     await page.getByRole('button', { name: 'Theme mode', exact: true }).click();
     await expect(page.getByRole('menuitem', { name: 'System', exact: true })).toBeVisible();
@@ -42,7 +56,7 @@ for (const { savedTheme, colorScheme, expectedTheme } of scenarios) {
 test('theme choices persist across reloads and navigation and follow system changes', async ({ page }) => {
   const issues = collectHydrationIssues(page);
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/');
+  await openThemePage(page);
   const trigger = page.getByRole('button', { name: 'Theme mode', exact: true });
 
   for (const choice of ['Light', 'Dark', 'System']) {
@@ -62,9 +76,15 @@ test('theme choices persist across reloads and navigation and follow system chan
   await expect(trigger).toBeVisible();
   await expect(page.locator('html')).toHaveClass('dark');
 
-  await page.getByRole('navigation', { name: 'Main navigation', exact: true })
+  if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true') {
+    await page.getByRole('navigation', { name: 'Main navigation', exact: true })
     .getByRole('link', { name: 'Pricing', exact: true }).click();
-  await expect(page).toHaveURL(/\/pricing$/);
+    await expect(page).toHaveURL(/\/pricing$/);
+  } else {
+    await page.getByRole('navigation', { name: 'Workspace tools', exact: true })
+      .getByRole('link', { name: 'Settings', exact: true }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+  }
   await trigger.click();
   await expect(page.getByRole('menuitem', { name: 'Dark', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveClass('dark');

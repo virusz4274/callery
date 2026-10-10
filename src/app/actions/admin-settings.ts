@@ -9,6 +9,7 @@ import { updateSystemSettingsDocument } from '@/lib/db/system-settings';
 import { revalidatePath } from 'next/cache';
 import { transcriptionPricing } from '@/lib/config';
 import { resolveTranscriptionMultipliers, TranscriptionMultipliersSchema, type TranscriptionMultipliers } from '@/lib/transcription-multipliers';
+import { z } from 'zod';
 
 function mapSettings(settings: SystemSettings): SystemSettingsResponse & { transcriptionMultipliers: TranscriptionMultipliers } {
     return {
@@ -18,6 +19,7 @@ function mapSettings(settings: SystemSettings): SystemSettingsResponse & { trans
         defaultPlanId: settings.defaultPlanId.toString(),
         transcriptionMultipliers: resolveTranscriptionMultipliers(transcriptionPricing(), settings.transcriptionMultipliers),
         updatedAt: settings.updatedAt.toISOString(),
+        team: settings.team,
     };
 }
 
@@ -36,6 +38,13 @@ export async function getSystemSettings() {
 
 export async function updateSystemSettings(data: UpdateSystemSettingsPayload) {
     const admin = await requireCurrentAdmin();
+    const parsed = z.object({
+        allowSignups: z.boolean().optional(), maintenanceMode: z.boolean().optional(),
+        defaultPlanId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
+        transcriptionMultipliers: TranscriptionMultipliersSchema.partial().optional(),
+    }).strict().safeParse(data);
+    if (!parsed.success) return validationFailure(parsed.error);
+    if (data.allowSignups && (await getRequiredSystemSettings()).team?.enabled) throw new Error('Company registration is invitation-only.');
 
     const { defaultPlanId, ...settings } = data;
     if (settings.transcriptionMultipliers !== undefined) {

@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import { Card, Label, ListBox, Select } from '@heroui/react';
 import { AdminLoadingState } from '@/components/loading-shells';
+import { useTeamPolicy } from '@/hooks/use-team-policy';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const { userProfile, isProfileLoading } = useUserProfile(user);
   const router = useRouter();
   const pathname = usePathname();
+  const team = useTeamPolicy();
 
   React.useEffect(() => {
     // If user loading is finished and there's no user, redirect to login.
@@ -45,8 +47,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     if (user && userProfile?.role === 'admin') {
       const navItems = [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-        { name: 'Users', href: '/admin/users', icon: Users },
-        { name: 'Plans', href: '/admin/plans', icon: CreditCard },
+        { name: team ? 'Employees' : 'Users', href: '/admin/users', icon: Users },
+        ...(team ? [{ name: 'Company recordings', href: '/admin/recordings', icon: ScrollText }] : [{ name: 'Plans', href: '/admin/plans', icon: CreditCard }]),
         { name: 'Audit', href: '/admin/audit', icon: ScrollText },
         { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
         { name: 'Settings', href: '/admin/settings', icon: Settings },

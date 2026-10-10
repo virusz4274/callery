@@ -234,6 +234,7 @@ export async function getMongoDb(): Promise<Db> {
  */
 export const Collections = {
     USERS: 'users',
+    TEAM_INVITATIONS: 'team_invitations',
     USAGE_EVENTS: 'usage_events',
     RECORDINGS: 'recordings',
     CONTACTS: 'contacts',

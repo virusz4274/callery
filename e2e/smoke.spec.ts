@@ -42,6 +42,7 @@ const protectedRouteExpectations = [
 ];
 
 test('public pages load', async ({ page }) => {
+  test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Managed public pages require billing.');
   await page.goto('/');
   await expect(page.locator('body')).toContainText('Call Archive & AI Search');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -112,7 +113,7 @@ test('mobile login shows email sign-in without an extra reveal', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/login?redirect=%2Fupload');
 
-  await expect(page.getByRole('link', { name: /Back to site/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Back to site/i })).toHaveCount(process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true' ? 1 : 0);
   const capabilities = await page.request.get('/api/auth/capabilities');
   if ((await capabilities.json()).googleEnabled) {
     await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
@@ -150,6 +151,12 @@ test('authenticated user journey works', async ({ page }) => {
   });
 
   await test.step('submit the support form', async () => {
+    if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
+      const response = await page.request.post('/api/support', { data: {} });
+      expect(response.status()).toBe(403);
+      expect((await response.json()).supportUrl).toBe('https://github.com/virusz4274/Vosift/issues');
+      return;
+    }
     await page.goto('/support');
     await page.getByPlaceholder('Your name').fill('E2E Smoke');
     await page.getByPlaceholder('you@company.com').fill(email);

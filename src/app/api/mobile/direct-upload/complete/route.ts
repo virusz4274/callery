@@ -5,6 +5,7 @@ import { completeDirectUploadForUser } from '@/lib/direct-upload-service';
 import { logger } from '@/lib/logger';
 import { startAutoTranscriptionForRecording } from '@/app/actions/upload/transcription';
 import { CompleteDirectUploadBodySchema } from '@/lib/schemas';
+import { processTranscriptionJobs } from '@/lib/integrations/jobs';
 
 export async function POST(request: NextRequest) {
     const authSubject = await getMobileSyncUserFromRequest(request);
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { shouldStartAutoTranscription, ...result } = await completeDirectUploadForUser(authSubject, parsed.data);
+    if (result.success) after(async () => { await processTranscriptionJobs(); });
 
     if (result.success && result.recordingId && shouldStartAutoTranscription) {
         after(async () => {

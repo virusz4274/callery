@@ -8,6 +8,7 @@ import { CircleHelp, Menu, Settings } from 'lucide-react';
 import { Logo } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { navigationConfig } from '@/config/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import type { User as UserProfile } from '@/lib/types';
 import type { AppUser as User } from '@/lib/auth/types';
 
@@ -17,7 +18,7 @@ export function MobileMenu({ user, userProfile }: MobileMenuProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const items = user
-    ? [...navigationConfig.main, { href: '/settings', name: 'Settings', icon: Settings }, { href: '/support', name: 'Help & support', icon: CircleHelp },
+    ? [...navigationConfig.main, { href: '/settings', name: 'Settings', icon: Settings }, { href: publicSitePolicy().supportHref, name: 'Help & support', icon: CircleHelp },
         ...(userProfile?.role === 'admin' ? [navigationConfig.adminLink] : [])]
     : navigationConfig.public;
 

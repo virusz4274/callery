@@ -12,12 +12,13 @@ import { finalizeJob, persistCheckpoint } from '@/lib/export-processor/lifecycle
 import { toStorageParts, upsertPart } from '@/lib/export-processor/part-metadata';
 import type { ExportPartMeta } from '@/lib/export-processor/types';
 import { logger } from '@/lib/logger';
+import { resolveExportSubject } from '@/lib/team-policy';
 
 export async function processExport(jobId: string, authSubject: string) {
     logger.info(`[Export] Starting job ${jobId} for user ${authSubject}`);
     try {
         const user = await findUserByAuthSubject(authSubject);
-        if (!user || user.disabled || user.softDelete?.isDeleted) {
+        if (!user) {
             throw new Error('Account is unavailable');
         }
 
@@ -25,6 +26,9 @@ export async function processExport(jobId: string, authSubject: string) {
         if (!existingJob) {
             throw new Error('Export job not found');
         }
+        const requesterSubject = existingJob.requestedByAuthSubject || authSubject;
+        await resolveExportSubject(requesterSubject, requesterSubject === authSubject ? undefined : user._id.toString());
+        const requester = await findUserByAuthSubject(requesterSubject);
 
         let totalRecordings = existingJob.totalRecordings;
         if (!totalRecordings) {
@@ -64,7 +68,7 @@ export async function processExport(jobId: string, authSubject: string) {
         });
 
         if (totalRecordings === 0) {
-            await finalizeJob(jobId, authSubject, [], user.email);
+            await finalizeJob(jobId, authSubject, [], requester?.email);
             return;
         }
 
@@ -125,7 +129,7 @@ export async function processExport(jobId: string, authSubject: string) {
             });
         }
 
-        await finalizeJob(jobId, authSubject, parts, user.email);
+        await finalizeJob(jobId, authSubject, parts, requester?.email);
     } catch (error) {
         logger.error('[Export] Fatal Error:', error);
         await updateExportJob(jobId, authSubject, {

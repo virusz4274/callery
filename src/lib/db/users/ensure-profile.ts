@@ -1,6 +1,8 @@
 import type { User } from '../types';
 import { isBootstrapAdminEmail } from '@/lib/admin-bootstrap';
-import { createUser, findUserByAuthSubject, getRequiredDefaultPlan, getRequiredSystemSettings, updateUser } from './lookup';
+import { assertSignupAllowed, acceptTeamInvitation } from '@/lib/team-invitations';
+import { getTeamSettings } from '@/lib/team-policy';
+import { createUser, findUserByAuthSubject, getRequiredDefaultPlan, updateUser } from './lookup';
 
 /**
  * Ensure a user profile exists, creating one if necessary.
@@ -13,9 +15,14 @@ export async function ensureUserProfile(
     photoURL?: string,
     emailVerified?: boolean
 ): Promise<{ user: User; wasCreated: boolean }> {
-    const existingUser = await findUserByAuthSubject(authSubject);
+    let existingUser = await findUserByAuthSubject(authSubject);
 
     if (existingUser) {
+        if (existingUser.teamInvitationPending && emailVerified === true) {
+            await acceptTeamInvitation(email, authSubject);
+            const activated = await updateUser(authSubject, { teamInvitationPending: false });
+            if (activated) existingUser = activated;
+        }
         if (!existingUser.disabled && !existingUser.softDelete?.isDeleted && emailVerified && isBootstrapAdminEmail(email) && existingUser.role !== 'admin') {
             const promoted = await updateUser(authSubject, { role: 'admin' });
             if (promoted) return { user: promoted, wasCreated: false };
@@ -23,11 +30,9 @@ export async function ensureUserProfile(
         return { user: existingUser, wasCreated: false };
     }
 
-    const settings = await getRequiredSystemSettings();
-
-    if (!settings.allowSignups) {
-        throw new Error('New signups are currently disabled.');
-    }
+    await assertSignupAllowed(email, authSubject);
+    const team = await getTeamSettings();
+    if (team.enabled && emailVerified === true) await acceptTeamInvitation(email, authSubject);
 
     const defaultPlan = await getRequiredDefaultPlan();
 
@@ -45,6 +50,7 @@ export async function ensureUserProfile(
             phoneNumber: '',
             photoURL: photoURL || '',
             role: isBootstrapAdminEmail(email) && emailVerified === true ? 'admin' : 'user',
+            ...(team.enabled ? { teamInvitationPending: emailVerified !== true } : {}),
             planKey: defaultPlan.key,
             timezone: '',
             notificationSettings: {
@@ -53,7 +59,7 @@ export async function ensureUserProfile(
                 ingestFail: true,
             },
             transcriptionSettings: {
-                autoTranscribe: true,
+                autoTranscribe: team.enabled ? team.transcriptionMode === 'automatic' : true,
             },
             storageSettings: {
                 deletionPolicy: 'never',

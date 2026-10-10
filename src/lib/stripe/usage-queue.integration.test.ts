@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { MongoClient, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
+import { getMongoClient, getMongoDb } from '@/lib/mongodb';
 import { enqueueUsageEvent, flushUsageEvents, type UsageEvent } from './usage-queue';
 import { deleteUserData } from '@/lib/db/delete-user-data';
 import { incrementStorageUsed, decrementStorageUsed } from '@/lib/db/users/usage';
@@ -10,8 +11,12 @@ import { incrementStorageUsed, decrementStorageUsed } from '@/lib/db/users/usage
 test('MongoDB usage delivery and account cleanup survive duplicates and external failures', {
     skip: !process.env.VOSIFT_TEST_MONGODB_URI,
 }, async t => {
-    const client = await MongoClient.connect(process.env.VOSIFT_TEST_MONGODB_URI!);
-    const db = client.db(`vosift_tests_${randomUUID().replaceAll('-', '')}`);
+    const originalUri = process.env.MONGODB_URI;
+    const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!);
+    uri.pathname = `/vt_usage_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
+    process.env.MONGODB_URI = uri.toString();
+    const client = await getMongoClient();
+    const db = await getMongoDb();
     const events = db.collection<UsageEvent>('usage_events');
     const input = { _id: 'storage-owner-period', authSubject: 'owner', customerId: 'cus_test', type: 'storage' as const, value: 100, timestamp: 1000 };
     try {
@@ -89,5 +94,6 @@ test('MongoDB usage delivery and account cleanup survive duplicates and external
     } finally {
         await db.dropDatabase();
         await client.close();
+        process.env.MONGODB_URI = originalUri;
     }
 });

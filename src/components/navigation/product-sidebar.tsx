@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { navigationConfig } from '@/config/navigation';
 import { cn } from '@/lib/utils';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { Logo } from '@/components/icons';
 import { ArrowRight, CircleHelp, Settings } from 'lucide-react';
 import type { User as UserProfile } from '@/lib/types';
@@ -58,7 +59,7 @@ export function ProductSidebar({ userProfile }: ProductSidebarProps) {
           })}
         </nav>
 
-        <Link href="/support" className="mt-auto flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-secondary hover:text-foreground">
+        <Link href={publicSitePolicy().supportHref} className="mt-auto flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-secondary hover:text-foreground">
           <CircleHelp className="size-[18px]" aria-hidden="true" />
           Help & support
         </Link>

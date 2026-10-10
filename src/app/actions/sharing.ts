@@ -5,6 +5,7 @@ import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { findUserByAuthSubject } from '@/lib/db/users';
 import { getRecordingById } from '@/lib/db/recordings';
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
+import { getTeamSettings } from '@/lib/team-policy';
 
 function sanitizeClipSeconds(value: number | undefined): number | undefined {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
@@ -18,6 +19,7 @@ function sanitizeClipSeconds(value: number | undefined): number | undefined {
  * Create a shareable link for a recording.
  */
 export async function createShareLink(recordingId: string, expiresIn: string) {
+    if ((await getTeamSettings()).enabled) throw new Error('Public sharing is disabled for company recordings.');
     // 1. Authenticate
     const authSubject = await getAuthSubjectFromSession();
     if (!authSubject) throw new Error('Unauthorized');
@@ -44,6 +46,7 @@ export async function createShareLinkForClip(
     clipStartSeconds?: number,
     clipEndSeconds?: number
 ) {
+    if ((await getTeamSettings()).enabled) throw new Error('Public sharing is disabled for company recordings.');
     const authSubject = await getAuthSubjectFromSession();
     if (!authSubject) throw new Error('Unauthorized');
 

@@ -1,7 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect as baseExpect, test } from '@playwright/test';
 import { mockRecordings, profile } from './fixtures/recordings';
+import { publicSitePolicy } from '../src/lib/public-site-policy';
 
+const expect = baseExpect.configure({ timeout: 15_000 });
 test.use({ serviceWorkers: 'block' });
+test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: 'wait' }); });
 
 for (const theme of ['light', 'dark']) for (const [width, height] of [[320, 720], [390, 844], [667, 375]]) {
     test(`More tools fits ${width}x${height} in ${theme}`, async ({ page }, testInfo) => {
@@ -18,7 +21,7 @@ for (const theme of ['light', 'dark']) for (const [width, height] of [[320, 720]
         await expect(page.locator('[data-slot="modal-container"]')).not.toHaveAttribute('data-entering', 'true');
         await expect(more).toHaveAttribute('aria-expanded', 'true');
         await expect(dialog.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('href', '/settings');
-        await expect(dialog.getByRole('link', { name: 'Help & support', exact: true })).toHaveAttribute('href', '/support');
+        await expect(dialog.getByRole('link', { name: 'Help & support', exact: true })).toHaveAttribute('href', publicSitePolicy().supportHref);
         await expect(dialog.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(admin ? 1 : 0);
         const controls = dialog.getByRole('link').or(dialog.getByRole('button'));
         for (const control of await controls.all()) {
@@ -71,9 +74,13 @@ test('More tools opens destinations and marks the current settings page', async 
     await more.click();
     await expect(dialog.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
     expect(documentNavigations).toBe(0);
+    const { marketingEnabled, supportHref } = publicSitePolicy();
+    if (!marketingEnabled) {
+        await page.route(supportHref, route => route.fulfill({ contentType: 'text/html', body: '<h1>GitHub Issues</h1>' }));
+    }
     await dialog.getByRole('link', { name: 'Help & support', exact: true }).click();
-    await expect(page).toHaveURL(/\/support$/);
-    await expect(page.getByRole('heading', { name: 'Get help keeping your call archive moving.', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(marketingEnabled ? /\/support$/ : supportHref);
+    await expect(page.getByRole('heading', { name: marketingEnabled ? 'Get help keeping your call archive moving.' : 'GitHub Issues', exact: true })).toBeVisible();
     await expect(dialog).toHaveCount(0);
     await page.goBack();
     await expect(page).toHaveURL(/\/settings$/);

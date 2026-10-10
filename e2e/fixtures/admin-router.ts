@@ -2,6 +2,11 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { adminProfile } from './admin-data';
 
 let revision = 0;
+// Match Next's native history integration used by the recording viewer.
+const originalPush = history.pushState.bind(history);
+const originalReplace = history.replaceState.bind(history);
+history.pushState = (data, unused, url) => { originalPush(data, unused, url); window.dispatchEvent(new Event('admin-fixture-route')); };
+history.replaceState = (data, unused, url) => { originalReplace(data, unused, url); window.dispatchEvent(new Event('admin-fixture-route')); };
 function subscribe(listener: () => void) {
     window.addEventListener('popstate', listener); window.addEventListener('admin-fixture-route', listener);
     return () => { window.removeEventListener('popstate', listener); window.removeEventListener('admin-fixture-route', listener); };

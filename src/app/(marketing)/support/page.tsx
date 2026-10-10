@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { SupportPage as SupportPageContent } from '@/components/pages/support-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { buildContactPageSchema, createMarketingMetadata, jsonLdGraph, siteSeoConfig } from '@/lib/seo';
@@ -13,6 +15,8 @@ export const metadata: Metadata = createMarketingMetadata({
 });
 
 export default function SupportPage() {
+  const policy = publicSitePolicy();
+  if (!policy.marketingEnabled) redirect(policy.supportHref);
   const jsonLd = jsonLdGraph(
     buildContactPageSchema(siteSeoConfig, {
       name: `${siteSeoConfig.siteName} support`,

@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
         const now = new Date();
         const users = await db
             .collection<User>(Collections.USERS)
-            .find({ 'notificationSettings.activityDigest': { $in: ['weekly', 'monthly'] } })
+            .find({ 'notificationSettings.activityDigest': { $in: ['weekly', 'monthly'] },
+                disabled: { $ne: true }, 'softDelete.isDeleted': { $ne: true }, teamInvitationPending: { $ne: true },
+            })
             .toArray();
 
         let sent = 0;

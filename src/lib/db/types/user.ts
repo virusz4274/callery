@@ -37,6 +37,8 @@ export interface User {
     role: 'user' | 'admin';
     planKey: string;
     disabled?: boolean;
+    teamInvitationPending?: boolean;
+    accessRevokedAt?: Date;
     timezone: string;
     notificationSettings: {
         activityDigest: 'off' | 'weekly' | 'monthly';
@@ -52,6 +54,9 @@ export interface User {
         deletionPolicy: 'never' | '3m' | '6m' | '1y';
     };
     storageUsed: number;
+    /** Atomic reservations and completion receipts shared by all upload clients. */
+    uploadReservations?: Record<string, number>;
+    uploadReceipts?: Record<string, Date>;
     storageAllocation: number;
     storagePeakUsed: number;
     storagePeakPeriodEnd?: Date | null;

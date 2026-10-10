@@ -22,7 +22,8 @@ export async function getAvailableProviders(): Promise<AvailableProvider[]> {
     const settings = await getSystemSettings();
     const adminMultipliers = settings?.transcriptionMultipliers;
 
-    return availableConfigs.map((config) => ({
+    const team = settings?.team;
+    return availableConfigs.filter(config => !team?.enabled || (team.transcriptionMode !== 'off' && config.id === team.transcriptionProvider)).map((config) => ({
         id: config.id,
         name: config.name,
         description: config.description,

@@ -1,7 +1,9 @@
 import type { Db, IndexDescription } from 'mongodb';
 import { logger } from '@/lib/logger';
+import { initializeIntegrationIndexes } from '@/lib/integrations/database';
 
 type CollectionsMap = {
+    TEAM_INVITATIONS: string;
     USERS: string;
     USAGE_EVENTS: string;
     RECORDINGS: string;
@@ -27,6 +29,11 @@ type IndexTask = {
 export async function createCoreIndexes(db: Db, collections: CollectionsMap): Promise<void> {
     const tasks: IndexTask[] = [
         {
+            label: 'Team invitations', collection: collections.TEAM_INVITATIONS,
+            indexes: [{ key: { email: 1 }, unique: true, name: 'invitation_email_unique' }],
+            errorMessage: 'Team invitation index creation failed:',
+        },
+        {
             label: 'Usage Events', collection: collections.USAGE_EVENTS,
             indexes: [{ key: { pending: 1, retryAt: 1, leaseUntil: 1, createdAt: 1 }, name: 'pending_usage' }],
             errorMessage: 'Usage event index creation failed:',
@@ -45,6 +52,7 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
             collection: collections.RECORDINGS,
             indexes: [
                 { key: { authSubject: 1, recordedAt: -1 }, name: 'authSubject_recordedAt' },
+                { key: { recordedAt: -1, _id: -1 }, name: 'company_recordedAt' },
                 { key: { authSubject: 1, contactId: 1 }, name: 'authSubject_contactId' },
                 { key: { authSubject: 1, normalizedPhoneNumber: 1 }, name: 'authSubject_normalizedPhoneNumber' },
                 { key: { r2Key: 1 }, unique: true, name: 'r2Key_unique' },
@@ -159,4 +167,5 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
             throw error;
         }
     }
+    await initializeIntegrationIndexes(db);
 }
