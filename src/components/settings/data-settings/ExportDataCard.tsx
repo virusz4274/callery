@@ -4,12 +4,14 @@ import { Archive, Download } from 'lucide-react';
 import type { ExportJobResponse } from '@/lib/db/types';
 
 interface ExportDataProps {
+    archiveOwnerName?: string;
     exportJob: ExportJobResponse | null;
     isExportStarting: boolean;
     onStartExport: () => void;
 }
 
 export function ExportDataCard({
+    archiveOwnerName,
     exportJob,
     isExportStarting,
     onStartExport
@@ -28,7 +30,7 @@ export function ExportDataCard({
                             <Archive className="h-5 w-5" />
                         </div>
                         <div className="space-y-2">
-                            <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">Export your full library</h4>
+                            <h4 className="text-lg font-semibold tracking-[-0.03em] text-foreground">{archiveOwnerName ? `Export ${archiveOwnerName}’s full archive` : 'Export your full library'}</h4>
                             <p className="max-w-2xl text-sm leading-6 text-default-500">
                                 Download audio, transcripts, metadata, and an offline viewer.
                             </p>

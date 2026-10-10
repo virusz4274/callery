@@ -5,6 +5,7 @@ import { ArrowLeft, FileText, Folder, MoreVertical } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { FileSystemNode } from '@/lib/types';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
+import { useCanDeleteRecording } from '@/hooks/use-team-policy';
 
 type FileBrowserTableProps = {
     items: FileSystemNode[];
@@ -15,6 +16,7 @@ type FileBrowserTableProps = {
 };
 
 export function FileBrowserTable({ items, breadcrumbItems, onBreadcrumbClick, onNodeClick, onDeleteClick }: FileBrowserTableProps) {
+    const canDelete = useCanDeleteRecording();
     const isMobile = useIsMobile();
     const currentLocation = breadcrumbItems.at(-1)?.name || 'Root';
     const breadcrumbs = <Breadcrumbs aria-label="Folder breadcrumbs" className="flex-wrap">
@@ -28,7 +30,7 @@ export function FileBrowserTable({ items, breadcrumbItems, onBreadcrumbClick, on
         <Button isIconOnly variant="ghost" className="size-11 shrink-0" aria-label={`Actions for ${item.name}`}><MoreVertical className="size-5" /></Button>
         <Dropdown.Popover><Dropdown.Menu aria-label="File actions">
             <Dropdown.Item id="view" onPress={() => void onNodeClick(item)}>Open recording</Dropdown.Item>
-            <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteClick(item)}>Delete</Dropdown.Item>
+            {canDelete && <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteClick(item)}>Delete</Dropdown.Item>}
         </Dropdown.Menu></Dropdown.Popover>
     </Dropdown>;
 

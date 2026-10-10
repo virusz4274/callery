@@ -4,6 +4,7 @@ import { Notification, NotificationResponse, User } from '@/lib/db/types';
 import { sendWebPushNotification } from '@/lib/web-push';
 import { normalizeNotificationLink } from '@/lib/notification-links';
 import { logger } from '@/lib/logger';
+import { checkUserAccess } from '@/lib/access-control-common';
 
 /**
  * Create a new in-app notification for a user.
@@ -34,7 +35,7 @@ export async function createNotification(
     // Send Web Push notifications if user has subscriptions
     try {
         const user = await db.collection<User>(Collections.USERS).findOne({ _id: userId });
-        if (user?.pushSubscriptions && user.pushSubscriptions.length > 0) {
+        if (user && checkUserAccess(user).allowed && user.pushSubscriptions && user.pushSubscriptions.length > 0) {
             const pushPayload = {
                 title,
                 body: message,

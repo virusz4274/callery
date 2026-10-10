@@ -152,6 +152,18 @@ Billing notes:
     quotas don't enforce, Stripe is never called, and pricing/billing UI hides.
 *   When on, `STRIPE_SECRET_KEY` (+ webhook secret for subscription sync) is required.
 
+Public pages follow the billing flag as well. When billing is off or unset, `/`
+opens `/recordings` (preserving query parameters), with the usual login flow for
+signed-out visitors. Pricing, changelog, Terms and Privacy pages return 404 and
+their navigation links are hidden. Support links and `/support` lead to
+[GitHub Issues](https://github.com/virusz4274/Vosift/issues), where users can review
+existing issues or raise a new one. `POST /api/support` returns 403 with `error`
+and `supportUrl` without storing a message or sending email. The sitemap is empty,
+crawling is disallowed, and page metadata requests no indexing. Setting
+`NEXT_PUBLIC_ENABLE_BILLING=true` restores the managed public pages and support form.
+As with other `NEXT_PUBLIC_*` settings, rebuild production browser bundles after
+changing this flag. There is no separate deployment-mode setting.
+
 ## Storage recipes
 
 The app speaks plain S3 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`,

@@ -5,6 +5,7 @@ A modern web application for managing, transcribing, and organizing phone call r
 ## Documentation
 
 *   [**Setup Guide**](docs/setup-guide.md): Installation, environment variables, and running locally.
+*   [**Small Team Setup and Recovery**](docs/small-team-setup.md): Invitations, company archives, retained employee access and deployment backups.
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
 *   [**Branch Reconciliation**](docs/branch-reconciliation.md): Preserved snapshots, confirmed decisions, and verification.

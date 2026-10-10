@@ -1,5 +1,6 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { Recording } from '../types';
+import { getTeamSettings } from '@/lib/team-policy';
 
 const POLICY_DAYS: Record<string, number> = {
     '3m': 90,
@@ -16,13 +17,15 @@ export async function getExpiredRecordings(
 ): Promise<{ authSubject: string; recordings: Recording[] }[]> {
     const db = await getMongoDb();
     const now = new Date();
+    const team = await getTeamSettings();
+    if (team.enabled && team.retentionPolicy === 'never') return [];
 
     const usersWithPolicies = await db
         .collection<{
             authSubject: string;
             storageSettings: { deletionPolicy: string };
         }>(Collections.USERS)
-        .find({
+        .find(team.enabled ? {} : {
             'storageSettings.deletionPolicy': { $in: ['3m', '6m', '1y'] },
         })
         .project({ authSubject: 1, 'storageSettings.deletionPolicy': 1 })
@@ -31,7 +34,7 @@ export async function getExpiredRecordings(
     const results: { authSubject: string; recordings: Recording[] }[] = [];
 
     for (const user of usersWithPolicies) {
-        const policy = user.storageSettings.deletionPolicy;
+        const policy = team.enabled ? team.retentionPolicy : user.storageSettings.deletionPolicy;
         const days = POLICY_DAYS[policy];
 
         if (!days) {

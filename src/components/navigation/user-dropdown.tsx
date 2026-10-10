@@ -4,6 +4,7 @@ import { Dropdown, Avatar } from '@heroui/react';
 import { Settings, LogOut, HelpCircle, FileText, Shield } from 'lucide-react';
 import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 interface UserDropdownProps {
     user: User;
@@ -12,6 +13,7 @@ interface UserDropdownProps {
 }
 
 export function UserDropdown({ user, onLogout }: UserDropdownProps) {
+    const { marketingEnabled, supportHref } = publicSitePolicy();
     return (
         <Dropdown>
             <Dropdown.Trigger aria-label="Open account menu" className="flex size-11 cursor-pointer items-center justify-center rounded-full">
@@ -35,24 +37,24 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
                             <p>Settings</p>
                         </div>
                     </Dropdown.Item>
-                    <Dropdown.Item key="support" href="/support" textValue="Help & Feedback">
+                    <Dropdown.Item key="support" href={supportHref} textValue="Help & Feedback">
                         <div className="flex items-center gap-2">
                             <HelpCircle className="h-4 w-4" />
                             <p>Help & Feedback</p>
                         </div>
                     </Dropdown.Item>
-                    <Dropdown.Item key="terms" href="/terms-of-service" textValue="Terms">
+                    {marketingEnabled && <Dropdown.Item key="terms" href="/terms-of-service" textValue="Terms">
                         <div className="flex items-center gap-2">
                             <Shield className="h-4 w-4" />
                             <p>Terms of Service</p>
                         </div>
-                    </Dropdown.Item>
-                    <Dropdown.Item key="privacy" href="/privacy-policy" textValue="Privacy">
+                    </Dropdown.Item>}
+                    {marketingEnabled && <Dropdown.Item key="privacy" href="/privacy-policy" textValue="Privacy">
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <p>Privacy Policy</p>
                         </div>
-                    </Dropdown.Item>
+                    </Dropdown.Item>}
                     <Dropdown.Item key="logout" variant="danger" onPress={onLogout} textValue="Log Out">
                         <div className="flex items-center gap-2">
                             <LogOut className="h-4 w-4" />

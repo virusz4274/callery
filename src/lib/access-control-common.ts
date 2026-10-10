@@ -22,7 +22,7 @@ export function isTrialExpired(user: User): boolean {
 }
 
 export function checkUserAccess(user: User): AccessResult {
-    if (user.disabled) {
+    if (user.disabled || user.softDelete?.isDeleted || user.teamInvitationPending) {
         return { allowed: false, reason: 'Account disabled.' };
     }
 

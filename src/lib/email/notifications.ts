@@ -2,6 +2,7 @@ import { getMongoDb, Collections } from '@/lib/mongodb';
 import { sendNotificationEmail } from '@/lib/email';
 import type { User } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
+import { checkUserAccess } from '@/lib/access-control-common';
 
 function escapeHtml(value: string): string {
     return value
@@ -22,6 +23,7 @@ export interface IngestSummary {
  * Sends at most one email per batch. Never throws — email must not fail uploads.
  */
 export async function notifyIngestComplete(user: User, summary: IngestSummary): Promise<void> {
+    if (!checkUserAccess(user).allowed) return;
     const prefs = user.notificationSettings;
     if (!prefs) return;
 
@@ -111,7 +113,7 @@ export async function sendDigestEmail(
     period: 'weekly' | 'monthly',
     stats: DigestStats
 ): Promise<boolean> {
-    if (stats.recordings === 0) return false;
+    if (stats.recordings === 0 || !checkUserAccess(user).allowed) return false;
 
     try {
         const minutes = Math.round(stats.seconds / 60);

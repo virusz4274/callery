@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { PublicPlan } from '@/app/actions/plans';
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import { siteProfile } from '@/lib/site-profile';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 export const siteOrigin = getConfiguredPublicAppOrigin();
 
@@ -48,6 +49,9 @@ export const siteSeoConfig: SiteSeoConfig = {
 export function createSiteMetadata(config: SiteSeoConfig): Metadata {
   return {
     metadataBase: new URL(config.siteOrigin),
+    ...(!publicSitePolicy().marketingEnabled && {
+      robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+    }),
     title: {
       default: `${config.siteName}: ${config.siteTagline}`,
       template: `%s | ${config.siteName}`,
@@ -123,7 +127,7 @@ export function createMarketingMetadata({
   type = 'website',
   noIndex = false,
 }: MarketingMetadataInput & { config: SiteSeoConfig }): Metadata {
-  const robots = noIndex
+  const robots = (noIndex || !publicSitePolicy().marketingEnabled)
     ? {
         index: false,
         follow: false,

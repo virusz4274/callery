@@ -4,13 +4,14 @@ import type { User } from '@/lib/types';
 
 type UserDetailsHeaderProps = {
     user: User;
+    teamMode?: boolean;
     isDeleting: boolean;
     isRestoring: boolean;
     onDeleteUser: () => void;
     onRestoreUser: () => void;
 };
 
-export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser, onRestoreUser }: UserDetailsHeaderProps) {
+export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser, onRestoreUser, teamMode = false }: UserDetailsHeaderProps) {
     const isSoftDeleted = user.softDelete?.isDeleted;
 
     return (
@@ -38,14 +39,14 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                 </div>
                 </div>
                 <div className="flex gap-2 md:ml-auto">
-                    {isSoftDeleted ? (
+                    {isSoftDeleted || (teamMode && user.disabled) ? (
                         <Button variant="secondary" className="min-h-11 px-4" isDisabled={isRestoring} onPress={onRestoreUser}>
                             {isRestoring ? (
                                 'Restoring...'
                             ) : (
                                 <div className="flex items-center gap-2">
                                     <RotateCcw className="h-4 w-4" />
-                                    <span>Restore User</span>
+                                    <span>{teamMode ? 'Restore access' : 'Restore User'}</span>
                                 </div>
                             )}
                         </Button>
@@ -56,7 +57,7 @@ export function UserDetailsHeader({ user, isDeleting, isRestoring, onDeleteUser,
                             ) : (
                                 <div className="flex items-center gap-2">
                                     <Trash2 className="h-4 w-4" />
-                                    <span>Delete User</span>
+                                    <span>{teamMode ? 'Remove access' : 'Delete User'}</span>
                                 </div>
                             )}
                         </Button>

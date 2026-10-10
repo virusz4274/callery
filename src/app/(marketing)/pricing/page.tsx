@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { getPublishedPlans } from '@/app/actions/plans';
 import { PricingSection } from '@/components/pricing-section';
 import { JsonLd } from '@/components/seo/json-ld';
@@ -25,6 +27,7 @@ export const metadata: Metadata = createMarketingMetadata({
 });
 
 export default async function PricingPage() {
+  if (!publicSitePolicy().marketingEnabled) notFound();
   const publishedPlans = await getPublishedPlans();
   const jsonLd = jsonLdGraph(
     buildSoftwareApplicationSchema(siteSeoConfig, {

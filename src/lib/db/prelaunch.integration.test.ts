@@ -24,7 +24,7 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
 }, async t => {
     const originalUri = process.env.MONGODB_URI;
     const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!);
-    uri.pathname = `/vosift_prelaunch_tests_${randomUUID().replaceAll('-', '')}`;
+    uri.pathname = `/vt_profile_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
     process.env.MONGODB_URI = uri.toString();
     const client = await getMongoClient();
     const db = await getMongoDb();

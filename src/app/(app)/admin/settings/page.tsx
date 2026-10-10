@@ -5,6 +5,8 @@ import { getPlans } from '@/app/actions/admin-plans';
 import { SettingsForm } from '@/components/admin/settings-form';
 import { AdminPageRetry } from '@/components/admin/admin-feedback';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
+import { TeamSettingsForm } from '@/components/admin/team-settings-form';
+import { TranscriptionFactory } from '@/services/transcription/factory';
 
 export default async function SettingsPage() {
     const admin = await getCurrentAdmin();
@@ -59,7 +61,10 @@ export default async function SettingsPage() {
                 },
             ]}
         >
-            <SettingsForm settings={settings} plans={plans} />
+            <div className="space-y-6">
+                <TeamSettingsForm initial={settings.team} providers={TranscriptionFactory.getAvailableProviders().map(p => ({ id: p.id, name: p.name }))} />
+                <SettingsForm settings={settings} plans={plans} />
+            </div>
         </AdminPageShell>
     );
 }

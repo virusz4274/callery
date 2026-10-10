@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/lib/auth/client";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { navigationConfig } from '@/config/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { Ellipsis, LogIn, ArrowLeft, ChevronRight, CircleHelp, Settings, type LucideIcon } from 'lucide-react';
 
 type NavItem = {
@@ -35,7 +36,7 @@ export function MobileNav() {
     navItems = [...navigationConfig.main];
     secondaryItems = [
       { href: '/settings', name: 'Settings', icon: Settings, description: 'Profile, preferences and sources' },
-      { href: '/support', name: 'Help & support', icon: CircleHelp, description: 'Get help with your workspace' },
+      { href: publicSitePolicy().supportHref, name: 'Help & support', icon: CircleHelp, description: 'Get help with your workspace' },
     ];
 
     if (userProfile?.role === 'admin') {

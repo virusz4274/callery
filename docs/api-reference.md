@@ -130,6 +130,14 @@ Main admin capabilities:
 
 ## Route Handlers
 
+### Versioned integration API
+
+The `/api/v1` recording API supports scoped API tokens, resumable and simple
+uploads, status polling, downloads, and explicit transcription. See
+[integration setup and examples](integration-api.md) and `/api/v1/openapi.json`.
+Manage named credentials in Settings → Integrations. Existing routes below keep
+their instance-session/mobile-token authentication contracts.
+
 ### Auth And User
 
 | Method | Path | Purpose |

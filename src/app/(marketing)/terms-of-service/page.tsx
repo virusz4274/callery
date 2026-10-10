@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { LegalDocumentPage } from '@/components/pages/legal-document-page';
 import { createMarketingMetadata, siteSeoConfig } from '@/lib/seo';
 
@@ -48,6 +50,7 @@ const sections = [
 ];
 
 export default function TermsOfServicePage() {
+  if (!publicSitePolicy().marketingEnabled) notFound();
   return (
     <LegalDocumentPage
       title="Terms of Service"

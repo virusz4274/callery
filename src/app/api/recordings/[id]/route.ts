@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getAuthSubjectFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { getRecordingById } from '@/lib/db/recordings';
+import { getRecordingForActor, playbackUrlLifetime } from '@/lib/team-policy';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { getSignedR2Url } from '@/lib/r2';
 import { logger } from '@/lib/logger';
@@ -25,14 +25,14 @@ export async function GET(
     }
 
     try {
-        const recording = await getRecordingById(id, authSubject);
+        const recording = await getRecordingForActor(id, authSubject);
         if (!recording) {
             return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
         }
 
         let playbackUrl: string | undefined;
         try {
-            playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+            playbackUrl = await getSignedR2Url(recording.r2Key, await playbackUrlLifetime());
         } catch (error) {
             logger.error('Failed to generate playback URL for recording route:', error);
         }

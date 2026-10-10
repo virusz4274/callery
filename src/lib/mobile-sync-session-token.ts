@@ -29,6 +29,7 @@ export async function verifyMobileSyncSessionToken(token: string): Promise<Mobil
 
         return {
             authSubject: payload.authSubject,
+            iat: payload.iat,
         };
     } catch {
         return null;

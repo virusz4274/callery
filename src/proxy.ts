@@ -9,4 +9,6 @@ export function proxy() {
     return response;
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+// Keep binary ingestion out of Proxy's request-body cloning/buffering. Global
+// response security headers still apply through next.config.ts.
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|api/v1/recordings/?$).*)'] };

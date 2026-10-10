@@ -12,6 +12,7 @@ import { GoogleConnectCard } from './data-settings/GoogleConnectCard';
 import { TranscriptionSettingsCard } from './data-settings/TranscriptionSettingsCard';
 import { UsageStorageCard } from './data-settings/UsageStorageCard';
 import { ExportDataCard } from './data-settings/ExportDataCard';
+import { useTeamPolicy } from '@/hooks/use-team-policy';
 
 interface DataSettingsProps {
     mode: 'sources' | 'processing' | 'retention' | 'export';
@@ -56,6 +57,7 @@ export function DataSettings({
     isExportStarting,
     onStartExport,
 }: DataSettingsProps) {
+    const team = useTeamPolicy();
 
     // Fetch available transcription providers
     const [providers, setProviders] = useState<AvailableProvider[]>([]);
@@ -78,7 +80,11 @@ export function DataSettings({
                 </SettingsSection>
                 )}
 
-                {mode === 'processing' && (
+                {team && (mode === 'processing' || mode === 'retention') && <SettingsSection title={mode === 'processing' ? 'Company processing policy' : 'Company retention policy'}>
+                    <p className="text-sm text-muted">These settings are managed by the administrator of {team.companyName}.</p>
+                    <p>{mode === 'processing' ? `Transcription: ${team.transcriptionMode}${team.transcriptionMode !== 'off' ? ` (${team.transcriptionProvider})` : ''}` : `Recordings are kept ${team.retentionPolicy === 'never' ? 'until the administrator deletes them' : `for ${team.retentionPolicy === '3m' ? 'three months' : team.retentionPolicy === '6m' ? 'six months' : 'one year'}`}.`}</p>
+                </SettingsSection>}
+                {!team && mode === 'processing' && (
                 <SettingsSection title="Processing">
                     <TranscriptionSettingsCard
                         autoTranscribe={settings.transcriptionSettings.autoTranscribe}
@@ -99,7 +105,7 @@ export function DataSettings({
                 </SettingsSection>
                 )}
 
-                {mode === 'retention' && (
+                {!team && mode === 'retention' && (
                 <SettingsSection title="Retention">
                     <UsageStorageCard
                         userProfile={userProfile}

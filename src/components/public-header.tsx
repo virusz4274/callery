@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/icons';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { cn } from '@/lib/utils';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 const marketingLinks = [
   { href: '/', label: 'Overview' },
@@ -15,7 +16,8 @@ const marketingLinks = [
 
 export function PublicHeader() {
   const pathname = usePathname();
-  const links = marketingLinks.map((item) => (
+  const { marketingEnabled, supportHref } = publicSitePolicy();
+  const links = (marketingEnabled ? marketingLinks : [{ href: supportHref, label: 'Support' }]).map((item) => (
     <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}
       className={cn('inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors',
         pathname === item.href ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-surface-secondary hover:text-foreground')}>
@@ -35,7 +37,7 @@ export function PublicHeader() {
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeSwitcher />
           <Link href="/login" className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-secondary sm:inline-flex">Log in</Link>
-          <Link href="/signup" className="button button--primary button--sm px-4">Start free</Link>
+          <Link href="/signup" className="button button--primary button--sm px-4">{marketingEnabled ? 'Start free' : 'Sign up'}</Link>
         </div>
       </div>
       <nav aria-label="Mobile site navigation" className="flex justify-center gap-1 border-t border-border px-3 py-1 md:hidden">{links}</nav>

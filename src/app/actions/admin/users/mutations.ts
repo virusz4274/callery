@@ -5,12 +5,46 @@ import { User } from '@/lib/db/types';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { buildRestoreDeadline, hardDeleteUserData } from '@/lib/db/users/soft-delete';
 import { revalidateAdminUsers } from './shared';
+import { getTeamSettings, withTeamAccessLock, assertNotLastAdmin, revokeUserSessions } from '@/lib/team-policy';
 
 export async function updateUserRoleMutation(userId: string, role: 'user' | 'admin') {
+    if (!['user', 'admin'].includes(role)) throw new Error('Invalid role');
+    await requireCurrentAdmin();
+    return withTeamAccessLock(() => updateUserRoleUnlocked(userId, role));
+}
+
+export async function toggleUserStatusMutation(userId: string, disabled: boolean) {
+    if (typeof disabled !== 'boolean') throw new Error('Invalid status');
+    await requireCurrentAdmin();
+    return withTeamAccessLock(() => toggleUserStatusUnlocked(userId, disabled));
+}
+
+export async function deleteUserMutation(userId: string) {
+    await requireCurrentAdmin();
+    return withTeamAccessLock(async () => {
+        if ((await getTeamSettings()).enabled) return toggleUserStatusUnlocked(userId, true);
+        return deleteUserUnlocked(userId);
+    });
+}
+
+export async function restoreUserMutation(userId: string) {
+    await requireCurrentAdmin();
+    return withTeamAccessLock(async () => {
+        if ((await getTeamSettings()).enabled) return toggleUserStatusUnlocked(userId, false);
+        return restoreUserUnlocked(userId);
+    });
+}
+
+async function updateUserRoleUnlocked(userId: string, role: 'user' | 'admin') {
     const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');
+    if ((await getTeamSettings()).enabled) {
+        const user = await db.collection<User>(Collections.USERS).findOne({ _id: userObjectId });
+        if (!user || user.teamInvitationPending) throw new Error('Employee must verify their invitation first.');
+        if (role !== 'admin') await assertNotLastAdmin(user);
+    }
 
     await db.collection<User>(Collections.USERS).updateOne(
         { _id: userObjectId },
@@ -26,21 +60,27 @@ export async function updateUserRoleMutation(userId: string, role: 'user' | 'adm
     revalidateAdminUsers();
 }
 
-export async function toggleUserStatusMutation(userId: string, disabled: boolean) {
+async function toggleUserStatusUnlocked(userId: string, disabled: boolean) {
     const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');
+    const user = await db.collection<User>(Collections.USERS).findOne({ _id: userObjectId });
+    if (!user) throw new Error('User not found');
+    if ((await getTeamSettings()).enabled && disabled) await assertNotLastAdmin(user);
 
     await db.collection<User>(Collections.USERS).updateOne(
         { _id: userObjectId },
         {
             $set: {
                 disabled,
+                ...(disabled ? { accessRevokedAt: new Date() } : {}),
                 updatedAt: new Date(),
             },
         }
     );
+
+    if (disabled) await revokeUserSessions(user.authSubject);
 
     await logAdminAction(
         admin._id.toString(),
@@ -135,7 +175,7 @@ export async function updateUserUsageMutation(
     revalidateAdminUsers(userId);
 }
 
-export async function deleteUserMutation(userId: string) {
+async function deleteUserUnlocked(userId: string) {
     const admin = await requireCurrentAdmin();
 
     const db = await getMongoDb();
@@ -185,7 +225,7 @@ export async function deleteUserMutation(userId: string) {
     revalidateAdminUsers();
 }
 
-export async function restoreUserMutation(userId: string) {
+async function restoreUserUnlocked(userId: string) {
     const admin = await requireCurrentAdmin();
     const db = await getMongoDb();
     const userObjectId = parseObjectId(userId, 'userId');
@@ -202,7 +242,7 @@ export async function restoreUserMutation(userId: string) {
     const now = new Date();
     if (now > user.softDelete.restoreUntil) {
         // Window expired: hard-delete immediately to keep state consistent.
-        const cleanup = await hardDeleteUserData(db, user);
+        const cleanup = await hardDeleteUserData(db, user, true);
         if (!cleanup.completed) throw new Error('Cleanup is pending; storage records were retained for retry.');
         await logAdminAction(
             admin._id.toString(),

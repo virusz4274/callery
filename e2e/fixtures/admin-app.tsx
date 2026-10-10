@@ -15,18 +15,25 @@ import { AdminPageRetry } from '../../src/components/admin/admin-feedback';
 import { usePathname, useSearchParams } from './admin-router';
 import { adminAnnouncements, adminPlans, adminProfile, adminUsers } from './admin-data';
 import '../../src/app/globals.css';
+import { TeamSettingsForm } from '../../src/components/admin/team-settings-form';
+import { TeamInvitationsPanel } from '../../src/components/admin/team-invitations-panel';
+import { CompanyRecordings } from '../../src/components/admin/company-recordings';
+import { companyRecording, teamAdministration, teamSettings } from './team-data';
 
 function AdminFixture() {
     const pathname = usePathname();
     const params = useSearchParams();
     const empty = params.has('empty');
+    const team = params.has('team');
     const search = params.get('search') || '';
     const users = adminUsers.filter(user => `${user.name} ${user.email}`.toLowerCase().includes(search.toLowerCase()));
     const page = Number(params.get('page') || 1);
     let content: React.ReactNode;
     if (pathname === '/admin') content = <AdminDashboard stats={{ totalUsers: 25, totalRecordings: 42, totalStorageUsed: 1024 ** 3, totalTranscriptionUsed: 3600 }} orphanedCount={2} />;
     else if (pathname.startsWith('/admin/users/')) content = <UserDetailsPage user={adminUsers.find(user => pathname.endsWith(user.id)) || adminProfile} recordings={[]} invoices={[]} />;
-    else if (pathname === '/admin/users') content = <AdminPageShell eyebrow="" title="User management"><UserManagementTable initialUsers={empty ? [] : users.slice((page - 1) * 10, page * 10)} totalUsers={empty ? 0 : users.length} currentPage={page} totalPages={Math.ceil(users.length / 10)} initialSearch={search} plans={adminPlans} /></AdminPageShell>;
+    else if (pathname === '/admin/users') content = <AdminPageShell eyebrow="" title={team ? 'Employees' : 'User management'}>{team && <TeamInvitationsPanel data={teamAdministration} />}<UserManagementTable teamMode={team} initialUsers={empty ? [] : users.slice((page - 1) * 10, page * 10)} totalUsers={empty ? 0 : users.length} currentPage={page} totalPages={Math.ceil(users.length / 10)} initialSearch={search} plans={adminPlans} /></AdminPageShell>;
+    else if (pathname === '/admin/recordings') content = <AdminPageShell eyebrow="" title="Company recordings"><CompanyRecordings key={JSON.stringify([params.get('employeeId'), search, params.get('startDate'), params.get('endDate'), page])} administration={teamAdministration} data={{ recordings: [companyRecording], total: 26, page, totalPages: 2 }} /></AdminPageShell>;
+    else if (pathname === '/admin/team-settings') content = <AdminPageShell eyebrow="" title="Company setup"><TeamSettingsForm initial={params.has('setup') ? undefined : teamSettings} providers={[]} /></AdminPageShell>;
     else if (pathname === '/admin/plans') content = <AdminPageShell eyebrow="" title="Pricing plans"><PlansList initialPlans={empty ? [] : adminPlans} /></AdminPageShell>;
     else if (pathname === '/admin/announcements') content = <AdminPageShell eyebrow="" title="Announcements"><AnnouncementsList announcements={empty ? [] : adminAnnouncements} /></AdminPageShell>;
     else if (pathname === '/admin/settings') content = <AdminPageShell eyebrow="" title="System settings">{params.has('fail') ? <AdminPageRetry title="Could not load system settings" /> : <SettingsForm settings={{ id: 'settings', allowSignups: true, maintenanceMode: false, defaultPlanId: adminPlans[0].id, transcriptionMultipliers: { soniox: 1, elevenlabs: 2, gemini: 3, openai_compat: 1 }, updatedAt: adminProfile.createdAt }} plans={adminPlans} />}</AdminPageShell>;

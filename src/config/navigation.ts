@@ -10,6 +10,7 @@ import {
     Settings,
     Megaphone
 } from 'lucide-react';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 export const navigationConfig = {
     main: [
@@ -25,9 +26,11 @@ export const navigationConfig = {
         { href: '/admin/announcements', name: 'Announcements', icon: Megaphone },
         { href: '/admin/settings', name: 'Settings', icon: Settings },
     ],
-    public: [
-        { href: '/#features', name: 'Features', icon: Sparkles },
-        { href: '/#pricing', name: 'Pricing', icon: CreditCard },
-    ],
+    get public() {
+        return publicSitePolicy().marketingEnabled ? [
+            { href: '/#features', name: 'Features', icon: Sparkles },
+            { href: '/#pricing', name: 'Pricing', icon: CreditCard },
+        ] : [];
+    },
     adminLink: { href: '/admin', name: 'Admin', icon: Shield },
 };

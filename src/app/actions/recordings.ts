@@ -4,9 +4,10 @@ import { logger } from '@/lib/logger';
 
 import { ObjectId } from 'mongodb';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
-import { getRecordingsForApi, countRecordingsByUser, deleteRecording, updateRecording, getRecordingById } from '@/lib/db/recordings';
-import { deleteFromR2, getSignedR2Url } from '@/lib/r2';
-import { decrementStorageUsed } from '@/lib/db/users';
+import { getRecordingsForApi, countRecordingsByUser, updateRecording } from '@/lib/db/recordings';
+import { getSignedR2Url } from '@/lib/r2';
+import { getRecordingForActor, playbackUrlLifetime } from '@/lib/team-policy';
+import { deleteRecordings } from './delete-recordings';
 import { toRecordingResponse } from '@/lib/db/converters';
 import { revalidatePath } from 'next/cache';
 import { GetRecordingsOptionsSchema, RecordingIdSchema, UpdateRecordingSchema, GetRecordingsOptionsInput } from '@/lib/schemas';
@@ -72,25 +73,8 @@ export async function deleteRecordingAction(id: string) {
     }
 
     try {
-        const recording = await getRecordingById(parseResult.data, authSubject);
-        if (!recording) {
-            return { success: false, error: 'Recording not found' };
-        }
-
-        try {
-            await deleteFromR2(recording.r2Key);
-        } catch (r2Error) {
-            logger.error('Error deleting from R2:', r2Error);
-            return { success: false, error: 'Failed to delete audio from storage. Recording was not removed.' };
-        }
-
-        const deletedRecording = await deleteRecording(parseResult.data, authSubject);
-        if (!deletedRecording) {
-            return { success: false, error: 'Recording could not be removed after deleting audio from storage' };
-        }
-
-        await decrementStorageUsed(authSubject, deletedRecording.fileSize);
-
+        const result = await deleteRecordings([parseResult.data]);
+        if (!result.success) return { success: false, error: result.message };
         revalidateRecordingPages();
         return { success: true };
     } catch (error) {
@@ -148,12 +132,12 @@ export async function getPlaybackUrlAction(id: string) {
     }
 
     try {
-        const recording = await getRecordingById(parseResult.data, authSubject);
+        const recording = await getRecordingForActor(parseResult.data, authSubject);
         if (!recording) {
             return { error: 'Recording not found' };
         }
 
-        const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+        const playbackUrl = await getSignedR2Url(recording.r2Key, await playbackUrlLifetime());
         return { playbackUrl };
     } catch (error) {
         logger.error('Error generating playback URL:', error);
@@ -173,12 +157,12 @@ export async function getRecordingDetailsAction(id: string) {
     }
 
     try {
-        const recording = await getRecordingById(parseResult.data, authSubject);
+        const recording = await getRecordingForActor(parseResult.data, authSubject);
         if (!recording) {
             return { error: 'Recording not found' };
         }
 
-        const playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
+        const playbackUrl = await getSignedR2Url(recording.r2Key, await playbackUrlLifetime());
         return { recording: toRecordingResponse(recording, playbackUrl) };
     } catch (error) {
         logger.error('Error fetching recording details:', error);

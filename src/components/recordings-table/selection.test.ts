@@ -8,6 +8,9 @@ import { RecordingsTableMobile } from './recordings-table-mobile';
 import { RecordingsTableDesktop } from './recordings-table-desktop';
 import { NotificationsSettings } from '@/components/settings/notifications-settings';
 import { ToastProvider } from '@/components/toast-provider';
+import { AuthProvider } from '@/lib/auth/client';
+
+const renderAuthenticated = (element: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(AuthProvider, null, element));
 
 const recording: Recording = {
     id: 'recording-selection-fixture', authSubject: 'fixture', contactId: null, contactName: 'Fixture recording',
@@ -28,7 +31,7 @@ const inputs = (html: string) => html.match(/<input\b[^>]*>/g) || [];
 
 test('mobile selection renders a focusable native checkbox with its controlled checked state', () => {
     for (const selected of [false, true]) {
-        const html = renderToStaticMarkup(createElement(RecordingsTableMobile, {
+        const html = renderAuthenticated(createElement(RecordingsTableMobile, {
             recordings: [recording], contacts: [], selection: selection(selected), isSelectionMode: true,
             toggleSelectionMode: noop, onOpenDialog: noop, onDeleteRequest: noop,
         }));
@@ -41,7 +44,7 @@ test('mobile selection renders a focusable native checkbox with its controlled c
 });
 
 test('mobile browsing keeps checkboxes out of the normal recording-opening flow', () => {
-    const html = renderToStaticMarkup(createElement(RecordingsTableMobile, {
+    const html = renderAuthenticated(createElement(RecordingsTableMobile, {
         recordings: [recording], contacts: [], selection: selection(false), isSelectionMode: false,
         toggleSelectionMode: noop, onOpenDialog: noop, onDeleteRequest: noop,
     }));
@@ -51,7 +54,7 @@ test('mobile browsing keeps checkboxes out of the normal recording-opening flow'
 
 test('desktop exposes working native inputs for select-all and individual rows', () => {
     for (const selected of [false, true]) {
-        const html = renderToStaticMarkup(createElement(RecordingsTableDesktop, {
+        const html = renderAuthenticated(createElement(RecordingsTableDesktop, {
             recordings: [recording], selection: selection(selected), onOpenDialog: noop, onDeleteRequest: noop,
         }));
         const checkboxes = inputs(html).filter((input) => input.includes('type="checkbox"'));

@@ -5,6 +5,7 @@ import { Accordion, Button, Input, Label, ListBox, Popover, Select } from '@hero
 import { Check, Clock, Copy, Share2 } from 'lucide-react';
 import { createShareLink, createShareLinkForClip } from '@/app/actions/sharing';
 import { useToast } from '@/components/toast-provider';
+import { useTeamPolicy } from '@/hooks/use-team-policy';
 
 interface SharePopoverProps {
     recordingId: string;
@@ -17,6 +18,7 @@ const expirations = [
 ];
 
 export function ShareRecordingForm({ recordingId }: SharePopoverProps) {
+    const team = useTeamPolicy();
     const [loading, setLoading] = useState(false);
     const [link, setLink] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -26,6 +28,7 @@ export function ShareRecordingForm({ recordingId }: SharePopoverProps) {
     const [clipExpanded, setClipExpanded] = useState(false);
     const { toast } = useToast();
 
+    if (team) return <p className="text-sm text-muted">Public sharing is disabled for {team.companyName}. The company administrator can access the archive directly.</p>;
     const handleGenerate = async () => {
         setLoading(true);
         try {
@@ -140,7 +143,9 @@ export function ShareRecordingForm({ recordingId }: SharePopoverProps) {
 }
 
 export function SharePopover({ recordingId }: SharePopoverProps) {
+    const team = useTeamPolicy();
     const [isOpen, setIsOpen] = useState(false);
+    if (team) return null;
     return (
         <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
             <Popover.Trigger>

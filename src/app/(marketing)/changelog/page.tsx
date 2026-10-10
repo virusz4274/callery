@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import { ChangelogPage as ChangelogPageContent } from '@/components/pages/changelog-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { buildCollectionPageSchema, createMarketingMetadata, jsonLdGraph, siteSeoConfig } from '@/lib/seo';
@@ -29,6 +31,7 @@ export const metadata: Metadata = createMarketingMetadata({
 });
 
 export default function ChangelogPage() {
+    if (!publicSitePolicy().marketingEnabled) notFound();
     const jsonLd = jsonLdGraph(
         buildCollectionPageSchema({
             config: siteSeoConfig,

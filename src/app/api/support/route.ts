@@ -18,6 +18,7 @@ import { sendSupportMessageNotification } from '@/lib/support-email';
 import { env } from '@/lib/env';
 import { siteProfile } from '@/lib/site-profile';
 import { emailProvider } from '@/lib/config';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 const supportMessageSchema = z.object({
     name: z.string().trim().min(2).max(120),
@@ -29,6 +30,13 @@ const supportMessageSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+    const policy = publicSitePolicy();
+    if (!policy.marketingEnabled) {
+        return NextResponse.json(
+            { error: 'Support requests for self-hosted instances belong on GitHub Issues.', supportUrl: policy.supportHref },
+            { status: 403 },
+        );
+    }
     try {
         const allowedOrigin = getPublicAppOrigin(request);
         const requestOrigin = request.headers.get('origin');

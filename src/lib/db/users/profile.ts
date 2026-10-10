@@ -1,9 +1,13 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { UpdateProfileBody } from '@/lib/schemas';
 import type { User } from '../types';
+import { getTeamSettings } from '@/lib/team-policy';
 
 /** Update supplied settings fields without replacing their sibling fields. */
 export async function updateUserProfile(authSubject: string, data: UpdateProfileBody): Promise<User | null> {
+    if ((data.storageSettings || data.transcriptionSettings) && (await getTeamSettings()).enabled) {
+        throw new Error('Retention and processing are managed by your company administrator.');
+    }
     const db = await getMongoDb();
     const { notificationSettings, storageSettings, transcriptionSettings, ...profile } = data;
     const fields: Record<string, unknown> = Object.fromEntries(

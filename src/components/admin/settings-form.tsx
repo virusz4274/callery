@@ -51,7 +51,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
         if (!defaultPlanId) { setErrors({ defaultPlanId: 'Choose a default plan.' }); focusInvalid(form.current); return; }
         busy.current = true; setPending(true); setErrors({}); setSaveError(null);
         try {
-            const result = await updateSystemSettings({ allowSignups, maintenanceMode, defaultPlanId, transcriptionMultipliers: parsedMultipliers.data });
+            const result = await updateSystemSettings({ allowSignups: settings.team?.enabled ? false : allowSignups, maintenanceMode, defaultPlanId, transcriptionMultipliers: parsedMultipliers.data });
             if (result?.fieldErrors) { setErrors(result.fieldErrors); focusInvalid(form.current); return; }
             toast({ title: 'Settings updated', status: 'success' }); router.refresh();
         } catch (error) { setSaveError(error instanceof Error ? error.message : 'Please try again.'); }
@@ -67,9 +67,9 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                         <div className="flex items-center justify-between gap-4">
                             <div>
                                 <p className="font-medium">Allow New Signups</p>
-                                <p id="signups-help" className="text-sm text-muted">When disabled, new users cannot register.</p>
+                                <p id="signups-help" className="text-sm text-muted">{settings.team?.enabled ? 'Company accounts require an invitation.' : 'When disabled, new users cannot register.'}</p>
                             </div>
-                            <Switch aria-label="Allow new signups" aria-describedby="signups-help" isSelected={allowSignups} onChange={setAllowSignups}>
+                            <Switch aria-label="Allow new signups" aria-describedby="signups-help" isDisabled={settings.team?.enabled} isSelected={settings.team?.enabled ? false : allowSignups} onChange={setAllowSignups}>
                                 <Switch.Content className="min-h-11 min-w-11 justify-center">
                                     <Switch.Control>
                                         <Switch.Thumb />

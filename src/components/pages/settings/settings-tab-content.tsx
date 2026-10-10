@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { ClientOnly } from '@/components/client-only';
+import { IntegrationSettings } from '@/components/settings/integration-settings';
 import { BillingSettings } from '@/components/settings/billing-settings';
 import { DataSettings } from '@/components/settings/data-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
@@ -41,6 +42,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
 
                 <div className="space-y-4 md:space-y-6">
                     <ClientOnly>
+                        {state.activeTab === 'integrations' && <IntegrationSettings isAdmin={state.userProfile?.role === 'admin'} />}
                         {state.activeTab === 'profile' && (
                             <ProfileSettings
                                 user={state.user!}

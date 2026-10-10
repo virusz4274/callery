@@ -12,6 +12,7 @@ import {
 } from '@/lib/direct-upload-service';
 import { logger } from '@/lib/logger';
 import { startAutoTranscriptionForRecording } from './transcription';
+import { processTranscriptionJobs } from '@/lib/integrations/jobs';
 
 export async function initializeDirectUpload(input: InitDirectUploadInput): Promise<InitDirectUploadResult> {
     const authSubject = await getAuthSubjectFromSession();
@@ -31,6 +32,7 @@ export async function completeDirectUpload(input: CompleteDirectUploadInput): Pr
     const { shouldStartAutoTranscription, ...result } = await completeDirectUploadForUser(authSubject, input);
 
     const recordingId = result.success ? result.recordingId : undefined;
+    if (recordingId) after(async () => { await processTranscriptionJobs(); });
 
     if (recordingId && shouldStartAutoTranscription) {
         after(async () => {

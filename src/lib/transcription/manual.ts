@@ -20,6 +20,7 @@ import { RecordingIdSchema } from '@/lib/schemas';
 import { getProviderMultiplier } from '@/app/actions/transcription-providers';
 import { logSystemEvent } from '@/lib/db/system-log';
 import { toBlockedDetails, toFailureDetails } from '@/services/transcription/failure-events';
+import { getTeamSettings } from '@/lib/team-policy';
 
 
 
@@ -142,7 +143,7 @@ async function runManualTranscriptionJob({
     );
 }
 
-export async function startManualTranscription(uid: string, recordingId: string, options?: ManualTranscriptionOptions) {
+export async function startManualTranscription(uid: string, recordingId: string, options?: ManualTranscriptionOptions, runInline = false, validateOnly = false) {
     try {
         const parseResult = RecordingIdSchema.safeParse(recordingId);
         if (!parseResult.success) {
@@ -155,7 +156,13 @@ export async function startManualTranscription(uid: string, recordingId: string,
             return { error: 'Invalid transcription options' };
         }
 
-        const model = optionsResult.data.model;
+        const team = await getTeamSettings();
+        if (team.enabled && team.transcriptionMode === 'off') return { error: 'Transcription is disabled by your company administrator.' };
+        if (team.enabled && ((optionsResult.data.provider && optionsResult.data.provider !== team.transcriptionProvider) ||
+            (optionsResult.data.model && optionsResult.data.model !== team.transcriptionModel))) {
+            return { error: 'Transcription settings are managed by your company administrator.' };
+        }
+        const model = team.enabled ? team.transcriptionModel || undefined : optionsResult.data.model;
 
         if (!uid) {
             return { error: 'Unauthorized' };
@@ -166,7 +173,7 @@ export async function startManualTranscription(uid: string, recordingId: string,
             return { error: 'User not found' };
         }
 
-        const providerId = optionsResult.data.provider || resolveTranscriptionProvider(user);
+        const providerId = team.enabled ? team.transcriptionProvider : optionsResult.data.provider || resolveTranscriptionProvider(user);
 
         const access = checkUserAccess(user);
         if (!access.allowed) {
@@ -200,6 +207,7 @@ export async function startManualTranscription(uid: string, recordingId: string,
             return { error: transcriptionAccess.reason || 'Transcription limit exceeded' };
         }
 
+        if (validateOnly) return { success: true };
         const claimed = await claimRecordingForTranscription(validatedRecordingId, uid, {
             transcriptionProvider: providerId,
             transcriptionModel: model,
@@ -208,7 +216,7 @@ export async function startManualTranscription(uid: string, recordingId: string,
         if (!claimed) return { error: 'This recording is already being transcribed' };
         logger.info(`[Action/Transcribe] Starting ${providerId} background job for ${validatedRecordingId}`);
 
-        after(async () => {
+        const execute = async () => {
             try {
                 await runManualTranscriptionJob({
                     recordingId: validatedRecordingId,
@@ -238,7 +246,9 @@ export async function startManualTranscription(uid: string, recordingId: string,
                     `Processing failed for "${recording.standardizedDisplayName}".`,
                 );
             }
-        });
+        };
+        if (runInline) await execute();
+        else after(execute);
 
         return { success: true };
     } catch (error) {

@@ -4,12 +4,17 @@ import postcss from 'postcss';
 import tailwind from '@tailwindcss/postcss';
 import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
+import { teamSettings } from './team-data';
+import { adminProfile } from './admin-data';
 
 // Bundle the actual admin components with fixture-only auth, routing and actions.
 // The browser still uses the saved HTTPS origin; no fixture route is added to the app.
 let bundle: Promise<Map<string, string | Uint8Array>> | undefined;
 const actionNames = ['checkSystemHealth', 'clearAllServiceIncidents', 'clearServiceIncident', 'sendAdminTestEmail', 'cleanupOrphanedRecordings', 'deletePlan', 'createPlan', 'updatePlan', 'deleteAnnouncement', 'createAnnouncement', 'updateAnnouncement', 'updateContactPlan', 'deleteUser', 'restoreUser', 'toggleUserStatus', 'updateUserLimits', 'updateUserUsage', 'updateUserRole', 'updateSystemSettings'];
 async function assets() {
+    for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'createShareLinkForClip']) {
+        if (!actionNames.includes(name)) actionNames.push(name);
+    }
     bundle ??= (async () => {
         const require = createRequire(import.meta.url);
         const fixtureRequire = createRequire(require.resolve('tsx/package.json'));
@@ -45,9 +50,12 @@ export async function mockAdmin(page: Page, url = '/admin', action?: (name: stri
     const files = await assets();
     const calls: { name: string; args: unknown[] }[] = [];
     const unexpected: string[] = [];
+    const team = url.includes('team') && !url.includes('setup');
     await page.route('**/*', async route => {
         const request = route.request();
         const parsed = new URL(request.url());
+        if (parsed.pathname === '/api/system-settings/public') return route.fulfill({ json: { maintenanceMode: false, ...(team ? { team: teamSettings } : {}) } });
+        if (parsed.pathname === '/api/user/profile') return route.fulfill({ json: { profile: adminProfile } });
         if (parsed.pathname.startsWith('/__admin-fixture-assets/')) {
             const file = files.get(parsed.pathname.slice('/__admin-fixture-assets/'.length));
             if (file === undefined) { unexpected.push(parsed.pathname); return route.abort(); }

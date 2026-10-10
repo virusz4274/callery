@@ -20,6 +20,7 @@ import { getAvailableProviders } from '@/app/actions/transcription-providers';
 import type { TranscriptionProviderId } from '@/services/transcription/factory';
 import { useUser } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useTeamPolicy } from '@/hooks/use-team-policy';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
@@ -47,6 +48,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
+  const team = useTeamPolicy();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const searchParams = useSearchParams();
@@ -341,7 +343,7 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
                   {panel === 'share' ? 'Share recording' : panel === 'providers' ? 'Choose transcription model' : getRecordingCallerLabel(currentRecording)}
                 </Modal.Heading>
               </div>
-              <Button isIconOnly variant="ghost" className={`size-11 shrink-0 md:hidden ${hasPanel ? 'hidden' : ''}`} aria-label="Share recording" onPress={() => requestPanel('share')}><Share2 className="size-5" /></Button>
+              {!team && <Button isIconOnly variant="ghost" className={`size-11 shrink-0 md:hidden ${hasPanel ? 'hidden' : ''}`} aria-label="Share recording" onPress={() => requestPanel('share')}><Share2 className="size-5" /></Button>}
               <div className="hidden md:block"><SharePopover recordingId={currentRecording.id} /></div>
               <Button isIconOnly variant="ghost" onPress={() => onOpenChange(false)} className="hidden size-11 shrink-0 md:flex" aria-label="Close"><X className="size-5" /></Button>
             </div>
@@ -354,7 +356,7 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
           <div className="min-h-0 flex-1 md:p-6">
             <RecordingContent
               recording={currentRecording} playbackUrl={playbackUrl} isLoadingUrl={isLoadingUrl} autoPlay={autoPlay}
-              onTranscribe={availableProviders.length ? handleRequestTranscribe : undefined}
+              onTranscribe={availableProviders.length && (!team || (team.transcriptionMode !== 'off' && recording.authSubject === user?.id)) ? handleRequestTranscribe : undefined}
               isProcessing={isProcessing} activeTranscriptionProvider={activeTranscriptionProvider}
               workspace mobilePanelActive={hasPanel}
               mobilePanel={panel === 'share' ? <ShareRecordingForm recordingId={recording.id} /> : <div className="space-y-4">

@@ -8,6 +8,7 @@ import { ClientFormattedDate } from '../client-formatted-date';
 import { TableSelectionState, RecordingEmptyState } from './types';
 import { RecordingsEmptyContent } from './desktop/recordings-table-empty-state';
 import { SummaryPreview } from './summary-preview';
+import { useCanDeleteRecording, useTeamPolicy } from '@/hooks/use-team-policy';
 
 // Helper for duration formatting
 const formatDurationLocal = (seconds: number) => {
@@ -42,6 +43,8 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
     density = 'comfortable',
     emptyState,
 }: RecordingsTableMobileProps) {
+    const canDelete = useCanDeleteRecording();
+    const team = useTeamPolicy();
     const { isSelected, toggleSelect } = selection;
 
 
@@ -67,6 +70,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                         }}
                         className="min-h-11 h-auto w-full min-w-0 flex-col items-start whitespace-normal text-left">
                         <span className="block w-full break-words text-base font-semibold text-foreground">{title}</span>
+                        {rec.uploaderName && <span className="text-sm text-muted">Uploaded by {rec.uploaderName}</span>}
                         {isSelectionMode && <span className="recording-preview mt-1 text-sm leading-5 text-foreground" data-lines={density === 'dense' ? 2 : 3}>{recordingPreview(rec) || 'No conversation preview yet'}</span>}
                     </Button>
                         {!isSelectionMode && <SummaryPreview recording={rec} density={density} />}
@@ -83,8 +87,8 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                         <Dropdown.Popover isNonModal><Dropdown.Menu aria-label="Recording actions">
                             <Dropdown.Item id="open" onPress={() => onOpenDialog(rec)}>Open recording</Dropdown.Item>
                             <Dropdown.Item id="select" onPress={() => { toggleSelectionMode(); toggleSelect(rec.id); }}>Select</Dropdown.Item>
-                            {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending') && onRetryTranscription && <Dropdown.Item id="retry" onPress={() => onRetryTranscription(rec)}>Retry transcription</Dropdown.Item>}
-                            <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>Delete</Dropdown.Item>
+                            {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending') && onRetryTranscription && (!team || team.transcriptionMode !== 'off') && <Dropdown.Item id="retry" onPress={() => onRetryTranscription(rec)}>Retry transcription</Dropdown.Item>}
+                            {canDelete && <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>Delete</Dropdown.Item>}
                         </Dropdown.Menu></Dropdown.Popover>
                     </Dropdown></div>}
                 </div>;

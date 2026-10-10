@@ -9,6 +9,7 @@ import { getSignedR2Url } from '@/lib/r2';
 import { DOWNLOAD_LINK_TTL_SECONDS } from './constants';
 import { toStorageParts } from './part-metadata';
 import type { ExportPartMeta } from './types';
+import { resolveExportSubject } from '@/lib/team-policy';
 
 export async function persistCheckpoint(params: {
     jobId: string;
@@ -50,6 +51,9 @@ export async function finalizeJob(
 
     const job = await getExportJob(jobId, authSubject);
     if (!job) return;
+    const requester = job.requestedByAuthSubject ? await findUserByAuthSubject(job.requestedByAuthSubject) : user;
+    if (!requester || requester.disabled || requester.softDelete?.isDeleted || requester.teamInvitationPending) throw new Error('Export requester is unavailable');
+    await resolveExportSubject(requester.authSubject, requester.authSubject === authSubject ? undefined : user._id.toString());
 
     const signedParts = await Promise.all(
         parts.map(async (part) => ({
@@ -93,11 +97,11 @@ export async function finalizeJob(
         }).catch(error => logger.warn('Failed to send export notification email:', error));
 
         await createNotification(
-            new ObjectId(user._id),
+            new ObjectId(requester._id),
             'success',
             'Export Ready',
             `Your data export (${signedParts.length} parts) is ready for download.`,
-            '/settings?tab=data'
+            requester.authSubject === authSubject ? '/settings?tab=data' : `/admin/recordings?employeeId=${user._id.toString()}`
         );
     }
 }

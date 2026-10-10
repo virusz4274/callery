@@ -1,7 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { absoluteUrl } from '@/lib/seo';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!publicSitePolicy().marketingEnabled) return [];
   const lastModified = new Date();
 
   return [

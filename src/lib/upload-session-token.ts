@@ -8,6 +8,7 @@ function getTokenSigningKey() {
 }
 
 export interface UploadSessionPayload extends JWTPayload {
+    uploadId?: string;
     authSubject: string;
     r2Key: string;
     fileName: string;
@@ -49,7 +50,9 @@ export async function verifyUploadSessionToken(token: string): Promise<UploadSes
         }
 
         return {
+            uploadId: typeof payload.uploadId === 'string' ? payload.uploadId : undefined,
             authSubject: payload.authSubject,
+            iat: payload.iat,
             r2Key: payload.r2Key,
             fileName: payload.fileName,
             fileSize: payload.fileSize,

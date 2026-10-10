@@ -32,6 +32,9 @@ export interface Recording {
 
     // File metadata
     r2Key: string;
+    /** Durable ingestion identity. Absent on recordings created before API v1. */
+    ingestionId?: string;
+    integration?: { source?: string; externalId?: string; metadata?: Record<string, unknown>; fingerprint: string };
     fileName: string;
     fileSize: number;
     mimeType: string;
@@ -72,6 +75,8 @@ export type CreateRecordingInput = Omit<Recording, '_id' | 'createdAt' | 'update
 export type UpdateRecordingInput = Partial<Omit<Recording, '_id' | 'authSubject' | 'createdAt'>>;
 
 export interface RecordingResponse {
+    /** Only set by the administrator company archive query. */
+    uploaderName?: string;
     id: string;
     authSubject: string;
     contactId: string | null;

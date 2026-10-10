@@ -2,6 +2,7 @@ import { getRecordingCallerLabel } from '@/lib/recording-label';
 import { Button, Dropdown, Tooltip } from '@heroui/react';
 import { FileText, Play, MoreHorizontal, RefreshCcw, Trash2 } from 'lucide-react';
 import type { Recording } from '@/lib/types';
+import { useCanDeleteRecording, useTeamPolicy } from '@/hooks/use-team-policy';
 
 type RecordingActionsMenuProps = {
     recording: Recording;
@@ -18,6 +19,8 @@ export function RecordingActionsMenu({
     onDeleteRequest,
     onRetryTranscription,
 }: RecordingActionsMenuProps) {
+    const canDelete = useCanDeleteRecording();
+    const team = useTeamPolicy();
     const canRetry =
         (recording.transcriptionStatus === 'failed' ||
             recording.transcriptionStatus === 'pending' ||
@@ -57,14 +60,14 @@ export function RecordingActionsMenu({
                                 <FileText className="h-4 w-4" /> Open recording
                             </div>
                         </Dropdown.Item>
-                        {canRetry && (
+                        {canRetry && (!team || team.transcriptionMode !== 'off') && (
                             <Dropdown.Item key="retry" textValue="Retry Transcription" onPress={() => onRetryTranscription(recording)}>
                                 <div className="flex items-center gap-2">
                                     <RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription
                                 </div>
                             </Dropdown.Item>
                         )}
-                        <Dropdown.Item
+                        {canDelete && <Dropdown.Item
                             key="delete"
                             className="text-danger"
                             textValue="Delete"
@@ -73,7 +76,7 @@ export function RecordingActionsMenu({
                             <div className="flex items-center gap-2">
                                 <Trash2 className="h-4 w-4" /> Delete
                             </div>
-                        </Dropdown.Item>
+                        </Dropdown.Item>}
                     </Dropdown.Menu>
                 </Dropdown.Popover>
             </Dropdown>

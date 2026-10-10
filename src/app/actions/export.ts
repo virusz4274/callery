@@ -4,9 +4,11 @@ import { after } from 'next/server';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { createExportJob, getLatestExportJob, toExportJobResponse } from '@/lib/db/export-jobs';
 import { processExport } from '@/lib/export-processor';
+import { resolveExportSubject } from '@/lib/team-policy';
 
-export async function startExport() {
-    const authSubject = await getAuthSubjectFromSession();
+export async function startExport(targetUserId?: string) {
+    const actorSubject = await getAuthSubjectFromSession();
+    const authSubject = actorSubject ? await resolveExportSubject(actorSubject, targetUserId) : null;
     if (!authSubject) {
         throw new Error('Unauthorized');
     }
@@ -20,6 +22,7 @@ export async function startExport() {
     // Create new job
     const job = await createExportJob({
         authSubject,
+        requestedByAuthSubject: actorSubject!,
         status: 'pending',
         progress: 0,
         totalRecordings: 0,
@@ -43,8 +46,9 @@ export async function startExport() {
     return { success: true as const, jobId: job._id.toString() };
 }
 
-export async function getExportStatus() {
-    const authSubject = await getAuthSubjectFromSession();
+export async function getExportStatus(targetUserId?: string) {
+    const actorSubject = await getAuthSubjectFromSession();
+    const authSubject = actorSubject ? await resolveExportSubject(actorSubject, targetUserId) : null;
     if (!authSubject) return null;
 
     const job = await getLatestExportJob(authSubject);

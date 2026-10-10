@@ -1,4 +1,7 @@
 export const ACTION_TYPES = [
+    'TEAM_INVITE',
+    'TEAM_INVITE_REVOKE',
+    'RECORDING_DELETE',
     'USER_BAN',
     'USER_UNBAN',
     'USER_ROLE_UPDATE',

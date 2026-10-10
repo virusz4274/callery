@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import type { TeamSettings } from '@/lib/team-config';
 
 /**
  * System Settings document (Singleton).
@@ -15,6 +16,7 @@ export interface SystemSettings {
         openai_compat?: number;
     };
     updatedAt: Date;
+    team?: TeamSettings;
 }
 
 /**
@@ -103,6 +105,8 @@ export interface AdminLog {
  * Export Job document.
  */
 export interface ExportJob {
+    /** Actor who requested this archive; authSubject remains the uploader. */
+    requestedByAuthSubject?: string;
     _id: ObjectId;
     authSubject: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -156,6 +160,7 @@ export interface SystemSettingsResponse {
         openai_compat?: number;
     };
     updatedAt: string;
+    team?: TeamSettings;
 }
 
 export interface AnnouncementResponse {
