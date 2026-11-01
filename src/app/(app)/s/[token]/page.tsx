@@ -8,7 +8,8 @@ import { Logo } from '@/components/icons';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import Link from 'next/link';
 import { Recording } from '@/lib/db/types';
-import { toRecordingResponse } from '@/lib/db/converters';
+import { toPublicRecordingContent } from '@/lib/public-recording-content';
+import type { RecordingContentData } from '@/lib/recording-content-types';
 import { logger } from '@/lib/logger';
 import { getTeamSettings } from '@/lib/team-policy';
 
@@ -39,6 +40,8 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
         );
     }
 
+    if (!ObjectId.isValid(payload.recordingId)) notFound();
+
     // 2. Fetch Recording
     const db = await getMongoDb();
     const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({
@@ -49,17 +52,23 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
         notFound();
     }
 
+    let recordingContent: RecordingContentData;
+    try {
+        recordingContent = toPublicRecordingContent(recording, payload);
+    } catch {
+        notFound();
+    }
+    const isClip = payload.clipStartSeconds !== undefined || payload.clipEndSeconds !== undefined;
+
     // 3. Generate Signed URL for Playback
     let playbackUrl: string | null = null;
     try {
-        if (typeof payload.clipStartSeconds !== 'number' && typeof payload.clipEndSeconds !== 'number') {
+        if (!isClip) {
             playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
         }
     } catch (e) {
         logger.error('Failed to generate playback URL for shared page', e);
     }
-
-    const recordingResponse = toRecordingResponse(recording, playbackUrl ?? undefined);
 
     return (
         <div className="min-h-screen bg-default-50 flex flex-col">
@@ -97,14 +106,11 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                     {/* Content Body */}
                     <div className="min-h-0 flex-1 md:overflow-y-auto md:p-6">
                         <RecordingContent
-                            recording={recordingResponse}
+                            recording={recordingContent}
                             playbackUrl={playbackUrl}
                             clipStartSeconds={payload.clipStartSeconds}
                             clipEndSeconds={payload.clipEndSeconds}
-                            isClipAudioRestricted={
-                                typeof payload.clipStartSeconds === 'number' ||
-                                typeof payload.clipEndSeconds === 'number'
-                            }
+                            isClipAudioRestricted={isClip}
                             // Hide transcribe button for public view
                             onTranscribe={undefined}
                         />

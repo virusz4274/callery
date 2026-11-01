@@ -33,3 +33,8 @@ export function isLifetimePlanKey(planKey: string): boolean {
 export function isInternalPlanKey(planKey: string): boolean {
     return planKey === PLAN_KEYS.INTERNAL;
 }
+
+export function planIntervalLabel(interval: string, planKey?: string): string {
+    return interval === 'trial' || planKey === PLAN_KEYS.FREE_TRIAL ? 'One-time 30-day trial'
+        : interval === 'lifetime' ? 'One-time' : `/${interval}`;
+}

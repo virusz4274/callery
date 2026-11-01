@@ -8,6 +8,7 @@ import { Button, Spinner, Surface } from '@heroui/react';
 import { AlertCircle, Bell, CreditCard, MailWarning, X } from 'lucide-react';
 import { getActiveAnnouncements } from '@/app/actions/admin-announcements';
 import { isFreeTrialPlanKey } from '@/lib/plans';
+import { publicEnv } from '@/lib/public-env';
 
 type WorkspaceStatusRailProps = {
     user: User | null;
@@ -92,7 +93,7 @@ export function WorkspaceStatusRail({
             });
         }
 
-        if (userProfile) {
+        if (publicEnv.NEXT_PUBLIC_ENABLE_BILLING && userProfile) {
             const status = userProfile.stripeSubscriptionStatus;
             const isPastDue = status === 'past_due' || status === 'unpaid';
             const trialEndsAt = userProfile.trialEndsAt ? new Date(userProfile.trialEndsAt) : null;
@@ -100,11 +101,11 @@ export function WorkspaceStatusRail({
                 trialEndsAt &&
                 new Date() > trialEndsAt;
 
-            if (isPastDue) {
+            if ((userProfile.billingStatus?.needsAttention ?? isPastDue) && !isTrialExpired) {
                 nextItems.push({
                     id: 'billing-past-due',
-                    title: 'Payment failed',
-                    description: 'Features may be restricted until billing is fixed.',
+                    title: isPastDue ? 'Payment failed' : 'Billing needs attention',
+                    description: 'Resolve billing to start new uploads and transcription. Existing recordings remain available.',
                     tone: 'danger',
                     actionLabel: 'Open billing',
                     actionHref: '/settings?tab=billing',
@@ -114,7 +115,7 @@ export function WorkspaceStatusRail({
                 nextItems.push({
                     id: 'billing-trial-expired',
                     title: 'Trial ended',
-                    description: 'Upgrade to keep full access.',
+                    description: 'Upgrade to continue uploading and transcribing.',
                     tone: 'warning',
                     actionLabel: 'View plans',
                     actionHref: '/settings?tab=billing',

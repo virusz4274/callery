@@ -1,6 +1,7 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '../types';
 import type { Db } from 'mongodb';
+import { createHash } from 'node:crypto';
 
 /**
  * Increment the user's storage used counter.
@@ -75,15 +76,25 @@ export async function setStoragePeakUsed(
 /**
  * Increment the user's transcription usage counter.
  */
-export async function incrementTranscriptionUsed(authSubject: string, seconds: number): Promise<void> {
-    const db = await getMongoDb();
+export async function incrementTranscriptionUsed(authSubject: string, seconds: number, receiptId?: string, database?: Db, acceptedAt?: Date): Promise<void> {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const db = database || await getMongoDb();
+    const receipt = receiptId ? createHash('sha256').update(receiptId).digest('hex') : undefined;
+    if (receiptId?.startsWith('transcription-v2:') && receipt) {
+        const user = await db.collection<User>(Collections.USERS).findOne({ authSubject });
+        // Managed quota and the corresponding counter commit together in the account CAS.
+        // Avoid a second, unbounded per-user idempotency map for these canonical receipts.
+        if (user?.billingAccount?.receipts[receipt] || await db.collection<{ _id: string }>('billing_usage_receipts').findOne({ _id: receipt })) return;
+    }
 
     await db.collection<User>(Collections.USERS).updateOne(
-        { authSubject },
-        {
-            $inc: { transcriptionUsed: seconds },
-            $set: { updatedAt: new Date() },
-        }
+        { authSubject, ...(receipt ? { [`transcriptionReceipts.${receipt}`]: { $exists: false } } : {}) },
+        [{ $set: {
+            transcriptionUsed: { $add: [{ $ifNull: ['$transcriptionUsed', 0] }, acceptedAt
+                ? { $cond: [{ $gt: ['$stripeCurrentPeriodStart', acceptedAt] }, 0, Math.ceil(seconds)] }
+                : Math.ceil(seconds)] },
+            updatedAt: new Date(), ...(receipt ? { [`transcriptionReceipts.${receipt}`]: new Date() } : {}),
+        } }]
     );
 }
 

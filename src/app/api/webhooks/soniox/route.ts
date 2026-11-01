@@ -1,15 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Recording } from '@/lib/db/types';
-import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
-import { reportUsage } from '@/lib/stripe/usage';
-import { incrementTranscriptionUsed, findUserByAuthSubject } from '@/lib/db/users';
-import { getAiService } from '@/services/ai';
-import { calculateBilledDuration } from '@/lib/utils/billing';
-import { createNotification } from '@/lib/notifications';
-import { buildRecordingNotificationLink } from '@/lib/notification-links';
+import { drainLedgerOutbox } from '@/lib/stripe/usage';
+import { settleRemovedRecording, settleFailedTranscription } from '@/lib/stripe/transcription-receipt';
+import { updateDeferredTranscriptionResult, updateLegacyTranscriptionResult, updateTranscriptionAttempt } from '@/lib/transcription/execution';
+import { acceptTranscriptionResult, completeTranscriptionResult } from '@/lib/transcription/completion';
+import { ProcessingError, processingFailure } from '@/lib/transcription/processing-errors';
+import { settleQueuedTranscription, processTranscriptionJobs, beginQueuedWebhookExecution, queueDeferredTranscriptionCompletion } from '@/lib/integrations/jobs';
+import { notifyProcessingOutcome } from '@/lib/transcription/notifications';
 import { ObjectId } from 'mongodb';
 import {
     claimTranscriptionWebhookEvent,
@@ -18,6 +18,8 @@ import {
 } from '@/lib/webhooks/transcription-events';
 import { processSonioxWordsIntoSegments, type SonioxWebhookPayload } from './helpers';
 import { env } from '@/lib/env';
+import { defaultTranscriptEnvelope } from '@/lib/transcription/ai-work-plan';
+import { readBoundedTranscriptionText, TranscriptionResponseTooLargeError } from '@/services/transcription/response';
 
 /**
  * Soniox Webhook - Receives async transcription notifications
@@ -47,12 +49,15 @@ function timingSafeHeaderEquals(received: string | null, expected: string): bool
 
 export async function POST(request: Request) {
     let claimedEventId: string | null = null;
+    let stopLease: (() => void) | undefined;
 
     try {
         // Extract metadata from query params
         const url = new URL(request.url);
         const recordingId = url.searchParams.get('recordingId');
         const authSubject = url.searchParams.get('authSubject');
+        const jobId = url.searchParams.get('jobId');
+        const attemptId = url.searchParams.get('attemptId');
 
         // Verify webhook secret
         const expectedSecret = env.SONIOX_WEBHOOK_SECRET;
@@ -101,15 +106,34 @@ export async function POST(request: Request) {
         });
 
         if (!recording) {
+            if (['completed', 'error'].includes(payload.status) && await settleRemovedRecording(authSubject, recordingId, 'soniox', [payload.id], attemptId || undefined, payload.status === 'completed', db)) {
+                await drainLedgerOutbox(authSubject, db);
+                return NextResponse.json({ success: true, status: 'financial_receipt_retained' });
+            }
             logger.error(`[Soniox Webhook] Recording not found: ${recordingId}`);
             return NextResponse.json({ success: true, status: 'ignored_recording_not_found' });
+        }
+
+        if (recording.transcriptionAttemptId && (attemptId !== recording.transcriptionAttemptId || jobId !== recording.transcriptionJobId)) {
+            return NextResponse.json({ success: true, status: 'ignored_stale_attempt' });
+        }
+
+        // The signed callback may beat the submission response. Its current
+        // attempt identity can initialize correlation without waiting for redelivery.
+        if (!recording.externalTranscriptionId && recording.transcriptionAttemptId && attemptId === recording.transcriptionAttemptId && jobId === recording.transcriptionJobId && payload.id) {
+            const initialized = await db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate({
+                _id: recording._id, authSubject, transcriptionAttemptId: attemptId,
+                externalTranscriptionId: { $exists: false },
+            }, { $set: { externalTranscriptionId: payload.id } }, { returnDocument: 'after' });
+            const correlated = initialized || await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: recording._id, authSubject });
+            recording.externalTranscriptionId = correlated?.externalTranscriptionId;
         }
 
         if (!recording.externalTranscriptionId) {
             logger.warn(
                 `[Soniox Webhook] Missing externalTranscriptionId on recording ${recordingId}. Rejecting callback for safety.`
             );
-            return NextResponse.json({ success: true, status: 'ignored_correlation_not_initialized' });
+            return NextResponse.json({ error: 'Correlation not initialized' }, { status: 409 });
         }
 
         if (recording.externalTranscriptionId !== payload.id) {
@@ -140,14 +164,32 @@ export async function POST(request: Request) {
         }
 
         claimedEventId = eventId;
+        const execution = jobId && attemptId ? { jobId, attemptId } : undefined;
+        const resultAttempt = execution?.attemptId || `provider:${recording.externalTranscriptionId}`;
+        const alreadyEnriched = recording.transcriptionResultAttemptId === resultAttempt && recording.transcriptionStatus === 'completed' && !recording.transcriptionEnrichmentPending;
+        if (!alreadyEnriched) stopLease = await beginQueuedWebhookExecution(authSubject, recordingId, eventId, execution);
+        const save = (patch: import('@/lib/db/types').UpdateRecordingInput) => execution
+            ? stopLease ? updateTranscriptionAttempt(authSubject, recordingId, execution, patch)
+                : updateDeferredTranscriptionResult(authSubject, recordingId, recording, execution, patch)
+            : updateLegacyTranscriptionResult(authSubject, recordingId, recording, patch);
 
         // Handle error status
         if (payload.status === 'error') {
+            if (recording.transcriptionResultAttemptId === resultAttempt && recording.fullTranscript) {
+                await markTranscriptionWebhookProcessed(eventId);
+                return NextResponse.json({ success: true, status: 'ignored_obsolete_failure' });
+            }
+            if (recording.transcriptionReceipt) await settleFailedTranscription(authSubject, recording.transcriptionReceipt, undefined, 'failed');
             logger.error(`[Soniox Webhook] Transcription failed for ${payload.id}`);
-            await updateRecording(recordingId, authSubject, {
+            await save({
                 transcriptionStatus: 'failed',
+                transcriptionError: 'The transcription provider rejected this recording.',
+                processingStatus: processingFailure(new Error('The transcription provider rejected this recording.'), 'transcription', 'responded'),
             });
             await markTranscriptionWebhookProcessed(eventId);
+            await settleQueuedTranscription(authSubject, recordingId, execution);
+            after(async () => { await processTranscriptionJobs(); });
+            await notifyProcessingOutcome(authSubject, recordingId, 'failed', attemptId || undefined);
             return NextResponse.json({ success: true, status: 'error_recorded' });
         }
 
@@ -164,93 +206,63 @@ export async function POST(request: Request) {
 
         const transcriptResponse = await fetch(`${sonioxBaseUrl}/v1/transcriptions/${payload.id}/transcript`, {
             method: 'GET',
+            signal: AbortSignal.timeout(60_000),
             headers: {
                 'Authorization': `Bearer ${sonioxApiKey}`,
             },
         });
 
         if (!transcriptResponse.ok) {
-            const errText = await transcriptResponse.text();
+            const errText = await readBoundedTranscriptionText(transcriptResponse, 64 * 1024);
             logger.error(`[Soniox Webhook] Failed to fetch transcript: ${transcriptResponse.status} - ${errText}`);
-            await updateRecording(recordingId, authSubject, {
+            await save({
                 transcriptionStatus: 'failed',
             });
             throw new Error(`Failed to fetch transcript (${transcriptResponse.status})`);
         }
 
-        const transcriptData = await transcriptResponse.json();
+        const responseLimit = (recording.transcriptionReceipt?.executionPolicy?.transcriptEnvelope || recording.transcriptionReceipt?.processingBudget?.transcriptEnvelope || defaultTranscriptEnvelope(recording.duration || 60)).maxResponseBytes;
+        let transcriptData;
+        try { transcriptData = JSON.parse(await readBoundedTranscriptionText(transcriptResponse, responseLimit)); }
+        catch (error) {
+            if (!(error instanceof TranscriptionResponseTooLargeError)) throw error;
+            const processingStatus = { stage: 'transcription', state: 'needs_review', code: 'transcript_envelope_exceeded', retryAction: 'contact_admin', providerOutcome: 'responded' } as const;
+            await save({ transcriptionStatus: 'failed', transcriptionError: error.message, processingStatus });
+            await markTranscriptionWebhookProcessed(eventId);
+            await settleQueuedTranscription(authSubject, recordingId, execution);
+            after(async () => { await processTranscriptionJobs(); });
+            return NextResponse.json({ success: true, status: 'needs_review' });
+        }
 
         // Process transcript
         const words = transcriptData.tokens || transcriptData.words || [];
         const segments = processSonioxWordsIntoSegments(words);
         const languageCode = transcriptData.detected_language || 'unknown';
-        const fullText = transcriptData.text || segments.map(s => s.text).join(' ');
-
-        // Save transcript immediately
-        await updateRecording(recordingId, authSubject, {
-            fullTranscript: segments,
-            languageCode,
-            transcriptionStatus: 'processing', // Still processing AI
-        });
-
-        logger.info(`[Soniox Webhook] Saved transcript (${segments.length} segments) for ${recordingId}`);
-
-        // AI Processing
+        let completion;
         try {
-            const [summary, transliteratedSegments] = await Promise.all([
-                getAiService().generateSummary(fullText, languageCode),
-                getAiService().generateTransliteration(segments, languageCode)
-            ]);
-
-            await updateRecording(recordingId, authSubject, {
-                summary,
-                fullTranscript: transliteratedSegments, // Update with transliteration
-                transcriptionStatus: 'completed',
-            });
-            logger.info(`[Soniox Webhook] AI processing complete for ${recordingId}`);
-        } catch (aiError) {
-            logger.error(`[Soniox Webhook] AI processing failed: ${aiError}`);
-            await updateRecording(recordingId, authSubject, {
-                transcriptionStatus: 'completed', // Still mark complete since transcript saved
-            });
+            const normalizedResult = {
+                segments, languageCode, provider: 'soniox', providerResultId: recording.externalTranscriptionId,
+                multiplier: recording.transcriptionCostMultiplier || 1, model: recording.transcriptionModel,
+            } as const;
+            if (execution && !stopLease && !alreadyEnriched) {
+                const accepted = await acceptTranscriptionResult(authSubject, recordingId, normalizedResult, execution, true);
+                if (accepted.recording.transcriptionCompletionPending) {
+                    await queueDeferredTranscriptionCompletion(authSubject, recordingId, execution, db);
+                    completion = { outcome: 'queued' as const };
+                } else completion = { outcome: accepted.recording.transcriptionStatus === 'completed' ? 'completed' as const : 'partial' as const };
+            } else completion = await completeTranscriptionResult(authSubject, recordingId, normalizedResult, execution);
+        } catch (error) {
+            if (!(error instanceof ProcessingError) || error.processingStatus.code !== 'transcript_envelope_exceeded') throw error;
+            await save({ transcriptionStatus: 'failed', transcriptionError: error.message, processingStatus: error.processingStatus });
+            await settleQueuedTranscription(authSubject, recordingId, execution);
+            await markTranscriptionWebhookProcessed(eventId);
+            after(async () => { await processTranscriptionJobs(); });
+            return NextResponse.json({ success: true, status: 'needs_review' });
         }
-
-        // Report usage
-        const usageReportId = `soniox:${recording.externalTranscriptionId}`;
-        const shouldReportUsage = await markTranscriptionUsageReported(recordingId, authSubject, usageReportId);
-        if (shouldReportUsage) {
-            const multiplier = recording.transcriptionCostMultiplier || 1;
-            const baseDuration = calculateBilledDuration(recording.duration);
-            const billedCostDuration = baseDuration * multiplier;
-
-            await incrementTranscriptionUsed(authSubject, billedCostDuration);
-            await reportUsage(authSubject, 'transcription', baseDuration, {
-                multiplier,
-                identifier: `transcription:${authSubject}:recording:${recordingId}:soniox:${recording.externalTranscriptionId}`,
-            });
-
-            const totalBilled = Math.ceil(baseDuration * multiplier);
-            logger.info(`[Soniox Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
-        }
-
         await markTranscriptionWebhookProcessed(eventId);
-
-        try {
-            const user = await findUserByAuthSubject(authSubject);
-            if (user) {
-                await createNotification(
-                    user._id,
-                    'success',
-                    'Transcription Ready',
-                    `Your recording "${recording.standardizedDisplayName}" has been processed.`,
-                    buildRecordingNotificationLink(recordingId)
-                );
-            }
-        } catch (notificationError) {
-            logger.error('[Soniox Webhook] Notification delivery failed after processing:', notificationError);
-        }
-
-        return NextResponse.json({ success: true, status: 'completed' });
+        if (completion.outcome !== 'queued') await settleQueuedTranscription(authSubject, recordingId, execution);
+        after(async () => { await processTranscriptionJobs(); });
+        return NextResponse.json({ success: true, status: completion.outcome === 'partial' ? 'needs_review' : completion.outcome });
 
     } catch (error) {
         if (claimedEventId) {
@@ -264,5 +276,7 @@ export async function POST(request: Request) {
 
         logger.error('[Soniox Webhook] Error processing webhook:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    } finally {
+        stopLease?.();
     }
 }

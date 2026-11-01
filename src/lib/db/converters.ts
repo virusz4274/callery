@@ -1,3 +1,4 @@
+import { processingProgress } from '@/lib/transcription/progress';
 /**
  * @fileoverview Database document to API response converters.
  * 
@@ -9,6 +10,10 @@
 
 import type { Recording, RecordingResponse, Contact, ContactResponse, User, UserResponse } from './types';
 import { hasStoredGoogleRefreshToken } from '@/services/google/refresh-token-crypto';
+import { hasBillingIssue, isBillingEnabled, isTrialExpired } from '@/lib/access-control-common';
+import { hasBlockingBillingReview } from '@/lib/stripe/financial-review';
+import { effectiveBillingEntitlementSource } from '@/lib/stripe/entitlement-source';
+import { getTranscriptionAllowanceUsed, hasUnlimitedTranscription } from '@/lib/transcription/quota-policy';
 
 // ============================================================================
 // Recording Converters
@@ -46,9 +51,14 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         mimeType: recording.mimeType,
         duration: recording.duration,
         recordedAt: recording.recordedAt.toISOString(),
+        bulkImportId: recording.bulkImportId,
+        transcriptionBatchId: recording.transcriptionBatchId,
+        recordingDateKey: recording.recordingDateKey,
         createdAt: recording.createdAt.toISOString(),
         updatedAt: recording.updatedAt.toISOString(),
         transcriptionStatus: recording.transcriptionStatus,
+        processingStatus: recording.processingStatus,
+        processingProgress: processingProgress(recording),
         fullTranscript: recording.fullTranscript,
         languageCode: recording.languageCode,
         transcriptionProvider: recording.transcriptionProvider,
@@ -102,6 +112,7 @@ export function toContactResponse(contact: Contact): ContactResponse {
  * @returns UserResponse suitable for JSON serialization
  */
 export function toUserResponse(user: User, planName: string): UserResponse {
+    const entitlement = effectiveBillingEntitlementSource(user);
     return {
         id: user._id.toString(),
         email: user.email,
@@ -119,10 +130,20 @@ export function toUserResponse(user: User, planName: string): UserResponse {
         storageUsed: user.storageUsed,
         storageAllocation: user.storageAllocation,
         transcriptionUsed: user.transcriptionUsed,
+        transcriptionAllowanceUsed: getTranscriptionAllowanceUsed(user),
         transcriptionAllocation: user.transcriptionAllocation,
+        transcriptionUnlimited: hasUnlimitedTranscription(user, isBillingEnabled()),
         transcriptionSettings: user.transcriptionSettings,
         billingSettings: user.billingSettings,
         stripeSubscriptionStatus: user.stripeSubscriptionStatus,
+        billingStatus: {
+            recoveryDeadline: user.billingRecovery?.purgeAt.toISOString(),
+            entitlement: hasBlockingBillingReview(user.billingReview) ? 'review' : entitlement || (user.planKey === 'free-trial' ? 'trial' : 'review'),
+            lifetimePurchased: Boolean(user.lifetimePurchase),
+            usageSetup: user.lifetimeUsageSetup?.state,
+            canManageBilling: Boolean(user.stripeCustomerId && (entitlement !== 'admin' || user.stripeSubscriptionId)),
+            needsAttention: isBillingEnabled() && Boolean(hasBillingIssue(user) || isTrialExpired(user)),
+        },
         trialEndsAt: user.trialEndsAt?.toISOString(),
         totalRecordings: user.totalRecordings,
         lastLoginAt: user.lastLoginAt?.toISOString(),

@@ -1,0 +1,132 @@
+{
+  "version": "replace-with-reviewed-cost-schedule",
+  "reviewedAt": "REPLACE_WITH_REVIEW_TIMESTAMP",
+  "expiresAt": "REPLACE_WITH_EXPIRY_TIMESTAMP",
+  "paymentFeeBasisPoints": 450,
+  "paymentFixedMicros": 300000,
+  "minimumTopupMicros": 5000000,
+  "infrastructureMicrosPerAudioMinute": 100,
+  "infrastructureMicrosPerGiB": 100000,
+  "aiBundleMicrosPerAudioMinute": 1000,
+  "aiBundleFixedMicros": 100,
+  "storageCostMicrosPerGiBMonth": 16107,
+  "storageOperationsMicrosPerGiBMonth": 10000,
+  "recoveryReserveMicros": 200000,
+  "lifetimeHostingReserveMicros": 50000000,
+  "operatorFunding": {
+    "trialLifetimeMicros": 1000000,
+    "grantLifetimeMicros": 5000000,
+    "calendarMonthMicros": 100000000,
+    "trialStorageReserveMicros": 200000
+  },
+  "providers": {
+    "soniox:stt-async-v5": {
+      "costMicrosPerAudioMinute": 2000,
+      "fixedMicros": 0
+    },
+    "gemini:gemini-3.5-transcribe": {
+      "costMicrosPerAudioMinute": 6000,
+      "fixedMicros": 0
+    },
+    "elevenlabs:scribe_v2": {
+      "costMicrosPerAudioMinute": 4500,
+      "fixedMicros": 0
+    }
+  },
+  "ai": {
+    "gemini:gemini-3.5-flash-lite": {
+      "inputUsdMicrosPerMillionTokens": 300000,
+      "outputUsdMicrosPerMillionTokens": 2500000
+    },
+    "gemini:gemini-embedding-001": {
+      "inputUsdMicrosPerMillionTokens": 150000,
+      "outputUsdMicrosPerMillionTokens": 0
+    }
+  },
+  "exports": {
+    "fixedMicros": 10000,
+    "perGiBMicros": 10000,
+    "maximumSourceBytes": 5368709120,
+    "recoveryReserveMicros": 1000000
+  },
+  "lifetimeUsage": {
+    "audioOverheadMicrosPerMinute": 500,
+    "recordingOverheadMicros": 100,
+    "storageOverheadMicrosPerGiBMonth": 10000
+  },
+  "stripeBillingFeeBasisPoints": 70,
+  "stripeBillingFixedMicros": 0,
+  "processingBounds": {
+    "soniox:stt-async-v5": {
+      "envelope": {
+        "maxResponseBytes": 49152,
+        "maxSourceTextBytes": 4096,
+        "maxSegments": 272,
+        "maxWords": 608,
+        "maxSummaryLeaves": 6,
+        "maxReduceLevels": 9,
+        "maxTransliterationChunks": 280,
+        "externalAsrCostBoundMicros": 0,
+        "externalBoundProof": {
+          "kind": "REPLACE_WITH_VERIFIED_PROOF_KIND",
+          "reference": "REPLACE_WITH_VERIFIABLE_PROVIDER_BOUND_EVIDENCE",
+          "expiresAt": "REPLACE_WITH_PROVIDER_BOUND_EXPIRY_TIMESTAMP",
+          "verifiedAt": "REPLACE_WITH_PROVIDER_BOUND_VERIFICATION_TIMESTAMP",
+          "verifiedBy": "REPLACE_WITH_ACCOUNTABLE_REVIEWER",
+          "enforcedConfiguration": {
+            "provider": "soniox",
+            "model": "stt-async-v5"
+          }
+        }
+      }
+    },
+    "gemini:gemini-3.5-transcribe": {
+      "envelope": {
+        "maxResponseBytes": 49152,
+        "maxSourceTextBytes": 4096,
+        "maxSegments": 272,
+        "maxWords": 608,
+        "maxSummaryLeaves": 6,
+        "maxReduceLevels": 9,
+        "maxTransliterationChunks": 280,
+        "externalAsrCostBoundMicros": 0,
+        "externalBoundProof": {
+          "kind": "REPLACE_WITH_VERIFIED_PROOF_KIND",
+          "reference": "REPLACE_WITH_VERIFIABLE_PROVIDER_BOUND_EVIDENCE",
+          "expiresAt": "REPLACE_WITH_PROVIDER_BOUND_EXPIRY_TIMESTAMP",
+          "verifiedAt": "REPLACE_WITH_PROVIDER_BOUND_VERIFICATION_TIMESTAMP",
+          "verifiedBy": "REPLACE_WITH_ACCOUNTABLE_REVIEWER",
+          "enforcedConfiguration": {
+            "provider": "gemini",
+            "model": "gemini-3.5-transcribe",
+            "maxAsrOutputTokens": 8192
+          }
+        },
+        "maxAsrOutputTokens": 8192
+      }
+    },
+    "elevenlabs:scribe_v2": {
+      "envelope": {
+        "maxResponseBytes": 49152,
+        "maxSourceTextBytes": 4096,
+        "maxSegments": 272,
+        "maxWords": 608,
+        "maxSummaryLeaves": 6,
+        "maxReduceLevels": 9,
+        "maxTransliterationChunks": 280,
+        "externalAsrCostBoundMicros": 0,
+        "externalBoundProof": {
+          "kind": "REPLACE_WITH_VERIFIED_PROOF_KIND",
+          "reference": "REPLACE_WITH_VERIFIABLE_PROVIDER_BOUND_EVIDENCE",
+          "expiresAt": "REPLACE_WITH_PROVIDER_BOUND_EXPIRY_TIMESTAMP",
+          "verifiedAt": "REPLACE_WITH_PROVIDER_BOUND_VERIFICATION_TIMESTAMP",
+          "verifiedBy": "REPLACE_WITH_ACCOUNTABLE_REVIEWER",
+          "enforcedConfiguration": {
+            "provider": "elevenlabs",
+            "model": "scribe_v2"
+          }
+        }
+      }
+    }
+  }
+}

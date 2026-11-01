@@ -1,7 +1,7 @@
 {
     "name": "Callery",
     "short_name": "Callery",
-    "description": "Callery: Call Archive & AI Search. The Professional Gallery for your Voice Recordings.",
+    "description": "Organize your recorded calls with transcripts, summaries, and search. Find what was said and return to the original audio.",
     "id": "/",
     "start_url": "/",
     "scope": "/",

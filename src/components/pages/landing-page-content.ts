@@ -1,35 +1,30 @@
 export const landingPageFeatureList = [
-  'Folder import from Samsung & any phone',
-  'Original audio preserved',
-  'Transcripts, summaries & speaker labels',
-  'Search by phrase, contact, or meaning',
-  'Export organized archives with an offline viewer',
+  'Upload existing phone call recordings',
+  'Keep original audio alongside transcripts and summaries',
+  'Find calls by words, contact, date, or meaning',
+  'Review transcripts with timestamps and speaker labels',
+  'Download organized recordings, transcripts, and a browser viewer',
 ];
 
 export const landingPageFaqs = [
   {
-    question: 'What phones work with Callery?',
-    answer:
-      'Callery works best with Samsung devices and any phone or call recording app that saves recordings into accessible folders you can upload or sync from.',
+    question: 'Does Callery record my phone calls?',
+    answer: 'Callery organizes recordings you already have. Record calls with your phone or another recording app, then upload the saved audio to Callery.',
   },
   {
-    question: 'What kinds of calls fit best?',
-    answer:
-      'Personal archives, customer conversations, business records, support discussions, and other important voice recordings fit well when they need to stay organized and searchable.',
+    question: 'Which recordings can I upload?',
+    answer: 'You can upload MP3, WAV, M4A, MP4, and WebM audio files from your phone or computer. Samsung call recordings work well, as do other apps that let you access and export the audio files.',
   },
   {
-    question: 'Can I host it privately?',
-    answer:
-      'Yes. Individuals can purchase a self-hosted license for $250, and teams that need private deployment can reach out for custom rollout and pricing.',
+    question: 'What does the AI help with?',
+    answer: 'It creates transcripts, speaker labels, timestamps, and summaries to help you review your calls. AI search can find related conversations by meaning. Check the original audio when accuracy matters; generated text can contain mistakes.',
   },
   {
-    question: 'What happens when I export my archive?',
-    answer:
-      'Exports stay organized by call context instead of turning into a flat unsorted dump, and the viewer helps you browse recordings and transcripts offline.',
+    question: 'Can I take my recordings with me?',
+    answer: 'Yes. Download an archive containing your original audio, transcripts, and metadata, organized by contact and date. A browser viewer is included to help you browse your exported files.',
   },
   {
-    question: 'What does the AI actually do?',
-    answer:
-      'It handles transcript generation, summary, speaker labeling, timestamps, and semantic search so you can retrieve the right call faster.',
+    question: 'Can I run Callery on my own server?',
+    answer: 'Yes. Callery is free to self-host under AGPL-3.0. You manage your database, storage, and processing services; AI search needs a compatible search setup. Hosted plans are for individual accounts. Company archives are available in the self-hosted version.',
   },
 ];

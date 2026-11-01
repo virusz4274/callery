@@ -35,6 +35,7 @@ export function MobileNav() {
   } else if (user) {
     navItems = [...navigationConfig.main];
     secondaryItems = [
+      ...navigationConfig.main.slice(4),
       { href: '/settings', name: 'Settings', icon: Settings, description: 'Profile, preferences and sources' },
       { href: publicSitePolicy().supportHref, name: 'Help & support', icon: CircleHelp, description: 'Get help with your workspace' },
     ];

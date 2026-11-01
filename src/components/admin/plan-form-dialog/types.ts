@@ -1,4 +1,4 @@
-export type BillingInterval = 'monthly' | 'yearly' | 'lifetime';
+export type BillingInterval = 'monthly' | 'yearly' | 'lifetime' | 'trial';
 
 export type PlanFormValues = {
     key: string;
@@ -17,6 +17,7 @@ export type PlanFormValues = {
 };
 
 export const INTERVALS: Array<{ value: BillingInterval; label: string }> = [
+    { value: 'trial', label: 'One-time 30-day trial' },
     { value: 'monthly', label: 'Monthly' },
     { value: 'yearly', label: 'Yearly' },
     { value: 'lifetime', label: 'Lifetime' },

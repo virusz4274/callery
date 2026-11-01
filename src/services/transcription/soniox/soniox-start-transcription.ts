@@ -6,7 +6,8 @@ import type { SonioxConfig } from './soniox-api-types';
 export async function startTranscription(
     config: SonioxConfig,
     fileUrl: string,
-    model: string
+    model: string,
+    billingReceiptId?: string
 ): Promise<string> {
     try {
         const response = await fetch(`${config.baseUrl}/v1/transcriptions`, {
@@ -17,6 +18,7 @@ export async function startTranscription(
             },
             body: JSON.stringify({
                 audio_url: fileUrl,
+                ...(billingReceiptId ? { client_reference_id: billingReceiptId } : {}),
                 model,
                 enable_speaker_diarization: true,
             }),

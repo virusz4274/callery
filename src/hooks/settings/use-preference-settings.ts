@@ -1,66 +1,37 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import type { AppUser } from '@/lib/auth/types';
-import { authFetch } from '@/lib/api-client';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
-
-async function getErrorMessage(response: Response, fallback: string): Promise<string> {
-    try {
-        const data = (await response.json()) as { error?: string };
-        return data.error || fallback;
-    } catch {
-        return fallback;
-    }
-}
+import { useSettingsForm } from './use-settings-form';
+import { useProfileSave } from './use-profile-save';
 
 export function usePreferenceSettings(user: AppUser | null, userProfile: UserProfile | null) {
     const { toast } = useToast();
 
-    // General State
-    const [generalState, setGeneralState] = useState({ timezone: '' });
+    const saveProfile = useProfileSave(user?.id);
+    const { form: generalForm, state: generalState, setState: setGeneralState } = useSettingsForm(user?.id, { timezone: userProfile?.timezone || '' });
     const [isSavingGeneral, setSavingGeneral] = useState(false);
-    const generalDirtyRef = useRef(false);
 
-    // Data State
-    const [dataState, setDataState] = useState<{
-        deletionPolicy: string;
-        transcriptionSettings: { autoTranscribe: boolean; defaultProvider?: UserProfile['transcriptionSettings']['defaultProvider'] };
-    }>({
-        deletionPolicy: 'never',
-        transcriptionSettings: { autoTranscribe: true }
-    });
+    const { form: retentionForm, state: retentionState, setState: setRetentionState } = useSettingsForm(user?.id,
+        { deletionPolicy: userProfile?.storageSettings.deletionPolicy || 'never' });
+    const { form: processingForm, state: processingState, setState: setProcessingState } = useSettingsForm<Pick<UserProfile['transcriptionSettings'], 'autoTranscribe' | 'defaultProvider'>>(user?.id,
+        { autoTranscribe: userProfile?.transcriptionSettings.autoTranscribe ?? true,
+            defaultProvider: userProfile?.transcriptionSettings.defaultProvider });
+    const dataState = { deletionPolicy: retentionState.deletionPolicy, transcriptionSettings: processingState };
+    const setDataState = (next: { deletionPolicy: string; transcriptionSettings: typeof processingState }) => {
+        setRetentionState({ deletionPolicy: next.deletionPolicy as UserProfile['storageSettings']['deletionPolicy'] });
+        setProcessingState(next.transcriptionSettings);
+    };
     const [isSavingData, setSavingData] = useState(false);
-    const dataDirtyRef = useRef(false);
-
-    useEffect(() => {
-        if (userProfile) {
-            if (!generalDirtyRef.current) setGeneralState({ timezone: userProfile.timezone || '' });
-            if (!dataDirtyRef.current) {
-                setDataState({
-                    deletionPolicy: userProfile.storageSettings.deletionPolicy,
-                    transcriptionSettings: {
-                        autoTranscribe: userProfile.transcriptionSettings.autoTranscribe,
-                        defaultProvider: userProfile.transcriptionSettings.defaultProvider,
-                    },
-                });
-            }
-        }
-    }, [userProfile]);
 
     const handleSaveGeneral = async () => {
-        if (!user || !generalState.timezone) return;
+        if (!user || isSavingGeneral || !generalState.timezone) return;
+        const submitted = generalForm.getValues();
         setSavingGeneral(true);
         try {
-            const response = await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timezone: generalState.timezone }),
-            });
-            if (!response.ok) {
-                throw new Error(await getErrorMessage(response, 'Failed to save preferences'));
-            }
+            if (!await saveProfile(submitted)) return;
+            generalForm.reset(submitted, { keepDirtyValues: false });
             toast({ title: 'Preferences Saved', status: 'success' });
-            generalDirtyRef.current = false;
         } catch (error) {
             toast({
                 title: 'Save Failed',
@@ -70,22 +41,15 @@ export function usePreferenceSettings(user: AppUser | null, userProfile: UserPro
         } finally { setSavingGeneral(false); }
     };
 
-    const handleSaveData = async () => {
+    const handleSaveData = async (section: 'processing' | 'retention') => {
+        if (!user || isSavingData) return;
+        const retention = retentionForm.getValues(), processing = processingForm.getValues();
         setSavingData(true);
         try {
-            const response = await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    storageSettings: { deletionPolicy: dataState.deletionPolicy },
-                    transcriptionSettings: dataState.transcriptionSettings
-                })
-            });
-            if (!response.ok) {
-                throw new Error(await getErrorMessage(response, 'Failed to save data policy'));
-            }
+            if (!await saveProfile(section === 'retention' ? { storageSettings: retention } : { transcriptionSettings: processing })) return;
+            if (section === 'retention') retentionForm.reset(retention, { keepDirtyValues: false });
+            else processingForm.reset(processing, { keepDirtyValues: false });
             toast({ title: 'Policy Saved', status: 'success' });
-            dataDirtyRef.current = false;
         } catch (error) {
             toast({
                 title: 'Save Failed',
@@ -100,12 +64,10 @@ export function usePreferenceSettings(user: AppUser | null, userProfile: UserPro
         setGeneralState,
         isSavingGeneral,
         handleSaveGeneral,
-        generalDirtyRef,
 
         dataState,
         setDataState,
         isSavingData,
         handleSaveData,
-        dataDirtyRef
     };
 }

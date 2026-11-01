@@ -1,7 +1,7 @@
 import { normalizeEndDate } from './recordings';
 import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { getAiService } from '@/services/ai';
+import { getSearchEmbedding, type SearchEmbeddingFallback } from '@/services/ai/search-embedding';
 import { Recording } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
 import { hydrateRecordingContacts } from './recordings/hydrate-contacts';
@@ -37,7 +37,7 @@ export interface SearchResult extends Recording {
 }
 
 export type SemanticSearchMode = 'vector' | 'fallback';
-export type SemanticFallbackReason = 'embedding_unavailable' | 'vector_unavailable';
+export type SemanticFallbackReason = SearchEmbeddingFallback | 'vector_unavailable';
 
 function escapeRegex(input: string): string {
     return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -152,15 +152,16 @@ export async function searchRecordingsByVector(
         const pageStart = (safePage - 1) * safePageSize;
 
         const keywordSearch = await searchRecordingsByKeyword(query, authSubject, pageWindow + 1);
-        const queryEmbedding = await getAiService().generateEmbedding(query);
+        const searchEmbedding = await getSearchEmbedding(authSubject, query);
+        const queryEmbedding = searchEmbedding.embedding;
         let vectorResults: SearchResult[] = [];
         let mode: SemanticSearchMode = 'vector';
         let fallbackReason: SemanticFallbackReason | undefined;
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
-            logger.warn('Empty embedding generated for query, falling back to keyword search:', query);
+            logger.warn('Semantic embedding unavailable; returning keyword results.');
             mode = 'fallback';
-            fallbackReason = 'embedding_unavailable';
+            fallbackReason = searchEmbedding.fallbackReason || 'embedding_unavailable';
         } else {
             try {
                 const vectorWindow = Math.max(pageWindow * 3, 25);

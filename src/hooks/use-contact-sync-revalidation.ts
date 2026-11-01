@@ -3,13 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useSWRConfig } from 'swr';
 import type { User } from '@/lib/types';
-
-export function isContactDependentCacheKey(key: unknown): boolean {
-    if (typeof key === 'string') return key.includes('/api/contacts');
-    return Array.isArray(key) && typeof key[0] === 'string' && (
-        key[0].includes('/api/contacts') || ['recordings', 'filesystem', 'recording-details', 'contact-detail'].includes(key[0])
-    );
-}
+import { isContactDependentCacheKey, ownedContactListKeys } from '@/lib/contact-cache-keys';
 
 /** Profile polling runs only during an active sync; completion invalidates all affected views. */
 export function useContactSyncRevalidation(userId: string | undefined, googleSync: User['googleSync'] | undefined) {
@@ -19,10 +13,10 @@ export function useContactSyncRevalidation(userId: string | undefined, googleSyn
         ? `${userId}:${googleSync.lastSyncedAt}` : null;
     useEffect(() => {
         if (!userId) seen.current = null;
-        if (!version || seen.current === version) return;
+        if (!userId || !version || seen.current === version) return;
         seen.current = version;
         // SWR's predicate mutation skips the infinite-list aggregate keys.
-        const contactLists = Array.from(cache.keys()).filter(key => key.startsWith('$inf$') && key.includes('/api/contacts'));
-        void Promise.all([mutate(isContactDependentCacheKey), ...contactLists.map(key => mutate(key))]);
+        const contactLists = ownedContactListKeys(cache, userId);
+        void Promise.all([mutate(key => isContactDependentCacheKey(key, userId)), ...contactLists.map(key => mutate(key))]).catch(() => undefined);
     }, [cache, mutate, userId, version]);
 }

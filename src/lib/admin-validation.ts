@@ -8,8 +8,17 @@ export const AdminUsageSchema = z.object({ storageUsed: nonnegative, transcripti
 export const AdminPlanSchema = z.object({
     key: z.string().trim().min(1, 'Enter a plan key.'),
     name: z.string().trim().min(1, 'Enter a plan name.'),
+    description: z.string().optional(),
+    stripePriceId: z.string().trim(),
+    stripeStoragePriceId: z.string().trim().optional(),
+    stripeTranscriptionPriceId: z.string().trim().optional(),
     price: nonnegative,
+    currency: z.string().trim().length(3, 'Enter a three-letter currency code.'),
+    interval: z.enum(['monthly', 'yearly', 'lifetime', 'trial']),
     limits: z.object({ storage: nonnegative, transcription: nonnegative }),
+    features: z.array(z.string()),
+    isDefault: z.boolean(),
+    isActive: z.boolean(),
 });
 export const AdminAnnouncementSchema = z.object({
     title: z.string().trim().min(1, 'Enter a title.'),

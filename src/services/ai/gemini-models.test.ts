@@ -5,6 +5,7 @@ import { env } from '@/lib/env';
 import { GeminiTranscriptionService, parseNativeGeminiTranscript } from '@/services/transcription/gemini-transcription-service';
 import { getGeminiClient } from './client';
 import { GeminiService } from './gemini-service';
+import { ProcessingError } from '@/lib/transcription/processing-errors';
 
 function isolateGeminiEnv(t: TestContext) {
     const names = [
@@ -90,6 +91,10 @@ test('Gemini text and embedding requests use independent env settings with suppo
         const requests = generate.mock.calls.slice(-2);
         assert.equal(requests[0].arguments[0].model, configured === 'custom' ? 'summary-model' : 'gemini-3.8-flash');
         assert.equal(requests[1].arguments[0].model, configured === 'custom' ? 'transliteration-model' : 'gemini-3.8-flash');
+        assert.equal(requests[0].arguments[0].config?.maxOutputTokens, 512);
+        assert.equal(requests[1].arguments[0].config?.maxOutputTokens, 4096);
+        assert.equal(requests[0].arguments[0].config?.automaticContinuation, false);
+        assert.equal(requests[1].arguments[0].config?.automaticContinuation, false);
         assert.equal(embed.mock.calls.at(-1)?.arguments[0]?.model, configured === 'custom' ? 'embedding-model' : 'gemini-embedding-001');
         assert.equal(env.GEMINI_MODEL_SUMMARY, requests[0].arguments[0].model);
         assert.equal(env.GEMINI_MODEL_TRANSLITERATION, requests[1].arguments[0].model);
@@ -123,7 +128,7 @@ test('Gemini 3.5 Transcribe requests native ASR and preserves speakers, language
     assert.ok(request);
     assert.equal(request.model, 'gemini-3.5-transcribe');
     assert.deepEqual(request.contents, [{ fileData: { fileUri: 'https://example.com/audio', mimeType: 'audio/wav' } }]);
-    assert.deepEqual(request.config, { audioTranscriptionConfig: { mode: 'VERBATIM', diarization: true, wordTimestamp: true } });
+    assert.deepEqual(request.config, { automaticContinuation: false, maxOutputTokens: 8192, audioTranscriptionConfig: { mode: 'VERBATIM', diarization: true, wordTimestamp: true } });
     assert.equal(result.languageCode, 'en-US');
     assert.equal(result.text, 'Hello world. Hi.');
     assert.deepEqual(result.segments, [
@@ -154,6 +159,24 @@ test('native Gemini transcription rejects recordings above its timestamp/diariza
     assert.equal(download.mock.callCount(), 0);
 });
 
+test('a truncated Gemini response records its incurred usage and never silently accepts a partial transcript', async t => {
+    isolateGeminiEnv(t);
+    const client = getGeminiClient();
+    t.mock.method(globalThis, 'fetch', async () => new Response('audio'));
+    t.mock.method(client.files, 'upload', async () => ({ name: 'files/partial', uri: 'https://example.com/audio', state: 'ACTIVE' }));
+    const remove = t.mock.method(client.files, 'delete', async () => undefined);
+    const generate = t.mock.method(client.models, 'generateContent', async () => ({
+        candidates: [{ finishReason: 'CONTINUATION', continuationToken: 'next-hop', content: { parts: [{ text: 'Partial transcript' }] } }],
+        usageMetadata: { promptTokenCount: 123, candidatesTokenCount: 45 }, responseId: 'partial-request',
+    }));
+    const usage: unknown[] = [];
+    await assert.rejects(new GeminiTranscriptionService().transcribe('https://example.com/source', { onUsage: async value => { usage.push(value); } }), /truncated transcript/);
+    assert.equal(generate.mock.callCount(), 1);
+    assert.equal(generate.mock.calls[0].arguments[0]?.config?.automaticContinuation, false);
+    assert.equal(remove.mock.callCount(), 1);
+    assert.deepEqual(usage[0], { measured: true, inputTokens: 123, outputTokens: 45, thoughtTokens: undefined, cachedInputTokens: undefined, requestId: 'partial-request', actualModel: undefined });
+});
+
 test('native Gemini parsing retains untimed speech and validates word offsets', () => {
     const parsed = parseNativeGeminiTranscript([
         { text: 'Untimed speech.' },
@@ -169,4 +192,15 @@ test('native Gemini parsing retains untimed speech and validates word offsets', 
         { text: 'Hello', start: 0, end: 0, speakerId: 'Unknown' },
         { text: 'world.', start: 1.23456789, end: 2, speakerId: 'Unknown' },
     ]);
+});
+
+
+for (const status of [404, 503]) test(`Gemini source download ${status} is known not-started and makes no upload or generation request`, async t => {
+    isolateGeminiEnv(t);const client = getGeminiClient();
+    t.mock.method(globalThis, 'fetch', async () => new Response('Unavailable source', { status }));
+    const upload = t.mock.method(client.files, 'upload', async () => { throw new Error('Must not upload'); });
+    const generate = t.mock.method(client.models, 'generateContent', async () => { throw new Error('Must not generate'); });
+    await assert.rejects(new GeminiTranscriptionService().transcribe('https://storage.invalid/owned-source'), error =>
+        error instanceof ProcessingError && error.processingStatus.providerOutcome === 'not_started' && error.processingStatus.retryAction === 'retry_transcription');
+    assert.equal(upload.mock.callCount(), 0);assert.equal(generate.mock.callCount(), 0);
 });

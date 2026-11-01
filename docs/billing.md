@@ -1,369 +1,295 @@
-# Billing
+# Managed billing
 
-This document describes the billing model and provides a complete walkthrough for configuring Stripe — from a blank account through to accepting live payments.
+Managed billing serves individual accounts. Organizations remain self-hosted. Billing-disabled self-hosted deployments require no Stripe credentials. Preserve saved deployment configuration and running services; use disposable databases/storage and process-only overrides for acceptance tests.
 
-For the quick setup steps, see [setup-guide.md Step 8](setup-guide.md#step-8-stripe-billing-setup). This document covers the technical details, the full Stripe configuration walkthrough, and troubleshooting.
+## Customer prices and usage
 
----
+The app measures usage, allocates included allowances, reserves prepaid retail credit and reports chargeable quantities. Stripe aggregates those quantities and applies its published Prices. Standard, Pro and Lifetime share the same accounting pipeline; Lifetime has a separate usage-price pair and permanent purchase proof.
 
-## Feature Flag
+| Plan | Base purchase | Monthly included resources |
+| --- | --- | --- |
+| Standard | USD 10/month, collected in advance | 60 weighted minutes and 2 GiB |
+| Pro | USD 20/month, collected in advance | 120 weighted minutes and 5 GiB |
+| Lifetime | USD 250 once | None |
 
-Billing is disabled unless:
+Lifetime has no monthly hosting minimum. All Lifetime usage and recurring overage require prepaid credit. Fully included processing requires entitlement, verified paid service and allowance, not a usage wallet or provider-expense reserve. An active subscription or draft renewal invoice alone cannot open a new included allowance. Annual paid service covers its monthly usage windows; if its base renewal falls inside a monthly usage window, new work pauses at the unpaid base expiry without resetting that usage window. Awaiting payment confirmation returns `billing_sync_pending`; accepted work can still finish and the pending state alone never starts media deletion. Published retail prices are business decisions: the application has no profit targets, provider-cost publication gates or monetary operator budgets.
 
-```env
-NEXT_PUBLIC_ENABLE_BILLING=true
-```
+Round verified audio duration up to 15 seconds, then apply the provider weight:
 
-When billing is disabled:
+| Provider/model | Weight | Initial recurring price per actual minute |
+| --- | --- | --- |
+| Soniox `stt-async-v5` | 1× | USD 0.01 |
+| Gemini `gemini-3.5-transcribe` | 3× | USD 0.03 |
+| ElevenLabs `scribe_v2` | 5× | USD 0.05 |
 
-- the Billing tab is hidden from Settings
-- checkout, portal, and invoice routes return `403`
-- metered usage reporting exits early
+A minute of ElevenLabs audio consumes five weighted minutes, or 20 weighted 15-second blocks. Included units produce no chargeable meter event. Summary, transliteration and embedding are bundled; enrichment retries reuse the saved transcript and receipt. Only a separately requested new transcription creates new audio usage.
 
----
+Recurring plans retain the positive-overage recording minimum, derived from the published Price in integer blocks. Initially it is four blocks, exactly one cent. Minimum blocks never consume additional allowance. Lifetime has no recording minimum.
 
-## Seeded Plans
+Storage is the monthly peak above allowance, measured in milliGiB (GiB = 2^30 bytes). Deletion does not reduce the period's chargeable peak. Renewal charges retained excess storage again. Initial recurring storage is USD 0.20/GiB. Conversion assigns only additional chargeable peak units to the new Price; it does not replay an already billed peak.
 
-Plan seeds live in `src/lib/db/init/seed.ts`.
+Free Trial is one-time: 10 weighted minutes, 100 MiB and one fixed 30-day expiry. Login, calendar boundaries, reassignment, cancellation and upgrades do not replenish it. There is no hidden per-user dollar cap or shared subsidy budget. Internal may be assigned by an administrator to any user, without granting administrative permissions: it is free and Stripe-independent, with unlimited cumulative transcription/AI and 1 TiB storage. Custom retains its assigned quotas, features and expiry. Actual debt, disputes, account restrictions and an already-owned purge remain separate from plan assignment.
 
-| Key | Plan | Interval | Price | Included Storage | Included Transcription | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `free-trial` | Free Trial | monthly | `0 USD` | `100 MiB` | `10 min` | default plan, assigned to all new users |
-| `standard` | Standard | monthly | `10 USD` | `2 GiB` | `60 min` | paid recurring plan |
-| `pro` | Pro | monthly | `20 USD` | `5 GiB` | `120 min` | paid recurring plan |
-| `lifetime` | Lifetime | lifetime | `250 USD` | `0` | `0` | one-time purchase; a metered usage subscription is auto-created to bill ongoing storage and transcription |
-| `internal` | Internal | lifetime | `0 USD` | `1 TiB` | `99999 min` | admin-assigned only; no Stripe price |
-| `custom` | Custom | yearly | `0 USD` | `0` | `0` | admin-assigned only; no Stripe price |
+## Set up and publish Stripe billing
 
-**Important:** The seed uses `$setOnInsert`, which means running `npm run db:init` only populates plans that do not yet exist. If you need to change plan limits or prices after the initial seed, edit them through `/admin/plans` in the UI or directly in MongoDB.
+1. Run `pnpm db:init --dry-run`, inspect structural conflicts, then run `pnpm db:init` to add missing templates and indexes. Initialization preserves existing settings, custom plans, Stripe mappings, users and financial history. It creates no paid ownership, wallet funds, grants or published catalog.
+2. Configure the server-only Stripe secret key, separate payment/meter webhook signing secrets, a restricted portal configuration, working email, private storage, verified upload-size enforcement/lifecycle rules and authenticated reconciliation cron. Hosted Checkout/invoice/portal flows do not need a browser publishable key.
+3. Create Standard/Pro licensed monthly base Prices, a one-time Lifetime base Price and the four usage meters/Prices below. Initial recurring Checkout uses explicit flexible billing, collects the base price, then adds monthly meters through durable post-payment setup. Processing requires confirmed payment and verified meters.
+4. Import a complete catalog in the admin Plans area. Review authoritative amounts, units, provider weights, allowances and minimums. Structural validation checks Stripe account/mode, currency, intervals, raw ingestion, aggregation and exact immutable mappings. It does not require provider-cost policy, external cost contracts, profitability figures or expiring cost attestations.
+5. Publish through the atomic active-version pointer. Draft edits and webhooks never publish automatically. Live mode additionally requires reviewed payment, metering, accounting, upload/storage, processing-limit and recovery acceptance for the exact account/catalog/Prices.
 
-The app enforces plan limits from the MongoDB document, not from Stripe metadata. The pricing page only shows plans that are `isActive: true`, `isDefault: false`, and have a non-empty `stripePriceId`.
+| Family | Event name | Aggregation | Unit |
+| --- | --- | --- | --- |
+| Recurring audio | `transcription_weighted_blocks_v2` | SUM | Integer weighted 15-second blocks |
+| Recurring storage | `storage_peak_milligib_v2` | LAST | Integer cumulative chargeable milliGiB |
+| Lifetime audio | `transcription_weighted_blocks_lifetime_v2` | SUM | Integer weighted 15-second blocks |
+| Lifetime storage | `storage_peak_milligib_lifetime_v2` | LAST | Integer cumulative chargeable milliGiB |
 
----
+Use customer key `stripe_customer_id`, value key `value`, no `event_time_window`, positive USD monthly per-unit Prices, and no free tiers or quantity transforms. Initial recurring rates are `0.25` cents/block and `0.02` cents/milliGiB. Choose Lifetime rates explicitly in Stripe; the app does not derive them from provider costs. Annual base offers retain twelve monthly allowance windows; publishing an annual offer remains an explicit business pricing decision.
 
-## Core Billing Rules
+Pricing pages, estimates, settings and quotes read the same published snapshots. Accepted work pins its original tariff. Historical snapshots remain resolvable after a Stripe Price is archived. Changing a Product's default Price does not update existing subscriptions.
 
-1. Users start on the `free-trial` plan. An admin can change this.
-2. Overage billing only applies when `billingSettings.allowOverage = true` on the user document.
-3. Metered billing also requires a `stripeCustomerId` on the user record.
-4. Storage usage is reported as the **peak** bytes stored in the current billing period (not cumulative).
-5. Transcription usage is reported in **seconds**, rounded up to the nearest 15-second block, then multiplied by the provider multiplier.
-6. Both manual and webhook-driven transcription guard against duplicate usage reporting using a per-recording flag.
-7. Free-trial users cannot enable pay-per-usage overage.
-8. Lifetime one-time checkout auto-enables overage and seeds the current storage level as the baseline meter value.
+## Prepaid credit and processing limits
 
----
+Top-ups start at USD 5. Only authoritative payment confirmation creates a paid Stripe Billing Credit Grant and local wallet credit, exactly once. New grants use `scope.price_type = 'metered'` on dedicated app-owned customers. They cover recurring usage, Lifetime usage and replacement usage Prices, while excluding licensed base purchases and the Lifetime purchase. The app validates that those customers contain only approved application subscriptions. Taxes can still require separate payment. [Stripe credit grants](https://docs.stripe.com/api/billing/credit-grant/create)
 
-## Usage Accounting
+Auto-top-up is off until the customer explicitly enables an amount, threshold and daily/monthly limits. Cancellation preserves unused credit for a future return and stops further automatic top-ups. Plan-change credits never create usage-wallet credit. Unspent prepaid deposits remain customer liabilities, not new usage revenue.
 
-### Storage
+The atomic retail ledger subtracts reservations and earned, uninvoiced usage immediately. Concurrent recordings reserve included allowance in acceptance order and retain those assigned quantities on completion. A failed recording releases its reserved allowance for future jobs; it does not retroactively reprice another accepted recording. The allowance-consumed counter is separate from total processed weighted audio. Exact Stripe prices use BigInt decimal strings at 10^-12 cents; settled cash uses integer USD microdollars. Fractions accumulate per period and Price before invoice-line cent rounding. Temporary rounding holds are released idempotently; uploads and recordings are not individually rounded into extra charges.
 
-- `storageUsed` — total bytes currently stored (updated on upload and deletion)
-- `storagePeakUsed` — the highest `storageUsed` seen within the current Stripe billing period
-- `storagePeakPeriodEnd` — the period end timestamp associated with `storagePeakUsed`
+New processing records an immutable execution policy: approved models, prompt versions, transcript revision, input/output envelopes and permitted attempts. It does not reserve provider expenses or processor fees from the customer's account. The app preserves full-transcript summaries with a 512-token final output, indexed transliteration with source timing/speaker metadata retained locally, and bounded embedding text.
 
-When a user uploads a file, the app checks whether the new `storageUsed` is higher than `storagePeakUsed`. If it is, it updates the peak and sends a `storage_usage_bytes` meter event to Stripe with the new peak value. Because the meter uses **Last** aggregation, Stripe always uses the most recent value for billing — this correctly bills for peak storage, not total cumulative uploads.
+Request size, duration, token, output, rate and concurrency limits still apply. Hidden SDK retries are disabled; each planned call permits one normal attempt and at most one additional attempt. Completed responses and checkpoints are saved together and reused after a crash. An uncertain submitted call requires reconciliation before another attempt. New enrichment-only continuation does not retranscribe audio or require historical cost-funding proof.
 
-When a billing period renews (detected via `stripeCurrentPeriodEnd` changing in the webhook), the app resets `storagePeakUsed` to the current `storageUsed` value and sends a fresh baseline meter event for the new period.
+Search and exports have no expense-budget admission. Exports reuse immutable content revisions, permit at most one fresh full archive per account per 24 hours, expire after seven days and use 15-minute download URLs. Uploads retain quota, staging-byte, session, rate and actual-size checks. Direct uploads require verified signed-length enforcement; other paths use bounded streaming. Staging expiry and multipart abortion run after 48 hours; sessions last 24 hours and signed upload links 15 minutes.
 
-### Transcription
+The optional audited `processingPaused` setting defaults to false and pauses provider work manually. It is not a monetary limit. Provider configuration, provider quota, manual pause and insufficient customer credit have distinct remedies. Missing cost tables or expired legacy expense reviews do not block new processing, publication or checkout. No operational pause/configuration failure starts customer nonpayment recovery or media deletion.
 
-- `transcriptionUsed` — total cost-adjusted seconds used in the current period
-- Billed duration is rounded up to the nearest `15-second` block by `calculateBilledDuration()`
-- The provider multiplier is applied: Soniox 1.0×, ElevenLabs 5.0× (configurable in admin settings)
-- Stripe meter events are emitted as `transcription_usage_seconds` (Sum aggregation)
+Operational records retain provider/model, duration, tokens, attempts, failures, latency and storage bytes. Unknown provider charges remain unknown. Review costs and available alerts in provider dashboards; there is no in-app profitability report or replacement spending-cap engine. Prepayment prevents unpaid retail consumption; it does not establish profitable prices.
 
-Default provider multipliers seeded by the app:
+## Plan changes and scheduled price updates
 
-| Provider | Default Multiplier |
-| :--- | :--- |
-| Soniox | 1.0× |
-| ElevenLabs | 5.0× |
-| Gemini | 0.5× |
-| Compatible server | 0.1× |
+Upgrades and recurring-to-Lifetime conversion take effect immediately after authoritative payment. The hosted adjustment invoice uses normal Stripe unused-time proration, discounts and taxes. There is no new provider-expense credit cap or retention adjustment; new quotes use `stripe-proration-v1` and `retainedCreditMinor: 0`. A paid hosted service line replaces, rather than duplicates, the obsolete native unused-service credit on a later switch.
 
-These multipliers reflect relative cost differences between providers. They are configurable in `/admin/settings` and affect both the local `transcriptionUsed` counter and the Stripe meter event value.
+The old paid plan remains usable during failed payment, abandoned Checkout or bank verification. After confirmed payment, fulfillment drains accepted accounting, verifies meter delivery and changes the target without a second proration. Preserve consumed allowance and the usage window. Payment races, duplicate-credit attempts, source-contract changes and erased accounts still require authoritative reconciliation. Older already-accepted operations retain their quoted terms; unaccepted stale quotes need refreshing.
 
----
+Downgrades take effect at renewal without an immediate refund. Customers may cancel a scheduled downgrade. A successful upgrade cancels its pending downgrade while preserving applicable notified usage-price changes; failed upgrades leave the existing schedule intact.
 
-## Stripe Configuration Walkthrough
+For a routine price change:
 
-### Required environment variables
+1. Create replacement immutable Stripe Prices and import a complete draft; keep physical units and provider weights unchanged for ordinary repricing.
+2. Review and publish. New customers use the published terms. Existing customers receive successful email and in-app notice before activation at the first monthly usage boundary at least 30 days later. Existing base contracts remain unchanged unless the customer requests a plan change.
+3. The app's single owned Stripe Subscription Schedule combines renewal downgrades and noticed usage-price changes at each boundary. Stripe executes the phase; signed webhooks and reconciliation verify the authoritative items, prices, dates and customer identity.
+4. Before opening a new usage period, adopt its plan, allowance and tariffs, then persist exactly one retained-storage baseline. Simultaneous downgrade/repricing uses the new allowance and rate together. Accepted callbacks retain their original period/tariff. [Stripe schedules](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
 
-```env
-NEXT_PUBLIC_ENABLE_BILLING=true
-STRIPE_SECRET_KEY=sk_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
+New broad metered grants need no routine expiry/reissue or scope rollover for replacement Prices. Legacy exact-price grants and interrupted old transfers retain narrow recovery only. An unproved transition returns retryable `billing_sync_pending`; never discard, duplicate or silently re-create credit.
 
-The client uses the installed Stripe SDK's default API version and its fetch HTTP transport. Meter event creation uses `billing.meterEvents.create`; no preview API version is hardcoded.
+Existing public payment routes remain:
 
-Usage events persist in `usage_events`. Storage peaks are serialized per account/period for the Last meter, with identical retries retaining value, timestamp and idempotency key. Transcription uses Sum. Configure `/api/cron/process-usage` for retries. Deletion lowers `storageUsed` without reducing `storagePeakUsed`.
-
-See Stripe's [meter configuration](https://docs.stripe.com/billing/subscriptions/usage-based/meters/configure) and [idempotent requests](https://docs.stripe.com/api/idempotent_requests) for provider semantics. Provider-weighted seconds round up to an integer after the 15-second duration rounding.
-
-### Step 1: Create the two Billing Meters
-
-Meters must be created before you create metered prices. The event names are hardcoded in the app and must match exactly.
-
-1. In Stripe Dashboard, go to **Billing → Meters**.
-2. Click **Create meter**:
-   - Display name: `Storage Usage`
-   - Event name: **`storage_usage_bytes`** (exact match required)
-   - Default aggregation formula: **Last**
-   - Click **Create meter**.
-3. Click **Create meter** again:
-   - Display name: `Transcription Usage`
-   - Event name: **`transcription_usage_seconds`** (exact match required)
-   - Default aggregation formula: **Sum**
-   - Click **Create meter**.
+- `POST /api/stripe/checkout`
+- `POST /api/stripe/plan-change/preview`, `POST /api/stripe/plan-change`, `GET /api/stripe/plan-change/:id` and `DELETE /api/stripe/plan-change`
+- `POST`, `PATCH` and `GET /api/stripe/usage-topup`
+- `GET /api/stripe/billing/status`
 
-> [!WARNING]
-> **Aggregation formula matters.** Storage must use **Last** — Stripe bills the most-recent value reported, which is the peak. If you accidentally use Sum, customers would be charged for the accumulated total of every storage report, causing massive over-billing. Transcription must use **Sum** — each recording adds to the running total for the period.
-
-### Step 2: Create products and prices
-
-For each paid plan, you need three Stripe prices: one base price and two metered prices (storage and transcription). The metered prices must be linked to the meters you created in Step 1.
-
-#### Standard plan (monthly, $10/month)
-
-1. In Stripe Dashboard, go to **Product Catalog → Add product**.
-2. Name: `Standard`. Click **Add a price**:
-   - Pricing model: **Standard pricing**
-   - Billing period: **Monthly**, recurring
-   - Price: `$10.00` per month
-   - Click **Save product**. Copy the **Price ID** → this is `stripePriceId` for Standard.
-3. On the same product page, click **Add another price**:
-   - Pricing model: **Standard pricing**, recurring, monthly
-   - Billing scheme: **Per unit**, Usage type: **Metered**, Meter: `Storage Usage`
-   - Set your per-GB-month rate (e.g. `$0.023` per GB is close to S3 pricing)
-   - Click **Add price**. Copy the **Price ID** → this is `stripeStoragePriceId` for Standard.
-4. Click **Add another price** again:
-   - Same settings, but Meter: `Transcription Usage`
-   - Set your per-second rate
-   - Click **Add price**. Copy the **Price ID** → this is `stripeTranscriptionPriceId` for Standard.
-
-#### Pro plan (monthly, $20/month)
-
-Repeat the process above with `$20.00` for the base price and your desired overage rates for storage and transcription.
-
-#### Lifetime plan (one-time, $250)
-
-1. In Stripe Dashboard, go to **Product Catalog → Add product**.
-2. Name: `Lifetime`. Click **Add a price**:
-   - Pricing model: **Standard pricing**
-   - Frequency: **One time** (not recurring)
-   - Price: `$250.00`
-   - Click **Save product**. Copy the **Price ID** → this is `stripePriceId` for Lifetime.
-3. Add metered prices (storage and transcription) the same way as Standard/Pro.
-   - The Lifetime plan uses these for the usage-only subscription created automatically after purchase.
-
-> [!NOTE]
-> The `internal` and `custom` plans intentionally have no Stripe prices. They are admin-assigned only and never appear on the public pricing page.
-
-### Step 3: Register the webhook endpoint
+Plan-change responses expose `timing: immediate | period_end`, scheduled status and authoritative effective dates. Processing availability is separate from billing eligibility. The dedicated portal allows payment methods, invoices and period-end cancellation with `proration_behavior=none`; disable portal subscription/customer-detail updates so it cannot bypass app plan-change coordination.
 
-Webhooks are how Stripe tells the app when payments succeed, subscriptions change, or invoices are generated. The app cannot update user state without them.
+## Recovery, webhooks and launch acceptance
 
-1. In Stripe Dashboard, go to **Developers → Webhooks → Add endpoint**.
-2. Endpoint URL: `https://your-domain.com/api/stripe/webhook`
-   - For local testing, use `http://localhost:9000/api/stripe/webhook` and forward events with `stripe listen --forward-to localhost:9000/api/stripe/webhook`
-3. Select all of these events:
-
-   | Category | Events |
-   | :--- | :--- |
-   | Checkout | `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` |
-   | Subscriptions | `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `customer.subscription.trial_will_end`, `customer.subscription.pending_update_applied`, `customer.subscription.pending_update_expired` |
-   | Invoices | `invoice.payment_failed`, `invoice.payment_action_required`, `invoice.payment_succeeded`, `invoice.paid`, `invoice.voided`, `invoice.marked_uncollectible` |
-   | Customers | `customer.deleted` |
-
-4. Click **Add endpoint**. Copy the **Signing secret** (starts with `whsec_`).
-5. Update your `.env` file:
-   ```env
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   ```
-
-### Step 4: Configure the Billing Portal
-
-The Billing Portal is the Stripe-hosted page users reach when they click "Manage Subscription" in Settings. Without configuring it, the portal route fails.
-
-1. In Stripe Dashboard, go to **Settings → Billing → Customer portal**.
-2. Enable these features at minimum:
-   - Update payment methods
-   - Cancel subscriptions
-   - View billing history
-3. Add your business name and support email under **Business information**.
-4. Click **Save**.
-
-> [!NOTE]
-> Portal configuration is separate for test mode and live mode. You need to configure it in both.
-
-### Step 5: Map price IDs into the plan documents
-
-After `npm run db:init`, all plans have `stripePriceId: ''`. **No checkout will succeed until you fill these in.** The checkout route returns HTTP 400 for any plan with an empty price ID, and the pricing page shows a configuration warning instead of plan cards.
-
-1. Start the app and log in with your admin account.
-2. Go to `/admin/plans`.
-3. Click **Edit** on the **Standard** plan and paste in:
-   - `stripePriceId` — the fixed monthly base price ID
-   - `stripeStoragePriceId` — the metered storage price ID
-   - `stripeTranscriptionPriceId` — the metered transcription price ID
-4. Click **Save**. Repeat for **Pro** and **Lifetime**.
-
-After saving, the plans will appear on the public pricing page and checkout will work.
-
-### Step 6: Go live
-
-When you are ready to accept real payments, switch to Stripe live mode:
-
-1. In Stripe Dashboard, switch to **Live Mode** (toggle at top right).
-2. Go to **Developers → API keys** and copy your live **Secret key** (starts with `sk_live_`).
-3. Repeat Steps 1–4 in live mode:
-   - Create the two meters (same event names)
-   - Create products and prices with your real pricing
-   - Register the live webhook endpoint pointing to your production URL
-   - Configure the Billing Portal
-4. Update your `.env` file:
-   ```env
-   STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_WEBHOOK_SECRET=whsec_...   # the signing secret from the LIVE webhook endpoint
-   ```
-5. Go to `/admin/plans` and update the price IDs with the live Price IDs.
-6. Deploy. Verify by completing a test purchase using a real card in live mode.
-
-> [!WARNING]
-> Make sure `STRIPE_WEBHOOK_SECRET` is updated to the live endpoint's signing secret, not the test endpoint's. Using the wrong secret causes all webhook signature verifications to fail silently, breaking subscription state updates.
-
----
-
-## How Checkout Works
+Authoritative payment failure, terminal cancellation or verified insufficient retained-storage credit stops new chargeable work and starts the existing 30-day recovery window. Warn on days 0, 23 and 29; permit reads and one cached recovery export. Login/export never extend retention. Authoritative funding may restore service before purge. Lifetime ownership survives media deletion. Provider expenses, manual pauses and configuration failures never authorize deletion.
 
-**Relevant code:** `src/app/api/stripe/checkout/route.ts`
+Account erasure removes personal content without waiting indefinitely for payment. Minimal financial tombstones retain late callbacks, usage, debt, disputes and idempotency. Settled financial records may be pruned after 90 days; unresolved operations remain retained. Preserve immutable old receipts and genuinely uncertain settlement. Known expense-only reviews are historical evidence, not new retail admission restrictions.
 
-1. The user selects a plan and the frontend calls `POST /api/stripe/checkout` with the `planKey` or `priceId`.
-2. The route authenticates the user and looks up the plan in MongoDB.
-3. It checks the plan's `stripePriceId` is non-empty and the Stripe price is active.
-4. It blocks duplicate subscriptions: if the user already has an `active`, `trialing`, `past_due`, `unpaid`, or `incomplete` subscription, it returns a 409.
-5. It creates a Stripe Customer for the user if one doesn't exist yet (with optimistic locking to prevent duplicates).
-6. It determines checkout `mode` from the price type: `recurring` → `subscription`, `one_time` → `payment`.
-7. It creates a Stripe Checkout Session and returns the session URL. The frontend redirects to Stripe.
-
-**What happens after checkout:**
-- Stripe fires `checkout.session.completed` to the webhook.
-- For subscription mode: the webhook calls `syncSubscription()`, which retrieves the subscription, finds the matching plan, and updates the user document.
-- The self-healing logic in `syncSubscription()` also checks that metered prices (storage and transcription) are attached to the subscription. If they are missing, it adds them automatically.
-- For payment mode (Lifetime): the webhook calls `applyOneTimeCheckoutPlan()`, which upgrades the user's plan and creates a new usage-only subscription for metered billing.
-
----
-
-## Webhook Processing
-
-**Endpoint:** `POST /api/stripe/webhook`
-
-All webhook events are processed idempotently through the `stripe_webhook_events` MongoDB collection. Before processing any event, the handler claims it with a status of `processing`. If the same event ID arrives again, it returns `200` immediately without re-processing. Stale `processing` records (older than 10 minutes) can be retaken.
-
-The handler processes these event types:
-
-| Event | Action |
-| :--- | :--- |
-| `checkout.session.completed` | Links customer to user, syncs subscription or applies one-time plan |
-| `checkout.session.async_payment_succeeded` | Same as completed |
-| `checkout.session.async_payment_failed` | Sends in-app payment failure notification |
-| `checkout.session.expired` | Sends in-app checkout expired notification |
-| `customer.subscription.created/updated/deleted/paused/resumed` | Calls `syncSubscription()`, sends relevant in-app notification |
-| `customer.subscription.pending_update_applied/expired` | Calls `syncSubscription()`, notifies on expired updates |
-| `customer.subscription.trial_will_end` | Sends trial ending soon notification |
-| `invoice.payment_failed` / `invoice.payment_action_required` | Syncs subscription status (becomes `past_due`), sends payment failure notification |
-| `invoice.payment_succeeded` / `invoice.paid` | Syncs subscription (resets to `active`) |
-| `invoice.voided` / `invoice.marked_uncollectible` | Syncs subscription |
-| `customer.deleted` | Removes all Stripe fields from user document, sends warning notification |
-
----
-
-## Access Control
-
-The billing status on the user document gates uploads and transcription:
-
-| Status | Uploads | Transcription | Notes |
-| :--- | :--- | :--- | :--- |
-| No subscription (trial active) | Allowed within trial limits | Allowed within trial limits | |
-| Trial expired | Blocked | Blocked | Prompts to upgrade |
-| `active` | Allowed (within plan limits or overage) | Allowed (within plan limits or overage) | |
-| `trialing` | Allowed within plan limits | Allowed within plan limits | |
-| `past_due` | Blocked | Blocked | Prompts to update payment method |
-| `unpaid` | Blocked | Blocked | |
-| `canceled` (within period) | Allowed until `stripeCurrentPeriodEnd` | Allowed until `stripeCurrentPeriodEnd` | Grace period |
-| `canceled` (past period) | Blocked | Blocked | |
-| `paused` | Blocked | Blocked | |
-
-Overage billing (`billingSettings.allowOverage = true`) allows usage beyond the plan limits by emitting metered Stripe events. Without overage enabled, exceeding the plan limit blocks the action.
-
----
-
-## Billing Portal and Invoice History
-
-**Portal:** `POST /api/stripe/portal`
-- Creates a Stripe Billing Portal session for the authenticated user.
-- Creates a Stripe Customer on demand if the user does not yet have one.
-- Returns a redirect URL to the Stripe-hosted portal.
-
-**Invoices:** `GET /api/stripe/invoices`
-- Lists invoices for the user's `stripeCustomerId`.
-- Returns a maximum of 50 invoices.
-- Includes Stripe's hosted invoice URL for PDF download.
-
----
-
-## Local Testing
-
-```bash
-# Forward Stripe events to your local server
-stripe listen --forward-to localhost:9000/api/stripe/webhook
-
-# Trigger a specific event manually
-stripe trigger checkout.session.completed
-```
-
-Useful test cards:
-
-| Card | Behavior |
-| :--- | :--- |
-| `4242 4242 4242 4242` | Always succeeds |
-| `4000 0000 0000 0002` | Always declines |
-| `4000 0000 0000 0341` | Succeeds but then payment fails on next invoice |
-| `4000 0025 0000 3155` | Requires 3DS authentication |
-
----
-
-## Validation Checklist
-
-After completing the Stripe setup, verify each of the following:
-
-- [ ] Pricing page shows plan cards (not a configuration warning)
-- [ ] Clicking a plan opens Stripe Checkout in test mode
-- [ ] Completing a test checkout (card `4242 4242 4242 4242`) upgrades the user's plan in the app
-- [ ] Billing Portal opens when clicking "Manage Subscription" in Settings
-- [ ] Invoice history appears in Settings after a successful checkout
-- [ ] Overage disabled: uploading beyond the plan limit is blocked
-- [ ] Overage enabled: uploading beyond the plan limit succeeds and a `storage_usage_bytes` meter event appears in Stripe Dashboard → Billing → Meters
-- [ ] ElevenLabs transcription usage reflects the configured multiplier in `transcriptionUsed`
-- [ ] Webhook retries do not create duplicate subscription updates (check `stripe_webhook_events` collection)
-- [ ] `customer.deleted` in Stripe clears Stripe fields from the user document
-
----
-
-## Troubleshooting
-
-| Symptom | Likely cause |
-| :--- | :--- |
-| Pricing page shows a configuration warning instead of plan cards | All plans have `stripePriceId: ''`. Go to `/admin/plans` and set the price IDs. |
-| Checkout returns "Invalid plan" (HTTP 400) | The plan is inactive, `stripePriceId` is empty, or the Stripe price is no longer active. |
-| Checkout returns "You already have an active subscription" | Use the Billing Portal to cancel the existing subscription first. |
-| Portal session creation fails | The Stripe Billing Portal has not been configured in the Stripe Dashboard (Settings → Billing → Customer portal). |
-| Webhook signature verification fails | `STRIPE_WEBHOOK_SECRET` does not match the signing secret on the registered endpoint. Make sure you are using the live endpoint secret in production and the test endpoint secret locally. |
-| Metered usage not appearing in Stripe | Either the meter event names do not match exactly (`storage_usage_bytes`, `transcription_usage_seconds`), or `billingSettings.allowOverage` is false for the user, or the user has no `stripeCustomerId`. |
-| Storage bills are massively high | The `storage_usage_bytes` meter is set to Sum instead of Last. Recreate it with Last aggregation. |
-| `billing.meterEvents` is undefined at runtime | Check the installed Stripe SDK and lockfile. The app uses its default API version; no preview version is required. |
-| Subscription state not updating after payment | The webhook endpoint is not registered or is returning errors. Check the Stripe Dashboard → Webhooks for failed deliveries. |
-| `Pay Per Usage cannot be enabled on Free Trial` | The current plan key is `free-trial`. Only paid plan users can enable overage. |
-| Duplicate billing concerns | Inspect the `stripe_webhook_events` collection for duplicate events. Check the `transcriptionUsageReportedAt` field on recordings for duplicate transcription billing. |
+Register HTTPS `/api/stripe/webhook` with `STRIPE_WEBHOOK_SECRET`, and `/api/stripe/meter-webhook` with its separate `STRIPE_METER_WEBHOOK_SECRET` for signed asynchronous meter errors. Reconciliation checks prior/current subscription debt, missed payments, refunds/disputes, invoice voids and credit notes. An optional unpaid upgrade invoice is not debt for previously delivered service.
+
+Keep 72-hour cycle-invoice finalization grace. Verify meter processing, raw quantities, frozen rates, invoice rounding and per-line grant debits; HTTP acceptance alone is insufficient. Retry identical immutable meter events only within their safe retry window. Older ambiguous or finalized-period events require review, never retimestamping or synthetic catch-up charges.
+
+Schedule authenticated cron with `Authorization: Bearer <CRON_SECRET>`:
+
+- `/api/cron/process-usage`: payments, schedules/rollouts, receipt repair, meter/invoice reconciliation, recovery and financial erasure settlement.
+- `/api/cron/process-ingestion`: finalization recovery, staging expiry and multipart cleanup.
+- `/api/cron/process-exports`: archive generation, recovery and expiry.
+- `/api/cron/cleanup-recordings`: retention and requested erasure.
+
+Alert on failed webhooks, delayed boundaries, rejected/ambiguous meters, unpaid debt, provider quota/errors, orphan objects and pending financial recovery. Do not configure cost-attestation renewal or operator dollar caps.
+
+Live money collection requires reviewed schema-v2 acceptance covering the exact catalog, Stripe account/mode and Prices: invoices, grants, ordinary proration, signed meter errors, rounding, upload lengths, storage lifecycle, processing limits, concurrent accounting, plan switching, retention, scheduled price replacements and hosted plan payments. It has no provider-cost fingerprint or recurring cost-attestation expiry requirement. Never fabricate acceptance from unit mocks or illustrative provider rates.
+
+Run unit checks, types, lint, isolated production builds and disposable Mongo/storage integration tests. `pnpm acceptance:managed` verifies fresh seed safety with isolated services and blank external keys; it is not real Stripe payment certification. `pnpm acceptance:selfhost` verifies billing-disabled behavior. Real sandbox invoices must separately prove broad metered grants across both usage families/replacement Prices, base exclusion, partial/sub-cent rounding, SCA/failed upgrades, Lifetime conversion, renewal downgrade/repricing and exactly one storage baseline.
+
+The opt-in `src/lib/stripe/stripe-sandbox.integration.test.ts` uses process-only test credentials and isolated Stripe fixtures. The [application diagnostic](../scripts/stripe-app-sandbox.md) and [thin meter diagnostic](../scripts/stripe-thin-sandbox.md) verify deployed handlers. Keep private diagnostic state outside the checkout. Stripe CLI is optional. Distinguish automatic webhook delivery from a scoped signed replay of a real event; replay verifies recovery, not automatic delivery.
+
+## Simplified billing verification on 2026-10-23
+
+The shared-flow cleanup passed 840 default checks with 31 opt-in integrations skipped.
+TypeScript, lint, and isolated managed/self-hosted production builds with PWA
+verification also passed.
+The cleanup also verifies vinext/Workers bundling and three narrow runtime checks;
+full Workers deployment readiness remains tracked in [the Workers guide](cloudflare-workers.md).
+All 44 browser regressions passed, including contact loading and sync, independent
+settings saves, dirty-draft preservation and account/cache isolation.
+Separate disposable MongoDB runs passed 105 checks for initialization, indexes, concurrent
+retail/allowance reservations, unpaid-renewal admission, receipt repair and
+durable execution checkpoints. No shared application database was initialized.
+This run used disposable databases on a replica set; standalone Mongo acceptance
+remains covered by the isolated Docker workflow rather than a local mongod run.
+Real storage transport checks used temporary owned object keys and removed them
+after verifying signed upload lengths, multipart completion, validation and copy
+protection.
+
+The earlier Stripe sandbox fixtures separately verified the following; the
+shared-flow cleanup did not rerun real Stripe money movements:
+
+- One USD 5 broad metered grant paid 2 cents of recurring usage, 2 cents of
+  Lifetime usage and 3 cents under replacement Prices. The USD 10 base invoice
+  and USD 250 Lifetime purchase remained outside that grant.
+- Ordinary unused-time proration credited USD 10 of unused Standard service and
+  collected USD 10 for Pro, with zero retention adjustment.
+- A Stripe test clock executed a simultaneous Pro-to-Standard renewal downgrade
+  and replacement usage Prices. The application refused the unpaid renewal and
+  adopted the new allowance/tariffs after an actual USD 10 sandbox payment.
+
+The real-provider enrichment fixture completed summary, multilingual
+transliteration and embedding for a non-admin Internal user without a cost
+policy, wallet or historical audio receipt. Repeating completion issued no new
+provider calls, audio quantities or financial entries. Its disposable databases
+and the owned Stripe fixtures were cleaned up.
+
+These checks do not publish launch acceptance or certify the deployed webhook
+journey. The public test origin returned HTTP 502 during this verification;
+deployment configuration and shared services were preserved. Complete deployed
+signed-webhook and customer-flow acceptance before enabling live billing.
+
+Opt-in fixtures are `plan-credit-sandbox.integration.test.ts`,
+`simplified-billing-sandbox.integration.test.ts` and
+`enrichment-provider.integration.test.ts`. Supply test credentials only to their
+processes; never store fixture keys or acceptance evidence in deployment files.
+
+## Historical verification records
+
+The following dated results describe earlier policies and are retained as audit history. They do not certify this simplified implementation or reinstate old cost budgets, credit caps or grant-rollover requirements.
+
+### Sandbox verification on 2026-10-21
+
+The public managed test deployment completed real Standard Checkout (USD 10),
+a prepaid top-up (USD 5), duplicate signed payment delivery, a declined upgrade
+that retained Standard access, and a paid immediate Pro conversion (USD 11.66
+after the capped USD 8.34 credit) on the valid v3 fixture. Initial Checkout saved
+the billing address needed by this Stripe account's later USD invoices. These
+were sandbox payments.
+The quantity suite separately finalized 14 invoices across seven rounding
+boundaries and both tariff families:
+
+| Case | Recurring storage: milliGiB → cents | Lifetime storage: milliGiB → cents | Lifetime audio: weighted blocks → cents |
+| --- | --- | --- | --- |
+| 0 | 1 → 0 | 1 → 0 | 1 → 0 |
+| 1 | 24 → 0 | 114 → 0 | 2 → 0 |
+| 2 | 25 → 1 | 115 → 0 | 3 → 0 |
+| 3 | 26 → 1 | 116 → 1 | 4 → 1 |
+| 4 | 49 → 1 | 230 → 1 | 6 → 1 |
+| 5 | 50 → 1 | 231 → 1 | 7 → 1 |
+| 6 | 51 → 1 | 232 → 1 | 8 → 1 |
+
+Every recurring audio case used the four-block, one-cent recording minimum.
+Each usage line's grant debit matched the rounded amount; a USD 1 one-off
+control remained outside the usage grant. The primitive grant expiry/reissue
+test carried exactly USD 9.99 or USD 9.98 from its synthetic USD 10 grant into
+the four-price scope without creating new cash. This is distinct from testing
+the application's complete scheduled price rollout. All of those quantity
+fixtures were cleaned up and their unpaid control invoices voided.
+
+Both recognized thin meter-error types arrived automatically with Stripe
+signatures. Their intentionally unmatched samples changed no customer usage
+rows. Separate regression tests cover matched rejection/quarantine and a
+delayed sender acknowledgment. One app top-up run required a scoped signed
+retry after authoritative payment confirmation lagged the Checkout callback;
+another completed through automatic delivery. Neither produced duplicate
+funding.
+
+Two real unpaid upgrade invoices also verified source-plan budget recovery:
+each was voided, its PaymentIntent canceled with zero received, and USD 8.34 of
+held base credit released. The source Standard entitlement, allowance window,
+paid principal, revenue and wallet were preserved. The newly admitted test cost
+reservation was released before any provider call. Both uninterrupted
+cancellation and interrupted cleanup through the existing confirmation API
+passed without repairing financial records manually. Stripe kept the void
+invoice's default InvoicePayment link open; its canceled PaymentIntent supplied
+the terminal payment proof.
+
+The test uncovered and fixed a fresh-installation interaction: blank template
+Price IDs could match an unpriced retention line and classify Pro funding as
+Lifetime. Funding now requires valid nonempty original Price IDs and the frozen
+hosted line role, with each principal line counted once. The affected sandbox
+account and its USD 11.67/USD 8.33 result were retired rather than editing its
+funding history.
+
+Sequential hosted changes also exposed Stripe's native credit basis: the
+subscription still referenced the original Standard debit after the separately
+paid Pro invoice. Later quotes now use the verified paid service line, original
+dates and funding provenance, replacing that obsolete native credit rather
+than adding another credit. A real v3 Pro → Standard → Pro sequence verified a
+negative USD 8.14 downgrade invoice and the same USD 8.14 carried customer
+credit. The next upgrade totaled USD 9.99 and collected USD 1.85 after that
+credit. Only the USD 1.85 new cash created new paid principal; the prepaid usage
+wallet was unchanged throughout both switches.
+
+A subsequent Lifetime conversion paid USD 230.66, with a capped USD 19.34
+credit and USD 0.64 retention adjustment. After an initial browser timeout, the
+ordinary hosted payment resumed through Confirm Payment and Stripe's normal
+test-issuer approval. The documented 3220 card produced an authoritative
+authenticated 3DS challenge. While the PaymentIntent required action, Pro
+remained active and usable and Lifetime ownership was still ungranted. Confirmed
+payment then granted immediate Lifetime ownership through the invoice proof.
+The same usage subscription retained only the two Lifetime meters, removed the
+licensed base item and provided no recurring allowances. The application
+diagnostic completed successfully; abandoned verification remains a separate
+untested case.
+
+The conversion preserved the monthly period identity, dates, consumed quantity
+and storage peaks; this fixture had zero consumption and retained storage.
+Local prepaid funding and spending were unchanged. Stripe balance transactions
+confirmed the original USD 5 remained available in an active grant scoped to
+all four usage prices, including both Lifetime prices. The Lifetime
+`invoice.paid` handler required a scoped signed retry of the real event after
+another webhook had already activated the profile. This proves retry recovery
+and idempotent fulfillment; it does not establish successful automatic processing
+of that particular event.
+
+Four payment receipts that had failed during account-lease contention were
+retried sequentially using signed copies of this fixture's actual Stripe
+`invoice.paid` and `invoice.payment_succeeded` events. All returned HTTP 200 and
+reached processed state. Total cash principal, recognized revenue and cost,
+prepaid balance, Lifetime entitlement, usage period and meter IDs were unchanged;
+only the ordinary verification timestamp refreshed. The owned fixture cleanup
+then removed its Stripe customer and authentication credentials, canceled its
+subscriptions and expired its grants. Its disabled application profile and
+financial journals remain available for reconciliation.
+
+The latest local check completed with 578 tests passed and 24 skipped, followed
+by four dependency checks and twelve release checks passed. The isolated
+production build also passed. These results do not replace the outstanding
+external acceptance cases below.
+
+The published test cost policy and Lifetime rates were explicitly marked as
+unmeasured sandbox fixtures, with an expiring policy. They are not measured
+cost evidence or approved live offers. This record does not certify abandoned
+bank verification, full app renewals, taxes/discounts, refund/dispute and
+erasure settlement, price-rollout crash recovery, bucket enforcement or actual
+provider/enrichment costs. Complete those acceptance cases before enabling live
+billing; never copy this partial record into an all-passed launch declaration.
+
+Read-only lifecycle inspection of the configured bucket returned HTTP 403, so
+its cleanup rules were not verified. `BILLING_STORAGE_LENGTH_VERIFIED` remains
+unset and managed uploads use the bounded streaming fallback. No bucket rules
+were changed during this test.
+
+### Actual-cost credit verification on 2026-10-22
+
+The isolated real Stripe credit diagnostic paid a USD 10 source subscription,
+then received USD 10 of native unused-base proration. With exactly USD 2 of
+test-fixture incurred/committed costs, the production credit cap allowed USD 8
+and Stripe reproduced the USD 2 retention adjustment. The frozen hosted change
+invoice collected USD 12 against the USD 20 target charge. Owned sandbox
+resources were cleaned up. This proves the revised credit and invoice
+arithmetic, including normal hosted card verification; it does not establish
+measured provider costs, application fulfillment, webhook delivery or full live
+acceptance. The cost fixture is not financial evidence for a published offer.

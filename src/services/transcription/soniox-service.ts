@@ -44,15 +44,15 @@ export class SonioxService implements ITranscriptionService {
         }
 
         const durationSeconds = options?.durationSeconds;
-        const modelToUse = this.model;
+        const modelToUse = options?.model || this.model;
 
         try {
             logger.debug(`[Soniox] Requesting transcription for: ${fileUrl}`);
 
-            const transcriptionId = await startTranscription(this.getConfig(), fileUrl, modelToUse);
+            const transcriptionId = await startTranscription(this.getConfig(), fileUrl, modelToUse, options?.billingReceiptId);
             logger.info(`[Soniox] Started transcription ID: ${transcriptionId}`);
 
-            const resultData = await pollCompletedTranscript(this.getConfig(), transcriptionId, durationSeconds);
+            const resultData = await pollCompletedTranscript(this.getConfig(), transcriptionId, durationSeconds, options?.processingEnvelope?.maxResponseBytes);
 
             logger.debug('[Soniox] Beginning result processing...');
             const words = resultData.tokens || resultData.words || [];

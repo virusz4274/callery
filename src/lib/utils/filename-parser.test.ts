@@ -19,6 +19,7 @@ test('recognized recorder patterns extract callers and local calendar timestamps
     for (const [filename, format, name, phone, hours, minutes, seconds, ms] of cases) {
         const result = parseRecordingFilename(filename);
         assert.equal(result.status, 'recognized', filename);
+        assert.equal(result.calendarDate, '2026-06-27', filename);
         assert.equal(result.format, format, filename);
         assert.equal(result.name, name, filename);
         assert.equal(result.phoneNumber, phone, filename);
@@ -44,11 +45,22 @@ test('BCR offsets preserve the exact instant, milliseconds, direction and SIM', 
         assert.equal(result.format, 'bcr');
         assert.equal(result.date?.toISOString(), instant);
         assert.equal(result.timezoneOffsetMinutes, offset);
+        assert.equal(result.calendarDate, '2026-06-27');
         assert.equal(result.direction, direction);
         assert.equal(result.simSlot, sim);
         assert.equal(result.name, name);
         assert.equal(result.phoneNumber, phone);
     }
+});
+
+test('calendar grouping retains the filename day when an offset crosses UTC midnight', () => {
+    const previousUtcDay = parseRecordingFilename('20260627_003000.000+1400_in_5551234.wav');
+    const nextUtcDay = parseRecordingFilename('20260627_233000.000-1400_in_5551234.wav');
+    assert.equal(previousUtcDay.date?.toISOString(), '2026-06-26T10:30:00.000Z');
+    assert.equal(nextUtcDay.date?.toISOString(), '2026-06-28T13:30:00.000Z');
+    assert.equal(previousUtcDay.calendarDate, '2026-06-27');
+    assert.equal(nextUtcDay.calendarDate, '2026-06-27');
+    assert.equal(parseRecordingFilename('John@not-a-number_20260627053508.wav').calendarDate, null);
 });
 
 test('impossible calendars, times and offsets never become trusted upload metadata', () => {
@@ -65,6 +77,7 @@ test('impossible calendars, times and offsets never become trusted upload metada
         assert.equal(result.status, 'invalid', filename);
         assert.ok(result.issues.includes('invalid-date'), filename);
         assert.equal(result.date, null);
+        assert.equal(result.calendarDate, null);
         assert.deepEqual(parseUploadContactFromFilename(filename), { name: null, phoneNumber: null, date: null });
     }
     assert.equal(parseRecordingFilename('Call John_240229_000000.wav').status, 'recognized');
@@ -95,9 +108,11 @@ test('unidentified callers and sequence numbers are never inferred as contact na
         assert.ok(parsed.issues.includes('missing-caller'));
     }
     assert.equal(parseRecordingFilename('Call recording 1234.aac').date, null);
+    assert.equal(parseRecordingFilename('Call recording 1234.aac').calendarDate, null);
     for (const filename of ['Meeting notes.mp3', 'Call planning notes.mp3', 'John_260627_053508.mp3',
         'call.mp3', 'John-06-27-2026.mp3', '5551234_260627_053508577-extra.wav']) {
         assert.equal(parseRecordingFilename(filename).status, 'unrecognized', filename);
+        assert.equal(parseRecordingFilename(filename).calendarDate, null, filename);
         assert.deepEqual(parseUploadContactFromFilename(filename), { name: null, phoneNumber: null, date: null });
     }
 });
@@ -120,6 +135,7 @@ test('unsafe or unreasonable filenames never yield metadata', () => {
         assert.deepEqual(parsed.issues, ['invalid-filename']);
         assert.equal(parsed.name, null);
         assert.equal(parsed.date, null);
+        assert.equal(parsed.calendarDate, null);
     }
 });
 
@@ -128,6 +144,7 @@ test('voice recorder end times are recognized but not used as call start dates',
     assert.equal(parsed.format, 'oppo-recorder');
     assert.equal(parsed.timestampMeaning, 'recording-end');
     assert.equal(parsed.date?.getFullYear(), 2019);
+    assert.equal(parsed.calendarDate, null);
     assert.deepEqual(parseUploadContactFromFilename('REC20190410134327.mp3'), { name: null, phoneNumber: null, date: null });
 });
 

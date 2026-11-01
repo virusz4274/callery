@@ -62,7 +62,8 @@ export function useRecordingWorkspace(recordings: Recording[] = [], enabled = tr
     if (scrollRestoration.current) window.history.scrollRestoration = scrollRestoration.current;
   }, []);
   const listed = recordings.find(recording => recording.id === id);
-  const cached = id ? opened[id] : undefined;
+  const ownerKey = (recordingId: string) => `${user?.id}:${recordingId}`;
+  const cached = id && user ? opened[ownerKey(id)] : undefined;
   const seed = cached && (!listed || cached.updatedAt > listed.updatedAt) ? cached : listed;
   const { data, error, isLoading, mutate } = useSWR(
     id && user ? ['recording-details', user.id, id] : null,
@@ -76,21 +77,21 @@ export function useRecordingWorkspace(recordings: Recording[] = [], enabled = tr
 
   return {
     id,
-    autoPlay: Boolean(id && autoPlayId === id),
+    autoPlay: Boolean(id && user && autoPlayId === ownerKey(id)),
     recording: data && (!seed || data.updatedAt >= seed.updatedAt) ? data : seed,
     error,
     isLoading,
     retry: () => mutate(),
     open: (recording: Recording, play = false) => {
       rememberOrigin();
-      setAutoPlayId(play ? recording.id : null);
-      setOpened(current => ({ ...current, [recording.id]: recording }));
+      setAutoPlayId(play ? ownerKey(recording.id) : null);
+      setOpened(current => ({ ...current, [ownerKey(recording.id)]: recording }));
       openRecordingWorkspace(recording.id);
     },
     openId: (recordingId: string) => { rememberOrigin(); openRecordingWorkspace(recordingId); },
     close: () => { if (id) closeRecordingWorkspace(id); },
     update: async (recording: Recording) => {
-      setOpened(current => ({ ...current, [recording.id]: recording }));
+      setOpened(current => ({ ...current, [ownerKey(recording.id)]: recording }));
       await mutate(recording, false);
     },
   };

@@ -12,8 +12,8 @@ let cachedProvider: string | undefined;
  * Text-AI backend selected by AI_PROVIDER (summaries, transliteration,
  * embeddings). Default: gemini.
  */
-export function getAiService(): IAIService {
-    const provider = aiProvider();
+export function getAiService(selectedProvider?: 'gemini' | 'openai_compat'): IAIService {
+    const provider = selectedProvider ?? aiProvider();
     if (!cached || cachedProvider !== provider) {
         cachedProvider = provider;
         cached = provider === 'openai_compat' ? new OpenAiCompatService() : new GeminiService();

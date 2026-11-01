@@ -35,6 +35,9 @@ test('email signup, password controls, logout and login preserve the destination
     await page.getByRole('menuitem', { name: 'Log Out' }).click();
     expect((await logout).ok()).toBe(true);
     expect((await page.request.get('/api/user/profile')).status()).toBe(401);
+    await page.waitForURL(url => process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true'
+        ? url.pathname === '/'
+        : url.pathname === '/login' && url.searchParams.get('redirect') === '/recordings');
     await page.goto('/login?redirect=%2Fupload');
     await page.getByPlaceholder('you@company.com').fill(email);
     await page.getByPlaceholder('Enter your password').fill(password);

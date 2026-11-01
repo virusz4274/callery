@@ -2,11 +2,14 @@ import { logger } from '@/lib/logger';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
 import type { SonioxPollResponse } from '../types';
 import type { SonioxConfig } from './soniox-api-types';
+import { defaultTranscriptEnvelope } from '@/lib/transcription/ai-work-plan';
+import { readBoundedTranscriptionText } from '../response';
 
 export async function pollCompletedTranscript(
     config: SonioxConfig,
     transcriptionId: string,
-    durationSeconds?: number
+    durationSeconds?: number,
+    maximumResponseBytes?: number,
 ): Promise<SonioxPollResponse> {
     const initialWaitMs = durationSeconds ? Math.min(durationSeconds * 0.3 * 1000, 30000) : 2000;
     const safeWaitMs = Math.max(initialWaitMs, 2000);
@@ -31,6 +34,7 @@ export async function pollCompletedTranscript(
 
             const pollResponse = await fetch(`${config.baseUrl}/v1/transcriptions/${transcriptionId}`, {
                 method: 'GET',
+                signal: AbortSignal.timeout(60_000),
                 headers: { Authorization: `Bearer ${config.apiKey}` },
             });
 
@@ -39,7 +43,7 @@ export async function pollCompletedTranscript(
                 continue;
             }
 
-            const data = (await pollResponse.json()) as SonioxPollResponse;
+            const data = JSON.parse(await readBoundedTranscriptionText(pollResponse, 64 * 1024)) as SonioxPollResponse;
             status = (data.status || 'UNKNOWN').toUpperCase();
 
             if (status === 'COMPLETED') {
@@ -47,11 +51,12 @@ export async function pollCompletedTranscript(
 
                 const transcriptResponse = await fetch(`${config.baseUrl}/v1/transcriptions/${transcriptionId}/transcript`, {
                     method: 'GET',
+                    signal: AbortSignal.timeout(60_000),
                     headers: { Authorization: `Bearer ${config.apiKey}` },
                 });
 
                 if (!transcriptResponse.ok) {
-                    const errorText = await transcriptResponse.text();
+                    const errorText = await readBoundedTranscriptionText(transcriptResponse, 64 * 1024);
                     logger.error(`[Soniox] Failed to fetch transcript data (${transcriptResponse.status}): ${errorText}`);
                     const apiError = new Error(`Failed to fetch Soniox transcript data: ${transcriptResponse.status} ${errorText}`) as Error & {
                         status?: number;
@@ -72,7 +77,7 @@ export async function pollCompletedTranscript(
                     throw apiError;
                 }
 
-                resultData = (await transcriptResponse.json()) as SonioxPollResponse;
+                resultData = JSON.parse(await readBoundedTranscriptionText(transcriptResponse, maximumResponseBytes || defaultTranscriptEnvelope(durationSeconds || 60).maxResponseBytes)) as SonioxPollResponse;
                 logger.info(`[Soniox] Successfully fetched transcript data. Tokens: ${resultData.tokens?.length || 0}`);
                 await resolveExternalServiceIncident({
                     provider: 'soniox',

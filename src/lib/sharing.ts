@@ -6,18 +6,45 @@ function getSigningKey() {
     return featureSigningKey('SHARE_LINK_SECRET', 'share');
 }
 
-export interface SharedLinkPayload extends JWTPayload {
-    recordingId: string;
+export interface SharedClipBounds {
     clipStartSeconds?: number;
     clipEndSeconds?: number;
 }
 
-function sanitizeClipSeconds(value: unknown): number | undefined {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-        return undefined;
-    }
+export interface SharedLinkPayload extends JWTPayload, SharedClipBounds {
+    recordingId: string;
+}
 
-    return Math.floor(value);
+function clipSeconds(value: unknown): number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        throw new Error('Clip bounds must be finite, nonnegative numbers.');
+    }
+    return value;
+}
+
+/** Invalid supplied bounds must never silently turn a clip into a full share. */
+export function parseShareClipBounds(input: { clipStartSeconds?: unknown; clipEndSeconds?: unknown }): SharedClipBounds {
+    const start = clipSeconds(input.clipStartSeconds);
+    const end = clipSeconds(input.clipEndSeconds);
+    if (end !== undefined && end <= (start ?? 0)) {
+        throw new Error('Clip end must be greater than clip start.');
+    }
+    return {
+        ...(start !== undefined ? { clipStartSeconds: start } : {}),
+        ...(end !== undefined ? { clipEndSeconds: end } : {}),
+    };
+}
+
+export function resolveShareClipBounds(input: SharedClipBounds, duration: number): { start: number; end: number } | null {
+    const bounds = parseShareClipBounds(input);
+    if (bounds.clipStartSeconds === undefined && bounds.clipEndSeconds === undefined) return null;
+    const start = bounds.clipStartSeconds ?? 0;
+    const end = bounds.clipEndSeconds ?? duration;
+    if (!Number.isFinite(duration) || duration <= 0 || start >= duration || end > duration || end <= start) {
+        throw new Error('Clip bounds must be within the recording duration.');
+    }
+    return { start, end };
 }
 
 /**
@@ -27,7 +54,8 @@ function sanitizeClipSeconds(value: unknown): number | undefined {
  */
 export async function generateShareToken(payload: SharedLinkPayload, expiresIn: string = '24h'): Promise<string> {
     const key = getSigningKey();
-    return await new SignJWT(payload)
+    const bounds = parseShareClipBounds(payload);
+    return await new SignJWT({ recordingId: payload.recordingId, ...bounds })
         .setProtectedHeader({ alg: 'HS256' })
         .setAudience('vosift:share')
         .setIssuedAt()
@@ -37,7 +65,7 @@ export async function generateShareToken(payload: SharedLinkPayload, expiresIn: 
 
 /**
  * Verify a share token and return the payload.
- * Throws an error if invalid or expired.
+ * Returns null if invalid or expired.
  */
 export async function verifyShareToken(token: string): Promise<SharedLinkPayload | null> {
     try {
@@ -47,20 +75,11 @@ export async function verifyShareToken(token: string): Promise<SharedLinkPayload
             return null;
         }
 
-        const clipStartSeconds = sanitizeClipSeconds(payload.clipStartSeconds);
-        const clipEndSeconds = sanitizeClipSeconds(payload.clipEndSeconds);
-        if (
-            typeof clipStartSeconds === 'number' &&
-            typeof clipEndSeconds === 'number' &&
-            clipEndSeconds <= clipStartSeconds
-        ) {
-            return null;
-        }
+        const bounds = parseShareClipBounds({ clipStartSeconds: payload.clipStartSeconds, clipEndSeconds: payload.clipEndSeconds });
 
         return {
             recordingId: payload.recordingId,
-            clipStartSeconds,
-            clipEndSeconds,
+            ...bounds,
         };
     } catch (error) {
         return null;

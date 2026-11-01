@@ -1,33 +1,64 @@
 import { type Db } from 'mongodb';
 import { getMongoDb } from '@/lib/mongodb';
 import { ApiError } from './contracts';
+import type { InitializationIndexGroup } from '@/lib/db/index-definitions';
 
 export const IntegrationCollections = { tokens: 'integration_tokens', uploads: 'integration_uploads', jobs: 'integration_jobs' } as const;
 
 // Required unique indexes are checked at runtime as well as by db:init. Never
 // serve an apparently healthy API when deduplication cannot be enforced.
 const ready = new WeakMap<Db, Promise<void>>();
-export async function initializeIntegrationIndexes(db: Db) {
-    await db.collection(IntegrationCollections.tokens).createIndexes([
+export const INTEGRATION_INDEX_GROUPS: InitializationIndexGroup[] = [
+    { collection: IntegrationCollections.tokens, indexes: [
         { key: { hash: 1 }, unique: true, name: 'token_hash_unique' },
         { key: { owner: 1, createdAt: -1 }, name: 'token_owner' },
-    ]);
-    await db.collection(IntegrationCollections.uploads).createIndexes([
+    ] },
+    { collection: IntegrationCollections.uploads, indexes: [
         { key: { owner: 1, integrationId: 1, requestKey: 1 }, unique: true, partialFilterExpression: { requestKey: { $type: 'string' } }, name: 'upload_request_unique' },
         { key: { state: 1, expiresAt: 1, leaseUntil: 1 }, name: 'upload_worker' },
-    ]);
-    await db.collection(IntegrationCollections.jobs).createIndexes([
+    ] },
+    { collection: IntegrationCollections.jobs, indexes: [
         { key: { state: 1, leaseUntil: 1, createdAt: 1 }, name: 'job_worker' },
-    ]);
-    await db.collection('recordings').createIndexes([
+        { key: { batchId: 1, state: 1 }, name: 'batch_job_state' },
+    ] },
+    { collection: 'transcription_batches', indexes: [
+        { key: { owner: 1, createdAt: -1 }, name: 'transcription_batch_owner' },
+        { key: { status: 1, updatedAt: 1 }, name: 'transcription_batch_worker' },
+    ] },
+    { collection: 'transcription_imports', indexes: [{ key: { owner: 1, createdAt: -1 } }] },
+    { collection: 'recordings', indexes: [
         { key: { ingestionId: 1 }, unique: true, partialFilterExpression: { ingestionId: { $type: 'string' } }, name: 'ingestion_unique' },
         { key: { authSubject: 1, 'integration.source': 1, 'integration.externalId': 1 }, unique: true, partialFilterExpression: { 'integration.externalId': { $type: 'string' }, 'integration.source': { $type: 'string' } }, name: 'external_recording_unique' },
-    ]);
+        { key: { authSubject: 1, bulkImportId: 1, transcriptionBatchId: 1, recordingDateKey: -1 }, name: 'transcription_waiting' },
+    ] },
+];
+
+async function awaitInitialization(db: Db, pending: Promise<void>): Promise<void> {
+    try { await pending; }
+    catch (error) {
+        if (ready.get(db) === pending) ready.delete(db);
+        throw error;
+    }
 }
+
+/** Explicit db:init rechecks every index and replaces stale runtime proof. */
+export async function initializeIntegrationIndexes(db: Db): Promise<void> {
+    const pending = (async () => {
+        for (const group of INTEGRATION_INDEX_GROUPS) await db.collection(group.collection).createIndexes(group.indexes);
+    })();
+    ready.set(db, pending);
+    await awaitInitialization(db, pending);
+}
+
+export async function ensureIntegrationIndexes(db: Db): Promise<void> {
+    const pending = ready.get(db);
+    if (!pending) return initializeIntegrationIndexes(db);
+    await awaitInitialization(db, pending);
+}
+
 export async function integrationDb(): Promise<Db> {
     const db = await getMongoDb();
-    let promise = ready.get(db);
-    if (!promise) { promise = initializeIntegrationIndexes(db); ready.set(db, promise); }
-    try { await promise; } catch { ready.delete(db); throw new ApiError(503, 'api_not_ready', 'Integration database indexes are unavailable.', 60); }
+    try { await ensureIntegrationIndexes(db); }
+    catch { throw new ApiError(503, 'api_not_ready', 'Integration database indexes are unavailable.', 60); }
     return db;
 }

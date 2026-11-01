@@ -9,6 +9,7 @@ import { TableSelectionState, RecordingEmptyState } from './types';
 import { RecordingsEmptyContent } from './desktop/recordings-table-empty-state';
 import { SummaryPreview } from './summary-preview';
 import { useCanDeleteRecording, useTeamPolicy } from '@/hooks/use-team-policy';
+import { enrichmentNeedsResume } from '@/lib/transcription/processing-errors';
 
 // Helper for duration formatting
 const formatDurationLocal = (seconds: number) => {
@@ -87,7 +88,7 @@ export const RecordingsTableMobile = memo(function RecordingsTableMobile({
                         <Dropdown.Popover isNonModal><Dropdown.Menu aria-label="Recording actions">
                             <Dropdown.Item id="open" onPress={() => onOpenDialog(rec)}>Open recording</Dropdown.Item>
                             <Dropdown.Item id="select" onPress={() => { toggleSelectionMode(); toggleSelect(rec.id); }}>Select</Dropdown.Item>
-                            {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending') && onRetryTranscription && (!team || team.transcriptionMode !== 'off') && <Dropdown.Item id="retry" onPress={() => onRetryTranscription(rec)}>Retry transcription</Dropdown.Item>}
+                            {(rec.transcriptionStatus === 'failed' || rec.transcriptionStatus === 'pending') && onRetryTranscription && (!team || team.transcriptionMode !== 'off') && <Dropdown.Item id="retry" onPress={() => onRetryTranscription(rec)}>{enrichmentNeedsResume(rec.processingStatus) ? 'Resume enrichment' : 'Retry transcription'}</Dropdown.Item>}
                             {canDelete && <Dropdown.Item id="delete" className="text-danger" onPress={() => onDeleteRequest([rec])}>Delete</Dropdown.Item>}
                         </Dropdown.Menu></Dropdown.Popover>
                     </Dropdown></div>}

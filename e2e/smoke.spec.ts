@@ -44,20 +44,20 @@ const protectedRouteExpectations = [
 test('public pages load', async ({ page }) => {
   test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Managed public pages require billing.');
   await page.goto('/');
-  await expect(page.locator('body')).toContainText('Call Archive & AI Search');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Start free workspace', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Find the details in your recorded calls.');
+  await expect(page.getByRole('link', { name: 'Start free trial', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('figure', { name: 'Example call', exact: true })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('The homepage now leads with');
   await expect(page.locator('body')).not.toContainText('capability story');
 
   await page.goto('/pricing');
   await expect(page.locator('body')).toContainText('Pricing');
-  await expect(page.locator('body')).toContainText('Compare what changes');
+  await expect(page.getByRole('table', { name: 'Compare Callery plans', exact: true })).toBeVisible();
   await expect(page.locator('body')).toContainText('Storage');
   await expect(page.locator('body')).not.toContainText('The page now shows the whole ladder at once');
 
   await page.goto('/support');
-  await expect(page.locator('body')).toContainText('Send a support message');
+  await expect(page.getByRole('heading', { name: 'Send a message', exact: true })).toBeVisible();
 });
 
 test('signed-out protected routes redirect into login with route context', async ({ page }) => {
@@ -154,12 +154,12 @@ test('authenticated user journey works', async ({ page }) => {
     if (process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true') {
       const response = await page.request.post('/api/support', { data: {} });
       expect(response.status()).toBe(403);
-      expect((await response.json()).supportUrl).toBe('https://github.com/virusz4274/Vosift/issues');
+      expect((await response.json()).supportUrl).toBe('https://github.com/virusz4274/callery/issues');
       return;
     }
     await page.goto('/support');
     await page.getByPlaceholder('Your name').fill('E2E Smoke');
-    await page.getByPlaceholder('you@company.com').fill(email);
+    await page.getByPlaceholder('you@example.com').fill(email);
     await page.getByPlaceholder('What do you need help with?').fill('Automated smoke test');
     await page
       .getByPlaceholder('Describe the problem, the page you were on, and anything you already tried.')
@@ -167,7 +167,7 @@ test('authenticated user journey works', async ({ page }) => {
     await page.getByRole('button', { name: /Send message/i }).click();
 
     await expect(page.locator('body')).toContainText(
-      'Your message has been sent. We will get back to you soon.',
+      'Message sent. We’ll reply by email.',
       { timeout: 30_000 }
     );
   });
@@ -187,21 +187,29 @@ test('authenticated user journey works', async ({ page }) => {
     await expect(page.locator('body')).toContainText('Uploaded');
 
     await page.goto('/recordings');
-    await expect(page.getByRole('heading', { name: /Recordings/i })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { name: /Recordings/i, level: 1 })).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
-    await expect(page.locator('body')).toContainText(recordingStem, { timeout: 60_000 });
+    await page.getByRole('grid', { name: 'Recordings', exact: true })
+      .getByRole('button', { name: 'Unknown caller', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Unknown caller', exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Original filename', exact: true }).click();
+    await expect(dialog.getByText(recordingName, { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   });
 
   await test.step('workspace surfaces keep primary actions visible', async () => {
     await page.goto('/contacts');
     await expect(page.getByRole('heading', { name: /^Contacts$/i })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Upload recordings', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Upload recordings', exact: true })).toHaveAttribute('href', '/upload');
     await expect(page.getByRole('searchbox', { name: 'Search contacts' })).toBeVisible();
 
     await page.goto('/files');
     await expect(page.getByRole('heading', { name: /^Files$/i })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('button', { name: /Upload recordings/i })).toBeVisible();
-    await expect(page.locator('body')).toContainText('Current folder:');
+    await expect(page.getByRole('list', { name: 'Folder breadcrumbs' })
+      .getByRole('link', { name: 'Home', exact: true })).toBeVisible();
   });
 
   await test.step('exercise billing endpoints for the signed-in user', async () => {

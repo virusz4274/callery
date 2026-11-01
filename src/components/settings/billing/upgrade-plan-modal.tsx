@@ -20,14 +20,14 @@ export function UpgradePlanModal({
     return (
         <Modal>
             <Button variant="primary" className="mt-4 px-6 font-semibold sm:mt-0" onPress={onOpen}>
-                Upgrade Plan
+                Choose a plan
             </Button>
             <Modal.Backdrop>
                 <Modal.Container>
                     <Modal.Dialog className="sm:max-w-xl">
                         <Modal.CloseTrigger />
                         <Modal.Header>
-                            <Modal.Heading>Upgrade Your Plan</Modal.Heading>
+                            <Modal.Heading>Choose a Plan</Modal.Heading>
                         </Modal.Header>
                         <Modal.Body>
                             {isLoadingPlans ? (
@@ -59,6 +59,7 @@ export function UpgradePlanModal({
                                                 ))}
                                             </ul>
                                             <Button
+                                                slot="close"
                                                 className="w-full font-semibold"
                                                 variant="primary"
                                                 onPress={() => onCheckout(plan.stripePriceId)}

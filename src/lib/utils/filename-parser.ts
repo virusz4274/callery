@@ -19,6 +19,8 @@ export interface ParsedRecordingFilename extends ParsedContactInfo {
     /** null means no explicit offset; preserve existing local-time semantics. */
     timezoneOffsetMinutes: number | null;
     timestampMeaning: 'call' | 'recording-end' | null;
+    /** Validated call date as written in the filename, independent of viewing timezone. */
+    calendarDate: string | null;
 }
 
 type Candidate = {
@@ -135,7 +137,7 @@ function parseDate(candidate: Candidate): { date: Date | null; offset: number | 
 export function parseRecordingFilename(filename: string): ParsedRecordingFilename {
     const result: ParsedRecordingFilename = {
         name: null, phoneNumber: null, date: null, format: null, status: 'unrecognized',
-        issues: [], direction: null, simSlot: null, timezoneOffsetMinutes: null, timestampMeaning: null,
+        issues: [], direction: null, simSlot: null, timezoneOffsetMinutes: null, timestampMeaning: null, calendarDate: null,
     };
     // A filename must be one basename; never extract metadata from a supplied path.
     if (!filename.trim() || filename.length > 1024 || /[/\\\p{Cc}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/u.test(filename)) {
@@ -171,6 +173,10 @@ export function parseRecordingFilename(filename: string): ParsedRecordingFilenam
     if (!candidate.date) result.issues.push('missing-date');
     else if (!result.date) result.issues.push('invalid-date');
     if (result.issues.includes('invalid-date') || result.issues.includes('invalid-caller')) result.status = 'invalid';
+    if (result.status === 'recognized' && result.date && result.timestampMeaning === 'call' && candidate.date) {
+        const raw = candidate.date.length === 6 ? `20${candidate.date}` : candidate.date;
+        result.calendarDate = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+    }
     return result;
 }
 

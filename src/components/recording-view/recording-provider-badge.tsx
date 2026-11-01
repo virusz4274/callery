@@ -2,7 +2,7 @@ import type { Recording } from '@/lib/types';
 import { Chip } from '@heroui/react';
 
 type RecordingProviderBadgeProps = {
-    recording: Recording;
+    recording: Pick<Recording, 'transcriptionProvider' | 'transcriptionModel'>;
 };
 
 export function RecordingProviderBadge({ recording }: RecordingProviderBadgeProps) {

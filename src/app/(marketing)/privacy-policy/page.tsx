@@ -8,7 +8,7 @@ export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
   title: 'Privacy policy',
   description:
-    'Read how the service collects, stores, and protects account information and uploaded call recordings.',
+    'How Callery handles account details, uploaded recordings, and information collected when you use the service.',
   path: '/privacy-policy',
 });
 

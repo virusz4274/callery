@@ -8,6 +8,9 @@ export interface DirectUploadClientResult {
     recordingId?: string;
 }
 
+export interface DirectUploadClientOptions {
+    bulkImportId?: string;
+}
 
 function buildR2ErrorMessage(status: number, statusText: string): string {
     if (status === 403) {
@@ -24,12 +27,14 @@ function buildR2ErrorMessage(status: number, statusText: string): string {
 async function initializeUpload(
     fileName: string,
     fileSize: number,
-    mimeType?: string
+    mimeType?: string,
+    bulkImportId?: string,
 ): Promise<DirectUploadClientResult & { uploadUrl?: string; uploadToken?: string; headers?: Record<string, string> }> {
     const initResult = await initializeDirectUpload({
         fileName,
         fileSize,
         mimeType,
+        ...(bulkImportId ? { bulkImportId } : {}),
     });
 
     if (!initResult.success || !initResult.uploadUrl || !initResult.uploadToken) {
@@ -47,8 +52,8 @@ async function initializeUpload(
     };
 }
 
-export async function uploadFileDirectToR2(file: File): Promise<DirectUploadClientResult> {
-    const initResult = await initializeUpload(file.name, file.size, file.type);
+export async function uploadFileDirectToR2(file: File, options: DirectUploadClientOptions = {}): Promise<DirectUploadClientResult> {
+    const initResult = await initializeUpload(file.name, file.size, file.type, options.bulkImportId);
     if (!initResult.success || !initResult.uploadUrl || !initResult.uploadToken) {
         return initResult;
     }

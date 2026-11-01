@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoServerError } from 'mongodb';
+import { randomUUID } from 'node:crypto';
+import { claimWebhookEvent, finishWebhookEvent } from '@/lib/stripe/webhook-events';
+import { getInvoiceSubscriptionId, stripeObjectId } from '@/lib/stripe/objects';
+import { syncFailedCheckout } from '@/lib/stripe/checkout';
+import { syncInvoicePaymentIssue } from '@/lib/stripe/payment-issues';
 import { getStripe } from '@/lib/stripe';
-import { applyOneTimeCheckoutPlan, linkCustomerToUser, syncSubscription } from '@/lib/stripe/sync';
+import { applyOneTimeCheckoutPlan, isVerifiedSubscriptionActivation, linkCustomerToUser, syncSubscription } from '@/lib/stripe/sync';
 import Stripe from 'stripe';
 import { logger } from '@/lib/logger';
 import { createNotification } from '@/lib/notifications';
@@ -9,145 +13,16 @@ import { findUserByStripeCustomerId } from '@/lib/db/users';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '@/lib/db/types';
 import { env } from '@/lib/env';
+import { confirmUsageTopup, confirmAutomaticUsageTopup, suspendPrepaidForCharge, syncUsageCreditGrant } from '@/lib/stripe/prepaid-topup';
+import { syncPaidInvoiceFunding } from '@/lib/stripe/invoice-funding';
+import { advancePlanChange, BILLING_OPERATIONS, type BillingChangeOperation } from '@/lib/stripe/plan-change';
+import { billingFence, withBillingLease } from '@/lib/stripe/billing-lock';
+import { verifyUsageInvoice } from '@/lib/stripe/invoice-verification';
+import { markCatalogDiscoveryDirty } from '@/lib/stripe/catalog-discovery';
+import { syncCreditNoteReview } from '@/lib/stripe/credit-notes';
+import { sourcePlanUsableWhileAwaitingPayment } from '@/lib/stripe/billing-types';
 
 export const runtime = 'nodejs';
-
-type StripeWebhookEventStatus = 'processing' | 'processed' | 'failed';
-
-type StripeWebhookEventDoc = {
-    _id: string; // Stripe Event ID
-    type: Stripe.Event.Type;
-    status: StripeWebhookEventStatus;
-    createdAt: Date;
-    receivedAt: Date;
-    updatedAt: Date;
-    processedAt?: Date;
-    attempts: number;
-    lastError?: string | null;
-};
-
-const WEBHOOK_PROCESSING_STALE_MS = 10 * 60 * 1000;
-
-function isDuplicateKeyError(error: unknown): boolean {
-    if (error instanceof MongoServerError) {
-        return error.code === 11000;
-    }
-
-    return error instanceof Error && error.message.includes('E11000');
-}
-
-async function claimWebhookEvent(event: Stripe.Event): Promise<'claimed' | 'already_processed' | 'in_progress'> {
-    const db = await getMongoDb();
-    const events = db.collection<StripeWebhookEventDoc>(Collections.STRIPE_WEBHOOK_EVENTS);
-    const now = new Date();
-
-    try {
-        const result = await events.updateOne(
-            {
-                _id: event.id,
-                $or: [{ status: { $exists: false } }, { status: 'failed' }],
-            },
-            {
-                $setOnInsert: {
-                    createdAt: new Date(event.created * 1000),
-                    receivedAt: now,
-                },
-                $set: {
-                    type: event.type,
-                    status: 'processing',
-                    updatedAt: now,
-                    lastError: null,
-                },
-                $inc: {
-                    attempts: 1,
-                },
-            },
-            { upsert: true }
-        );
-
-        if (result.matchedCount > 0 || result.upsertedCount > 0) {
-            return 'claimed';
-        }
-
-        return 'in_progress';
-    } catch (error) {
-        if (!isDuplicateKeyError(error)) {
-            throw error;
-        }
-
-        const existing = await events.findOne({ _id: event.id });
-        if (existing?.status === 'processed') {
-            return 'already_processed';
-        }
-
-        if (existing?.status === 'failed') {
-            const retry = await events.updateOne(
-                { _id: event.id, status: 'failed' },
-                {
-                    $set: {
-                        status: 'processing',
-                        updatedAt: now,
-                        lastError: null,
-                        type: event.type,
-                    },
-                    $inc: { attempts: 1 },
-                }
-            );
-            if (retry.modifiedCount > 0) {
-                return 'claimed';
-            }
-        }
-
-        if (existing?.status === 'processing' && now.getTime() - existing.updatedAt.getTime() > WEBHOOK_PROCESSING_STALE_MS) {
-            const takeover = await events.updateOne(
-                { _id: event.id, status: 'processing', updatedAt: existing.updatedAt },
-                {
-                    $set: {
-                        status: 'processing',
-                        updatedAt: now,
-                        lastError: null,
-                        type: event.type,
-                    },
-                    $inc: { attempts: 1 },
-                }
-            );
-            if (takeover.modifiedCount > 0) {
-                return 'claimed';
-            }
-        }
-
-        return 'in_progress';
-    }
-}
-
-async function markWebhookProcessed(eventId: string) {
-    const db = await getMongoDb();
-    await db.collection<StripeWebhookEventDoc>(Collections.STRIPE_WEBHOOK_EVENTS).updateOne(
-        { _id: eventId },
-        {
-            $set: {
-                status: 'processed',
-                processedAt: new Date(),
-                updatedAt: new Date(),
-                lastError: null,
-            },
-        }
-    );
-}
-
-async function markWebhookFailed(eventId: string, errorMessage: string) {
-    const db = await getMongoDb();
-    await db.collection<StripeWebhookEventDoc>(Collections.STRIPE_WEBHOOK_EVENTS).updateOne(
-        { _id: eventId },
-        {
-            $set: {
-                status: 'failed',
-                lastError: errorMessage,
-                updatedAt: new Date(),
-            },
-        }
-    );
-}
 
 function getCustomerIdFromCheckoutSession(session: Stripe.Checkout.Session): string | null {
     if (typeof session.customer === 'string') {
@@ -169,26 +44,11 @@ function getCustomerIdFromInvoice(invoice: Stripe.Invoice): string | null {
     return typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id;
 }
 
-function getInvoiceSubscriptionId(
-    invoice: Stripe.Invoice
-): string | null {
-    const withSubscription = invoice as Stripe.Invoice & {
-        subscription?: string | Stripe.Subscription | null;
-    };
-
-    if (!withSubscription.subscription) {
-        return null;
-    }
-
-    return typeof withSubscription.subscription === 'string'
-        ? withSubscription.subscription
-        : withSubscription.subscription.id;
-}
-
 async function handleCheckoutSessionEvent(
-    session: Stripe.Checkout.Session,
-    eventType: Stripe.Event.Type
+    reference: Stripe.Checkout.Session
 ) {
+    const session = await getStripe().checkout.sessions.retrieve(reference.id);
+    if (await confirmUsageTopup(session.id)) return;
     const authSubject = session.client_reference_id || session.metadata?.authSubject;
     const customerId = getCustomerIdFromCheckoutSession(session);
 
@@ -209,7 +69,7 @@ async function handleCheckoutSessionEvent(
 
     if (session.mode === 'payment') {
         const isPaid =
-            session.payment_status === 'paid' || eventType === 'checkout.session.async_payment_succeeded';
+            session.payment_status === 'paid' || (session.payment_status === 'no_payment_required' && session.amount_total === 0);
 
         if (!isPaid) {
             logger.warn(`[Stripe Webhook] Checkout session ${session.id} is not paid yet, skipping one-time plan sync`);
@@ -227,28 +87,34 @@ async function handleStripeCustomerDeleted(customerId: string) {
         return;
     }
 
-    await db.collection<User>(Collections.USERS).updateOne(
-        { _id: user._id },
-        {
+    await withBillingLease(db, user.authSubject, async (current, owner) => {
+        if (current.stripeCustomerId !== customerId) return;
+        await db.collection<User>(Collections.USERS).updateOne(
+        billingFence(current, owner), {
             $set: {
                 'billingSettings.allowOverage': false,
+                stripeSubscriptionStatus: 'canceled',
+                billingReview: { reason: 'customer_deleted_with_financial_history', createdAt: new Date() },
+                ...(user.lifetimeUsageSetup ? { 'lifetimeUsageSetup.state': 'needs_action', 'lifetimeUsageSetup.lastErrorCode': 'customer_removed' } : {}),
                 updatedAt: new Date(),
             },
+            $inc: { stripeCustomerGeneration: 1 },
             $unset: {
-                stripeCustomerId: '',
                 stripeSubscriptionId: '',
                 stripePriceId: '',
-                stripeSubscriptionStatus: '',
+                stripeMetering: '',
                 stripeCurrentPeriodEnd: '',
+                stripeCurrentPeriodStart: '',
             },
         }
-    );
+        );
+    });
 
     await createNotification(
         user._id,
         'warning',
         'Billing Account Reset',
-        'Your Stripe billing account was removed. Re-open billing settings to reconnect payment.',
+        'Your Stripe billing account was removed. Contact support to review the billing history and restore payment.',
         '/settings?tab=billing'
     );
 }
@@ -274,13 +140,15 @@ export async function POST(req: NextRequest) {
         return new NextResponse(`Webhook Error: ${errorMessage}`, { status: 400 });
     }
 
+    const owner = randomUUID();
+    const db = await getMongoDb();
     try {
-        const claimStatus = await claimWebhookEvent(event);
+        const claimStatus = await claimWebhookEvent(db, event, owner);
         if (claimStatus === 'already_processed') {
             return new NextResponse('Already processed', { status: 200 });
         }
         if (claimStatus === 'in_progress') {
-            return new NextResponse('Processing', { status: 200 });
+            return new NextResponse('Processing; retry delivery', { status: 503 });
         }
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown webhook claim error';
@@ -290,20 +158,35 @@ export async function POST(req: NextRequest) {
 
     try {
         switch (event.type) {
+            case 'price.created':
+            case 'price.updated':
+            case 'price.deleted':
+            case 'product.created':
+            case 'product.updated':
+            case 'product.deleted':
+            case 'billing.meter.created':
+            case 'billing.meter.updated':
+            case 'billing.meter.deactivated':
+            case 'billing.meter.reactivated': {
+                await markCatalogDiscoveryDirty(event.data.object.id, await getMongoDb());
+                break;
+            }
+
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
-                await handleCheckoutSessionEvent(session, event.type);
+                await handleCheckoutSessionEvent(session);
                 break;
             }
 
             case 'checkout.session.async_payment_succeeded': {
                 const session = event.data.object as Stripe.Checkout.Session;
-                await handleCheckoutSessionEvent(session, event.type);
+                await handleCheckoutSessionEvent(session);
                 break;
             }
 
             case 'checkout.session.async_payment_failed': {
                 const session = event.data.object as Stripe.Checkout.Session;
+                await syncFailedCheckout(session.id);
                 const customerId = getCustomerIdFromCheckoutSession(session);
                 if (customerId) {
                     const user = await findUserByStripeCustomerId(customerId);
@@ -322,6 +205,7 @@ export async function POST(req: NextRequest) {
 
             case 'checkout.session.expired': {
                 const session = event.data.object as Stripe.Checkout.Session;
+                await syncFailedCheckout(session.id);
                 const customerId = getCustomerIdFromCheckoutSession(session);
                 if (customerId) {
                     const user = await findUserByStripeCustomerId(customerId);
@@ -352,7 +236,7 @@ export async function POST(req: NextRequest) {
                 const customerId = getCustomerIdFromSubscription(subscription);
                 const user = await findUserByStripeCustomerId(customerId);
                 if (user) {
-                    if (event.type === 'customer.subscription.created') {
+                    if (event.type === 'customer.subscription.created' && isVerifiedSubscriptionActivation(user, subscription.id)) {
                         await createNotification(
                             user._id,
                             'success',
@@ -429,19 +313,23 @@ export async function POST(req: NextRequest) {
                 if (subscriptionId) {
                     await syncSubscription(subscriptionId);
                 }
+                await syncInvoicePaymentIssue(invoice.id, event.type === 'invoice.payment_action_required' ? 'action_required' : 'failed');
 
                 // Notify User
                 const customerId = getCustomerIdFromInvoice(invoice);
                 if (customerId) {
                     const user = await findUserByStripeCustomerId(customerId);
                     if (user) {
-                        await createNotification(
-                            user._id,
-                            'error',
-                            'Payment Failed',
-                            'We were unable to process your payment. Please update your payment method to avoid service interruption.',
-                            '/settings?tab=billing'
-                        );
+                        const optionalChange = user.billingOperation?.invoiceId === invoice.id && sourcePlanUsableWhileAwaitingPayment(user);
+                        if (optionalChange) {
+                            await createNotification(user._id, 'info', 'Complete your plan change payment',
+                                'Complete payment and any bank verification on Stripe. Your current paid plan remains active while this change is unpaid.',
+                                '/settings?tab=billing');
+                        } else if (user.stripePaymentIssues?.[invoice.id]) {
+                            await createNotification(user._id, 'error', 'Payment Failed',
+                                'We were unable to process your payment. Please update your payment method to avoid service interruption.',
+                                '/settings?tab=billing');
+                        }
                     }
                 }
                 break;
@@ -449,6 +337,9 @@ export async function POST(req: NextRequest) {
 
             case 'invoice.payment_succeeded': {
                 const invoice = event.data.object as Stripe.Invoice;
+                await verifyUsageInvoice(invoice.id);
+                await syncPaidInvoiceFunding(invoice.id);
+                await syncInvoicePaymentIssue(invoice.id, 'reconcile');
                 const subscriptionId = getInvoiceSubscriptionId(invoice);
                 if (subscriptionId) {
                     await syncSubscription(subscriptionId);
@@ -458,6 +349,9 @@ export async function POST(req: NextRequest) {
 
             case 'invoice.paid': {
                 const invoice = event.data.object as Stripe.Invoice;
+                await verifyUsageInvoice(invoice.id);
+                await syncPaidInvoiceFunding(invoice.id);
+                await syncInvoicePaymentIssue(invoice.id, 'reconcile');
                 const subscriptionId = getInvoiceSubscriptionId(invoice);
                 if (subscriptionId) {
                     await syncSubscription(subscriptionId);
@@ -465,12 +359,53 @@ export async function POST(req: NextRequest) {
                 break;
             }
 
+            case 'invoice.finalized': {
+                await verifyUsageInvoice((event.data.object as Stripe.Invoice).id);
+                break;
+            }
+
+            case 'payment_intent.succeeded': {
+                await confirmAutomaticUsageTopup((event.data.object as Stripe.PaymentIntent).id);
+                break;
+            }
+
+            case 'billing.credit_grant.updated': {
+                await syncUsageCreditGrant((event.data.object as Stripe.Billing.CreditGrant).id);
+                break;
+            }
+
+            case 'credit_note.created':
+            case 'credit_note.updated':
+            case 'credit_note.voided': {
+                await syncCreditNoteReview((event.data.object as Stripe.CreditNote).id);
+                break;
+            }
+
             case 'invoice.voided':
             case 'invoice.marked_uncollectible': {
                 const invoice = event.data.object as Stripe.Invoice;
+                await syncInvoicePaymentIssue(invoice.id, 'reconcile');
                 const subscriptionId = getInvoiceSubscriptionId(invoice);
                 if (subscriptionId) {
                     await syncSubscription(subscriptionId);
+                }
+                break;
+            }
+
+            case 'charge.refunded':
+            case 'charge.dispute.created':
+            case 'charge.dispute.closed':
+            case 'refund.created':
+            case 'refund.updated': {
+                const object = event.data.object as unknown as { id: string; object: string; charge?: string | Stripe.Charge | null };
+                const chargeId = object.object === 'charge' ? object.id : stripeObjectId(object.charge);
+                if (chargeId) {
+                    await suspendPrepaidForCharge(chargeId);
+                    const charge = await getStripe().charges.retrieve(chargeId);
+                    const customerId = stripeObjectId(charge.customer);
+                    if (customerId) await db.collection<User>(Collections.USERS).updateOne({ stripeCustomerId: customerId }, {
+                        $set: { billingReview: { reason: 'refund_or_dispute', createdAt: new Date() }, updatedAt: new Date() },
+                    });
                 }
                 break;
             }
@@ -485,10 +420,18 @@ export async function POST(req: NextRequest) {
                 logger.info(`[Stripe Webhook] Unhandled event type ${event.type} (acknowledged without action)`);
         }
 
-        await markWebhookProcessed(event.id);
+        const object = event.data.object as unknown as { customer?: string | { id: string } };
+        const customerId = stripeObjectId(object.customer);
+        if (customerId) {
+            const operation = await db.collection<BillingChangeOperation>(BILLING_OPERATIONS).findOne({ customerId,
+                state: { $in: ['applying', 'awaiting_payment'] } });
+            if (operation) await advancePlanChange(operation._id);
+        }
+
+        if (!await finishWebhookEvent(db, event.id, owner)) return new NextResponse('Processing lease changed; retry delivery', { status: 503 });
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown webhook processing error';
-        await markWebhookFailed(event.id, errorMessage);
+        await finishWebhookEvent(db, event.id, owner, errorMessage);
         logger.error(`Error processing webhook: ${errorMessage}`);
         return new NextResponse('Internal Server Error', { status: 500 });
     }

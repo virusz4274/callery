@@ -4,13 +4,18 @@ import { NextRequest } from 'next/server';
 import { GITHUB_SUPPORT_URL } from '@/lib/public-site-policy';
 
 let previousBilling: string | undefined;
+let previousAppUrl: string | undefined;
 beforeEach(() => {
     previousBilling = process.env.NEXT_PUBLIC_ENABLE_BILLING;
+    previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
     process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
 });
 afterEach(() => {
     if (previousBilling === undefined) delete process.env.NEXT_PUBLIC_ENABLE_BILLING;
     else process.env.NEXT_PUBLIC_ENABLE_BILLING = previousBilling;
+    if (previousAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+    else process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
     mock.restoreAll();
 });
 

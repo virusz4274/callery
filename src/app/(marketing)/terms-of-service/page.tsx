@@ -8,7 +8,7 @@ export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
   title: 'Terms of service',
   description:
-    'Read the terms that govern access to the website, accounts, pricing, and call archive service.',
+    'Terms for Callery accounts, uploaded recordings, service use, and payments.',
   path: '/terms-of-service',
 });
 

@@ -1,46 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
-import { authFetch } from '@/lib/api-client';
+import { useState } from 'react';
+import type { AppUser } from '@/lib/auth/types';
 import { useToast } from '@/components/toast-provider';
 import type { User as UserProfile } from '@/lib/types';
+import { useSettingsForm } from './use-settings-form';
+import { useProfileSave } from './use-profile-save';
 
-async function getErrorMessage(response: Response, fallback: string): Promise<string> {
-    try {
-        const data = (await response.json()) as { error?: string };
-        return data.error || fallback;
-    } catch {
-        return fallback;
-    }
-}
-
-export function useNotificationSettings(userProfile: UserProfile | null) {
+export function useNotificationSettings(user: AppUser | null, userProfile: UserProfile | null) {
     const { toast } = useToast();
-    const [notificationsState, setNotificationsState] = useState({
-        activityDigest: 'weekly' as 'off' | 'weekly' | 'monthly',
-        ingestSuccess: true,
-        ingestFail: true,
-    });
+    const saveProfile = useProfileSave(user?.id);
+    const { form, state: notificationsState, setState: setNotificationsState } = useSettingsForm<UserProfile['notificationSettings']>(user?.id,
+        userProfile?.notificationSettings || { activityDigest: 'weekly', ingestSuccess: true, ingestFail: true });
     const [isSavingNotifications, setSavingNotifications] = useState(false);
-    const notificationsDirtyRef = useRef(false);
-
-    useEffect(() => {
-        if (userProfile?.notificationSettings && !notificationsDirtyRef.current) {
-            setNotificationsState(userProfile.notificationSettings);
-        }
-    }, [userProfile]);
 
     const handleSaveNotifications = async () => {
+        if (!user || isSavingNotifications) return;
+        const submitted = form.getValues();
         setSavingNotifications(true);
         try {
-            const response = await authFetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notificationSettings: notificationsState })
-            });
-            if (!response.ok) {
-                throw new Error(await getErrorMessage(response, 'Failed to save notification settings'));
-            }
+            if (!await saveProfile({ notificationSettings: submitted })) return;
+            form.reset(submitted, { keepDirtyValues: false });
             toast({ title: 'Notifications Saved', status: 'success' });
-            notificationsDirtyRef.current = false;
         } catch (error) {
             toast({
                 title: 'Save Failed',
@@ -57,6 +36,5 @@ export function useNotificationSettings(userProfile: UserProfile | null) {
         setNotificationsState,
         isSavingNotifications,
         handleSaveNotifications,
-        notificationsDirtyRef
     };
 }

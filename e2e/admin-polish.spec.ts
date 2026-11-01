@@ -138,6 +138,23 @@ test('settings retain inactive defaults and report field and save errors locally
     expect(fixture.calls).toHaveLength(2);
 });
 
+test('managed settings show immutable approved weights and save without rewriting self-host overrides', async ({ page }) => {
+    const fixture = await mockAdmin(page, '/admin/settings?managed=1');
+    for (const [label, value] of [['Soniox Multiplier', '1'], ['Gemini Multiplier', '3'], ['ElevenLabs Multiplier', '5']]) {
+        const field = page.getByLabel(label, { exact: true });
+        await expect(field).toHaveValue(value);
+        await expect(field).toHaveAttribute('readonly', '');
+    }
+    await expect(page.getByLabel('Compatible server Multiplier')).toHaveCount(0);
+    await expect(page.getByText(/Managed signups must start on an active Free Trial plan/)).toBeVisible();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Settings updated', { exact: true })).toBeVisible();
+    const saved = fixture.calls.find(call => call.name === 'updateSystemSettings')?.args[0];
+    expect(saved).toMatchObject({ allowSignups: true, maintenanceMode: false, defaultPlanId: adminPlans[0].id });
+    expect(saved).not.toHaveProperty('transcriptionMultipliers');
+    expect(fixture.unexpected).toEqual([]);
+});
+
 test('audit errors are separate from empty results and detail JSON is disclosed', async ({ page }) => {
     await mockAdmin(page, '/admin/audit?fail=1');
     await expect(page.getByText('Count unavailable')).toBeVisible();

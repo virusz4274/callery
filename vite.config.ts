@@ -1,8 +1,10 @@
-import { defineConfig } from "vite";
+import { defineConfig, normalizePath } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import nextConfig from "./next.config";
 
@@ -26,6 +28,8 @@ const punycodeEsm = path.join(
   path.dirname(require.resolve("punycode/package.json")),
   "punycode.es6.js",
 );
+const brandImageModule = normalizePath(fileURLToPath(new URL("./src/lib/brand-image.ts", import.meta.url)));
+const brandLogoPath = fileURLToPath(new URL("./public/brand/callery-logo.png", import.meta.url));
 
 export default defineConfig({
   resolve: {
@@ -41,6 +45,18 @@ export default defineConfig({
     ssr: { optimizeDeps: { include: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"] } },
   },
   plugins: [
+    {
+      name: "vosift:brand-image",
+      // Workers' filesystem contains bundled modules, not the public assets
+      // directory. Embed the same logo at build time so importing social-image
+      // routes never tries to read a missing file during Worker startup.
+      load(id) {
+        if (normalizePath(id) !== brandImageModule) return;
+        this.addWatchFile(brandLogoPath);
+        const logo = `data:image/png;base64,${readFileSync(brandLogoPath, "base64")}`;
+        return `export const brandLogoSrc = ${JSON.stringify(logo)};`;
+      },
+    },
     vinext({
       nextConfig: vinextNextConfig,
       images: { optimizer: imagesOptimizer() },

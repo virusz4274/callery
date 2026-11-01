@@ -1,256 +1,50 @@
 'use client';
 
-import { ActionLink } from '@/components/action-link';
-import { useState } from 'react';
-import { Button, Card, Chip, Separator, Spinner, Surface } from '@heroui/react';
-import type { LucideIcon } from 'lucide-react';
-import {
-  ArrowRight,
-  Building2,
-  Check,
-  FolderKanban,
-  Headphones,
-  Rocket,
-  Sparkles,
-} from 'lucide-react';
+import Link from 'next/link';
+import { useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/components/toast-provider';
+import { Check, LoaderCircle } from 'lucide-react';
 import { authFetch } from '@/lib/api-client';
-import type { PublicPlan } from '@/app/actions/plans';
-
-const addOns = [
-  {
-    title: 'Advanced AI transcription',
-    detail: 'Higher-accuracy transcription for larger archives or recordings that need closer review.',
-    price: '$0.05',
-    cadence: '/minute',
-  },
-  {
-    title: 'Additional storage',
-    detail: 'Expand your archive as more phone recordings and historical calls move into one library.',
-    price: '$2',
-    cadence: '/GB / month',
-  },
-];
+import {
+  formatMarketingPrice,
+  formatMarketingStorage,
+  type MarketingPlan,
+  type MarketingPricing,
+} from '@/lib/marketing-pricing';
+import styles from '@/components/marketing/pricing.module.css';
 
 type PricingSectionProps = {
-  availablePlans?: PublicPlan[];
+  pricing: MarketingPricing;
   salesEmail: string;
 };
 
-type DisplayPlan = {
-  id: string;
-  name: string;
-  description: string;
-  price: string;
-  cadence: string;
-  highlights: string[];
-  icon: LucideIcon;
-  accentClass: string;
-  badge?: string;
-  featured?: boolean;
-  action: 'signup' | 'checkout' | 'contact';
-  ctaLabel: string;
-  sourcePlan?: PublicPlan;
-};
+const count = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+const dollars = (value: string) => `$${value.includes('.') ? value.replace(/0+$/, '').replace(/\.$/, '') : value}`;
+const cadence = (interval: MarketingPlan['interval']) => interval === 'lifetime' ? 'once' : interval === 'yearly' ? '/ year' : '/ month';
 
-type ComparisonRow = {
-  label: string;
-  description: string;
-  values: Record<string, string>;
-};
-
-function formatCadence(interval: PublicPlan['interval']) {
-  if (interval === 'monthly') {
-    return '/month';
-  }
-
-  if (interval === 'yearly') {
-    return '/year';
-  }
-
-  if (interval === 'lifetime') {
-    return 'one-time';
-  }
-
-  return '';
+function storageAllowance(plan: MarketingPlan) {
+  if (plan.storageBytes === null) return 'Contact us for details';
+  if (plan.interval === 'lifetime' && plan.storageBytes === 0) return 'Storage paid as you use it';
+  return `${formatMarketingStorage(plan.storageBytes)} storage included`;
 }
 
-function formatPrice(value: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
-  }).format(value);
+function transcriptionAllowance(plan: MarketingPlan) {
+  if (plan.weightedMinutes === null) return 'Contact us for details';
+  if (plan.interval === 'lifetime' && plan.weightedMinutes === 0) return 'Transcription paid as you use it';
+  return `${count(plan.weightedMinutes)} transcription minutes per month`;
 }
 
-function getPlanComparisonValue(plan: DisplayPlan) {
-  const normalizedHighlights = plan.highlights.map((item) => item.toLowerCase());
-  const storageHighlight = plan.highlights.find((item) => item.toLowerCase().includes('storage'));
-  const hasSemanticSearch = normalizedHighlights.some((item) => item.includes('semantic search'));
-  const hasBasicSearch = normalizedHighlights.some(
-    (item) => item.includes('searchable transcript library') || item.includes('search across')
-  );
-  const hasAdvancedTranscription = normalizedHighlights.some((item) =>
-    item.includes('advanced ai transcription')
-  );
-  const hasBasicTranscription = normalizedHighlights.some((item) => item.includes('basic transcription'));
-  const hasPrioritySupport = normalizedHighlights.some((item) => item.includes('priority support'));
-
-  if (plan.id === 'custom') {
-    return {
-      storage: 'Custom archive size',
-      transcription: 'Custom workflow',
-      search: 'Custom retrieval setup',
-      support: 'Rollout and migration help',
-      hosting: 'Private deployment',
-    };
-  }
-
-  if (plan.id === 'free') {
-    return {
-      storage: '100 MB',
-      transcription: 'Basic transcription',
-      search: 'Transcript search',
-      support: 'Self-serve support',
-      hosting: 'Shared cloud workspace',
-    };
-  }
-
-  return {
-    storage: storageHighlight ?? 'Larger archive limits',
-    transcription: hasAdvancedTranscription
-      ? 'Advanced AI transcription'
-      : hasBasicTranscription
-        ? 'Basic transcription'
-        : 'Included transcription',
-    search: hasSemanticSearch ? 'Semantic + transcript search' : hasBasicSearch ? 'Transcript search' : 'Included search',
-    support: hasPrioritySupport ? 'Priority support' : plan.featured ? 'Priority email support' : 'Standard email support',
-    hosting: 'Shared cloud workspace',
-  };
-}
-
-export function PricingSection({ availablePlans = [], salesEmail }: PricingSectionProps) {
-  const { toast } = useToast();
+export function PricingSection({ pricing, salesEmail }: PricingSectionProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<{ key: string; message: string } | null>(null);
+  const usagePlans = pricing.plans.filter(plan => plan.usage);
+  const planCount = pricing.plans.length + (pricing.trial ? 1 : 0);
 
-  const paidPlans = [...availablePlans].sort((a, b) => {
-    if (a.price !== b.price) {
-      return a.price - b.price;
-    }
-
-    return a.name.localeCompare(b.name);
-  });
-
-  const featuredPlanId =
-    paidPlans.find((plan) => plan.name.toLowerCase().includes('pro'))?.id ??
-    paidPlans[Math.min(1, Math.max(paidPlans.length - 1, 0))]?.id ??
-    null;
-
-  const paidPlanDecor = [
-    { icon: FolderKanban, accentClass: 'bg-secondary/10 text-secondary' },
-    { icon: Sparkles, accentClass: 'bg-primary/10 text-primary' },
-    { icon: Headphones, accentClass: 'bg-success/10 text-success' },
-  ] as const;
-
-  const plans: DisplayPlan[] = [
-    {
-      id: 'free',
-      name: 'Free',
-      description: 'For validating the archive experience before you move more recordings in.',
-      price: '$0',
-      cadence: '/month',
-      highlights: [
-        '100 MB storage',
-        'Basic transcription',
-        'Search across your transcript library',
-        'A simple starting point for personal or occasional call archives',
-      ],
-      icon: Rocket,
-      accentClass: 'bg-default-100 text-foreground',
-      badge: 'Entry point',
-      action: 'signup',
-      ctaLabel: 'Start free',
-    },
-    ...paidPlans.map<DisplayPlan>((plan, index) => {
-      const decor = paidPlanDecor[index % paidPlanDecor.length];
-      const isFeatured = plan.id === featuredPlanId;
-
-      return {
-        id: plan.id,
-        name: plan.name,
-        description: plan.description || 'For archives that need more capacity and faster retrieval.',
-        price: formatPrice(plan.price, plan.currency || 'USD'),
-        cadence: formatCadence(plan.interval),
-        highlights:
-          plan.features.length > 0
-            ? plan.features
-            : [
-                'More archive storage',
-                'Advanced transcription options',
-                'Summary, timestamps, and speaker labels',
-                'A better fit for active business call libraries',
-              ],
-        icon: decor.icon,
-        accentClass: decor.accentClass,
-        badge: isFeatured ? 'Most popular' : undefined,
-        featured: isFeatured,
-        action: plan.isPurchasable ? 'checkout' : 'contact',
-        ctaLabel: plan.isPurchasable ? `Choose ${plan.name}` : `Contact sales`,
-        sourcePlan: plan,
-      };
-    }),
-    {
-      id: 'custom',
-      name: 'Custom',
-      description: 'For teams that need shared archives, rollout help, private hosting, or custom billing.',
-      price: 'Custom',
-      cadence: '',
-      highlights: [
-        'Shared or larger archive options',
-        'Rollout guidance for sensitive recordings',
-        'Custom controls and support expectations',
-        'Private deployment and custom pricing paths',
-      ],
-      icon: Building2,
-      accentClass: 'bg-warning/10 text-warning',
-      badge: 'Talk to us',
-      action: 'contact' as const,
-      ctaLabel: 'Talk to sales',
-    },
-  ];
-
-  const comparisonRows: ComparisonRow[] = [
-    {
-      label: 'Storage',
-      description: 'How much archive space you start with.',
-      values: Object.fromEntries(plans.map((plan) => [plan.id, getPlanComparisonValue(plan).storage])),
-    },
-    {
-      label: 'Transcription',
-      description: 'What transcript workflow comes with the plan.',
-      values: Object.fromEntries(plans.map((plan) => [plan.id, getPlanComparisonValue(plan).transcription])),
-    },
-    {
-      label: 'Search',
-      description: 'How you get back to the right call later.',
-      values: Object.fromEntries(plans.map((plan) => [plan.id, getPlanComparisonValue(plan).search])),
-    },
-    {
-      label: 'Support',
-      description: 'What help path you can expect as the archive grows.',
-      values: Object.fromEntries(plans.map((plan) => [plan.id, getPlanComparisonValue(plan).support])),
-    },
-    {
-      label: 'Hosting',
-      description: 'Where the archive runs and when private deployment enters the picture.',
-      values: Object.fromEntries(plans.map((plan) => [plan.id, getPlanComparisonValue(plan).hosting])),
-    },
-  ];
-
-  const handleSubscribe = async (plan: PublicPlan) => {
-    setIsLoading(plan.id);
+  const handleSubscribe = async (plan: MarketingPlan) => {
+    if (!plan.checkout) return;
+    setLoadingPlan(plan.key);
+    setCheckoutError(null);
 
     try {
       const response = await authFetch('/api/stripe/checkout', {
@@ -258,272 +52,143 @@ export function PricingSection({ availablePlans = [], salesEmail }: PricingSecti
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           planKey: plan.key,
+          priceId: plan.checkout.stripePriceId,
+          catalogVersion: plan.checkout.catalogVersion,
           successUrl: '/settings?tab=billing&success=true',
           cancelUrl: '/pricing?canceled=true',
         }),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-
-        if (response.status === 401) {
-          router.push('/login?redirect=/pricing');
-          return;
-        }
-
-        throw new Error(data.error || 'Failed to start checkout');
+      if (response.status === 401) {
+        router.push('/login?redirect=/pricing');
+        return;
       }
-
-      const { url } = await response.json();
-
-      if (!url) {
-        throw new Error('No checkout URL returned');
-      }
-
-      window.location.assign(url);
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Something went wrong',
-        status: 'danger',
-      });
-      setIsLoading(null);
+      if (!response.ok) throw new Error('checkout-unavailable');
+      const result: { url?: unknown } = await response.json();
+      if (typeof result.url !== 'string' || !result.url) throw new Error('checkout-unavailable');
+      window.location.assign(result.url);
+    } catch {
+      setCheckoutError({ key: plan.key, message: 'Checkout could not be opened. Please try again, or contact us for help.' });
+      setLoadingPlan(null);
     }
   };
 
   return (
-    <div className="space-y-10">
-      <div className="mx-auto max-w-3xl text-center">
-        <Chip variant="soft" color="accent" size="sm">
-          Pricing
-        </Chip>
-        <h2 className="mt-4 text-3xl font-semibold text-foreground md:text-5xl">
-          Pick the plan that matches how much call history you need to rescue and search.
-        </h2>
-        <p className="mt-4 text-lg leading-8 text-muted">
-          Compare storage, transcription, AI search, support, and hosting before you move more recordings in.
-        </p>
-        {paidPlans.length === 0 ? (
-          <p className="mt-2 text-sm leading-6 text-warning-700">
-            Paid plans are not published on this instance yet. Run the pricing setup before enabling upgrades.
-          </p>
-        ) : null}
-      </div>
+    <div className={styles.pricing}>
+      {planCount > 0 ? (
+        <div className={styles.planBoard} style={{ '--plan-count': planCount } as CSSProperties}>
+          {pricing.trial && (
+            <article className={styles.plan} aria-labelledby="plan-free-trial-name" data-plan-key="free-trial">
+              <div className={styles.planIntro}>
+                <h2 id="plan-free-trial-name">{pricing.trial.name}</h2>
+                <p>{pricing.trial.description}</p>
+              </div>
+              <div className={styles.price}>{formatMarketingPrice(0, pricing.trial.currency)}<span>for {pricing.trial.durationDays} days</span></div>
+              <Link className={styles.secondaryButton} href="/signup">Start free trial</Link>
+              <ul className={styles.allowances}>
+                <li><Check aria-hidden="true" /><span>{formatMarketingStorage(pricing.trial.storageBytes)} storage included</span></li>
+                <li><Check aria-hidden="true" /><span>{count(pricing.trial.weightedMinutes)} transcription minutes included</span></li>
+                <li><Check aria-hidden="true" /><span>No credit card needed</span></li>
+              </ul>
+            </article>
+          )}
+          {pricing.plans.map(plan => (
+            <article key={plan.key} className={`${styles.plan} ${plan.key === 'pro' ? styles.proPlan : ''}`}
+              aria-labelledby={`plan-${plan.key}-name`} data-plan-key={plan.key}>
+              <div className={styles.planIntro}>
+                <h2 id={`plan-${plan.key}-name`}>{plan.name}</h2>
+                <p>{plan.description}</p>
+              </div>
+              <div className={styles.price}>{formatMarketingPrice(plan.price, plan.currency)}<span>{cadence(plan.interval)}</span></div>
+              {plan.checkout ? (
+                <button className={plan.key === 'pro' ? styles.primaryButton : styles.secondaryButton}
+                  type="button" onClick={() => void handleSubscribe(plan)} disabled={loadingPlan !== null}
+                  aria-busy={loadingPlan === plan.key}>
+                  {loadingPlan === plan.key ? <><LoaderCircle className={styles.loading} aria-hidden="true" />Opening checkout…</> : `Choose ${plan.name}`}
+                </button>
+              ) : (
+                <a className={styles.secondaryButton} href={`mailto:${salesEmail}?subject=${encodeURIComponent(`${plan.name} plan availability`)}`}>Ask about availability</a>
+              )}
+              <ul className={styles.allowances}>
+                <li><Check aria-hidden="true" /><span>{storageAllowance(plan)}</span></li>
+                <li><Check aria-hidden="true" /><span>{transcriptionAllowance(plan)}</span></li>
+                <li><Check aria-hidden="true" /><span>{plan.interval === 'lifetime' ? 'No monthly hosting minimum' : 'Add prepaid credit for extra usage'}</span></li>
+              </ul>
+              {checkoutError?.key === plan.key && <p className={styles.checkoutError} role="alert">{checkoutError.message}</p>}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.empty}>
+          <h2>We can help you find the right plan.</h2>
+          <p>Pricing is temporarily unavailable. Contact us for current options.</p>
+          <a className={styles.primaryButton} href={`mailto:${salesEmail}`}>Contact us</a>
+        </div>
+      )}
+      {planCount > 0 && <p className={styles.planFootnote}>Every plan gives you one place for original audio, transcripts, summaries, and search. Transcription options can use included minutes at different rates.</p>}
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {plans.map((plan) => {
-          const Icon = plan.icon;
-
-          return (
-            <Card
-              key={plan.id}
-              variant={plan.featured ? 'tertiary' : 'default'}
-              className="h-full"
-            >
-              <Card.Header className="flex flex-col items-start gap-4 px-0 pt-0">
-                <div className="flex w-full items-start justify-between gap-4">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${plan.accentClass}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  {plan.badge && (
-                    <Chip
-                      variant="soft"
-                      color={plan.featured ? 'accent' : 'default'}
-                      className="rounded-full"
-                    >
-                      {plan.badge}
-                    </Chip>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-sm leading-6 text-muted">{plan.description}</p>
-                </div>
-
-                <div className="flex items-end gap-2">
-                  <span className="text-5xl font-semibold text-foreground">
-                    {plan.price}
-                  </span>
-                  {plan.cadence && (
-                    <span className="pb-2 text-sm text-muted">{plan.cadence}</span>
-                  )}
-                </div>
-              </Card.Header>
-
-              <Separator className="my-6" />
-
-              <Card.Content className="flex-1 gap-3 px-0">
-                <div className="text-xs font-semibold uppercase text-muted">
-                  Included
-                </div>
-                {plan.highlights.map((item) => (
-                  <div key={item} className="flex items-start gap-3 text-sm leading-6 text-muted">
-                    <Check className="mt-1 h-4 w-4 shrink-0 text-success" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </Card.Content>
-
-              <Card.Footer className="mt-6 px-0 pb-0">
-                {plan.action === 'signup' && (
-                  <ActionLink href="/signup" variant={plan.featured ? 'primary' : 'secondary'} className="w-full font-semibold">
-                      Start on {plan.name}
-                    </ActionLink>
-                )}
-
-                {plan.action === 'checkout' && plan.sourcePlan && (
-                  <Button
-                    className="w-full font-semibold"
-                    onPress={() => handleSubscribe(plan.sourcePlan!)}
-                    isDisabled={isLoading !== null}
-                  >
-                    {isLoading === plan.id ? (
-                      <>
-                        <Spinner size="sm" color="current" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        Start on {plan.name}
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                {plan.action === 'contact' && (
-                  <Button
-                    variant="secondary"
-                    className="w-full font-semibold"
-                    onPress={() => {
-                      window.location.href = `mailto:${salesEmail}`;
-                    }}
-                  >
-                    {plan.ctaLabel}
-                  </Button>
-                )}
-              </Card.Footer>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Surface variant="secondary" className="p-6 md:p-7">
-        <div className="space-y-5">
-          <div className="max-w-3xl space-y-3">
-            <div className="text-xs font-semibold uppercase text-primary">
-              Compare what changes
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">
-              See the differences without flipping between cards.
-            </h3>
-            <p className="text-sm leading-6 text-muted">
-              Every plan keeps the archive organized. The comparison below shows what grows as you need more room, stronger search, or tighter support.
-            </p>
+      {planCount > 1 && (
+        <section className={styles.comparison} aria-labelledby="compare-plans-heading">
+          <div className={styles.sectionHeading}>
+            <h2 id="compare-plans-heading">The details, side by side.</h2>
+            <p>Choose by the space and transcription you need.</p>
           </div>
+          <p className={styles.tableHint}>Scroll sideways to compare all plans.</p>
+          <div className={styles.tableScroll} role="region" aria-label="Plan comparison" tabIndex={0}>
+            <table className={styles.comparisonTable}>
+              <caption className={styles.srOnly}>Compare Callery plans</caption>
+              <thead><tr><th scope="col">Included with your plan</th>{pricing.trial && <th scope="col">Free trial</th>}{pricing.plans.map(plan => <th scope="col" key={plan.key}>{plan.name}</th>)}</tr></thead>
+              <tbody>
+                <tr><th scope="row">Storage</th>{pricing.trial && <td>{formatMarketingStorage(pricing.trial.storageBytes)}</td>}{pricing.plans.map(plan => <td key={plan.key}>{plan.storageBytes === null ? 'Contact us' : plan.interval === 'lifetime' && plan.storageBytes === 0 ? 'Paid as you use it' : formatMarketingStorage(plan.storageBytes)}</td>)}</tr>
+                <tr><th scope="row">Transcription minutes</th>{pricing.trial && <td>{count(pricing.trial.weightedMinutes)} for the trial</td>}{pricing.plans.map(plan => <td key={plan.key}>{plan.weightedMinutes === null ? 'Contact us' : plan.interval === 'lifetime' && plan.weightedMinutes === 0 ? 'Paid as you use it' : `${count(plan.weightedMinutes)} per month`}</td>)}</tr>
+                <tr><th scope="row">Extra usage</th>{pricing.trial && <td>Choose a paid plan</td>}{pricing.plans.map(plan => <td key={plan.key}>Prepaid credit</td>)}</tr>
+                <tr><th scope="row">Payment</th>{pricing.trial && <td>Free for {pricing.trial.durationDays} days</td>}{pricing.plans.map(plan => <td key={plan.key}>{plan.interval === 'lifetime' ? 'One-time access purchase' : plan.interval === 'yearly' ? 'Yearly' : 'Monthly'}</td>)}</tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-          <div className="space-y-3">
-            {comparisonRows.map((row) => (
-              <Surface variant="secondary"
-                key={row.label}
-                className="p-4"
-              >
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground">{row.label}</div>
-                  <p className="text-sm text-muted">{row.description}</p>
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {plans.map((plan) => (
-                    <div
-                      key={`${row.label}-${plan.id}`}
-                      className={`rounded-xl border p-3 ${
-                        plan.featured
-                          ? 'border-primary/20 bg-primary/5'
-                          : 'border-default-200/70 bg-default-50/60'
-                      }`}
-                    >
-                      <div className="text-xs font-semibold uppercase text-muted">
-                        {plan.name}
-                      </div>
-                      <div className="mt-2 text-sm font-medium leading-6 text-foreground">
-                        {row.values[plan.id]}
-                      </div>
+      {pricing.plans.length > 0 && (
+        <section className={styles.usage} aria-labelledby="usage-heading">
+          <div className={styles.sectionHeading}>
+            <h2 id="usage-heading">Understand what you use.</h2>
+            <p>Paid plans use their included allowances first. Extra storage and transcription are paid from prepaid credit. Lifetime includes access, with storage and transcription paid separately.</p>
+          </div>
+          <div className={styles.usageExplanation}>
+            <p>Audio time is rounded up to the next 15 seconds. Your transcription choice changes how quickly included minutes are used.</p>
+            <p>Storage charges use the most space your recordings occupied during the month, above any included allowance.</p>
+          </div>
+          {usagePlans.length > 0 && (
+            <div className={styles.rateList}>
+              {usagePlans.map(plan => (
+                <details key={plan.key} className={styles.rateDetail}>
+                  <summary>{plan.name} usage rates<span aria-hidden="true">+</span></summary>
+                  <div className={styles.rateContent}>
+                    <div className={styles.tableScroll} role="region" aria-label={`${plan.name} transcription rates`} tabIndex={0}>
+                      <table className={styles.ratesTable}>
+                        <caption className={styles.srOnly}>{plan.name} additional transcription prices</caption>
+                        <thead><tr><th scope="col">Transcription option</th><th scope="col">Per audio minute</th><th scope="col">Included minutes used</th></tr></thead>
+                        <tbody>{plan.usage!.providers.map(provider => <tr key={provider.id}><th scope="row">{provider.name}</th><td>{dollars(provider.usdPerMinute)}</td><td>{count(provider.multiplier)}× audio length</td></tr>)}</tbody>
+                      </table>
                     </div>
-                  ))}
-                </div>
-              </Surface>
-            ))}
-          </div>
-        </div>
-      </Surface>
-
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr_0.9fr]">
-        <Surface variant="secondary" className="p-6">
-          <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase text-primary">
-              Billing notes
+                    <p>Extra storage: {dollars(plan.usage!.storageUsdPerGiB)} per GiB of monthly peak storage above your allowance.</p>
+                    <p>{Number(plan.usage!.minimumRecordingUsd) === 0 ? 'No minimum charge per recording.' : `Minimum charge for a recording with extra usage: ${dollars(plan.usage!.minimumRecordingUsd)}.`}</p>
+                  </div>
+                </details>
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-foreground">
-              Start on free, then upgrade only when your archive needs more room.
-            </h3>
-            <p className="text-sm leading-6 text-muted">
-              You can begin without a credit card. Paid plans move through Stripe checkout when you are ready for more storage, deeper history, or stronger retrieval.
-            </p>
-          </div>
-        </Surface>
+          )}
+          <p className={styles.usageFootnote}>New rates apply to future usage. A recording already accepted for processing keeps its original rate.</p>
+        </section>
+      )}
 
-        {addOns.map((item) => (
-          <Card key={item.title} className="p-6">
-            <Card.Header className="flex flex-row items-start justify-between gap-4 px-0 pt-0">
-              <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase text-muted">
-                  Add-on
-                </div>
-                <h4 className="text-lg font-bold text-foreground">{item.title}</h4>
-                <p className="text-sm leading-6 text-muted">{item.detail}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="text-2xl font-bold text-foreground">{item.price}</div>
-                <div className="text-sm text-muted">{item.cadence}</div>
-              </div>
-            </Card.Header>
-          </Card>
-        ))}
-      </div>
-
-      <Surface
-        variant="secondary"
-        className="p-6 md:p-7"
-      >
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase text-primary">
-              Own your own data
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">
-              Keep Callery on your own server when the archive needs private hosting.
-            </h3>
-            <p className="max-w-3xl text-sm leading-6 text-muted">
-              Individuals can purchase a self-hosted license for{' '}
-              <span className="font-semibold text-foreground">$300</span> and keep full control of
-              their own recordings, transcripts, and deployment. Teams that want private hosting can
-              email us to discuss rollout, setup expectations, and custom pricing.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <ActionLink href={`mailto:${salesEmail}`} className="w-full font-semibold">
-                Email about private hosting
-              </ActionLink>
-            <div className="text-sm text-muted lg:text-right">{salesEmail}</div>
-          </div>
+      <section className={styles.selfHost} aria-labelledby="self-host-heading">
+        <div>
+          <h2 id="self-host-heading">Your archive. Your server, if you prefer.</h2>
+          <p>Callery is free to self-host under the AGPL-3.0 license. Bring your own storage and integrations. Company archives are available in the self-hosted version; hosted plans are for individual accounts.</p>
         </div>
-      </Surface>
+        <a className={styles.secondaryButton} href="https://github.com/virusz4274/callery/blob/main/docs/setup-guide.md">Read the self-hosting guide</a>
+      </section>
     </div>
   );
 }

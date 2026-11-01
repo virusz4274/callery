@@ -1,9 +1,11 @@
-// Explicit property accesses let Next inline public settings in the browser.
-// Optional integrations do not require credentials until enabled.
+// Explicit public property accesses let Next and vinext inline browser-safe settings.
+// Keep this module independent of server configuration and its secret variables.
 export const publicEnv = {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || '',
-    NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-    NEXT_PUBLIC_ENABLE_BILLING: process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true',
-    NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU !== 'false',
+    get NEXT_PUBLIC_APP_URL() { return process.env.NEXT_PUBLIC_APP_URL || ''; },
+    get NODE_ENV() { return process.env.NODE_ENV; },
+    get NEXT_PUBLIC_VAPID_PUBLIC_KEY() { return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''; },
+    get NEXT_PUBLIC_GOOGLE_CLIENT_ID() { return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''; },
+    get NEXT_PUBLIC_GOOGLE_REDIRECT_URI() { return process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || ''; },
+    get NEXT_PUBLIC_ENABLE_BILLING() { return process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true'; },
+    get NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU() { return process.env.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU !== 'false'; },
 };

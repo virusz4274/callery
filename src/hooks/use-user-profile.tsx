@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import type { AppUser } from '@/lib/auth/types';
 import type { User } from '@/lib/types';
 import { authFetch } from '@/lib/api-client';
+import { userProfileKey } from '@/lib/profile-client';
 
 export interface EnsureUserProfileResult {
     success: boolean;
@@ -13,7 +14,7 @@ export interface EnsureUserProfileResult {
 
 export function useUserProfile(user: AppUser | null) {
     const { data, error, isLoading, mutate } = useSWR<User>(
-        user ? ['user-profile', user.id] : null,
+        user ? userProfileKey(user.id) : null,
         async () => {
             let response = await authFetch('/api/user/profile');
             if (response.status === 404 && user) {

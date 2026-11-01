@@ -12,6 +12,7 @@ import { adminProfile } from './admin-data';
 let bundle: Promise<Map<string, string | Uint8Array>> | undefined;
 const actionNames = ['checkSystemHealth', 'clearAllServiceIncidents', 'clearServiceIncident', 'sendAdminTestEmail', 'cleanupOrphanedRecordings', 'deletePlan', 'createPlan', 'updatePlan', 'deleteAnnouncement', 'createAnnouncement', 'updateAnnouncement', 'updateContactPlan', 'deleteUser', 'restoreUser', 'toggleUserStatus', 'updateUserLimits', 'updateUserUsage', 'updateUserRole', 'updateSystemSettings'];
 async function assets() {
+    if (!actionNames.includes('getUpgradeablePlans')) actionNames.push('getUpgradeablePlans');
     for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'createShareLinkForClip']) {
         if (!actionNames.includes(name)) actionNames.push(name);
     }
@@ -56,6 +57,15 @@ export async function mockAdmin(page: Page, url = '/admin', action?: (name: stri
         const parsed = new URL(request.url());
         if (parsed.pathname === '/api/system-settings/public') return route.fulfill({ json: { maintenanceMode: false, ...(team ? { team: teamSettings } : {}) } });
         if (parsed.pathname === '/api/user/profile') return route.fulfill({ json: { profile: adminProfile } });
+        if (parsed.pathname === '/api/stripe/invoices') return route.fulfill({ json: { invoices: [] } });
+        if (parsed.pathname === '/api/stripe/lifetime/resume') {
+            calls.push({ name: 'resumeLifetimeUsage', args: [] });
+            return route.fulfill({ status: 409, json: { error: 'Update your payment method before resuming usage billing.' } });
+        }
+        if (parsed.pathname === '/api/stripe/portal') {
+            calls.push({ name: 'openBillingPortal', args: [] });
+            return route.fulfill({ json: { url: '/admin/billing-fixture?lifetime&usage=ready' } });
+        }
         if (parsed.pathname.startsWith('/__admin-fixture-assets/')) {
             const file = files.get(parsed.pathname.slice('/__admin-fixture-assets/'.length));
             if (file === undefined) { unexpected.push(parsed.pathname); return route.abort(); }

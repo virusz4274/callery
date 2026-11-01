@@ -10,11 +10,15 @@ import { createUploadSessionToken, verifyUploadSessionToken } from '@/lib/upload
 import { prepareUploadContext, refreshUploadSessionContact } from '@/app/actions/upload/prepare-upload-context';
 import { completeUpload, registerLegacyUpload, type UploadSession } from '@/lib/integrations/uploads';
 import { IntegrationCollections, integrationDb } from '@/lib/integrations/database';
+import { consumeRateLimit } from '@/lib/rate-limit';
+import { directUploadLengthsVerified, requireSignedContentLength } from '@/lib/integrations/upload-policy';
 
 export interface InitDirectUploadInput {
     fileName: string;
     fileSize: number;
     mimeType?: string;
+    /** Browser bulk imports must reference a persisted import owned by this user. */
+    bulkImportId?: string;
 }
 
 export interface InitDirectUploadResult {
@@ -47,17 +51,21 @@ export async function initializeDirectUploadForUser(authSubject: string, input: 
         if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0 || input.fileSize > 5 * 1024 ** 3) return { success: false, error: 'File size must be between 1 byte and 5 GiB.' };
         const user = await findUserByAuthSubject(authSubject);
         if (!user || !checkUserAccess(user).allowed) return { success: false, error: 'Upload access is unavailable.' };
+        if (!(await consumeRateLimit({ key: `upload-initialize:${authSubject}`, limit: 120, windowMs: 60 * 60_000 })).allowed) return { success: false, error: 'Upload request limit reached. Retry later.' };
         const prepared = await prepareUploadContext(authSubject, input.fileName, input.mimeType);
         if ('error' in prepared) return { success: false, error: prepared.error };
         const session = await registerLegacyUpload(authSubject, prepared, input);
-        const uploadUrl = await getSignedUrl(getPresignClient(), new PutObjectCommand({ Bucket: storageBucket(), Key: session.stagingKey, ContentType: prepared.mimeType }), { expiresIn: 900 });
         const uploadToken = await createUploadSessionToken({
             authSubject, uploadId: session._id, r2Key: session.stagingKey, fileName: input.fileName, fileSize: input.fileSize,
             mimeType: prepared.mimeType, contactId: prepared.contactId, contactName: prepared.contactName,
             phoneNumber: prepared.phoneNumber, googleContactId: prepared.googleContactId, contactMatchSource: prepared.contactMatchSource,
             recordedAtIso: prepared.recordedAt.toISOString(), standardizedDisplayName: prepared.standardizedDisplayName,
         });
-        return { success: true, uploadUrl, uploadToken, headers: { 'Content-Type': prepared.mimeType } };
+        const direct = directUploadLengthsVerified();
+        const uploadUrl = direct
+            ? requireSignedContentLength(await getSignedUrl(getPresignClient(), new PutObjectCommand({ Bucket: storageBucket(), Key: session.stagingKey, ContentType: prepared.mimeType, ContentLength: input.fileSize }), { expiresIn: 900, signableHeaders: new Set(['content-length']) }))
+            : '/api/uploads/content';
+        return { success: true, uploadUrl, uploadToken, headers: { 'Content-Type': prepared.mimeType, ...(!direct ? { 'X-Upload-Token': uploadToken } : {}) } };
     } catch (error) {
         logger.error('[directUpload] initialization failed');
         return { success: false, error: error instanceof Error && 'status' in error ? error.message : 'Failed to initialize upload' };

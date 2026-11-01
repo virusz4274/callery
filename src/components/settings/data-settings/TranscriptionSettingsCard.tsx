@@ -7,6 +7,7 @@ interface TranscriptionSettingsProps {
     autoTranscribe: boolean;
     defaultProvider?: TranscriptionProvider;
     providers: AvailableProvider[];
+    isDisabled?: boolean;
     onChange: (settings: { autoTranscribe: boolean; defaultProvider?: TranscriptionProvider }) => void;
 }
 
@@ -14,6 +15,7 @@ export function TranscriptionSettingsCard({
     autoTranscribe,
     defaultProvider,
     providers,
+    isDisabled,
     onChange
 }: TranscriptionSettingsProps) {
     return (
@@ -34,6 +36,7 @@ export function TranscriptionSettingsCard({
                             </div>
                         </div>
                         <Switch
+                            isDisabled={isDisabled}
                             isSelected={autoTranscribe}
                             onChange={(isSelected) => {
                                 onChange({
@@ -63,6 +66,7 @@ export function TranscriptionSettingsCard({
                             </div>
                             <div className="w-full lg:w-72">
                                 <Select
+                                    isDisabled={isDisabled}
                                     aria-label="Default transcription provider"
                                     placeholder="Select a provider"
                                     selectedKey={defaultProvider || providers[0]?.id}

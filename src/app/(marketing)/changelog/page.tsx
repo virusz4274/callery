@@ -11,21 +11,21 @@ const changes = [
         date: 'February 2, 2026',
         publishedAt: '2026-02-02',
         type: 'Beta',
-        summary: 'First public beta of the call archive, transcript, and search workspace.',
+        summary: 'The first public beta of Callery brings call recording archives, transcription, and search together.',
         items: [
-            'Initial beta release',
             'Call recording archive and transcription',
             'Contact management',
-            'Semantic search and basic file management',
+            'Semantic search',
+            'Basic file management',
         ],
     },
 ];
 
 export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
-  title: 'Product changelog',
+  title: 'Product updates',
   description:
-    'Follow product releases, archive improvements, and search updates.',
+    'Read Callery release notes for recording archives, transcription, contacts, and search.',
   path: '/changelog',
   keywords: ['product changelog', 'call archive release notes', 'call search updates'],
 });
@@ -35,8 +35,8 @@ export default function ChangelogPage() {
     const jsonLd = jsonLdGraph(
         buildCollectionPageSchema({
             config: siteSeoConfig,
-            name: `${siteSeoConfig.siteName} changelog`,
-            description: `Release notes and product updates for the ${siteSeoConfig.siteName} workspace.`,
+            name: `${siteSeoConfig.siteName} product updates`,
+            description: `Release notes for ${siteSeoConfig.siteName} recording archives, transcription, contacts, and search.`,
             path: '/changelog',
             items: changes.map((change) => ({
                 name: change.version,

@@ -1,3 +1,15 @@
+import { registerHooks } from 'node:module';
+
+// Node tests import server actions directly. Resolve their marker as a server
+// module without changing the React exports selected for the rest of the tests.
+registerHooks({
+    resolve(specifier, context, nextResolve) {
+        return nextResolve(specifier, specifier === 'server-only'
+            ? { ...context, conditions: [...context.conditions, 'react-server'] }
+            : context);
+    },
+});
+
 const defaultEnv: Record<string, string> = {
     NODE_ENV: 'test',
     BETTER_AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',

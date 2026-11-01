@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible problem without private recordings or credentials.
+body:
+  - type: markdown
+    attributes:
+      value: 'For vulnerabilities use the private reporting instructions in SECURITY.md. Never attach .env files, tokens, recordings, transcripts, phone numbers, or signed URLs.'
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: What happened and how can we reproduce it?
+      description: Include expected behavior and a minimal example using synthetic data.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options: [Self-host Docker, Self-host native Node, Managed service]
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant environment
+      description: OS, browser, runtime and provider names only. Redact all credentials and personal data.

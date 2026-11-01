@@ -1,13 +1,13 @@
 import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
 import { formatBytes } from './access-control-format';
-import { hasBillingIssue, isTrialExpired, isBillingEnabled } from './access-control-common';
+import { hasBillingIssue, isTrialExpired, isBillingEnabled, checkUserAccess, canUseMeteredOverage } from './access-control-common';
 import { isFreeTrialPlanKey } from './plans';
 
 export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult {
-    if (user.disabled) {
-        return { allowed: false, reason: 'Account disabled.' };
-    }
+    const account = checkUserAccess(user);
+    if (!account.allowed) return account;
+    if (!Number.isFinite(bytesToAdd) || bytesToAdd < 0) return { allowed: false, reason: 'Invalid upload size.' };
 
     if (!isBillingEnabled()) {
         return { allowed: true };
@@ -41,7 +41,7 @@ export function checkStorageAccess(user: User, bytesToAdd: number): AccessResult
         return { allowed: true };
     }
 
-    const allowOverage = user.billingSettings.allowOverage;
+    const allowOverage = canUseMeteredOverage(user);
     if (!allowOverage && newUsage > allocation) {
         return {
             allowed: false,

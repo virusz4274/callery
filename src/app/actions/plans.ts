@@ -1,64 +1,38 @@
 'use server';
 
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { Plan } from '@/lib/db/types';
+import { getMongoDb } from '@/lib/mongodb';
+import { assertPublishedPlan } from '@/lib/stripe/catalog-publication';
+import { getActiveCatalogBundle, type CatalogPlanEntry } from '@/lib/stripe/catalog-bundle';
+import { billingEnabled } from '@/lib/config';
+import { usagePricePresentation, type UsagePricePresentation } from '@/lib/stripe/usage-presentation';
 
 export type PublicPlan = {
-    id: string;
-    key: string;
-    name: string;
-    description: string;
-    price: number;
-    currency: string;
-    interval: 'monthly' | 'yearly' | 'lifetime';
-    features: string[];
-    stripePriceId: string;
-    isPurchasable?: boolean;
+    id: string; key: string; name: string; description: string; price: number; currency: string;
+    interval: 'monthly' | 'yearly' | 'lifetime' | 'trial'; features: string[]; stripePriceId: string;
+    isPurchasable?: boolean; catalogVersion?: string; storageBytes?: number; weightedMinutes?: number;
+    usagePricing?: UsagePricePresentation;
 };
 
-export async function getPublishedPlans(): Promise<PublicPlan[]> {
-    const db = await getMongoDb();
-    const plans = await db.collection<Plan>(Collections.PLANS)
-        .find({ isActive: true, stripePriceId: { $ne: '' } })
-        .sort({ price: 1 })
-        .toArray();
+async function publicPlan(entry: CatalogPlanEntry, db: Awaited<ReturnType<typeof getMongoDb>>): Promise<PublicPlan> {
+    const plan = entry.plan;
+    const usagePricing = usagePricePresentation(plan.interval === 'lifetime' ? 'lifetime' : 'recurring', entry.usageTariffs);
+    let purchasable = false;
+    try { await assertPublishedPlan(plan, db); purchasable = usagePricing.ready; }
+    catch { /* Reviewed prices remain visible while cost or acceptance evidence needs attention. */ }
+    return { id: plan._id.toString(), key: plan.key, name: plan.name, description: plan.description || '', price: plan.price,
+        currency: plan.currency, interval: plan.interval, features: plan.features, stripePriceId: plan.stripePriceId,
+        isPurchasable: purchasable, catalogVersion: entry.catalogVersion, storageBytes: plan.limits.storage,
+        weightedMinutes: plan.limits.transcription / 60, usagePricing };
+}
 
-    return plans
-        .filter((plan) => !plan.isDefault)
-        .map(p => ({
-            id: p._id.toString(),
-            key: p.key,
-            name: p.name,
-            description: p.description || '',
-            price: p.price,
-            currency: p.currency,
-            interval: p.interval,
-            features: p.features,
-            stripePriceId: p.stripePriceId,
-            isPurchasable: true,
-        }));
+export async function getPublishedPlans(): Promise<PublicPlan[]> {
+    if (!billingEnabled()) return [];
+    const db = await getMongoDb(), bundle = await getActiveCatalogBundle(db);
+    if (!bundle) return [];
+    return Promise.all(bundle.plans.filter(entry => entry.plan.isActive && !entry.plan.isDefault && !entry.plan.archivedAt)
+        .sort((a, b) => a.plan.price - b.plan.price || a.plan.name.localeCompare(b.plan.name)).map(entry => publicPlan(entry, db)));
 }
 
 export async function getUpgradeablePlans(): Promise<PublicPlan[]> {
-    const db = await getMongoDb();
-    const plans = await db.collection<Plan>(Collections.PLANS)
-        .find({
-            isActive: true,
-            isDefault: false,
-        })
-        .sort({ price: 1, name: 1 })
-        .toArray();
-
-    return plans.map((plan) => ({
-        id: plan._id.toString(),
-        key: plan.key,
-        name: plan.name,
-        description: plan.description || '',
-        price: plan.price,
-        currency: plan.currency,
-        interval: plan.interval,
-        features: plan.features,
-        stripePriceId: plan.stripePriceId,
-        isPurchasable: Boolean(plan.stripePriceId?.trim()),
-        }));
+    return getPublishedPlans();
 }

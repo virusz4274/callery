@@ -1,0 +1,480 @@
+.page {
+  width: min(1200px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 88px 0 112px;
+  color: var(--mk-ink);
+}
+
+.title {
+  max-width: 850px;
+  margin: 0;
+  font-size: clamp(2.75rem, 5.2vw, 4.75rem);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.intro {
+  max-width: 580px;
+  margin: 24px 0 0;
+  color: var(--mk-muted);
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+
+.textLink {
+  color: var(--mk-blue);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.textLink:hover {
+  text-decoration-thickness: 2px;
+}
+
+.textLink:focus-visible,
+.helpLink:focus-visible,
+.contents a:focus-visible {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 5px;
+  border-radius: 3px;
+}
+
+.supportLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-areas: "intro form" "help form";
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  column-gap: clamp(40px, 7vw, 100px);
+  row-gap: 32px;
+}
+
+.supportIntro {
+  grid-area: intro;
+  padding-top: 16px;
+}
+
+.supportIntro .title {
+  max-width: 460px;
+}
+
+.emailContact {
+  margin-top: 40px;
+}
+
+.emailContact h2 {
+  margin: 0 0 8px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.emailContact a {
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.helpLinks {
+  grid-area: help;
+  align-self: start;
+  margin-top: 0;
+  border-top: 1px solid var(--mk-line);
+}
+
+.helpLink {
+  display: grid;
+  gap: 7px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--mk-line);
+  color: var(--mk-ink);
+  text-decoration: none;
+}
+
+.helpLink span:first-child {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.helpLink span:last-child {
+  color: var(--mk-muted);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.helpLink:hover span:first-child {
+  color: var(--mk-blue);
+}
+
+.formPanel {
+  grid-area: form;
+  min-width: 0;
+  padding: clamp(24px, 3.5vw, 40px);
+  border: 1px solid var(--mk-line);
+  border-radius: 24px;
+  background: var(--mk-surface);
+}
+
+.formHeading h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.formHeading p {
+  margin: 12px 0 0;
+  color: var(--mk-muted);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+
+.supportForm {
+  display: grid;
+  gap: 22px;
+  margin-top: 30px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fieldLabel {
+  margin-bottom: 7px;
+  color: var(--mk-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.fieldInput {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  background: var(--mk-bg);
+  color: var(--mk-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  box-shadow: none;
+}
+
+.fieldInput::placeholder {
+  color: var(--mk-muted);
+  opacity: 0.8;
+}
+
+.fieldInput:focus-visible {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 2px;
+}
+
+.messageInput {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 2px;
+}
+
+.sendButton {
+  min-height: 48px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  background: var(--mk-blue);
+  color: var(--mk-action-ink);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.sendButton:focus-visible {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 4px;
+}
+
+.pageHeader {
+  padding-bottom: 64px;
+}
+
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 40px;
+  padding: 40px 0 56px;
+  border-top: 1px solid var(--mk-line);
+}
+
+.releaseDate {
+  padding-top: 7px;
+  color: var(--mk-muted);
+  font-size: 0.9375rem;
+}
+
+.releaseContent {
+  max-width: 700px;
+}
+
+.releaseHeading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.releaseHeading h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.releaseType {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--mk-soft);
+  color: var(--mk-blue);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.releaseSummary {
+  margin: 20px 0 0;
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+
+.releaseItems {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding-left: 21px;
+  color: var(--mk-muted);
+  font-size: 1rem;
+  line-height: 1.7;
+  list-style: disc;
+}
+
+.releaseItems li::marker {
+  color: var(--mk-blue);
+}
+
+.contactNote {
+  margin: 24px 0 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--mk-line);
+  color: var(--mk-muted);
+  font-size: 0.9375rem;
+  line-height: 1.8;
+}
+
+.legalHeader {
+  padding-bottom: 56px;
+  border-bottom: 1px solid var(--mk-line);
+}
+
+.updatedDate {
+  margin: 24px 0 0;
+  color: var(--mk-muted);
+  font-size: 0.9375rem;
+}
+
+.legalLayout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(48px, 8vw, 120px);
+  padding-top: 48px;
+}
+
+.legalSidebar {
+  position: sticky;
+  top: 112px;
+}
+
+.contents h2 {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.contents ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contents a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--mk-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  text-decoration: none;
+}
+
+.contents a:hover {
+  color: var(--mk-blue);
+}
+
+.policyContact {
+  margin: 28px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--mk-line);
+  color: var(--mk-muted);
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.legalArticle {
+  max-width: 720px;
+}
+
+.legalSection {
+  margin-bottom: 44px;
+  scroll-margin-top: 112px;
+}
+
+.legalSection h2 {
+  margin: 0 0 20px;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -0.03em;
+}
+
+.legalSection p {
+  margin: 0 0 18px;
+  color: var(--mk-muted);
+  font-size: 1rem;
+  line-height: 1.9;
+}
+
+@media (max-width: 900px) {
+  .supportLayout {
+    gap: 36px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .legalLayout {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 40px;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    width: calc(100% - 40px);
+    padding: 52px 0 72px;
+  }
+
+  .title {
+    font-size: clamp(2.5rem, 10vw, 3.5rem);
+  }
+
+  .intro {
+    margin-top: 20px;
+    font-size: 1rem;
+  }
+
+  .supportLayout,
+  .legalLayout {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .supportIntro {
+    padding-top: 0;
+  }
+
+  .supportLayout {
+    grid-template-areas: "intro" "form" "help";
+    grid-template-rows: auto;
+  }
+
+  .emailContact {
+    margin-top: 24px;
+  }
+
+  .helpLinks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin-top: 0;
+  }
+
+  .formPanel {
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+
+  .pageHeader {
+    padding-bottom: 36px;
+  }
+
+  .release {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 28px 0 36px;
+  }
+
+  .releaseDate {
+    padding: 0;
+  }
+
+  .releaseSummary {
+    font-size: 1rem;
+  }
+
+  .legalHeader {
+    padding-bottom: 32px;
+  }
+
+  .legalLayout {
+    padding-top: 32px;
+  }
+
+  .legalSidebar {
+    position: static;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--mk-line);
+  }
+
+  .policyContact {
+    margin-top: 16px;
+    padding-top: 0;
+    border: 0;
+  }
+
+  .legalSection h2 {
+    font-size: 1.3125rem;
+  }
+}

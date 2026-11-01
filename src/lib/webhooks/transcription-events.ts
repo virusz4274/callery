@@ -47,10 +47,6 @@ export async function claimTranscriptionWebhookEvent(input: {
             },
             {
                 $setOnInsert: {
-                    provider: input.provider,
-                    recordingId: input.recordingId,
-                    externalTranscriptionId: input.externalTranscriptionId,
-                    deliveryStatus: input.deliveryStatus,
                     receivedAt: now,
                 },
                 $set: {

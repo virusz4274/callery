@@ -1,6 +1,7 @@
 'use server';
 
-import { transcriptionMultiplier } from '@/lib/config';
+import { billingEnabled, transcriptionPricing } from '@/lib/config';
+import { effectiveTranscriptionProvider, resolveEffectiveTranscriptionPolicy } from '@/lib/transcription-multipliers';
 
 import { TranscriptionFactory, TranscriptionProviderId } from '@/services/transcription/factory';
 import { getSystemSettings } from '@/lib/db/users';
@@ -20,14 +21,15 @@ export async function getAvailableProviders(): Promise<AvailableProvider[]> {
 
     // Get admin-configured multipliers
     const settings = await getSystemSettings();
-    const adminMultipliers = settings?.transcriptionMultipliers;
+    const managed = billingEnabled();
+    const policy = resolveEffectiveTranscriptionPolicy(managed, managed ? {} : transcriptionPricing(), settings?.transcriptionMultipliers);
 
     const team = settings?.team;
-    return availableConfigs.filter(config => !team?.enabled || (team.transcriptionMode !== 'off' && config.id === team.transcriptionProvider)).map((config) => ({
+    return availableConfigs.filter(config => policy.multipliers[config.id] !== undefined && (!team?.enabled || (team.transcriptionMode !== 'off' && config.id === team.transcriptionProvider))).map((config) => ({
         id: config.id,
         name: config.name,
         description: config.description,
-        multiplier: adminMultipliers?.[config.id] ?? config.defaultMultiplier,
+        multiplier: effectiveTranscriptionProvider(policy, config.id).multiplier,
     }));
 }
 
@@ -36,11 +38,7 @@ export async function getAvailableProviders(): Promise<AvailableProvider[]> {
  */
 export async function getProviderMultiplier(provider: TranscriptionProviderId): Promise<number> {
     const settings = await getSystemSettings();
-    const adminMultipliers = settings?.transcriptionMultipliers;
-
-    if (adminMultipliers?.[provider] !== undefined) {
-        return adminMultipliers[provider];
-    }
-
-    return transcriptionMultiplier(provider);
+    const managed = billingEnabled();
+    const policy = resolveEffectiveTranscriptionPolicy(managed, managed ? {} : transcriptionPricing(), settings?.transcriptionMultipliers);
+    return effectiveTranscriptionProvider(policy, provider).multiplier;
 }

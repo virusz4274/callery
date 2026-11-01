@@ -1,4 +1,4 @@
-import { emailProvider } from '@/lib/config';
+import { billingEnabled, emailProvider } from '@/lib/config';
 import type { AuthCapabilities } from './types';
 
 export function getGoogleCredentials(): { clientId: string; clientSecret: string } | null {
@@ -13,6 +13,9 @@ export function getGoogleCredentials(): { clientId: string; clientSecret: string
 /** Public configuration only; never initializes authentication or MongoDB. */
 export function getAuthCapabilities(): AuthCapabilities {
     const emailsEnabled = emailProvider() !== 'none';
+    if (billingEnabled() && !emailsEnabled) {
+        throw new Error('Managed hosting requires email verification. Configure EMAIL_PROVIDER=smtp or resend before enabling billing. See .env.example.');
+    }
     return {
         googleEnabled: getGoogleCredentials() !== null,
         emailVerificationRequired: emailsEnabled,

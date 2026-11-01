@@ -9,9 +9,17 @@ export interface TranscriptionResult {
     // Metadata for debugging/storage
     provider: 'soniox' | 'elevenlabs' | 'gemini' | 'openai_compat';
     model: string;
+    /** Provider-reported usage; absence is never treated as a zero-cost request. */
+    usage?: { measured: boolean; inputTokens?: number; outputTokens?: number; thoughtTokens?: number;
+        cachedInputTokens?: number; requestId?: string; actualModel?: string };
 }
 
 export interface TranscribeOptions {
+    processingEnvelope?: import('@/lib/transcription/processing-policy').ProcessingTranscriptEnvelope;
+    /** Financial correlation only; never audio, transcript, or personal data. */
+    billingReceiptId?: string;
+    /** Capture incurred usage even when parsing/truncation rejects the transcript. */
+    onUsage?: (usage: NonNullable<TranscriptionResult['usage']>) => void | Promise<void>;
     durationSeconds?: number;
     model?: string; // e.g. 'scribe_v2' or 'global' (Soniox)
 }
@@ -20,6 +28,8 @@ export interface TranscribeAsyncOptions extends TranscribeOptions {
     webhookMetadata?: {
         recordingId: string;
         authSubject: string;
+        jobId?: string;
+        attemptId?: string;
     };
 }
 

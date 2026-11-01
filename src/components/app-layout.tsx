@@ -17,6 +17,7 @@ import { ProductSidebar } from '@/components/navigation/product-sidebar';
 import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { publicEnv } from '@/lib/public-env';
+import { SourceLinks } from '@/components/source-links';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -227,6 +228,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               />
             )}
             {children}
+            <SourceLinks />
           </main>
           <ClientOnly>
             {showInstallPrompt && <InstallPwaPrompt />}
@@ -260,6 +262,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           />
         )}
         {children}
+        <SourceLinks />
       </main>
       <ClientOnly>
         {showInstallPrompt && <InstallPwaPrompt />}

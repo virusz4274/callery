@@ -1,17 +1,17 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Recording } from '@/lib/db/types';
-import { markTranscriptionUsageReported, updateRecording } from '@/lib/db/recordings';
-import { reportUsage } from '@/lib/stripe/usage';
-import { findUserByAuthSubject, incrementTranscriptionUsed } from '@/lib/db/users';
-import { getAiService } from '@/services/ai';
-import { calculateBilledDuration } from '@/lib/utils/billing';
-import { createNotification } from '@/lib/notifications';
-import { buildRecordingNotificationLink } from '@/lib/notification-links';
+import { drainLedgerOutbox } from '@/lib/stripe/usage';
+import { settleRemovedRecording, settleFailedTranscription } from '@/lib/stripe/transcription-receipt';
+import { updateDeferredTranscriptionResult, updateLegacyTranscriptionResult, updateTranscriptionAttempt } from '@/lib/transcription/execution';
+import { acceptTranscriptionResult, completeTranscriptionResult } from '@/lib/transcription/completion';
+import { ProcessingError, processingFailure } from '@/lib/transcription/processing-errors';
+import { settleQueuedTranscription, processTranscriptionJobs, beginQueuedWebhookExecution, queueDeferredTranscriptionCompletion } from '@/lib/integrations/jobs';
+import { notifyProcessingOutcome } from '@/lib/transcription/notifications';
 import {
     claimTranscriptionWebhookEvent,
     markTranscriptionWebhookFailed,
@@ -37,14 +37,14 @@ type ElevenLabsWebhookEnvelope = {
     data?: ElevenLabsWebhookPayload;
 };
 
-function parseElevenLabsMetadata(metadata: unknown): { recordingId?: string; authSubject?: string } {
+function parseElevenLabsMetadata(metadata: unknown): { recordingId?: string; authSubject?: string; jobId?: string; attemptId?: string } {
     if (!metadata) {
         return {};
     }
 
     if (typeof metadata === 'string') {
         try {
-            const parsed = JSON.parse(metadata) as { recordingId?: string; authSubject?: string };
+            const parsed = JSON.parse(metadata) as { recordingId?: string; authSubject?: string; jobId?: string; attemptId?: string };
             return parsed ?? {};
         } catch {
             return {};
@@ -52,7 +52,7 @@ function parseElevenLabsMetadata(metadata: unknown): { recordingId?: string; aut
     }
 
     if (typeof metadata === 'object') {
-        const typed = metadata as { recordingId?: string; authSubject?: string };
+        const typed = metadata as { recordingId?: string; authSubject?: string; jobId?: string; attemptId?: string };
         return typed;
     }
 
@@ -136,6 +136,7 @@ function verifyElevenLabsSignature(rawBody: string, signatureHeader: string, sec
 
 export async function POST(request: Request) {
     let claimedEventId: string | null = null;
+    let stopLease: (() => void) | undefined;
 
     try {
         const webhookSecret = env.ELEVENLABS_WEBHOOK_SECRET;
@@ -169,7 +170,7 @@ export async function POST(request: Request) {
         logger.info(`[ElevenLabs Webhook] Received for request_id: ${payload.request_id}`);
 
         // Validate required metadata
-        const { recordingId, authSubject } = parseElevenLabsMetadata(payload.webhook_metadata);
+        const { recordingId, authSubject, jobId, attemptId } = parseElevenLabsMetadata(payload.webhook_metadata);
 
         if (!recordingId || !authSubject) {
             logger.error('[ElevenLabs Webhook] Missing webhook_metadata (recordingId or authSubject)');
@@ -198,6 +199,10 @@ export async function POST(request: Request) {
         });
 
         if (!recording) {
+            if (['success', 'failed'].includes(payload.status || '') && await settleRemovedRecording(authSubject, recordingId, 'elevenlabs', [payload.transcription_id, payload.request_id].filter((id): id is string => Boolean(id)), attemptId, payload.status === 'success', db)) {
+                await drainLedgerOutbox(authSubject, db);
+                return NextResponse.json({ success: true, status: 'financial_receipt_retained' });
+            }
             logger.error(`[ElevenLabs Webhook] Recording not found: ${recordingId}`);
             return NextResponse.json(
                 { error: 'Recording not found' },
@@ -208,6 +213,21 @@ export async function POST(request: Request) {
         const incomingCorrelationIds = [payload.transcription_id, payload.request_id].filter(
             (value): value is string => Boolean(value)
         );
+
+        if (recording.transcriptionAttemptId && (attemptId !== recording.transcriptionAttemptId || jobId !== recording.transcriptionJobId)) {
+            return NextResponse.json({ success: true, status: 'ignored_stale_attempt' });
+        }
+
+        // The signed callback may beat the submission response. Its current
+        // attempt identity can initialize correlation without waiting for redelivery.
+        if (!recording.externalTranscriptionId && recording.transcriptionAttemptId && attemptId === recording.transcriptionAttemptId && jobId === recording.transcriptionJobId && incomingCorrelationIds[0]) {
+            const initialized = await db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate({
+                _id: recording._id, authSubject, transcriptionAttemptId: attemptId,
+                externalTranscriptionId: { $exists: false },
+            }, { $set: { externalTranscriptionId: incomingCorrelationIds[0] } }, { returnDocument: 'after' });
+            const correlated = initialized || await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: recording._id, authSubject });
+            recording.externalTranscriptionId = correlated?.externalTranscriptionId;
+        }
 
         if (!recording.externalTranscriptionId) {
             logger.warn(
@@ -241,29 +261,34 @@ export async function POST(request: Request) {
         }
 
         claimedEventId = eventId;
+        const execution = jobId && attemptId ? { jobId, attemptId } : undefined;
+        const resultAttempt = execution?.attemptId || `provider:${recording.externalTranscriptionId}`;
+        const alreadyEnriched = recording.transcriptionResultAttemptId === resultAttempt && recording.transcriptionStatus === 'completed' && !recording.transcriptionEnrichmentPending;
+        if (!alreadyEnriched) stopLease = await beginQueuedWebhookExecution(authSubject, recordingId, eventId, execution);
+        const save = (patch: import('@/lib/db/types').UpdateRecordingInput) => execution
+            ? stopLease ? updateTranscriptionAttempt(authSubject, recordingId, execution, patch)
+                : updateDeferredTranscriptionResult(authSubject, recordingId, recording, execution, patch)
+            : updateLegacyTranscriptionResult(authSubject, recordingId, recording, patch);
 
         // Handle failed transcription
         if (deliveryStatus === 'failed') {
+            if (recording.transcriptionResultAttemptId === resultAttempt && recording.fullTranscript) {
+                await markTranscriptionWebhookProcessed(eventId);
+                return NextResponse.json({ success: true, status: 'ignored_obsolete_failure' });
+            }
+            if (recording.transcriptionReceipt) await settleFailedTranscription(authSubject, recording.transcriptionReceipt, undefined, 'failed');
             logger.error(`[ElevenLabs Webhook] Transcription failed: ${payload.error}`);
-            await updateRecording(recordingId, authSubject, {
+            await save({
                 transcriptionStatus: 'failed',
+                transcriptionError: 'The transcription provider rejected this recording.',
+                processingStatus: processingFailure(new Error('The transcription provider rejected this recording.'), 'transcription', 'responded'),
             });
 
             await markTranscriptionWebhookProcessed(eventId);
+            await settleQueuedTranscription(authSubject, recordingId, execution);
+            after(async () => { await processTranscriptionJobs(); });
 
-            try {
-                const user = await findUserByAuthSubject(authSubject);
-                if (user) {
-                    await createNotification(
-                        user._id,
-                        'error',
-                        'Transcription Failed',
-                        `Processing failed for \"${recording.standardizedDisplayName}\".`,
-                    );
-                }
-            } catch (notificationError) {
-                logger.error('[ElevenLabs Webhook] Failure notification delivery failed after processing:', notificationError);
-            }
+            await notifyProcessingOutcome(authSubject, recordingId, 'failed', attemptId);
 
             return NextResponse.json({ success: true, status: 'failed_recorded' });
         }
@@ -271,73 +296,31 @@ export async function POST(request: Request) {
         // Process successful transcription
         const segments = processElevenLabsWordsIntoSegments(payload.words || []);
         const languageCode = payload.language_code || 'en';
-
-        // Update recording with transcript
-        await updateRecording(recordingId, authSubject, {
-            fullTranscript: segments,
-            languageCode,
-            transcriptionStatus: 'processing', // Still processing AI
-        });
-
-        logger.info(`[ElevenLabs Webhook] Saved transcript (${segments.length} segments) for ${recordingId}`);
-
-        // Process with AI (summarization)
+        let completion;
         try {
-            const fullText = segments.map(s => `${s.speakerId}: ${s.text}`).join('\n');
-
-            const [summary, transliteratedSegments] = await Promise.all([
-                getAiService().generateSummary(fullText, languageCode),
-                getAiService().generateTransliteration(segments, languageCode)
-            ]);
-
-            await updateRecording(recordingId, authSubject, {
-                summary,
-                fullTranscript: transliteratedSegments, // Update with transliteration
-                transcriptionStatus: 'completed',
-            });
-            logger.info(`[ElevenLabs Webhook] AI processing complete for ${recordingId}`);
-        } catch (aiError) {
-            logger.error(`[ElevenLabs Webhook] AI processing failed: ${aiError}`);
-            // Still mark as completed since transcript is saved
-            await updateRecording(recordingId, authSubject, {
-                transcriptionStatus: 'completed',
-            });
+            const normalizedResult = {
+                segments, languageCode, provider: 'elevenlabs', providerResultId: recording.externalTranscriptionId,
+                multiplier: recording.transcriptionCostMultiplier || 1, model: recording.transcriptionModel,
+            } as const;
+            if (execution && !stopLease && !alreadyEnriched) {
+                const accepted = await acceptTranscriptionResult(authSubject, recordingId, normalizedResult, execution, true);
+                if (accepted.recording.transcriptionCompletionPending) {
+                    await queueDeferredTranscriptionCompletion(authSubject, recordingId, execution, db);
+                    completion = { outcome: 'queued' as const };
+                } else completion = { outcome: accepted.recording.transcriptionStatus === 'completed' ? 'completed' as const : 'partial' as const };
+            } else completion = await completeTranscriptionResult(authSubject, recordingId, normalizedResult, execution);
+        } catch (error) {
+            if (!(error instanceof ProcessingError) || error.processingStatus.code !== 'transcript_envelope_exceeded') throw error;
+            await save({ transcriptionStatus: 'failed', transcriptionError: error.message, processingStatus: error.processingStatus });
+            await settleQueuedTranscription(authSubject, recordingId, execution);
+            await markTranscriptionWebhookProcessed(eventId);
+            after(async () => { await processTranscriptionJobs(); });
+            return NextResponse.json({ success: true, status: 'needs_review' });
         }
-
-        const usageReportId = `elevenlabs:${recording.externalTranscriptionId}`;
-        const shouldReportUsage = await markTranscriptionUsageReported(recordingId, authSubject, usageReportId);
-        if (shouldReportUsage) {
-            const multiplier = recording.transcriptionCostMultiplier || 1;
-            const baseDuration = calculateBilledDuration(recording.duration);
-            const billedCostDuration = baseDuration * multiplier;
-            await incrementTranscriptionUsed(authSubject, billedCostDuration);
-            await reportUsage(authSubject, 'transcription', baseDuration, {
-                multiplier,
-                identifier: `transcription:${authSubject}:recording:${recordingId}:elevenlabs:${recording.externalTranscriptionId}`,
-            });
-
-            const totalBilled = Math.ceil(baseDuration * multiplier);
-            logger.info(`[ElevenLabs Webhook] Usage reported: ${totalBilled}s (Base: ${baseDuration}s * ${multiplier}x)`);
-        }
-
         await markTranscriptionWebhookProcessed(eventId);
-
-        try {
-            const user = await findUserByAuthSubject(authSubject);
-            if (user) {
-                await createNotification(
-                    user._id,
-                    'success',
-                    'Transcription Ready',
-                    `Your recording \"${recording.standardizedDisplayName}\" has been processed.`,
-                    buildRecordingNotificationLink(recordingId)
-                );
-            }
-        } catch (notificationError) {
-            logger.error('[ElevenLabs Webhook] Notification delivery failed after processing:', notificationError);
-        }
-
-        return NextResponse.json({ success: true, status: 'completed' });
+        if (completion.outcome !== 'queued') await settleQueuedTranscription(authSubject, recordingId, execution);
+        after(async () => { await processTranscriptionJobs(); });
+        return NextResponse.json({ success: true, status: completion.outcome === 'partial' ? 'needs_review' : completion.outcome });
 
     } catch (error) {
         if (claimedEventId) {
@@ -354,5 +337,7 @@ export async function POST(request: Request) {
             { error: 'Internal server error' },
             { status: 500 }
         );
+    } finally {
+        stopLease?.();
     }
 }

@@ -8,6 +8,8 @@ export interface SystemSettings {
     _id: ObjectId;
     allowSignups: boolean;
     maintenanceMode: boolean;
+    /** Explicit operator pause for new provider calls. Missing means running. */
+    processingPaused?: boolean;
     defaultPlanId: ObjectId;
     transcriptionMultipliers?: {
         soniox: number;
@@ -39,6 +41,8 @@ export interface Announcement {
  */
 export interface Notification {
     _id: ObjectId;
+    /** Stable processing event identity; absent for ordinary notifications. */
+    eventKey?: string;
     userId: ObjectId;
     type: 'info' | 'success' | 'warning' | 'error';
     title: string;
@@ -107,6 +111,28 @@ export interface AdminLog {
 export interface ExportJob {
     /** Actor who requested this archive; authSubject remains the uploader. */
     requestedByAuthSubject?: string;
+    sourceRevision?: string;
+    cacheEligible?: boolean;
+    archiveExpiresAt?: Date;
+    cleanedAt?: Date;
+    cleanupPending?: boolean;
+    abortedAt?: Date;
+    generationAttempts?: number;
+    exportAdmissionVersion?: 2;
+    exportAccessSource?: 'customer' | 'operator' | 'trial' | 'grant' | 'internal' | 'recovery';
+    recoveryClaimId?: string;
+    costReservationId?: string;
+    maximumCostMicros?: number;
+    /** operator is the historical recovery-pool name. */
+    costBudgetSource?: 'customer' | 'operator' | 'trial' | 'grant' | 'internal' | 'recovery';
+    costBudgetPoolId?: string;
+    costSettledAt?: Date;
+    costStartedAt?: Date;
+    costUnpriced?: boolean;
+    costEstimateStale?: boolean;
+    costPolicyVersion?: string;
+    sourceBytes?: number;
+    estimatedArchiveBytes?: number;
     _id: ObjectId;
     authSubject: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -152,6 +178,7 @@ export interface SystemSettingsResponse {
     id: string;
     allowSignups: boolean;
     maintenanceMode: boolean;
+    processingPaused?: boolean;
     defaultPlanId: string;
     transcriptionMultipliers?: {
         soniox: number;

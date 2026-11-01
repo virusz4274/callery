@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongodb';
+import { MongoServerError, ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { Notification, NotificationResponse, User } from '@/lib/db/types';
 import { sendWebPushNotification } from '@/lib/web-push';
@@ -14,7 +14,8 @@ export async function createNotification(
     type: 'info' | 'success' | 'warning' | 'error',
     title: string,
     message: string,
-    link?: string
+    link?: string,
+    options?: { eventKey: string },
 ): Promise<void> {
     const db = await getMongoDb();
     const normalizedLink = normalizeNotificationLink(link);
@@ -28,9 +29,17 @@ export async function createNotification(
         link: normalizedLink,
         isRead: false,
         createdAt: new Date(),
+        ...(options ? { eventKey: options.eventKey } : {}),
     };
 
-    await db.collection<Notification>(Collections.NOTIFICATIONS).insertOne(notification);
+    try { await db.collection<Notification>(Collections.NOTIFICATIONS).insertOne(notification); }
+    catch (error) {
+        // Only an existing identical event is a successful duplicate. Other
+        // uniqueness failures must remain visible rather than hiding lost mail.
+        if (options && error instanceof MongoServerError && error.code === 11000
+            && await db.collection<Notification>(Collections.NOTIFICATIONS).findOne({ userId, eventKey: options.eventKey })) return;
+        throw error;
+    }
 
     // Send Web Push notifications if user has subscriptions
     try {

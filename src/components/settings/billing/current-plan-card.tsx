@@ -11,11 +11,15 @@ type CurrentPlanCardProps = {
     isTrial: boolean;
     canManageSubscription: boolean;
     allowOverage: boolean;
+    isLifetime?: boolean;
+    operatorFunded?: boolean;
+    needsBillingAttention?: boolean;
     storageUsed: number;
     storageAlloc: number;
     storagePercent: number;
     transcribeUsed: number;
     transcribeAlloc: number;
+    transcriptionUnlimited?: boolean;
     transcribePercent: number;
     isLoadingPortal: boolean;
     isLoadingPlans: boolean;
@@ -34,11 +38,15 @@ export function CurrentPlanCard({
     isTrial,
     canManageSubscription,
     allowOverage,
+    isLifetime = false,
+    operatorFunded = false,
+    needsBillingAttention = false,
     storageUsed,
     storageAlloc,
     storagePercent,
     transcribeUsed,
     transcribeAlloc,
+    transcriptionUnlimited = false,
     transcribePercent,
     isLoadingPortal,
     isLoadingPlans,
@@ -54,8 +62,8 @@ export function CurrentPlanCard({
         <Card>
             <Card.Content className="space-y-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
-                    <Chip size="sm" variant="soft" color={isTrial ? 'warning' : 'success'}>
-                        {isTrial ? 'Trial active' : 'Plan active'}
+                    <Chip size="sm" variant="soft" color={isTrial || needsBillingAttention ? 'warning' : 'success'}>
+                        {needsBillingAttention ? 'Billing needs attention' : operatorFunded ? 'Administrator funded' : isTrial ? 'Trial active' : 'Plan active'}
                     </Chip>
                 </div>
 
@@ -67,7 +75,10 @@ export function CurrentPlanCard({
                         <div className="space-y-2">
                             <h4 className="text-xl font-semibold text-foreground">{planName}</h4>
                             {isTrial && <p className="max-w-2xl text-sm leading-6 text-muted">
-                                Upgrade before your trial ends to keep access.
+                                Your one-time 30-day trial does not renew monthly. Upgrade before it ends to continue uploading and transcribing.
+                            </p>}
+                            {operatorFunded && <p className="max-w-2xl text-sm leading-6 text-muted">
+                                Your administrator provides this plan. {transcriptionUnlimited ? 'Transcription has no minute quota; configured provider and service limits still apply.' : 'Processing uses your assigned quotas, features, and expiry.'} A Stripe subscription or usage top-up is not required.
                             </p>}
                         </div>
                     </div>
@@ -80,9 +91,9 @@ export function CurrentPlanCard({
                             isDisabled={isLoadingPortal}
                         >
                             {isLoadingPortal ? <Spinner size="sm" color="current" /> : <CreditCard className="h-4 w-4" />}
-                            {isLoadingPortal ? 'Opening portal...' : 'Manage subscription'}
+                            {isLoadingPortal ? 'Opening portal...' : 'Payments & invoices'}
                         </Button>
-                    ) : (
+                    ) : !operatorFunded ? (
                         <UpgradePlanModal
                             plans={availablePlans}
                             isLoadingPlans={isLoadingPlans}
@@ -90,25 +101,26 @@ export function CurrentPlanCard({
                             onOpen={onUpgradeOpen}
                             onCheckout={onCheckout}
                         />
-                    )}
+                    ) : null}
                 </div>
+                {canManageSubscription && !isLifetime && !operatorFunded && <UpgradePlanModal plans={availablePlans} isLoadingPlans={isLoadingPlans} isCheckingOut={isCheckingOut} onOpen={onUpgradeOpen} onCheckout={onCheckout} />}
 
                 <div className="space-y-4">
                     <div className="rounded-xl border border-border bg-default-50/70 p-4">
                         <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
                             <Sparkles className="h-4 w-4 text-primary" />
-                            Included usage
+                            {isLifetime ? 'Metered usage' : 'Included usage'}
                         </div>
                         <div className="space-y-4">
                             <UsageProgressBar
                                 label="Storage usage"
-                                usedLabel={`${formatBytes(storageUsed)} / ${formatBytes(storageAlloc)}`}
+                                usedLabel={isLifetime ? formatBytes(storageUsed) : `${formatBytes(storageUsed)} / ${formatBytes(storageAlloc)}`}
                                 percent={storagePercent}
                             />
                             <UsageProgressBar
-                                label="Transcription minutes"
-                                usedLabel={`${formatSeconds(transcribeUsed)} / ${formatSeconds(transcribeAlloc)}`}
-                                percent={transcribePercent}
+                                label="Weighted transcription minutes"
+                                usedLabel={transcriptionUnlimited ? `${formatSeconds(transcribeUsed)} used · Unlimited` : isLifetime ? formatSeconds(transcribeUsed) : `${formatSeconds(transcribeUsed)} / ${formatSeconds(transcribeAlloc)}`}
+                                percent={transcriptionUnlimited ? 0 : transcribePercent}
                             />
                         </div>
                     </div>
@@ -116,7 +128,7 @@ export function CurrentPlanCard({
 
                 </div>
 
-                {!isFree && !isTrial && (
+                {!isFree && !isTrial && !isLifetime && !operatorFunded && (
                     <div className="rounded-xl border border-border bg-background p-4 sm:p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="space-y-2">
@@ -124,7 +136,7 @@ export function CurrentPlanCard({
                                     <h4 className="font-semibold text-foreground">Pay per usage</h4>
                                 </div>
                                 <p className="max-w-2xl text-sm leading-6 text-muted">
-                                    Usage beyond your plan limits is billed at standard rates.
+                                    Prepaid credit funds usage beyond your plan limits. New usage pauses when credit runs out.
                                 </p>
                             </div>
 

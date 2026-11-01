@@ -2,7 +2,7 @@ export const siteProfile = {
   siteName: 'Callery',
   siteTagline: 'Call Archive & AI Search',
   siteDescription:
-    'Callery turns call recordings from Samsung devices and other phones that save recordings into folders into a searchable archive with transcripts, summaries, and AI retrieval.',
+    'Bring your recorded calls together with transcripts, summaries, and search. Find what was said and return to the original audio with Callery.',
   supportEmail: 'support@callery.com',
   salesEmail: 'sales@callery.com',
   twitterHandle: '',

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import type { UserResponse } from '../src/lib/db/types';
 
 test.use({ serviceWorkers: 'block' });
@@ -22,15 +23,24 @@ const providers = [
 
 async function mockSettings(page: Page, failSaves = false) {
     let profile = structuredClone(initialProfile);
-    const saves: Array<{ storageSettings: UserResponse['storageSettings']; transcriptionSettings: UserResponse['transcriptionSettings'] }> = [];
+    const saves: Array<{ storageSettings?: UserResponse['storageSettings']; transcriptionSettings?: UserResponse['transcriptionSettings'] }> = [];
     const unexpectedActions: string[] = [];
     const actionNames = new Map<string, string>();
+    // Production builds expose action names in the server manifest.
+    if (process.env.TEST_ACTION_MANIFEST_PATH) {
+        const manifest = JSON.parse(await readFile(process.env.TEST_ACTION_MANIFEST_PATH, 'utf8'));
+        for (const [id, entry] of Object.entries({ ...manifest.node, ...manifest.edge })) {
+            if (entry && typeof entry === 'object' && 'exportedName' in entry && typeof entry.exportedName === 'string') {
+                actionNames.set(id, entry.exportedName);
+            }
+        }
+    }
 
     // All settings writes and Server Actions stay in this browser fixture.
     await page.route('**/*', async route => {
         const request = route.request();
         const url = new URL(request.url());
-        if (url.pathname.startsWith('/_next/') && url.pathname.endsWith('.js')) {
+        if (!process.env.TEST_ACTION_MANIFEST_PATH && url.pathname.startsWith('/_next/') && url.pathname.endsWith('.js')) {
             const response = await route.fetch();
             const source = await response.text();
             // Next development action IDs change between builds.
@@ -93,13 +103,11 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
         // Click the visible switch track, then exercise its native keyboard input.
         await page.locator('[data-slot="switch-control"]').click();
         await expect(toggle).not.toBeChecked();
-        await expect(page.getByText('Manual', { exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Default transcription provider' })).toHaveCount(0);
         expect(fixture.saves).toEqual([]);
         await page.getByRole('button', { name: 'Save Settings', exact: true }).click();
         await expect(page.getByText('Policy Saved', { exact: true })).toBeVisible();
         expect(fixture.saves).toEqual([{
-            storageSettings: { deletionPolicy: '3m' },
             transcriptionSettings: { autoTranscribe: false, defaultProvider: 'gemini' },
         }]);
 
@@ -108,12 +116,10 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
         await toggle.press('Space');
         await expect(toggle).toBeChecked();
         await expect(toggle).toBeFocused();
-        await expect(page.getByText('Automatic', { exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Default transcription provider' })).toContainText('Gemini');
         await page.getByRole('button', { name: 'Save Settings', exact: true }).click();
         await expect(page.getByText('Policy Saved', { exact: true })).toBeVisible();
         expect(fixture.saves[1]).toEqual({
-            storageSettings: { deletionPolicy: '3m' },
             transcriptionSettings: { autoTranscribe: true, defaultProvider: 'gemini' },
         });
         expect(fixture.profile()).toEqual(initialProfile);

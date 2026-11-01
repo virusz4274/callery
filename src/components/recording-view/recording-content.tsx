@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Recording } from '@/lib/types';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import type { RecordingContentData } from '@/lib/recording-content-types';
 import { Button, Avatar, Accordion, Tabs } from '@heroui/react';
 import { Loader2, Wand2 } from 'lucide-react';
 import { RecordingProviderBadge } from './recording-provider-badge';
 import { SummaryContent } from './summary-content';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { TranscriptionProviderId } from '@/services/transcription/factory';
+import { enrichmentNeedsResume } from '@/lib/transcription/processing-errors';
 
 type RecordingContentProps = {
-  recording: Recording;
+  recording: RecordingContentData;
   playbackUrl: string | null;
   autoPlay?: boolean;
   isLoadingUrl?: boolean;
@@ -63,28 +64,11 @@ export function RecordingContent({
     return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
   };
 
-  const visibleTranscript = useMemo(() => {
-    if (!recording.fullTranscript || recording.fullTranscript.length === 0) {
-      return recording.fullTranscript;
-    }
-
-    if (typeof clipStartSeconds !== 'number' && typeof clipEndSeconds !== 'number') {
-      return recording.fullTranscript;
-    }
-
-    const startBoundary = typeof clipStartSeconds === 'number' ? clipStartSeconds : 0;
-    const endBoundary = typeof clipEndSeconds === 'number' ? clipEndSeconds : Number.POSITIVE_INFINITY;
-
-    const filtered = recording.fullTranscript.filter((segment) => {
-      const segmentStart = segment.start ?? 0;
-      const segmentEnd = segment.end ?? segmentStart;
-      return segmentEnd >= startBoundary && segmentStart <= endBoundary;
-    });
-
-    return filtered;
-  }, [clipEndSeconds, clipStartSeconds, recording.fullTranscript]);
+  // Public shares arrive with their permitted transcript already projected on the server.
+  const visibleTranscript = recording.fullTranscript;
   const hasTranscript = Boolean(visibleTranscript && visibleTranscript.length > 0);
-  const transcribeButtonLabel = hasTranscript ? 'Transcribe again' : 'Transcribe';
+  const needsEnrichment = recording.processingProgress?.transcriptAvailable && !['not_started', 'completed'].includes(recording.processingProgress.enrichmentState);
+  const transcribeButtonLabel = enrichmentNeedsResume(recording.processingStatus) ? 'Resume enrichment' : hasTranscript ? 'Transcribe again' : 'Transcribe';
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -135,9 +119,12 @@ export function RecordingContent({
               {onTranscribe && <Button variant={hasTranscript ? 'ghost' : 'primary'} className="min-h-11 md:min-h-8" size="sm"
                 isPending={isProcessing} isDisabled={isProcessing} onPress={onTranscribe}>
                 {!isProcessing && <Wand2 className="size-4" />}
-                {isProcessing ? (activeTranscriptionProvider === 'elevenlabs' ? 'Transcribing Premium…' : 'Transcribing…') : transcribeButtonLabel}
+                {isProcessing ? (needsEnrichment ? 'Enriching transcript…' : activeTranscriptionProvider === 'elevenlabs' ? 'Transcribing Premium…' : 'Transcribing…') : transcribeButtonLabel}
               </Button>}
             </div>
+            {needsEnrichment && <p role="status" className="mb-4 text-sm text-muted">
+              Transcript saved. {recording.processingProgress?.enrichmentState === 'running' ? 'AI enrichment is processing.' : recording.processingProgress?.enrichmentState === 'pending' ? 'AI enrichment is queued.' : 'AI enrichment needs attention; the saved transcript remains available.'}
+            </p>}
             {visibleTranscript?.some(segment => segment.transliteratedText) && (
               <div role="group" aria-label="Transcript script" className="mb-4 flex w-full gap-2 rounded-lg bg-surface-secondary p-1 md:ml-auto md:w-fit">
                 <Button size="sm" className="min-h-11 flex-1 md:min-h-8" variant={!showTransliteration ? 'secondary' : 'ghost'} aria-pressed={!showTransliteration} onPress={() => setShowTransliteration(false)}>Original</Button>

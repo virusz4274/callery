@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { publicSitePolicy, workspaceHomeHref } from '@/lib/public-site-policy';
-import { getPublishedPlans } from '@/app/actions/plans';
 import { HomepageRedirect } from '@/components/marketing/homepage-redirect';
 import { JsonLd } from '@/components/seo/json-ld';
 import { LandingPage } from '@/components/pages/landing-page';
@@ -19,9 +18,9 @@ import { landingPageFaqs, landingPageFeatureList } from '@/components/pages/land
 
 export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
-  title: 'Call recording archive and AI search for Samsung and folder-based recordings',
+  title: 'Find the details in your recorded calls',
   description:
-    'Archive call recordings from Samsung devices and other phones that save audio into folders, then search them with transcripts, summaries, timestamps, and AI retrieval.',
+    'Bring your recorded calls together with transcripts, summaries, and search. Find what was said and return to the original audio with Callery.',
   path: '/',
   keywords: [
     'call recording archive',
@@ -38,13 +37,12 @@ export default async function Home({ searchParams }: {
   if (!publicSitePolicy().marketingEnabled) {
     redirect(workspaceHomeHref(await searchParams));
   }
-  const publishedPlans = await getPublishedPlans();
   const jsonLd = jsonLdGraph(
     buildOrganizationSchema(siteSeoConfig),
     buildSoftwareApplicationSchema(siteSeoConfig, {
       name: siteSeoConfig.siteName,
       description:
-        'A searchable call recording archive for Samsung users and anyone who stores call audio in folders.',
+        'Organize existing phone call recordings, review transcripts and summaries, and find the details with search.',
       path: '/',
       featureList: landingPageFeatureList,
     }),
@@ -57,7 +55,7 @@ export default async function Home({ searchParams }: {
       <Suspense>
         <HomepageRedirect />
       </Suspense>
-      <LandingPage availablePlans={publishedPlans} salesEmail={siteSeoConfig.salesEmail} />
+      <LandingPage />
     </>
   );
 }

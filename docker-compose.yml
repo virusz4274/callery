@@ -1,6 +1,5 @@
 services:
   app:
-    container_name: call-memo-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,7 +12,7 @@ services:
         NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
         NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU: ${NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU:-false}
     ports:
-      - "3000:3000"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:3000"
     restart: always
     # Lets the app reach host-run services (external MinIO, Ollama, Whisper)
     # via host.docker.internal on Linux; no-op on Docker Desktop.
@@ -41,7 +40,7 @@ services:
 
   cron:
     profiles: [selfhost, scheduler]
-    image: alpine:3.23
+    image: alpine:3.23.6@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
     restart: unless-stopped
     environment:
       TZ: UTC
@@ -95,8 +94,7 @@ services:
   # recordings_text_search is optional for fuzzy API text search.
   mongo:
     profiles: [selfhost]
-    image: mongo:8
-    container_name: vosift-mongo
+    image: mongo:8.0.34@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
@@ -120,16 +118,21 @@ services:
   # these ports before running both on one machine.
   minio:
     profiles: [selfhost]
-    image: minio/minio:latest
-    container_name: vosift-minio
+    # Upstream community MinIO is archived and source-only. This optional
+    # compatibility backend is built from its pinned security release.
+    # Prefer a supported external S3 service for production; see docs/releases.md.
+    build:
+      context: .
+      dockerfile: docker/minio.Dockerfile
+      target: minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:?Set R2_ACCESS_KEY_ID for bundled MinIO}
+      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:?Set R2_SECRET_ACCESS_KEY for bundled MinIO}
     ports:
-      - "9000:9000"   # S3 API (browser playback via S3_PUBLIC_ENDPOINT)
-      - "9001:9001"   # MinIO console (same root credentials)
+      - "${STORAGE_BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-9000}:9000"
+      - "${STORAGE_BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     healthcheck:
@@ -143,14 +146,16 @@ services:
   # upload works on a fresh `compose --profile selfhost up`.
   minio-init:
     profiles: [selfhost]
-    image: minio/mc:latest
-    container_name: vosift-minio-init
+    build:
+      context: .
+      dockerfile: docker/minio.Dockerfile
+      target: mc
     depends_on:
       minio:
         condition: service_healthy
     environment:
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?Set R2_ACCESS_KEY_ID for bundled MinIO}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?Set R2_SECRET_ACCESS_KEY for bundled MinIO}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-vosift}
     entrypoint:
       - /bin/sh

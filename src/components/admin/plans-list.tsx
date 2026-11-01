@@ -8,7 +8,8 @@ import { PlanFormDialog } from './plan-form-dialog';
 import { ConfirmActionDialog } from './confirm-action-dialog';
 import { useToast } from '@/components/toast-provider';
 import { useRouter } from 'next/navigation';
-export function PlansList({ initialPlans }: { initialPlans: PlanResponse[] }) {
+import { planIntervalLabel } from '@/lib/plans';
+export function PlansList({ initialPlans, managedBilling = false }: { initialPlans: PlanResponse[]; managedBilling?: boolean }) {
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState<PlanResponse | null>(null);
     const [deletingPlan, setDeletingPlan] = useState<PlanResponse | null>(null);
@@ -26,16 +27,17 @@ export function PlansList({ initialPlans }: { initialPlans: PlanResponse[] }) {
         finally { busy.current = false; setPending(false); }
     };
     return <div className="space-y-5">
+        {managedBilling && <div><h2 className="text-lg font-semibold">Draft plan definitions</h2><p className="mt-2 text-sm text-muted">These edits prepare plan metadata. Import and publish the complete Stripe catalog above to change offers for new purchases. Deleting a draft also pauses new sales for that plan.</p></div>}
         <div className="flex justify-end"><Button className="min-h-11" onPress={create}><Plus className="size-4" />Create plan</Button></div>
         {!initialPlans.length && <Card className="items-center gap-3 py-10 text-center"><h2 className="text-lg font-semibold">No plans yet</h2><p className="text-sm text-muted">Create a plan to define pricing and usage allowances.</p><Button variant="secondary" onPress={create} className="min-h-11">Create your first plan</Button></Card>}
         <div className="grid min-w-0 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             {initialPlans.map(plan => <Card key={plan.id} variant={plan.isDefault ? 'secondary' : 'default'} className="min-w-0 gap-4 p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1"><h2 className="break-words text-lg font-semibold">{plan.name}</h2><div className="mt-2 flex flex-wrap gap-2">{plan.isDefault && <Chip size="sm" color="accent" variant="soft">Default</Chip>}{!plan.isActive && <Chip size="sm" variant="soft">Inactive</Chip>}</div></div>
-                    <div className="break-words text-right"><p className="text-xl font-semibold">{plan.price === 0 ? 'Free' : new Intl.NumberFormat('en-US', { style: 'currency', currency: plan.currency }).format(plan.price)}</p><p className="text-xs text-muted">{plan.interval === 'lifetime' ? 'One-time' : `/${plan.interval}`}</p></div>
+                    <div className="break-words text-right"><p className="text-xl font-semibold">{plan.price === 0 ? 'Free' : new Intl.NumberFormat('en-US', { style: 'currency', currency: plan.currency }).format(plan.price)}</p><p className="text-xs text-muted">{planIntervalLabel(plan.interval, plan.key)}</p></div>
                 </div>
                 <p className="break-words text-sm text-muted">{plan.description || 'No description'}</p>
-                <dl className="space-y-2 text-sm"><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Storage</dt><dd>{Number((plan.limits.storage / 1024 ** 3).toFixed(2))} GB</dd></div><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Transcription</dt><dd>{Number((plan.limits.transcription / 60).toFixed(2))} min</dd></div></dl>
+                <dl className="space-y-2 text-sm"><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Storage</dt><dd>{Number((plan.limits.storage / 1024 ** 3).toFixed(2))} GB</dd></div><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2"><dt>Transcription</dt><dd>{plan.key === 'internal' ? 'Unlimited' : `${Number((plan.limits.transcription / 60).toFixed(2))} min`}</dd></div></dl>
                 <div className="mt-auto space-y-2"><div className="flex gap-2"><Button aria-label={`Edit ${plan.name}`} variant="secondary" className="min-h-11 flex-1" onPress={() => { setEditingPlan(plan); setFormOpen(true); }}><Edit className="size-4" />Edit</Button><Button aria-label={`Delete ${plan.name}`} aria-describedby={plan.isDefault ? `default-${plan.id}` : undefined} variant="danger-soft" isIconOnly className="size-11" isDisabled={plan.isDefault || pending} onPress={() => { setError(null); setDeletingPlan(plan); }}><Trash2 className="size-4" /></Button></div>{plan.isDefault && <p id={`default-${plan.id}`} className="text-xs text-muted">The default plan cannot be deleted.</p>}</div>
             </Card>)}
         </div>

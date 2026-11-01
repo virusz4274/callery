@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { ObjectId } from 'mongodb';
+import { ObjectId, type Db } from 'mongodb';
 import { NextRequest } from 'next/server';
 import { Collections, getMongoClient, getMongoDb } from '@/lib/mongodb';
 import { createCoreIndexes } from '@/lib/db/init/indexes';
@@ -10,8 +10,24 @@ import { findUserByAuthSubject } from '@/lib/db/users';
 import { updateSystemSettingsDocument } from '@/lib/db/system-settings';
 import { deleteUserData } from '@/lib/db/delete-user-data';
 import { getRequestIdentity } from '@/lib/auth-utils';
+import { checkUserAccess } from '@/lib/access-control-common';
+import { checkStorageAccess } from '@/lib/access-control-storage';
+import { checkTranscriptionAccess } from '@/lib/access-control-transcription';
 import type { SendEmailInput } from '@/lib/email';
 import { createAuth } from './server';
+
+test('managed authentication refuses no-email configuration before accessing the database', () => {
+    const saved = { ...process.env };
+    try {
+        process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+        process.env.EMAIL_PROVIDER = 'none';
+        const unusedDatabase = new Proxy({} as Db, { get() { throw new Error('Database accessed before configuration validation.'); } });
+        assert.throws(() => createAuth(unusedDatabase), /Managed hosting requires email verification/);
+    } finally {
+        for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+        Object.assign(process.env, saved);
+    }
+});
 
 // Real adapter records on a fresh database, including standalone MongoDB.
 test('Better Auth authentication, verification and permanent cleanup', {
@@ -21,6 +37,7 @@ test('Better Auth authentication, verification and permanent cleanup', {
     const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!);
     uri.pathname = `/vt_auth_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
     process.env.MONGODB_URI = uri.toString();
+    process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
     process.env.EMAIL_PROVIDER = 'none';
     process.env.ADMIN_EMAILS = 'bootstrap@example.com,verified-admin@example.com';
     const client = await getMongoClient();
@@ -80,6 +97,32 @@ test('Better Auth authentication, verification and permanent cleanup', {
             await db.collection(Collections.USERS).updateOne({ authSubject: subject }, { $set: { disabled: false }, $unset: { softDelete: '' } });
         });
 
+        await t.test('billing failures block new usage while established sessions retain account access', async () => {
+            const profile = (await findUserByAuthSubject(subject))!;
+            process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+            process.env.EMAIL_PROVIDER = 'smtp';
+            try {
+                for (const status of ['past_due', 'unpaid', 'paused', 'incomplete', 'incomplete_expired', 'canceled'] as const) {
+                    await db.collection(Collections.USERS).updateOne({ authSubject: subject }, { $set: {
+                        billingEntitlement: { source: 'subscription', reference: 'sub_auth_test', grantedAt: new Date() },
+                        stripeSubscriptionId: 'sub_auth_test', stripeSubscriptionStatus: status,
+                    } });
+                    const unpaid = (await findUserByAuthSubject(subject))!;
+                    assert.equal(checkUserAccess(unpaid).allowed, true, status);
+                    assert.equal(checkStorageAccess(unpaid, 1).allowed, false, status);
+                    assert.equal(checkTranscriptionAccess(unpaid, 1).allowed, false, status);
+                    assert.equal((await getRequestIdentity(new NextRequest(base, { headers: bearer(token) })))?.subject, subject, status);
+                }
+            } finally {
+                await db.collection(Collections.USERS).updateOne({ authSubject: subject }, {
+                    $set: { billingEntitlement: profile.billingEntitlement },
+                    $unset: { stripeSubscriptionId: '', stripeSubscriptionStatus: '' },
+                });
+                process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
+                process.env.EMAIL_PROVIDER = 'none';
+            }
+        });
+
         await t.test('signup restrictions allow existing users to log in', async () => {
             await updateSystemSettingsDocument({ allowSignups: false });
             const signup = await call(auth, '/sign-up/email', { name: 'Blocked', email: 'blocked@example.com', password });
@@ -128,6 +171,7 @@ test('Better Auth authentication, verification and permanent cleanup', {
         });
 
         process.env.EMAIL_PROVIDER = 'smtp';
+        process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
         const emails: SendEmailInput[] = [];
         const mailAuth = createAuth(db, async email => { emails.push(email); });
         let verifiedSubject: string;

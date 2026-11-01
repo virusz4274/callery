@@ -58,6 +58,7 @@ export const TokenSchema = z.object({
 export const TranscribeSchema = z.object({
     provider: z.enum(['soniox', 'elevenlabs', 'gemini', 'openai_compat']).optional(),
     model: z.string().trim().min(1).max(120).optional(),
+    acknowledgeProviderOutcome: z.boolean().optional(),
 }).strict();
 
 export function canonicalJson(value: unknown): string {

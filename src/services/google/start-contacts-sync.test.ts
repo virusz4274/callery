@@ -213,3 +213,33 @@ test('runGoogleContactsSync updates sync state after a successful import', async
     assert.ok(updates[1].lastSyncedAt instanceof Date);
     assert.ok(updates[1].tokenExpiresAt instanceof Date);
 });
+
+
+test('Contacts registers one deferred callback before starting provider work', async () => {
+    const { scheduleGoogleContactsSyncInBackground } = await import('@/services/google/start-contacts-sync');
+    const callbacks: Array<() => unknown> = [];
+    const calls: string[] = [];
+    scheduleGoogleContactsSyncInBackground('owned-user', {
+        after: task => { assert.equal(typeof task, 'function'); callbacks.push(task as () => unknown); },
+        runGoogleContactsSync: async subject => { calls.push(subject); return { importedCount: 0, duplicatePhoneIssues: [] }; },
+        markGoogleContactsSyncFailed: async () => { assert.fail('Successful work must not be marked failed.'); },
+    });
+    assert.deepEqual(calls, []);
+    assert.equal(callbacks.length, 1);
+    await callbacks[0]();
+    assert.deepEqual(calls, ['owned-user']);
+});
+
+test('deferred Contacts errors update the existing recoverable sync state', async () => {
+    const { scheduleGoogleContactsSyncInBackground } = await import('@/services/google/start-contacts-sync');
+    const callbacks: Array<() => unknown> = [];
+    const failures: string[][] = [];
+    scheduleGoogleContactsSyncInBackground('owned-user', {
+        after: task => { callbacks.push(task as () => unknown); },
+        runGoogleContactsSync: async () => { throw new Error('Fixture provider unavailable'); },
+        markGoogleContactsSyncFailed: async (subject, message) => { failures.push([subject, message]); },
+    });
+    assert.deepEqual(failures, []);
+    await callbacks[0]();
+    assert.deepEqual(failures, [['owned-user', 'Fixture provider unavailable']]);
+});

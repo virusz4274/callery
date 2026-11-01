@@ -7,6 +7,8 @@ import type { ExportJob, Recording, User } from './types';
 import { getTeamSettings, withTeamAccessLock } from '@/lib/team-policy';
 import { IntegrationCollections } from '@/lib/integrations/database';
 import { cleanupUpload, type UploadSession } from '@/lib/integrations/uploads';
+import { retainFinancialSettlement } from '@/lib/stripe/financial-settlement';
+import { revokeExportObjects } from '@/lib/export-processor/object-lifecycle';
 
 export interface DeleteUserDataResult {
     authSubject: string;
@@ -54,6 +56,7 @@ export async function deleteUserData(subject: string, dependencies?: CleanupDepe
         updatedAt: now,
     } });
     await db.collection(IntegrationCollections.tokens).updateMany({ owner: subject }, { $set: { revokedAt: now } });
+    if (billingEnabled()) await retainFinancialSettlement(user, db);
     // Let an already claimed completion settle before deleting its archive;
     // subsequent cleanup attempts are retried by the existing account cron.
     if (await db.collection<UploadSession>(IntegrationCollections.uploads).findOne({ owner: subject, leaseUntil: { $gt: now } }) ||
@@ -65,25 +68,16 @@ export async function deleteUserData(subject: string, dependencies?: CleanupDepe
         catch { result.r2Failures.push(upload.stagingKey); }
     }
     if (result.r2Failures.length) return result;
-    if (user.stripeSubscriptionId && billingEnabled()) {
-        try {
-            if (dependencies?.cancelSubscription) await dependencies.cancelSubscription(user.stripeSubscriptionId);
-            else {
-                const { getStripe } = await import('@/lib/stripe');
-                await getStripe().subscriptions.cancel(user.stripeSubscriptionId);
-            }
-            result.stripeSubscriptionCanceled = true;
-        } catch (error) {
-            result.stripeCancelError = error instanceof Error ? error.message : String(error);
-            result.stripeSubscriptionCanceled = false;
-            return result;
-        }
-    }
+    // Financial cancellation and final usage collection continue from the
+    // tombstone. A failed card or delayed provider must not retain personal data.
+    if (user.stripeSubscriptionId && billingEnabled()) result.stripeSubscriptionCanceled = false;
+    const pendingExportKeys = await revokeExportObjects(subject, db);
     const recordings = await db.collection<Recording>(Collections.RECORDINGS).find({ authSubject: subject }).toArray();
     const exports = await db.collection<ExportJob>(Collections.EXPORT_JOBS).find({ authSubject: subject }).toArray();
     result.r2Failures = await removeStoredObjects([
         ...recordings.map(recording => recording.r2Key),
         ...exports.flatMap(job => job.parts.map(part => part.key)),
+        ...pendingExportKeys,
     ], dependencies?.removeObject || deleteFromR2);
     if (result.r2Failures.length) return result;
 
@@ -95,11 +89,27 @@ export async function deleteUserData(subject: string, dependencies?: CleanupDepe
         await db.collection(collection).deleteMany({ authSubject: subject });
     }
     await db.collection(IntegrationCollections.tokens).deleteMany({ owner: subject });
-    await db.collection(IntegrationCollections.jobs).deleteMany({ owner: subject });
+    await db.collection(IntegrationCollections.jobs).deleteMany({ owner: subject, state: { $ne: 'submitted' } });
+    await db.collection('transcription_batches').deleteMany({ owner: subject });
+    await db.collection('transcription_imports').deleteMany({ owner: subject });
+    await db.collection('search_embedding_cache').deleteMany({ subject });
+    await db.collection('processing_execution_policies').deleteMany({ subject });
+    await db.collection('processing_provider_calls').deleteMany({ subject });
+    await db.collection<{ _id: string }>('transcription_batch_locks').deleteMany({ _id: subject });
     // Upload cleanup records survive account deletion through legacy URL expiry.
     await db.collection(Collections.NOTIFICATIONS).deleteMany({ userId: user._id });
     await db.collection(Collections.TRANSCRIPTION_WEBHOOK_EVENTS).deleteMany({ recordingId: { $in: recordings.map(r => r._id.toString()) } });
-    await db.collection(Collections.USERS).deleteOne({ authSubject: subject });
+    // Retry the snapshot/delete pair if a callback changed financial accounting
+    // during erasure. The ledger resolves the tombstone after this CAS cutover.
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const latest = await db.collection<User>(Collections.USERS).findOne({ authSubject: subject });
+        if (!latest) break;
+        if (billingEnabled()) await retainFinancialSettlement(latest, db);
+        const account = (latest as User & { billingAccount?: unknown }).billingAccount;
+        const deleted = await db.collection(Collections.USERS).deleteOne({ authSubject: subject, billingAccount: account ?? { $exists: false } });
+        if (deleted.deletedCount) break;
+        if (attempt === 9) return result;
+    }
     result.cleanupPending = false;
     return result;
 }

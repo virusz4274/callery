@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import type { RecordingResponse } from '@/lib/db/types';
 import { getRecordingsAction, deleteRecordingAction, updateRecordingAction, GetRecordingsOptions } from '@/app/actions/recordings';
+import { useUser } from '@/lib/auth/client';
 
 interface UseRecordingsResult {
     data: RecordingResponse[] | null;
@@ -20,9 +21,10 @@ export function useRecordings(
     options?: GetRecordingsOptions
 ): UseRecordingsResult {
     // Unique key for SWR cache based on options
-    const key = ['recordings', options] as const;
+    const { user } = useUser();
+    const key = user ? ['recordings', user.id, options] as const : null;
 
-    const { data: responseData, error, isLoading, mutate } = useSWR(key, async ([, opts]: [string, GetRecordingsOptions | undefined]) => {
+    const { data: responseData, error, isLoading, mutate } = useSWR(key, async ([, , opts]: readonly [string, string, GetRecordingsOptions | undefined]) => {
         const response = await getRecordingsAction(opts);
 
         if (response.error) {
@@ -37,11 +39,11 @@ export function useRecordings(
     });
 
     return {
-        data: responseData?.recordings || null,
+        data: user ? responseData?.recordings || null : null,
         isLoading,
         error: error || null,
         refetch: async () => { await mutate(); },
-        totalCount: responseData?.totalCount || 0,
+        totalCount: user ? responseData?.totalCount || 0 : 0,
     };
 }
 

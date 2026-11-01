@@ -51,10 +51,10 @@ export function UserInfoPanel({ user, teamMode = false }: UserInfoPanelProps) {
                     <div className="mb-1 flex flex-wrap justify-between gap-2">
                         <span className="text-small">Transcription Usage</span>
                         <span className="text-small text-muted">
-                            {(user.transcriptionUsed / 60).toFixed(1)} / {Number((user.transcriptionAllocation / 60).toFixed(2))} min
+                            {(user.transcriptionUsed / 60).toFixed(1)} / {user.transcriptionUnlimited ? 'Unlimited' : `${Number((user.transcriptionAllocation / 60).toFixed(2))} min`}
                         </span>
                     </div>
-                    <SimpleProgress label="Transcription usage" value={quotaPercent(user.transcriptionUsed, user.transcriptionAllocation)} />
+                    <SimpleProgress label="Transcription usage" value={user.transcriptionUnlimited ? 0 : quotaPercent(user.transcriptionUsed, user.transcriptionAllocation)} />
                 </div>
             </Card.Content>
         </Card>

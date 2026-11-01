@@ -19,6 +19,14 @@ const calls: RecordingResponse[] = [0, 1].map(index => ({
     tags: ['Project launch', 'Follow-up'],
 }));
 
+test('a direct contact link requests that contact without downloading directory pages', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/contacts')) requests.push(new URL(request.url()).pathname); });
+    await mockRecordings(page, { contacts: [contact], recordings: calls, url: `/contacts/${contact.id}`, open: false });
+    await expect(page.getByRole('heading', { name: contact.name, level: 1, exact: true })).toBeVisible();
+    expect(requests).toEqual([`/api/contacts/${contact.id}`]);
+});
+
 for (const theme of ['light', 'dark']) {
     for (const width of [375, 768, 1280]) {
         test(`HeroUI contact details and review flow at ${width}px in ${theme}`, async ({ page }, testInfo) => {

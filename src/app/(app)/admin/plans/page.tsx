@@ -3,6 +3,8 @@ import { getCurrentAdmin } from '@/app/actions/admin';
 import { getPlans } from '@/app/actions/admin-plans';
 import { PlansList } from '@/components/admin/plans-list';
 import { AdminPageShell } from '@/components/admin/admin-page-shell';
+import { getBillingCatalogReview } from '@/app/actions/admin-billing-catalog';
+import { BillingCatalogPanel } from '@/components/admin/billing-catalog-panel';
 
 export default async function PlansPage() {
     const admin = await getCurrentAdmin();
@@ -11,6 +13,7 @@ export default async function PlansPage() {
     }
 
     const plans = await getPlans();
+    const catalog = await getBillingCatalogReview();
 
     return (
         <AdminPageShell
@@ -38,7 +41,7 @@ export default async function PlansPage() {
                 },
             ]}
         >
-            <PlansList initialPlans={plans} />
+            <div className="space-y-6"><BillingCatalogPanel initial={catalog} /><PlansList initialPlans={plans} managedBilling={catalog.enabled} /></div>
         </AdminPageShell>
     );
 }

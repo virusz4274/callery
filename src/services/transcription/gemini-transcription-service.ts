@@ -3,6 +3,7 @@ import { getGeminiClient, hasGeminiKey } from '@/services/ai/client';
 import { TranscriptionSegment, TranscriptionWord } from '@/lib/db/types';
 import { logger } from '@/lib/logger';
 import { geminiModel } from '@/lib/config';
+import { ProcessingError } from '@/lib/transcription/processing-errors';
 import { AudioTranscriptionConfigMode, type Transcription } from '@google/genai';
 
 /**
@@ -127,13 +128,19 @@ export class GeminiTranscriptionService implements ITranscriptionService {
         }
         const ai = getGeminiClient();
 
-        // The Files API needs bytes, not a URL — download the (presigned) audio first.
-        const audioResponse = await fetch(fileUrl);
-        if (!audioResponse.ok) {
-            throw new Error(`Failed to download audio for Gemini transcription: ${audioResponse.status}`);
+        // Audio preparation cannot have submitted a Gemini generation request.
+        // A failed signed-object download is safely retryable without a paid-call review.
+        let mimeType: string;
+        let blob: Blob;
+        try {
+            const audioResponse = await fetch(fileUrl, { signal: AbortSignal.timeout(60_000) });
+            if (!audioResponse.ok) throw new Error(`Failed to download audio for Gemini transcription: ${audioResponse.status}`);
+            mimeType = audioResponse.headers.get('content-type')?.split(';')[0] || 'audio/mpeg';
+            blob = new Blob([Buffer.from(await audioResponse.arrayBuffer())], { type: mimeType });
+        } catch (error) {
+            throw new ProcessingError(error instanceof Error ? error.message : 'The recording audio could not be downloaded.',
+                { stage: 'transcription', state: 'blocked', code: 'recording_audio_unavailable', retryAction: 'retry_transcription', providerOutcome: 'not_started' });
         }
-        const mimeType = audioResponse.headers.get('content-type')?.split(';')[0] || 'audio/mpeg';
-        const blob = new Blob([Buffer.from(await audioResponse.arrayBuffer())], { type: mimeType });
 
         const uploaded = await ai.files.upload({ file: blob, config: { mimeType } });
         const fileName = uploaded.name;
@@ -158,9 +165,20 @@ export class GeminiTranscriptionService implements ITranscriptionService {
                     ...(nativeTranscription ? [] : [{ text: TRANSCRIPTION_PROMPT }]),
                 ],
                 config: nativeTranscription
-                    ? { audioTranscriptionConfig: { mode: AudioTranscriptionConfigMode.VERBATIM, diarization: true, wordTimestamp: true } }
-                    : { responseMimeType: 'application/json' },
+                    ? { automaticContinuation: false, maxOutputTokens: Math.min(65_536, options?.processingEnvelope?.maxAsrOutputTokens || 8192), audioTranscriptionConfig: { mode: AudioTranscriptionConfigMode.VERBATIM, diarization: true, wordTimestamp: true } }
+                    : { automaticContinuation: false, maxOutputTokens: Math.min(65_536, options?.processingEnvelope?.maxAsrOutputTokens || 8192), responseMimeType: 'application/json' },
             });
+            const usage: NonNullable<TranscriptionResult['usage']> = {
+                measured: Number.isSafeInteger(response.usageMetadata?.promptTokenCount) && Number.isSafeInteger(response.usageMetadata?.candidatesTokenCount),
+                inputTokens: response.usageMetadata?.promptTokenCount, outputTokens: response.usageMetadata?.candidatesTokenCount,
+                thoughtTokens: response.usageMetadata?.thoughtsTokenCount, cachedInputTokens: response.usageMetadata?.cachedContentTokenCount,
+                requestId: response.responseId, actualModel: response.modelVersion,
+            };
+            await options?.onUsage?.(usage);
+            if (response.candidates?.some(candidate => ['MAX_TOKENS', 'CONTINUATION'].includes(candidate.finishReason || ''))) {
+                throw new Error('Gemini returned a truncated transcript. Review the recording before retrying; automatic paid continuations are disabled.');
+            }
+            if (options?.billingReceiptId && response.candidates?.[0]?.finishReason !== 'STOP') throw new Error('Gemini did not return a complete transcript. Its provider outcome requires review.');
 
             let transcript: { languageCode: string; segments: TranscriptionSegment[] };
             let fallbackText = '';
@@ -177,6 +195,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
                 try {
                     parsed = rawText ? (JSON.parse(rawText) as unknown) : null;
                 } catch {
+                    if (options?.billingReceiptId) throw new Error('Gemini returned malformed transcript JSON. No transcript has been accepted.');
                     logger.warn('[Gemini] Transcription response was not valid JSON; using untimed fallback.');
                 }
                 transcript = parseGeminiTranscript(parsed, durationSeconds);
@@ -184,6 +203,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
             }
 
             const { languageCode, segments } = transcript;
+            if (options?.billingReceiptId && (!segments.length || segments.some(segment => !segment.text.trim()))) throw new Error('Gemini returned an empty or invalid transcript. No transcript has been accepted.');
             logger.info(`[Gemini] Processed ${segments.length} segments. Language: ${languageCode}`);
 
             const finalSegments =
@@ -202,6 +222,7 @@ export class GeminiTranscriptionService implements ITranscriptionService {
             return {
                 provider: 'gemini',
                 model,
+                usage,
                 text: finalSegments.map((s) => s.text).join(' '),
                 languageCode,
                 segments: finalSegments,

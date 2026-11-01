@@ -1,82 +1,25 @@
-import { logger } from '@/lib/logger';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
-import { getAuthSubjectFromSession, getUserFromRequest } from '@/lib/auth-utils';
-import { findUserByAuthSubject } from '@/lib/db/users';
 import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 import { getPublicAppOrigin } from '@/lib/public-url';
-import { env } from '@/lib/env';
-
-function resolveSafeReturnUrl(candidateUrl: string | undefined, origin: string): string {
-    const fallback = new URL('/settings', origin).toString();
-    if (!candidateUrl) {
-        return fallback;
-    }
-
-    try {
-        const parsed = new URL(candidateUrl, origin);
-        if (parsed.origin !== origin) {
-            return fallback;
-        }
-
-        return parsed.toString();
-    } catch {
-        return fallback;
-    }
-}
+import { requireBillingUser, billingErrorResponse } from '@/lib/stripe/http';
+import { BillingChangeError } from '@/lib/stripe/plan-change';
+import { restrictedPortalConfiguration } from '@/lib/stripe/portal';
 
 export async function POST(req: NextRequest) {
-    if (!env.NEXT_PUBLIC_ENABLE_BILLING) {
-        return NextResponse.json({ error: 'Billing is disabled on this instance.' }, { status: 403 });
-    }
-
     try {
-        // 1. Authenticate User
-        let uid = await getAuthSubjectFromSession();
-        if (!uid) {
-            uid = await getUserFromRequest(req);
+        const user = await requireBillingUser(req);
+        if (user.billingReview?.reason === 'customer_deleted_with_financial_history') throw new BillingChangeError('Contact support to reconcile the removed billing customer before reconnecting payment.');
+        const body = await req.json().catch(() => ({}));
+        let returnUrl = new URL('/settings?tab=billing', getPublicAppOrigin(req)).toString();
+        if (body?.returnUrl && typeof body.returnUrl === 'string') {
+            try { const url = new URL(body.returnUrl, getPublicAppOrigin(req)); if (url.origin === new URL(returnUrl).origin) returnUrl = url.toString(); }
+            catch { /* Retain the configured safe return URL. */ }
         }
-
-        if (!uid) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        let returnUrl: string | undefined;
-        if (req.headers.get('content-length') !== '0' && req.headers.get('content-type')?.includes('json')) {
-            const body = await req.json().catch(() => null);
-            if (body !== null && (typeof body !== 'object' || Array.isArray(body))) {
-                return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-            }
-            if (body && typeof body.returnUrl !== 'undefined' && typeof body.returnUrl !== 'string') {
-                return NextResponse.json({ error: 'Invalid returnUrl' }, { status: 400 });
-            }
-            returnUrl = body?.returnUrl;
-        }
-
-        // 2. Get User from DB
-        const user = await findUserByAuthSubject(uid);
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        let stripeCustomerId = user.stripeCustomerId;
-        if (!stripeCustomerId) {
-            stripeCustomerId = await ensureStripeCustomerId(user);
-        }
-
-        // 3. Create Portal Session
-        const session = await getStripe().billingPortal.sessions.create({
-            customer: stripeCustomerId,
-            return_url: resolveSafeReturnUrl(returnUrl, getPublicAppOrigin(req)),
-        });
-
+        const stripe = getStripe();
+        const configuration = await restrictedPortalConfiguration(stripe);
+        const customer = user.stripeCustomerId || await ensureStripeCustomerId(user);
+        const session = await stripe.billingPortal.sessions.create({ customer, return_url: returnUrl, configuration });
         return NextResponse.json({ url: session.url });
-    } catch (error) {
-        logger.error('Stripe Portal Error:', error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Internal Server Error' },
-            { status: 500 }
-        );
-    }
+    } catch (error) { return billingErrorResponse(error); }
 }

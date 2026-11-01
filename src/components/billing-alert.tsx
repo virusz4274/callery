@@ -22,14 +22,14 @@ export function BillingAlert({ userProfile }: BillingAlertProps) {
         trialEndsAt &&
         new Date() > trialEndsAt;
 
-    if (isPastDue) {
+    if ((userProfile.billingStatus?.needsAttention ?? isPastDue) && !isTrialExpired) {
         return (
             <Alert status="danger" className="mb-4">
                 <Alert.Indicator />
                 <Alert.Content>
-                    <Alert.Title>Payment failed</Alert.Title>
+                    <Alert.Title>{isPastDue ? 'Payment failed' : 'Billing needs attention'}</Alert.Title>
                     <Alert.Description>
-                        Your account features are currently restricted.{' '}
+                        New uploads and transcription need healthy billing. Your recordings remain readable and exportable.{' '}
                         <Link
                             href="/settings?tab=billing"
                             className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
@@ -49,7 +49,7 @@ export function BillingAlert({ userProfile }: BillingAlertProps) {
                 <Alert.Content>
                     <Alert.Title>Free trial ended</Alert.Title>
                     <Alert.Description>
-                        Upgrade to a paid plan to continue using all features.{' '}
+                        Upgrade to continue uploading and transcribing. Your existing recordings remain available.{' '}
                         <Link
                             href="/settings?tab=billing"
                             className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"

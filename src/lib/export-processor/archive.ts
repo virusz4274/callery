@@ -3,14 +3,17 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'node:stream';
 import type { Recording } from '@/lib/db/types';
 import { VIEWER_HTML } from '@/lib/export-viewer-template';
-import { storageBucket, getStorageClient } from '@/lib/r2';
+import { storageBucket } from '@/lib/r2';
 import { getPartKey } from './part-metadata';
 import { isNotFoundError, withRetry } from './retry';
 import type { ExportPartMeta } from './types';
+import { abandonExportObjectWrite, assertExportActive, beginExportObjectWrite, completeExportObjectWrite } from './object-lifecycle';
+import { boundedExportStream } from './bounded-stream';
+import { getExportStorageClient } from './storage-client';
 
 function sanitizeForPath(value: string): string {
     return value.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -44,7 +47,7 @@ function toSerializableRecording(recording: Recording): Record<string, unknown> 
 
 async function getExistingObjectSize(key: string): Promise<number | null> {
     try {
-        const head = await getStorageClient().send(new HeadObjectCommand({ Bucket: storageBucket(), Key: key }));
+        const head = await getExportStorageClient().send(new HeadObjectCommand({ Bucket: storageBucket(), Key: key }));
         return head.ContentLength ?? 0;
     } catch (error) {
         if (isNotFoundError(error)) {
@@ -55,10 +58,10 @@ async function getExistingObjectSize(key: string): Promise<number | null> {
     }
 }
 
-async function fetchRecordingStream(key: string): Promise<Readable | null> {
+async function fetchRecordingStream(key: string, maximumBytes?: number): Promise<Readable | null> {
     try {
         const response = await withRetry(`Fetch source object ${key}`, async () => {
-            return getStorageClient().send(
+            return getExportStorageClient().send(
                 new GetObjectCommand({
                     Bucket: storageBucket(),
                     Key: key,
@@ -70,18 +73,17 @@ async function fetchRecordingStream(key: string): Promise<Readable | null> {
             return null;
         }
 
-        if (response.Body instanceof Readable) {
-            return response.Body;
-        }
+        const bound = (source: Readable) => maximumBytes && maximumBytes > 0 ? boundedExportStream(source, maximumBytes) : source;
+        if (response.Body instanceof Readable) return bound(response.Body);
 
         const maybeWebStream = response.Body as unknown as { getReader?: unknown };
         if (typeof maybeWebStream.getReader === 'function' && typeof Readable.fromWeb === 'function') {
-            return Readable.fromWeb(response.Body as unknown as Parameters<typeof Readable.fromWeb>[0]);
+            return bound(Readable.fromWeb(response.Body as unknown as Parameters<typeof Readable.fromWeb>[0]));
         }
 
         const maybeTransformable = response.Body as unknown as { transformToWebStream?: () => unknown };
         if (typeof maybeTransformable.transformToWebStream === 'function' && typeof Readable.fromWeb === 'function') {
-            return Readable.fromWeb(maybeTransformable.transformToWebStream() as Parameters<typeof Readable.fromWeb>[0]);
+            return bound(Readable.fromWeb(maybeTransformable.transformToWebStream() as Parameters<typeof Readable.fromWeb>[0]));
         }
 
         return null;
@@ -94,7 +96,7 @@ async function fetchRecordingStream(key: string): Promise<Readable | null> {
     }
 }
 
-async function uploadArchivePart(key: string, chunk: Recording[]): Promise<number> {
+async function uploadArchivePart(authSubject: string, jobId: string, key: string, chunk: Recording[], maximumArchiveBytes?: number): Promise<number> {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'callery-export-'));
     const archivePath = path.join(tempDir, 'part.zip');
 
@@ -103,12 +105,16 @@ async function uploadArchivePart(key: string, chunk: Recording[]): Promise<numbe
             const archive = new ZipArchive({ zlib: { level: 9 } });
             const output = createWriteStream(archivePath);
             let settled = false;
+            const sources = new Set<Readable>();
 
             const fail = (error: unknown) => {
                 if (settled) {
                     return;
                 }
                 settled = true;
+                for (const source of sources) source.destroy();
+                archive.abort();
+                output.destroy();
                 reject(error);
             };
 
@@ -134,6 +140,7 @@ async function uploadArchivePart(key: string, chunk: Recording[]): Promise<numbe
                 archive.append(getReadmeTxt(), { name: 'README.txt' });
 
                 for (const recording of chunk) {
+                    if (settled) return;
                     const date = new Date(recording.recordedAt);
                     const year = date.getFullYear().toString();
                     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -146,8 +153,12 @@ async function uploadArchivePart(key: string, chunk: Recording[]): Promise<numbe
                     const jsonPath = `${folderInZip}/${fileBaseName}.json`;
                     const txtPath = `${folderInZip}/${fileBaseName}.txt`;
 
-                    const stream = await fetchRecordingStream(recording.r2Key);
+                    const stream = await fetchRecordingStream(recording.r2Key, recording.fileSize);
+                    if (settled) { stream?.destroy(); return; }
                     if (stream) {
+                        sources.add(stream);
+                        stream.once('error', fail);
+                        stream.once('end', () => sources.delete(stream));
                         archive.append(stream, { name: audioPath });
                     } else {
                         archive.append(`Source audio file not found in storage (key: ${recording.r2Key}).`, {
@@ -178,15 +189,24 @@ ${transcriptText}`;
         });
 
         const { size } = await stat(archivePath);
-        await getStorageClient().send(
-            new PutObjectCommand({
-                Bucket: storageBucket(),
-                Key: key,
-                Body: createReadStream(archivePath),
-                ContentLength: size,
-                ContentType: 'application/zip',
-            })
-        );
+        if (maximumArchiveBytes !== undefined && size > maximumArchiveBytes) throw new Error('The generated archive exceeded its reserved size budget.');
+        const intent = await beginExportObjectWrite(authSubject, jobId, key);
+        try {
+            // Both attempts fit within the durable five-minute write lease.
+            await withRetry(`Upload ${key}`, async () => {
+                await assertExportActive(authSubject, jobId);
+                await getExportStorageClient().send(new PutObjectCommand({ Bucket: storageBucket(), Key: key,
+                    Body: createReadStream(archivePath), ContentLength: size, ContentType: 'application/zip' }),
+                { abortSignal: AbortSignal.timeout(120_000) });
+            }, 2);
+            if (!await completeExportObjectWrite(intent)) {
+                await getExportStorageClient().send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: key }));
+                throw new Error('This export was cancelled while its archive was uploading.');
+            }
+        } catch (error) {
+            await abandonExportObjectWrite(intent);
+            throw error;
+        }
 
         return size;
     } finally {
@@ -198,14 +218,17 @@ export async function ensurePartUploaded(
     authSubject: string,
     jobId: string,
     partNumber: number,
-    chunk: Recording[]
+    chunk: Recording[],
+    maximumArchiveBytes?: number,
 ): Promise<ExportPartMeta> {
+    await assertExportActive(authSubject, jobId);
     const key = getPartKey(authSubject, jobId, partNumber);
     const existingSize = await getExistingObjectSize(key);
     if (existingSize !== null) {
+        await assertExportActive(authSubject, jobId);
         return { key, size: existingSize };
     }
 
-    const uploadedSize = await withRetry(`Upload ${key}`, async () => uploadArchivePart(key, chunk));
+    const uploadedSize = await uploadArchivePart(authSubject, jobId, key, chunk, maximumArchiveBytes);
     return { key, size: uploadedSize };
 }

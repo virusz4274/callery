@@ -1,12 +1,28 @@
 import { TranscriptionSegment } from '@/lib/db/types';
-import { IAIService, AiStepContext } from './types';
+import { IAIService, AiStepContext, type PlannedAiRequest } from './types';
+import { ThinkingLevel } from '@google/genai';
 import { getGeminiClient, hasGeminiKey } from './client';
-import { buildSummaryPrompt, buildTransliterationPrompt, mergeTransliteration } from './prompts';
+import { AI_LIMITS, buildSummaryPrompt, buildTransliterationPrompt, mergeTransliteration, truncateUtf8 } from './prompts';
 import { logAiStepFailure } from './failure-events';
 import { logger } from '@/lib/logger';
 import { geminiModel } from '@/lib/config';
+import { assertAiCallAuthorized, geminiUsage } from './usage';
 
 export class GeminiService implements IAIService {
+    async countInputTokens(model: string, contents: string): Promise<number> {
+        const result = await getGeminiClient().models.countTokens({ model, contents });
+        if (!Number.isSafeInteger(result.totalTokens) || result.totalTokens! < 0) throw new Error('The provider did not return a verified input token count.');
+        return result.totalTokens!;
+    }
+
+    private planned(context: AiStepContext | undefined, step: 'summary' | 'transliteration' | 'embedding'): PlannedAiRequest | undefined {
+        const request = context?.plannedRequest;
+        if (request && (request.provider !== 'gemini' || !request.model || request.inputTokens > (step === 'embedding' ? AI_LIMITS.embeddingInputTokens : AI_LIMITS.inputTokens)
+            || request.maxOutputTokens > (step === 'summary' ? AI_LIMITS.summaryOutputTokens : step === 'embedding' ? 0 : AI_LIMITS.transliterationOutputTokens))) {
+            throw new Error('The planned AI request is incompatible with this transport.');
+        }
+        return request;
+    }
     constructor() {
         if (!hasGeminiKey()) {
             logger.warn('GOOGLE_GENERATIVE_AI_API_KEY is not defined. AI features will be disabled.');
@@ -100,18 +116,25 @@ export class GeminiService implements IAIService {
         if (!hasGeminiKey()) return '';
         if (!transcript || !transcript.trim()) return '';
 
-        const prompt = buildSummaryPrompt(transcript, languageCode);
-        const model = geminiModel('summary');
+        const planned = this.planned(context, 'summary');
+        const prompt = planned?.prompt ?? buildSummaryPrompt(transcript, languageCode);
+        const model = planned?.model ?? geminiModel('summary');
 
         try {
+            assertAiCallAuthorized('gemini', model, 'summary', context);
             const result = await getGeminiClient().models.generateContent({
                 model,
                 contents: prompt,
+                config: { maxOutputTokens: planned?.maxOutputTokens ?? AI_LIMITS.summaryOutputTokens, automaticContinuation: false,
+                    ...(planned ? { thinkingConfig: planned.thinking === 'minimal' ? { thinkingLevel: ThinkingLevel.MINIMAL } : { thinkingBudget: 0 } } : {}) },
             });
+            await context?.onUsage?.({ ...geminiUsage(model, 'summary', result.usageMetadata, result.responseId), actualModel: result.modelVersion });
+            if (context?.throwOnError && (!result.text?.trim() || (planned && result.candidates?.[0]?.finishReason !== 'STOP'))) throw new Error('Summary response was empty, incomplete, or truncated.');
             return result.text || '';
         } catch (error) {
             logger.error('Error generating summary:', error);
             await logAiStepFailure(error, { step: 'summary', provider: 'gemini', model, context });
+            if (context?.throwOnError) throw error;
             // Fallback to empty string on error to not block flow
             return '';
         }
@@ -125,26 +148,37 @@ export class GeminiService implements IAIService {
         if (!hasGeminiKey()) return segments;
         if (!segments || segments.length === 0) return segments;
 
-        const prompt = buildTransliterationPrompt(segments, languageCode);
-        const model = geminiModel('transliteration');
+        const planned = this.planned(context, 'transliteration');
+        const prompt = planned?.prompt ?? buildTransliterationPrompt(segments, languageCode);
+        const model = planned?.model ?? geminiModel('transliteration');
 
         try {
+            assertAiCallAuthorized('gemini', model, 'transliteration', context);
             const result = await getGeminiClient().models.generateContent({
                 model,
                 contents: prompt,
                 config: {
-                    responseMimeType: "application/json"
+                    responseMimeType: 'application/json',
+                    maxOutputTokens: planned?.maxOutputTokens ?? AI_LIMITS.transliterationOutputTokens,
+                    automaticContinuation: false,
+                    ...(planned ? { thinkingConfig: planned.thinking === 'minimal' ? { thinkingLevel: ThinkingLevel.MINIMAL } : { thinkingBudget: 0 } } : {}),
                 }
             });
+            await context?.onUsage?.({ ...geminiUsage(model, 'transliteration', result.usageMetadata, result.responseId), actualModel: result.modelVersion });
 
             const responseText = result.text;
-            if (!responseText) return segments;
+            if (planned && result.candidates?.[0]?.finishReason !== 'STOP') throw new Error('Transliteration response was incomplete or truncated.');
+            if (!responseText) {
+                if (context?.throwOnError) throw new Error('Transliteration response was empty or truncated.');
+                return segments;
+            }
 
             return mergeTransliteration(segments, this.parseTransliterationSegments(responseText));
 
         } catch (error) {
             logger.error('Error generating transliteration:', error);
             await logAiStepFailure(error, { step: 'transliteration', provider: 'gemini', model, context });
+            if (context?.throwOnError) throw error;
             return segments;
         }
     }
@@ -152,16 +186,26 @@ export class GeminiService implements IAIService {
     async generateEmbedding(text: string, context?: AiStepContext): Promise<number[]> {
         if (!hasGeminiKey() || !text) return [];
 
-        const model = geminiModel('embedding');
+        const planned = this.planned(context, 'embedding');
+        const model = planned?.model ?? geminiModel('embedding');
         try {
+            assertAiCallAuthorized('gemini', model, 'embedding', context);
+            const boundedText = planned?.prompt ?? truncateUtf8(text, AI_LIMITS.embeddingInputTokens - 16);
             const result = await getGeminiClient().models.embedContent({
                 model,
-                contents: text,
+                contents: boundedText,
             });
-            return result.embeddings?.[0]?.values || [];
+            // The Gemini embedding endpoint supplies no token usage on the
+            // Developer API. Retain that fact; settlement uses the reserved cap.
+            await context?.onUsage?.({ provider: 'gemini', model, step: 'embedding', measured: false,
+                ...(planned ? { inputTokens: planned.inputTokens, outputTokens: 0 } : {}) });
+            const values = result.embeddings?.[0]?.values;
+            if (!values?.length || !values.every(value => Number.isFinite(value))) throw new Error('Embedding response had no finite numeric vector');
+            return values;
         } catch (error) {
             logger.error('Error generating embedding:', error);
             await logAiStepFailure(error, { step: 'embedding', provider: 'gemini', model, context });
+            if (context?.throwOnError) throw error;
             return [];
         }
     }

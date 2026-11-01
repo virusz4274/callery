@@ -1,15 +1,17 @@
 import { ObjectId } from 'mongodb';
-import { getExportJob, updateExportJob } from '@/lib/db/export-jobs';
+import { getExportJob, updateActiveExportJob } from '@/lib/db/export-jobs';
 import type { RecordingExportCursor } from '@/lib/db/recordings';
 import { findUserByAuthSubject } from '@/lib/db/users';
 import { sendNotificationEmail } from '@/lib/email';
 import { logger } from '@/lib/logger';
 import { createNotification } from '@/lib/notifications';
 import { getSignedR2Url } from '@/lib/r2';
-import { DOWNLOAD_LINK_TTL_SECONDS } from './constants';
+import { ARCHIVE_TTL_MS, DOWNLOAD_LINK_TTL_SECONDS } from './constants';
 import { toStorageParts } from './part-metadata';
 import type { ExportPartMeta } from './types';
 import { resolveExportSubject } from '@/lib/team-policy';
+import { getExportSourceSnapshot } from './policy';
+import { assertExportActive } from './object-lifecycle';
 
 export async function persistCheckpoint(params: {
     jobId: string;
@@ -25,7 +27,8 @@ export async function persistCheckpoint(params: {
             ? Math.min(99, Math.round((params.processedRecordings / params.totalRecordings) * 100))
             : 100;
 
-    await updateExportJob(params.jobId, params.authSubject, {
+    await assertExportActive(params.authSubject, params.jobId);
+    await updateActiveExportJob(params.jobId, params.authSubject, {
         totalRecordings: params.totalRecordings,
         processedRecordings: params.processedRecordings,
         progress,
@@ -44,6 +47,7 @@ export async function finalizeJob(
     parts: ExportPartMeta[],
     email?: string
 ) {
+    await assertExportActive(authSubject, jobId);
     const user = await findUserByAuthSubject(authSubject);
     if (!user) {
         return;
@@ -63,8 +67,10 @@ export async function finalizeJob(
             expiresAt: new Date(Date.now() + DOWNLOAD_LINK_TTL_SECONDS * 1000),
         }))
     );
+    const currentRevision = job.sourceRevision ? (await getExportSourceSnapshot(authSubject)).revision : undefined;
 
-    await updateExportJob(jobId, authSubject, {
+    await assertExportActive(authSubject, jobId);
+    await updateActiveExportJob(jobId, authSubject, {
         status: 'completed',
         progress: 100,
         completedAt: new Date(),
@@ -74,9 +80,12 @@ export async function finalizeJob(
             nextPartNumber: signedParts.length + 1,
         },
         error: undefined,
+        archiveExpiresAt: new Date(Date.now() + ARCHIVE_TTL_MS),
+        cacheEligible: Boolean(job.sourceRevision && currentRevision === job.sourceRevision),
     });
 
     if (email && signedParts.length > 0) {
+        await assertExportActive(authSubject, jobId);
         const linksHtml = signedParts
             .map(
                 (part, index) =>
@@ -90,7 +99,7 @@ export async function finalizeJob(
             html: `
                 <h2>Export Completed</h2>
                 <p>Your data has been successfully exported into ${signedParts.length} archive(s).</p>
-                <p>These links will expire in 7 days.</p>
+                <p>These links expire in 15 minutes. Open Data &amp; Export in settings to obtain fresh links. The archive is deleted after 7 days.</p>
                 <ul>${linksHtml}</ul>
                 <p>Each archive contains a viewer that allows you to browse that specific part. Extract all parts to the same folder to merge them.</p>
             `,

@@ -13,6 +13,8 @@ type UploadItemsCardProps = {
     onClearAll: () => void;
     onUploadAll: () => void;
     onRemoveFile: (id: string) => void;
+    successHref?: string;
+    successLabel?: string;
 };
 
 export function UploadItemsCard({
@@ -21,6 +23,8 @@ export function UploadItemsCard({
     onClearAll,
     onUploadAll,
     onRemoveFile,
+    successHref = '/recordings',
+    successLabel = 'Go to recordings',
 }: UploadItemsCardProps) {
     const pendingCount = uploadItems.filter((item) => item.status === 'pending').length;
     const duplicateCount = uploadItems.filter((item) => item.isDuplicate).length;
@@ -220,8 +224,8 @@ export function UploadItemsCard({
                     <div className="mt-6 rounded-xl border border-success/20 bg-success/5 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-sm font-semibold text-success">Files uploaded successfully</div>
-                            <ActionLink href="/recordings" variant="secondary" className="font-medium">
-                                    Go to recordings
+                            <ActionLink href={successHref} variant="secondary" className="font-medium">
+                                    {successLabel}
                                 </ActionLink>
                         </div>
                     </div>

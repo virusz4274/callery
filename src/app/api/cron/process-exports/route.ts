@@ -4,6 +4,7 @@ import { processExport } from '@/lib/export-processor';
 import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import { isAuthorizedCronRequest } from '@/lib/cron-auth';
+import { cleanupExpiredExports } from '@/lib/export-processor/cleanup';
 
 export const maxDuration = 300;
 
@@ -25,11 +26,13 @@ export async function GET(request: NextRequest) {
     const safeStaleAfterMinutes = env.EXPORT_JOB_STALE_MINUTES;
 
     try {
+        const cleanup = await cleanupExpiredExports();
         const job = await claimNextExportJob(safeStaleAfterMinutes);
         if (!job) {
             return NextResponse.json({
                 success: true,
                 message: 'No queued export jobs',
+                cleanup,
             });
         }
 
@@ -43,6 +46,7 @@ export async function GET(request: NextRequest) {
             jobId: job._id.toString(),
             authSubject: job.authSubject,
             status: refreshed?.status || 'unknown',
+            cleanup,
         });
     } catch (error) {
         logger.error('[process-exports] Failed to process export queue:', error);

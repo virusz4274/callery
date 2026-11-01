@@ -1,12 +1,14 @@
 import type { User } from './db/types';
 import type { AccessResult } from './access-control-types';
-import { hasBillingIssue, isTrialExpired, isBillingEnabled } from './access-control-common';
+import { hasBillingIssue, isTrialExpired, isBillingEnabled, checkUserAccess, canUseMeteredOverage } from './access-control-common';
 import { isFreeTrialPlanKey } from './plans';
+import { getTranscriptionAllowanceUsed, hasUnlimitedTranscription } from './transcription/quota-policy';
+import { effectiveBillingEntitlementSource } from './stripe/entitlement-source';
 
 export function checkTranscriptionAccess(user: User, secondsToAdd: number): AccessResult {
-    if (user.disabled) {
-        return { allowed: false, reason: 'Account disabled.' };
-    }
+    const account = checkUserAccess(user);
+    if (!account.allowed) return account;
+    if (!Number.isFinite(secondsToAdd) || secondsToAdd < 0) return { allowed: false, reason: 'Invalid transcription duration.' };
 
     if (!isBillingEnabled()) {
         return { allowed: true };
@@ -24,8 +26,9 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
     if (billingIssue) {
         return billingIssue;
     }
+    if (hasUnlimitedTranscription(user, true)) return { allowed: true };
 
-    const currentUsage = user.transcriptionUsed;
+    const currentUsage = getTranscriptionAllowanceUsed(user);
     const allocation = user.transcriptionAllocation;
     const newUsage = currentUsage + secondsToAdd;
 
@@ -41,7 +44,7 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
         return { allowed: true };
     }
 
-    const allowOverage = user.billingSettings.allowOverage;
+    const allowOverage = canUseMeteredOverage(user);
     if (!allowOverage && newUsage > allocation) {
         const remaining = Math.max(0, allocation - currentUsage);
         return {
@@ -49,7 +52,9 @@ export function checkTranscriptionAccess(user: User, secondsToAdd: number): Acce
             reason:
                 remaining > 0
                     ? `Transcription limit exceeded. You have ${Math.floor(remaining / 60)} mins remaining.`
-                    : `Transcription limit exceeded. Enable 'Pay Per Usage' in settings to transcribe more.`,
+                    : effectiveBillingEntitlementSource(user) === 'admin'
+                        ? 'Your administrator-provided transcription quota is exhausted. Contact your administrator.'
+                        : `Transcription limit exceeded. Enable 'Pay Per Usage' in settings to transcribe more.`,
         };
     }
 

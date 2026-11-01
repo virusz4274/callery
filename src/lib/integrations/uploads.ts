@@ -15,6 +15,11 @@ import { activeIntegration, type ApiActor } from './tokens';
 import { accountUpload, releaseUpload, reserveUpload } from './accounting';
 import { ingestionStorage } from './storage';
 import { enqueueTranscription } from './jobs';
+import { parseRecordingFilename } from '@/lib/utils/filename-parser';
+import { checkStorageAccess } from '@/lib/access-control';
+import { billingEnabled } from '@/lib/config';
+import { completeStorageUsage } from '@/lib/stripe/ledger';
+import { directUploadLengthsVerified } from './upload-policy';
 
 export interface UploadSession {
     _id: string; owner: string; integrationId: string; requestKey?: string; fingerprint: string;
@@ -25,6 +30,8 @@ export interface UploadSession {
     cleanupPending: boolean; errorCode?: string; autoQueued?: boolean;
     verifiedDuration?: number;
     completedAt?: Date;
+    /** Persisted before any upload URL is issued; recovery must preserve this hold. */
+    bulkImportId?: string;
 }
 export function uploadResponse(session: UploadSession, parts?: unknown[]) {
     return { id: session._id, state: session.state, fileSize: session.input.fileSize, partSize: PART_BYTES, partCount: Math.ceil(session.input.fileSize / PART_BYTES), expiresAt: session.expiresAt.toISOString(), recordingId: session.recordingId ?? null, ...(parts ? { parts } : {}), ...(session.errorCode ? { errorCode: session.errorCode } : {}) };
@@ -56,6 +63,7 @@ async function preparedContext(owner: string, input: UploadInput) {
     return prepared;
 }
 export async function createUpload(actor: ApiActor, input: UploadInput, requestKey: string, mode: 'direct' | 'simple' = 'direct'): Promise<UploadSession> {
+    if (mode === 'direct' && !directUploadLengthsVerified()) throw new ApiError(503, 'direct_upload_unverified', 'Use bounded multipart-form uploads until this bucket passes signed-length verification.');
     const db = await integrationDb(); const uploads = db.collection<UploadSession>(IntegrationCollections.uploads);
     const existing = await uploads.findOne({ owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey });
     const signature = fingerprint({ input, mode });
@@ -74,7 +82,7 @@ export async function createUpload(actor: ApiActor, input: UploadInput, requestK
     }
     const prepared = await preparedContext(actor.token.owner, input);
     const id = randomUUID(); const now = new Date();
-    const session: UploadSession = { _id: id, owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey, fingerprint: signature, input, prepared, mode, state: 'initializing', stagingKey: `${actor.token.owner}/.uploads/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false };
+    const session: UploadSession = { _id: id, owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey, fingerprint: signature, input, prepared, mode, state: 'initializing', stagingKey: `_staging/${actor.token.owner}/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false };
     try { await uploads.insertOne(session); }
     catch (error) {
         if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
@@ -139,6 +147,9 @@ export async function completeUpload(session: UploadSession, database?: Db) {
     const lease = randomUUID();
     const claimed = await uploads.findOneAndUpdate({ _id: session._id, state: { $in: ['uploading', 'finalizing'] }, leaseUntil: { $lte: new Date() } }, { $set: { state: 'finalizing', leaseOwner: lease, leaseUntil: new Date(Date.now() + 5 * 60_000) } }, { returnDocument: 'after' });
     if (!claimed) throw new ApiError(409, 'upload_busy', 'Upload completion is in progress or unavailable.', 5);
+    // The durable session owns ingestion policy, including holds, even when a
+    // client or recovery worker supplied an older copy of the session.
+    session = claimed;
     const heartbeat = setInterval(() => { void uploads.updateOne({ _id: session._id, leaseOwner: lease }, { $set: { leaseUntil: new Date(Date.now() + 5 * 60_000) } }).catch(() => {}); }, 30_000); heartbeat.unref();
     try {
         let recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ ingestionId: session._id });
@@ -162,7 +173,7 @@ export async function completeUpload(session: UploadSession, database?: Db) {
             const current = await uploads.findOne({ _id: session._id, state: 'finalizing', leaseOwner: lease });
             if (!current) throw new ApiError(409, 'upload_busy', 'Completion lease was lost.', 5);
             await assertUploadAccess(session, db);
-            const doc = { ...buildRecordingWriteData({ authSubject: session.owner, contactId: contact?._id ?? null, contactName: session.prepared.contactName, phoneNumber: session.prepared.phoneNumber, contactMatchSource: session.prepared.contactMatchSource, r2Key: session.finalKey, fileName: session.input.fileName, standardizedDisplayName: session.prepared.standardizedDisplayName, fileSize: session.input.fileSize, mimeType: session.prepared.mimeType, duration, recordedAt: session.prepared.recordedAt, transcriptionStatus: 'pending', tags: session.input.tags, isArchived: false, isStarred: false, ingestionId: session._id, integration: { source: session.input.source, externalId: session.input.externalId, metadata: session.input.metadata, fingerprint: fingerprint(session.input) } }, new Date()), _id: new ObjectId() };
+            const doc = { ...buildRecordingWriteData({ authSubject: session.owner, contactId: contact?._id ?? null, contactName: session.prepared.contactName, phoneNumber: session.prepared.phoneNumber, contactMatchSource: session.prepared.contactMatchSource, r2Key: session.finalKey, fileName: session.input.fileName, standardizedDisplayName: session.prepared.standardizedDisplayName, fileSize: session.input.fileSize, mimeType: session.prepared.mimeType, duration, recordedAt: session.prepared.recordedAt, recordingDateKey: parseRecordingFilename(session.input.fileName).calendarDate, ...(session.bulkImportId ? { bulkImportId: session.bulkImportId } : {}), transcriptionStatus: 'pending', tags: session.input.tags, isArchived: false, isStarred: false, ingestionId: session._id, integration: { source: session.input.source, externalId: session.input.externalId, metadata: session.input.metadata, fingerprint: fingerprint(session.input) } }, new Date()), _id: new ObjectId() };
             try { await db.collection<Recording>(Collections.RECORDINGS).insertOne(doc); recording = doc; }
             catch (error) {
                 if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
@@ -174,10 +185,11 @@ export async function completeUpload(session: UploadSession, database?: Db) {
             if (!await uploads.findOne({ _id: session._id, state: 'finalizing', leaseOwner: lease })) throw new ApiError(409, 'upload_busy', 'Completion lease was lost.', 5);
             const user = await accountUpload(session.owner, session._id, recording.fileSize, recording.duration, db);
             if (!user) throw new ApiError(403, 'account_unavailable', 'Account unavailable.');
+            if (billingEnabled() && ['subscription', 'lifetime'].includes(user.billingEntitlement?.source || '')) await completeStorageUsage(session.owner, { id: session._id, storedBytes: user.storageUsed }, db);
             await reportUsage(session.owner, 'storage', user.storagePeakUsed);
             await reconcileContact(recording, db);
             const team = await getTeamSettings(db);
-            if (!user.disabled && !user.softDelete?.isDeleted && (team.enabled ? team.transcriptionMode === 'automatic' : user.transcriptionSettings.autoTranscribe)) await enqueueTranscription(session.owner, recording._id.toString(), {}, `auto:${session._id}`, true, db);
+            if (!session.bulkImportId && !recording.bulkImportId && !user.disabled && !user.softDelete?.isDeleted && (team.enabled ? team.transcriptionMode === 'automatic' : user.transcriptionSettings.autoTranscribe)) await enqueueTranscription(session.owner, recording._id.toString(), {}, `auto:${session._id}`, true, db);
         } else { await releaseUpload(session.owner, session._id, db); await ingestionStorage.remove(session.finalKey); }
         const completed = await uploads.findOneAndUpdate({ _id: session._id, leaseOwner: lease }, { $set: { state: 'completed', completedAt: new Date(), recordingId: recording._id.toString(), autoQueued: true, cleanupPending: true, leaseUntil: new Date(0) }, $unset: { leaseOwner: '', errorCode: '' } }, { returnDocument: 'after' });
         if (!completed) throw new ApiError(409, 'upload_busy', 'Completion lease was lost.', 5);
@@ -191,10 +203,13 @@ export async function completeUpload(session: UploadSession, database?: Db) {
         throw failure;
     } finally { clearInterval(heartbeat); }
 }
-async function assertUploadAccess(session: UploadSession, db: Db) {
+export async function assertUploadAccess(session: UploadSession, db: Db) {
     const user = session.mode === 'legacy' ? await db.collection<import('@/lib/db/types').User>(Collections.USERS).findOne({ authSubject: session.owner }) : await activeIntegration(session.owner, session.integrationId);
     if (!user || user.disabled || user.softDelete?.isDeleted || user.teamInvitationPending ||
         (session.mode === 'legacy' && user.accessRevokedAt && session.createdAt <= user.accessRevokedAt)) throw new ApiError(403, 'account_unavailable', 'Upload access was revoked.');
+    const otherReservations = Object.entries(user.uploadReservations || {}).reduce((sum, [id, bytes]) => sum + (id === session._id ? 0 : bytes), 0);
+    const access = checkStorageAccess({ ...user, storageUsed: user.storageUsed + otherReservations }, session.input.fileSize);
+    if (!access.allowed) throw new ApiError(403, 'upload_access_denied', access.reason || 'New uploads are unavailable until billing is healthy.');
 }
 async function reconcileContact(recording: Recording, db: Db) {
     if (!recording.contactId) return;
@@ -220,13 +235,19 @@ export async function cleanupUpload(session: UploadSession, database?: Db) {
 
 /** Adapt the browser/mobile single-PUT contract to durable ingestion without
  * changing its response shape or requiring a new credential. */
-export async function registerLegacyUpload(owner: string, prepared: PreparedUploadContext, input: { fileName: string; fileSize: number; mimeType?: string }, existingStagingKey?: string, expiresAt?: Date): Promise<UploadSession> {
+export async function registerLegacyUpload(owner: string, prepared: PreparedUploadContext, input: { fileName: string; fileSize: number; mimeType?: string; bulkImportId?: string }, existingStagingKey?: string, expiresAt?: Date): Promise<UploadSession> {
     const db = await integrationDb(); const uploads = db.collection<UploadSession>(IntegrationCollections.uploads);
+    if (input.bulkImportId !== undefined) {
+        if (typeof input.bulkImportId !== 'string' || !input.bulkImportId || input.bulkImportId.length > 128 ||
+            !await db.collection<{ _id: string; owner: string }>('transcription_imports').findOne({ _id: input.bulkImportId, owner })) {
+            throw new ApiError(404, 'import_not_found', 'Bulk import not found for this account.');
+        }
+    }
     const id = randomUUID(); const key = fingerprint(existingStagingKey || id);
     const existing = await uploads.findOne({ owner, integrationId: 'legacy', requestKey: key });
     if (existing) return existing;
-    const now = new Date(); const metadata: UploadInput = { ...input, tags: [] };
-    const session: UploadSession = { _id: id, owner, integrationId: 'legacy', requestKey: key, fingerprint: fingerprint(metadata), input: metadata, prepared, mode: 'legacy', state: 'initializing', stagingKey: existingStagingKey || `${owner}/.uploads/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: expiresAt || new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false };
+    const now = new Date(); const metadata: UploadInput = { fileName: input.fileName, fileSize: input.fileSize, mimeType: input.mimeType, tags: [] };
+    const session: UploadSession = { _id: id, owner, integrationId: 'legacy', requestKey: key, fingerprint: fingerprint(metadata), input: metadata, prepared, ...(input.bulkImportId ? { bulkImportId: input.bulkImportId } : {}), mode: 'legacy', state: 'initializing', stagingKey: existingStagingKey || `_staging/${owner}/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: expiresAt || new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false };
     try { await uploads.insertOne(session); }
     catch (error) { if (!(error instanceof MongoServerError) || error.code !== 11000) throw error; return registerLegacyUpload(owner, prepared, input, existingStagingKey, expiresAt); }
     return initializeUpload(session, db);

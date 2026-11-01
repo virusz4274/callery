@@ -17,9 +17,19 @@ test('admin quota inputs reject missing, nonfinite and negative numbers but pres
 });
 
 test('plan validation identifies the field before any save', () => {
-    const invalid = AdminPlanSchema.safeParse({ key: ' ', name: '', price: -1, limits: { storage: 0, transcription: Infinity } });
+    const invalid = AdminPlanSchema.safeParse({ key: ' ', name: '', price: -1, limits: { storage: 0, transcription: Infinity },
+        stripePriceId: '', currency: 'usd', interval: 'monthly', features: [], isDefault: false, isActive: true });
     assert.equal(invalid.success, false);
     if (!invalid.success) assert.deepEqual(Object.keys(validationFailure(invalid.error).fieldErrors), ['key', 'name', 'price', 'limits.transcription']);
+});
+
+test('plan validation preserves editable Stripe mappings and strips client publication proofs', () => {
+    const plan = AdminPlanSchema.parse({ key: 'standard', name: 'Standard', price: 10, limits: { storage: 2 * 1024 ** 3, transcription: 3600 },
+        stripePriceId: 'price_base', stripeStoragePriceId: 'price_storage', stripeTranscriptionPriceId: 'price_transcription',
+        currency: 'usd', interval: 'monthly', features: [], isDefault: false, isActive: true, billingCatalogVersion: 'forged' });
+    assert.equal(plan.stripeStoragePriceId, 'price_storage');
+    assert.equal('billingCatalogVersion' in plan, false);
+    assert.equal(AdminPlanSchema.partial().parse({ stripePriceId: 'price_new' }).stripePriceId, 'price_new');
 });
 
 test('announcement validation and display respect the complete schedule', () => {

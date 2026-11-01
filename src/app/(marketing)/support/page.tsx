@@ -7,9 +7,9 @@ import { buildContactPageSchema, createMarketingMetadata, jsonLdGraph, siteSeoCo
 
 export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
-  title: 'Support for call archive and search',
+  title: 'Help and support',
   description:
-    'Contact support for archive imports, Samsung call recording workflows, billing questions, and product feedback.',
+    'Contact Callery support for help importing recordings, managing your account, and understanding plans and billing.',
   path: '/support',
   keywords: ['support', 'call archive support', 'Samsung call recording help'],
 });
@@ -21,7 +21,7 @@ export default function SupportPage() {
     buildContactPageSchema(siteSeoConfig, {
       name: `${siteSeoConfig.siteName} support`,
       description:
-        'Support page for customers who need help with call recording imports, billing, and archive workflows.',
+        'Get help importing recordings, managing your Callery account, and understanding plans and billing.',
     })
   );
 

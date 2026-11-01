@@ -10,7 +10,11 @@ export function SemanticFeedback(props: RecordingsToolbarProps) {
         </div>
         {props.isSemanticSearching && <p role="status">Searching recordings…</p>}
         {props.semanticSubmittedQuery && <p>Results for “{props.semanticSubmittedQuery}”</p>}
-        {props.semanticSearchMode === 'fallback' && <p role="status">AI search is unavailable. Showing keyword matches from summaries and transcripts.</p>}
+        {props.semanticSearchMode === 'fallback' && <p role="status">{props.semanticFallbackReason === 'processing_paused'
+            ? 'AI processing is temporarily paused. Showing keyword matches from summaries and transcripts.'
+            : props.semanticFallbackReason === 'search_rate_limited'
+                ? 'Too many AI searches. Showing keyword matches; try AI search again shortly.'
+                : 'AI search is unavailable. Showing keyword matches from summaries and transcripts.'}</p>}
         {props.semanticError && <div role="alert" className="flex flex-wrap items-center gap-2 text-danger"><span>{props.semanticError}</span><Button variant="secondary" size="sm" onPress={props.onRetrySemanticSearch} isDisabled={props.isSemanticSearching}>Try again</Button></div>}
     </div>;
 }

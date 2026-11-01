@@ -1,6 +1,8 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { CreateUserInput, Plan, SystemSettings, UpdateUserInput, User } from '../types';
 import { getPlanDisplayName } from '@/lib/plans';
+import { assertValidDefaultPlan } from '../default-plan';
+import { readSystemSettingsSingleton } from '../system-settings-singleton';
 
 const DB_INIT_INSTRUCTIONS = 'Run `pnpm db:init` before using the app with a fresh database.';
 
@@ -81,7 +83,7 @@ export async function getPlanByKey(planKey: string): Promise<Plan | null> {
  */
 export async function getSystemSettings(): Promise<SystemSettings | null> {
     const db = await getMongoDb();
-    return db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
+    return readSystemSettingsSingleton(db, Collections.SYSTEM_SETTINGS);
 }
 
 export async function getRequiredSystemSettings(): Promise<SystemSettings> {
@@ -104,7 +106,7 @@ export async function getRequiredDefaultPlan(): Promise<Plan> {
         throw new Error(`Default plan document is missing. ${DB_INIT_INSTRUCTIONS}`);
     }
 
-    return defaultPlan;
+    return assertValidDefaultPlan(defaultPlan);
 }
 
 export async function getPlanNameMap(planKeys: string[]): Promise<Map<string, string>> {

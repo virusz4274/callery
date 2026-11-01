@@ -55,6 +55,28 @@ test('authentication requires a secret of at least 32 characters', () => {
     }
 });
 
+test('managed hosting requires a verifying email provider while self-hosting can explicitly omit email', async () => {
+    const saved = { ...process.env };
+    try {
+        process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+        process.env.EMAIL_PROVIDER = 'none';
+        assert.throws(getAuthCapabilities, /Managed hosting requires email verification/);
+        const unavailable = await GET();
+        assert.equal(unavailable.status, 503);
+        assert.match((await unavailable.json()).error, /EMAIL_PROVIDER=smtp or resend/);
+        for (const provider of ['smtp', 'resend']) {
+            process.env.EMAIL_PROVIDER = provider;
+            assert.equal(getAuthCapabilities().emailVerificationRequired, true);
+        }
+        process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
+        process.env.EMAIL_PROVIDER = 'none';
+        assert.equal(getAuthCapabilities().emailVerificationRequired, false);
+    } finally {
+        for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+        Object.assign(process.env, saved);
+    }
+});
+
 test('Contacts requests its own callback and permission while auth redirects stay local', () => {
     const saved = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
     try {

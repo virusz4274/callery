@@ -4,6 +4,7 @@ import {
     LayoutDashboard,
     Folder,
     Upload,
+    AudioLines,
     Shield,
     Sparkles,
     CreditCard,
@@ -15,6 +16,7 @@ import { publicSitePolicy } from '@/lib/public-site-policy';
 export const navigationConfig = {
     main: [
         { href: '/recordings', name: 'Recordings', icon: LayoutDashboard },
+        { href: '/transcription', name: 'Transcription', icon: AudioLines },
         { href: '/contacts', name: 'Contacts', icon: Users },
         { href: '/files', name: 'Files', icon: Folder },
         { href: '/upload', name: 'Upload', icon: Upload },

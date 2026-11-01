@@ -80,7 +80,7 @@ export function UserManagementTableRow({
                     <dl className="mt-2 space-y-1 text-sm text-muted xl:hidden">
                         <div className="flex flex-wrap gap-x-2"><dt>Plan:</dt><dd>{user.planName}</dd></div>
                         <div className="flex flex-wrap gap-x-2"><dt>Storage:</dt><dd>{(user.storageUsed / 1024 ** 3).toFixed(2)} / {(user.storageAllocation / 1024 ** 3).toFixed(2)} GB</dd></div>
-                        <div className="flex flex-wrap gap-x-2"><dt>Transcription:</dt><dd>{(user.transcriptionUsed / 60).toFixed(1)} / {(user.transcriptionAllocation / 60).toFixed(1)} min</dd></div>
+                        <div className="flex flex-wrap gap-x-2"><dt>Transcription:</dt><dd>{(user.transcriptionUsed / 60).toFixed(1)} / {user.transcriptionUnlimited ? 'Unlimited' : `${(user.transcriptionAllocation / 60).toFixed(1)} min`}</dd></div>
                         <div className="flex flex-wrap gap-x-2"><dt>Last active:</dt><dd>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}</dd></div>
                     </dl>
                     {isSoftDeleted ? (
@@ -103,7 +103,7 @@ export function UserManagementTableRow({
                 </div>
                 <div className="text-right">
                     <p className="flex min-h-11 items-center justify-end font-medium">
-                        {(user.transcriptionUsed / 60).toFixed(1)} / {Number((user.transcriptionAllocation / 60).toFixed(2))} min
+                        {(user.transcriptionUsed / 60).toFixed(1)} / {user.transcriptionUnlimited ? 'Unlimited' : `${Number((user.transcriptionAllocation / 60).toFixed(2))} min`}
                     </p>
                 </div>
                 <div className="text-right">

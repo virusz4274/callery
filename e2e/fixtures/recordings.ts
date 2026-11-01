@@ -29,7 +29,7 @@ export const recording: RecordingResponse = {
     standardizedDisplayName: 'Dialog fixture recording', fileSize: 100, mimeType: 'audio/wav', duration: 60,
     recordedAt: profile.createdAt, createdAt: profile.createdAt, updatedAt: profile.createdAt,
     transcriptionStatus: 'pending', tags: [], isStarred: false, isArchived: false,
-    playbackUrl: `data:audio/wav;base64,${audio.toString('base64')}`,
+    playbackUrl: '/__recording-fixture.wav',
 };
 
 const providers = ['soniox', 'elevenlabs', 'gemini', 'openai_compat'].map(id => ({
@@ -56,6 +56,10 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
     await page.route('**/*', async route => {
         const request = route.request();
         const url = new URL(request.url());
+        // Use same-origin media so production CSP applies to the playback checks.
+        if (url.pathname === '/__recording-fixture.wav') {
+            return route.fulfill({ contentType: 'audio/wav', body: audio });
+        }
         if (!process.env.TEST_ACTION_MANIFEST_PATH && url.pathname.startsWith('/_next/') && url.pathname.endsWith('.js')) {
             const response = await route.fetch();
             const source = await response.text();
@@ -75,8 +79,12 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
             return route.fulfill({ response, body: source });
         }
         if (url.pathname.startsWith('/api/')) {
-            if (url.pathname === '/api/contacts' && options.failContacts?.()) {
+            if ((url.pathname === '/api/contacts' || url.pathname.startsWith('/api/contacts/')) && options.failContacts?.()) {
                 return route.fulfill({ status: 500, json: { error: 'Fixture contact directory unavailable' } });
+            }
+            if (url.pathname.startsWith('/api/contacts/')) {
+                const contact = (options.contacts || []).find(item => item.id === decodeURIComponent(url.pathname.slice('/api/contacts/'.length)));
+                return route.fulfill({ status: contact ? 200 : 404, json: contact ? { contact } : { error: 'Contact not found' } });
             }
             const contactSearch = (url.searchParams.get('search') || '').toLowerCase();
             const matchingContacts = (options.contacts || []).filter(contact => [contact.name, ...contact.phoneNumbers].some(value => value.toLowerCase().includes(contactSearch)));

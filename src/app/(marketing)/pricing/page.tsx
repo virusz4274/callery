@@ -1,10 +1,9 @@
-export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { publicSitePolicy } from '@/lib/public-site-policy';
-import { getPublishedPlans } from '@/app/actions/plans';
 import { PricingSection } from '@/components/pricing-section';
 import { JsonLd } from '@/components/seo/json-ld';
+import { getMarketingPricing } from '@/lib/marketing-pricing-server';
+import { publicSitePolicy } from '@/lib/public-site-policy';
 import {
   buildOfferSchemas,
   buildSoftwareApplicationSchema,
@@ -12,56 +11,38 @@ import {
   jsonLdGraph,
   siteSeoConfig,
 } from '@/lib/seo';
+import styles from '@/components/marketing/pricing.module.css';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = createMarketingMetadata({
   config: siteSeoConfig,
-  title: 'Pricing for call recording archive and AI search',
-  description:
-    'Compare free, paid, and custom plans for searchable call archives, transcription, and AI retrieval.',
+  title: 'Plans and pricing',
+  description: 'Compare Callery plans for your recorded calls. See included storage, transcription, and clear usage pricing.',
   path: '/pricing',
-  keywords: [
-    'call archive pricing',
-    'call transcript pricing',
-    'AI call search pricing',
-  ],
+  keywords: ['call recording archive pricing', 'call transcription pricing', 'Callery plans'],
 });
 
 export default async function PricingPage() {
   if (!publicSitePolicy().marketingEnabled) notFound();
-  const publishedPlans = await getPublishedPlans();
-  const jsonLd = jsonLdGraph(
-    buildSoftwareApplicationSchema(siteSeoConfig, {
-      name: `${siteSeoConfig.siteName} pricing`,
-      description:
-        'Pricing for searchable call archives with transcription, summaries, and AI search.',
-      path: '/pricing',
-      offers: buildOfferSchemas(siteSeoConfig, publishedPlans),
-    })
-  );
+  const pricing = await getMarketingPricing();
+  const jsonLd = jsonLdGraph(buildSoftwareApplicationSchema(siteSeoConfig, {
+    name: `${siteSeoConfig.siteName} pricing`,
+    description: 'Plans for keeping recorded calls organized, transcribed, and searchable.',
+    path: '/pricing',
+    offers: buildOfferSchemas(siteSeoConfig, pricing),
+  }));
 
   return (
-    <div className="relative overflow-hidden">
+    <div className={styles.page}>
       <JsonLd data={jsonLd} />
-
-
-      <section className="border-b border-border">
-        <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
-          <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-            Pricing
-          </span>
-          <h1 className="mt-4 max-w-4xl text-2xl font-semibold text-foreground md:text-3xl">
-            Compare the free, standard, pro, and custom lanes in one place.
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-            Start with a lighter archive, then move into the lane that matches your storage,
-            transcription, and rollout needs.
-          </p>
-        </div>
-      </section>
-
-      <section className="relative mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
-        <PricingSection availablePlans={publishedPlans} salesEmail={siteSeoConfig.salesEmail} />
-      </section>
+      <div className={styles.pageIntro}>
+        <h1>A plan for your growing call archive.</h1>
+        <p>{pricing.trial
+          ? 'Start with your own recordings, free for 30 days. Choose more storage and transcription when you need them.'
+          : 'Choose the storage and transcription you need to keep your recorded calls organized and searchable.'}</p>
+      </div>
+      <PricingSection pricing={pricing} salesEmail={siteSeoConfig.salesEmail} />
     </div>
   );
 }

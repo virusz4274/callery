@@ -6,6 +6,7 @@ interface UsageStorageProps {
     userProfile: User | null;
     deletionPolicy: string;
     onPolicyChange: (policy: string) => void;
+    isDisabled?: boolean;
 }
 
 function UsageMeter({ label, value, description, percent, icon: Icon }: {
@@ -45,16 +46,20 @@ export function UsageStorageCard({
     userProfile,
     deletionPolicy,
     onPolicyChange,
+    isDisabled,
 }: UsageStorageProps) {
     const storageUsed = userProfile?.storageUsed || 0;
     const storageAllocation = userProfile?.storageAllocation || 1;
     const storagePercentage = (storageUsed / storageAllocation) * 100;
 
-    const transcriptionUsedSeconds = userProfile?.transcriptionUsed || 0;
+    const lifetime = userProfile?.billingStatus?.entitlement === 'lifetime';
+    const unlimited = userProfile?.transcriptionUnlimited === true;
+    const transcriptionUsedSeconds = userProfile?.billingStatus?.entitlement === 'subscription'
+        ? userProfile.transcriptionAllowanceUsed ?? userProfile.transcriptionUsed : userProfile?.transcriptionUsed || 0;
     const transcriptionUsedMinutes = transcriptionUsedSeconds / 60;
-    const transcriptionAllocationSeconds = userProfile?.transcriptionAllocation || 3600;
+    const transcriptionAllocationSeconds = userProfile?.transcriptionAllocation ?? 0;
     const transcriptionAllocationMinutes = transcriptionAllocationSeconds / 60;
-    const transcriptionPercentage = (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100;
+    const transcriptionPercentage = transcriptionAllocationMinutes > 0 && !unlimited ? (transcriptionUsedMinutes / transcriptionAllocationMinutes) * 100 : 0;
 
     return (
         <Card className="rounded-2xl border border-border bg-surface shadow-none">
@@ -63,14 +68,14 @@ export function UsageStorageCard({
                 <div className="grid gap-4 lg:grid-cols-2">
                     <UsageMeter
                         label="Transcription usage"
-                        value={`${transcriptionUsedMinutes.toFixed(1)} min / ${transcriptionAllocationMinutes} min`}
-                        description="Minutes used this billing cycle."
+                        value={unlimited ? `${transcriptionUsedMinutes.toFixed(1)} min · Unlimited` : lifetime ? `${transcriptionUsedMinutes.toFixed(1)} min` : `${transcriptionUsedMinutes.toFixed(1)} min / ${transcriptionAllocationMinutes} min`}
+                        description={unlimited ? 'Cumulative weighted minutes. Provider request limits still apply.' : lifetime ? 'Weighted minutes billed at your prepaid usage rates.' : userProfile?.planKey === 'free-trial' ? 'Weighted minutes used in your one-time trial.' : 'Included weighted minutes consumed in this usage window.'}
                         percent={transcriptionPercentage}
                         icon={FileAudio2}
                     />
                     <UsageMeter
                         label="Storage usage"
-                        value={`${(storageUsed / (1024 * 1024 * 1024)).toFixed(2)} GB / ${(storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GB`}
+                        value={`${(storageUsed / (1024 * 1024 * 1024)).toFixed(2)} GiB / ${(storageAllocation / (1024 * 1024 * 1024)).toFixed(0)} GiB`}
                         description="Cloud storage used across your archive."
                         percent={storagePercentage}
                         icon={Database}
@@ -93,6 +98,7 @@ export function UsageStorageCard({
                         <div className="w-full lg:w-64">
                             <Label className="mb-2 text-sm font-medium">Retention window</Label>
                             <Select
+                                isDisabled={isDisabled}
                                 aria-label="Automatic deletion policy"
                                 placeholder="Select a policy"
                                 selectedKey={deletionPolicy}

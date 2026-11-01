@@ -24,11 +24,14 @@ export async function startAsyncTranscription(
         const params = new URLSearchParams();
         params.set('recordingId', options.webhookMetadata.recordingId);
         params.set('authSubject', options.webhookMetadata.authSubject);
+        if (options.webhookMetadata.jobId) params.set('jobId', options.webhookMetadata.jobId);
+        if (options.webhookMetadata.attemptId) params.set('attemptId', options.webhookMetadata.attemptId);
         webhookUrl += `?${params.toString()}`;
     }
 
     const requestBody: Record<string, unknown> = {
         audio_url: fileUrl,
+        ...(options?.billingReceiptId ? { client_reference_id: options.billingReceiptId } : {}),
         model: modelToUse,
         enable_speaker_diarization: true,
         webhook_url: webhookUrl,

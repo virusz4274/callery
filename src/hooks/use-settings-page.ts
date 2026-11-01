@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
 import { useToast } from '@/components/toast-provider';
 import { useUserProfile } from '@/hooks/use-user-profile';
@@ -14,6 +13,7 @@ import { buildSettingsPath, buildSettingsTabs, passwordFormSchema, type Settings
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { useAuthActions, useUser } from '@/lib/auth/client';
 import { publicEnv } from '@/lib/public-env';
+import { useSettingsForm } from '@/hooks/settings/use-settings-form';
 
 export type { SettingsTab } from '@/hooks/settings/use-settings-page-utils';
 
@@ -41,28 +41,28 @@ export function useSettingsPage() {
         setNotificationsState,
         isSavingNotifications,
         handleSaveNotifications,
-        notificationsDirtyRef,
-    } = useNotificationSettings(userProfile);
+    } = useNotificationSettings(user, userProfile);
 
     const {
         generalState,
         setGeneralState,
         isSavingGeneral,
         handleSaveGeneral,
-        generalDirtyRef,
         dataState,
         setDataState,
         isSavingData,
         handleSaveData,
-        dataDirtyRef,
     } = usePreferenceSettings(user, userProfile);
 
     const [isSavingPassword, setSavingPassword] = useState(false);
     const handledBillingStateRef = useRef<string | null>(null);
-    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+    const { form: passwordForm } = useSettingsForm<z.infer<typeof passwordFormSchema>>(user?.id, {
+        currentPassword: '', newPassword: '', confirmPassword: '',
+    }, {
         resolver: zodResolver(passwordFormSchema),
-        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
     });
+    const passwordSubject = useRef(user?.id);
+    useEffect(() => { passwordSubject.current = user?.id; }, [user?.id]);
 
     const activeTab = defaultTab;
     const view = searchParams.has('tab') ? 'detail' as const : 'list' as const;
@@ -127,21 +127,23 @@ export function useSettingsPage() {
     }, [router, searchParams, showBilling, toast]);
 
     const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
-        if (!user || !user.email) {
+        if (!user || !user.email || isSavingPassword) {
             return;
         }
-
+        const subject = user.id;
         setSavingPassword(true);
         try {
             await auth.changePassword(values.currentPassword, values.newPassword);
+            if (passwordSubject.current !== subject) return;
             toast({ title: 'Password Changed', description: 'Please log in again.', status: 'success' });
-            setTimeout(() => auth.signOut(), 3000);
+            setTimeout(() => { if (passwordSubject.current === subject) void auth.signOut(); }, 3000);
         } catch (error: unknown) {
+            if (passwordSubject.current !== subject) return;
             const message = error instanceof Error ? error.message : 'Password change failed.';
             toast({ title: 'Password Change Failed', description: message, status: 'danger' });
         } finally {
             setSavingPassword(false);
-            passwordForm.reset();
+            if (passwordSubject.current === subject) passwordForm.reset(undefined, { keepDirtyValues: false });
         }
     };
 
@@ -156,34 +158,6 @@ export function useSettingsPage() {
         [showBilling]
     );
 
-    const updateGeneralState = useCallback(
-        (newSettings: { timezone: string }) => {
-            generalDirtyRef.current = true;
-            setGeneralState(newSettings);
-        },
-        [generalDirtyRef, setGeneralState]
-    );
-
-    const updateDataState = useCallback(
-        (newSettings: typeof dataState) => {
-            dataDirtyRef.current = true;
-            setDataState(newSettings);
-        },
-        [dataDirtyRef, setDataState]
-    );
-
-    const updateNotificationsState = useCallback(
-        (newSettings: {
-            activityDigest: 'off' | 'weekly' | 'monthly';
-            ingestSuccess: boolean;
-            ingestFail: boolean;
-        }) => {
-            notificationsDirtyRef.current = true;
-            setNotificationsState(newSettings);
-        },
-        [notificationsDirtyRef, setNotificationsState]
-    );
-
     return {
         user,
         userProfile,
@@ -192,13 +166,13 @@ export function useSettingsPage() {
         passwordForm,
         generalState,
         setGeneralState,
-        updateGeneralState,
+        updateGeneralState: setGeneralState,
         notificationsState,
         setNotificationsState,
-        updateNotificationsState,
+        updateNotificationsState: setNotificationsState,
         dataState,
         setDataState,
-        updateDataState,
+        updateDataState: setDataState,
         activeTab,
         view,
         tabs,
@@ -212,14 +186,11 @@ export function useSettingsPage() {
         isSavingGeneral,
         isSavingNotifications,
         isSavingData,
-        generalDirtyRef,
-        notificationsDirtyRef,
-        dataDirtyRef,
         handleUpdateProfile,
         handleChangePassword,
         handleSaveGeneral,
         handleSaveNotifications,
-        handleSaveData,
+        handleSaveData: () => handleSaveData(activeTab === 'retention' ? 'retention' : 'processing'),
         handleConnectGoogle,
         handleDisconnectGoogle,
         onDialogConfirm,

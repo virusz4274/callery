@@ -7,8 +7,8 @@ import { env } from '@/lib/env';
 import { getMongoDb, Collections } from '@/lib/mongodb';
 import { User } from '@/lib/db/types';
 import { reportUsage } from '@/lib/stripe/usage';
-import { ensureStripeCustomerId } from '@/lib/stripe/customer';
 import { isFreeTrialPlanKey } from '@/lib/plans';
+import { canUseMeteredOverage } from '@/lib/access-control-common';
 
 export async function PATCH(req: NextRequest) {
     // Check for Self-Hosted Mode (Billing Disabled)
@@ -38,23 +38,26 @@ export async function PATCH(req: NextRequest) {
         if (isFreeTrialPlanKey(user.planKey)) {
             return NextResponse.json({ error: 'Pay Per Usage cannot be enabled on Free Trial.' }, { status: 403 });
         }
+        if (!allowOverage && user.billingEntitlement?.source === 'lifetime') {
+            return NextResponse.json({ error: 'Lifetime access includes separately billed usage. Manage or cancel usage billing through the billing portal.', code: 'lifetime_usage_required' }, { status: 409 });
+        }
 
-        if (allowOverage && !user.stripeCustomerId) {
-            try {
-                await ensureStripeCustomerId(user);
-            } catch (error) {
-                logger.error('Error creating Stripe customer before enabling overage:', error);
-                return NextResponse.json(
-                    { error: 'Unable to enable Pay Per Usage right now. Please try again in a moment.' },
-                    { status: 503 }
-                );
-            }
+        if (allowOverage && !canUseMeteredOverage({ ...user, billingSettings: { allowOverage: true } })) {
+            return NextResponse.json({ error: 'An active subscription with verified usage billing is required before enabling Pay Per Usage.', code: 'usage_billing_not_ready' }, { status: 409 });
         }
 
         // Use direct update since our generic `updateUser` might not deep merge 'billingSettings' if it's new
         const db = await getMongoDb();
-        await db.collection<User>(Collections.USERS).updateOne(
-            { authSubject: uid },
+        const updated = await db.collection<User>(Collections.USERS).updateOne(
+            { authSubject: uid, ...(allowOverage ? {
+                stripeSubscriptionStatus: 'active',
+                stripeSubscriptionId: user.stripeSubscriptionId,
+                stripeMetering: user.stripeMetering,
+                billingEntitlement: user.billingEntitlement,
+                billingReview: user.billingReview ?? { $exists: false },
+                'billingAccount.costReview': user.billingAccount?.costReview ?? { $exists: false },
+                stripePaymentIssues: user.stripePaymentIssues ?? { $exists: false },
+            } : {}) },
             {
                 $set: {
                     'billingSettings.allowOverage': allowOverage,
@@ -62,6 +65,7 @@ export async function PATCH(req: NextRequest) {
                 }
             }
         );
+        if (!updated.matchedCount) return NextResponse.json({ error: 'Billing changed while saving. Refresh and try again.', code: 'billing_changed' }, { status: 409 });
 
         // If overage is enabled, send a baseline storage event so Stripe has usage for this period.
         if (allowOverage) {

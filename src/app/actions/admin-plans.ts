@@ -7,6 +7,11 @@ import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { revalidatePath } from 'next/cache';
+import { billingEnabled } from '@/lib/config';
+import { preparePublishedPlan } from '@/lib/stripe/catalog-publication';
+import { pausePublishedOffer } from '@/lib/stripe/catalog-bundle';
+import { assertPlanDeletionPreservesOnboarding, assertPlanUpdatePreservesOnboarding } from '@/lib/db/default-plan-protection';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 function mapPlan(plan: Plan): PlanResponse {
     return {
@@ -19,7 +24,7 @@ function mapPlan(plan: Plan): PlanResponse {
         stripeTranscriptionPriceId: plan.stripeTranscriptionPriceId,
         price: plan.price,
         currency: plan.currency,
-        interval: plan.interval,
+        interval: isFreeTrialPlanKey(plan.key) ? 'trial' : plan.interval,
         limits: plan.limits,
         features: plan.features,
         isDefault: plan.isDefault,
@@ -62,17 +67,18 @@ export async function createPlan(data: CreatePlanInput) {
 
     const db = await getMongoDb();
 
-    if (data.isDefault) {
-        await db.collection(Collections.PLANS).updateMany({}, { $set: { isDefault: false } });
-    }
-
     const now = new Date();
-    const newPlan: Plan = {
+    let newPlan: Plan = {
         _id: new ObjectId(),
-        ...data,
+        ...validation.data,
         createdAt: now,
         updatedAt: now,
     };
+    if (billingEnabled()) newPlan = await preparePublishedPlan(newPlan, db);
+
+    if (newPlan.isDefault) {
+        await db.collection(Collections.PLANS).updateMany({}, { $set: { isDefault: false } });
+    }
 
     const result = await db.collection(Collections.PLANS).insertOne(newPlan);
 
@@ -95,6 +101,11 @@ export async function updatePlan(id: string, data: UpdatePlanInput) {
 
     const db = await getMongoDb();
     const planObjectId = parseObjectId(id, 'planId');
+    const existing = await db.collection<Plan>(Collections.PLANS).findOne({ _id: planObjectId });
+    if (!existing) throw new Error('Plan not found.');
+    const next = { ...existing, ...validation.data, updatedAt: new Date() };
+    await assertPlanUpdatePreservesOnboarding(db, next);
+    const published = billingEnabled() ? await preparePublishedPlan(next, db) : next;
 
     if (data.isDefault) {
         await db.collection(Collections.PLANS).updateMany(
@@ -107,7 +118,9 @@ export async function updatePlan(id: string, data: UpdatePlanInput) {
         { _id: planObjectId },
         {
             $set: {
-                ...data,
+                ...validation.data,
+                billingCatalogVersion: published.billingCatalogVersion,
+                billingPublishedAt: published.billingPublishedAt,
                 updatedAt: new Date(),
             },
         }
@@ -125,7 +138,9 @@ export async function deletePlan(id: string) {
     const planObjectId = parseObjectId(id, 'planId');
 
     const plan = await db.collection<Plan>(Collections.PLANS).findOne({ _id: planObjectId });
-    await db.collection(Collections.PLANS).deleteOne({ _id: planObjectId });
+    await assertPlanDeletionPreservesOnboarding(db, plan);
+    if (billingEnabled() && plan) await pausePublishedOffer(plan.key, true, db);
+    await db.collection(Collections.PLANS).updateOne({ _id: planObjectId }, { $set: { isActive: false, archivedAt: new Date(), updatedAt: new Date() } });
 
     await logAdminAction(
         admin._id.toString(),

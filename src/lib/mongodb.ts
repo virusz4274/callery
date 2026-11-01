@@ -19,6 +19,7 @@ const options: MongoClientOptions = {
 interface MongoCache {
     clientPromise?: Promise<MongoClient>;
     fallbackUri?: string;
+    databaseHandles?: WeakMap<MongoClient, Map<string, Db>>;
 }
 
 const globalWithMongo = globalThis as typeof globalThis & {
@@ -225,8 +226,18 @@ export async function getMongoClient(): Promise<MongoClient> {
  * The database name is extracted from the MONGODB_URI connection string.
  */
 export async function getMongoDb(): Promise<Db> {
-    const client = await getClientPromise();
-    return client.db();
+    return getCachedMongoDb(await getClientPromise());
+}
+
+/** Preserve Db identity so per-database initialization promises survive requests. */
+export function getCachedMongoDb(client: MongoClient, databaseName?: string): Db {
+    const handles = cache.databaseHandles ??= new WeakMap();
+    let databases = handles.get(client);
+    if (!databases) { databases = new Map(); handles.set(client, databases); }
+    const name = databaseName ?? client.options.dbName ?? 'test';
+    let database = databases.get(name);
+    if (!database) { database = client.db(name); databases.set(name, database); }
+    return database;
 }
 
 /**

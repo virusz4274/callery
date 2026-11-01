@@ -116,7 +116,7 @@ export function ManagePlanDialog({ user, isOpen, onClose, plans }: ManagePlanDia
                       </div>
                       <div>
                         <div className="text-xs font-semibold uppercase text-muted">Transcription quota</div>
-                        <div className="mt-2 text-2xl font-bold text-foreground">{displayTranscription} min</div>
+                        <div className="mt-2 text-2xl font-bold text-foreground">{selectedPlanKey === 'internal' ? 'Unlimited' : `${displayTranscription} min`}</div>
                         <p className="mt-1 text-sm text-muted">Plan-defined allowance before custom overrides.</p>
                       </div>
                     </div>

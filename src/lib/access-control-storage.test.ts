@@ -23,6 +23,12 @@ function createUser(overrides: Partial<User> = {}): User {
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         role: 'user',
         planKey: 'pro',
+        billingEntitlement: { source: 'subscription', reference: 'sub_test', grantedAt: new Date('2026-01-01') },
+        stripeCustomerId: 'cus_test',
+        stripeSubscriptionId: 'sub_test',
+        stripeSubscriptionStatus: 'active',
+        stripeMetering: { subscriptionId: 'sub_test', storagePriceId: 'price_storage', transcriptionPriceId: 'price_transcription', verifiedAt: new Date() },
+        trialEndsAt: new Date('2100-01-01'),
         timezone: 'UTC',
         notificationSettings: {
             activityDigest: 'weekly',

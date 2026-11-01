@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { numericInput, validationFailure, type AdminFieldErrors } from '@/lib/admin-validation';
 import { focusInvalid } from './admin-form-errors';
 import { useToast } from '@/components/toast-provider';
-import { TranscriptionMultipliersSchema, type TranscriptionMultipliers } from '@/lib/transcription-multipliers';
+import { TranscriptionMultipliersSchema, type TranscriptionMultipliers, type TranscriptionPolicyMode } from '@/lib/transcription-multipliers';
 
 const multiplierFields = [
     { id: 'soniox', label: 'Soniox Multiplier' },
@@ -18,11 +18,12 @@ const multiplierFields = [
 ] as const;
 
 type SettingsFormProps = {
-    settings: SystemSettingsResponse & { transcriptionMultipliers: TranscriptionMultipliers };
+    settings: Omit<SystemSettingsResponse, 'transcriptionMultipliers'> & { transcriptionMultipliers: Partial<TranscriptionMultipliers>; transcriptionPolicyMode: TranscriptionPolicyMode };
     plans: PlanResponse[];
 };
 
 export function SettingsForm({ settings, plans }: SettingsFormProps) {
+    const managed = settings.transcriptionPolicyMode === 'managed';
     const router = useRouter();
     const [isPending, setPending] = useState(false);
     const [errors, setErrors] = useState<AdminFieldErrors>({});
@@ -33,12 +34,13 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
 
     const [allowSignups, setAllowSignups] = useState(settings.allowSignups);
     const [maintenanceMode, setMaintenanceMode] = useState(settings.maintenanceMode);
+    const [processingPaused, setProcessingPaused] = useState(settings.processingPaused === true);
     const [defaultPlanId, setDefaultPlanId] = useState(settings.defaultPlanId);
     const [multipliers, setMultipliers] = useState<Record<keyof TranscriptionMultipliers, string>>(() => ({
         soniox: String(settings.transcriptionMultipliers.soniox),
         elevenlabs: String(settings.transcriptionMultipliers.elevenlabs),
         gemini: String(settings.transcriptionMultipliers.gemini),
-        openai_compat: String(settings.transcriptionMultipliers.openai_compat),
+        openai_compat: settings.transcriptionMultipliers.openai_compat === undefined ? '' : String(settings.transcriptionMultipliers.openai_compat),
     }));
     const parsedMultipliers = TranscriptionMultipliersSchema.safeParse(
         Object.fromEntries(multiplierFields.map(({ id }) => [id, numericInput(multipliers[id])]))
@@ -47,11 +49,11 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
     const handleSave = async (event: React.FormEvent) => {
         event.preventDefault();
         if (busy.current) return;
-        if (!parsedMultipliers.success) { setErrors(validationFailure(parsedMultipliers.error).fieldErrors); focusInvalid(form.current); return; }
+        if (!managed && !parsedMultipliers.success) { setErrors(validationFailure(parsedMultipliers.error).fieldErrors); focusInvalid(form.current); return; }
         if (!defaultPlanId) { setErrors({ defaultPlanId: 'Choose a default plan.' }); focusInvalid(form.current); return; }
         busy.current = true; setPending(true); setErrors({}); setSaveError(null);
         try {
-            const result = await updateSystemSettings({ allowSignups: settings.team?.enabled ? false : allowSignups, maintenanceMode, defaultPlanId, transcriptionMultipliers: parsedMultipliers.data });
+            const result = await updateSystemSettings({ allowSignups: settings.team?.enabled ? false : allowSignups, maintenanceMode, processingPaused, defaultPlanId, ...(!managed && parsedMultipliers.success ? { transcriptionMultipliers: parsedMultipliers.data } : {}) });
             if (result?.fieldErrors) { setErrors(result.fieldErrors); focusInvalid(form.current); return; }
             toast({ title: 'Settings updated', status: 'success' }); router.refresh();
         } catch (error) { setSaveError(error instanceof Error ? error.message : 'Please try again.'); }
@@ -75,6 +77,15 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                                         <Switch.Thumb />
                                     </Switch.Control>
                                 </Switch.Content>
+                            </Switch>
+                        </div>
+
+                        <hr className="border-border" />
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div><p className="font-medium">Pause AI Processing</p><p id="processing-help" className="text-sm text-muted">Pause new provider calls. Saved recordings remain available and completed results are retained.</p></div>
+                            <Switch aria-label="Pause AI processing" aria-describedby="processing-help" isSelected={processingPaused} onChange={setProcessingPaused}>
+                                <Switch.Content className="min-h-11 min-w-11 justify-center"><Switch.Control><Switch.Thumb /></Switch.Control></Switch.Content>
                             </Switch>
                         </div>
 
@@ -119,7 +130,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                                 </Select.Trigger>
                                 <Select.Popover>
                                     <ListBox>
-                                        {plans.filter(p => p.isActive || p.id === defaultPlanId).map((plan) => (
+                                        {plans.filter(p => (p.isActive && (!managed || p.key === 'free-trial')) || p.id === defaultPlanId).map((plan) => (
                                             <ListBox.Item key={plan.id} id={plan.id} textValue={plan.name}>
                                                 {plan.name}{!plan.isActive ? ' (Inactive)' : ''}
                                             </ListBox.Item>
@@ -131,7 +142,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                             {plans.find(plan => plan.id === defaultPlanId)?.isActive === false && <p id="inactive-plan-help" className="text-sm text-muted">The assigned plan is inactive. Choose an active plan to change the onboarding default.</p>}
                         </div>
                         <p id="default-plan-help" className="text-xs text-muted">
-                            New users will automatically be assigned to this plan upon registration.
+                            {managed ? 'Managed signups must start on an active Free Trial plan. Paid access requires confirmed payment.' : 'New users will automatically be assigned to this active plan upon registration.'}
                         </p>
                     </div>
                 </div>
@@ -141,10 +152,10 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                 <div>
                     <h3 className="text-lg font-semibold mb-4">Transcription Billing</h3>
                     <p className="text-sm text-muted mb-4">
-                        Set the cost multipliers for each transcription provider. A 10-minute file transcribed with a 6x multiplier will consume 60 minutes of quota.
+                        {managed ? 'Managed allowance weights are fixed by the approved billing policy: Soniox 1×, Gemini 3× and ElevenLabs 5×. Stripe prices are managed through the billing catalog.' : 'Set the allowance weights for each transcription provider. A 10-minute file transcribed with a 6× multiplier will consume 60 minutes of quota.'}
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2 w-full">
-                        {multiplierFields.map(({ id, label }) => {
+                        {multiplierFields.filter(({ id }) => !managed || settings.transcriptionMultipliers[id] !== undefined).map(({ id, label }) => {
                             const invalid = !!errors[id];
                             const inputId = `multiplier-${id}`;
                             return (
@@ -155,6 +166,7 @@ export function SettingsForm({ settings, plans }: SettingsFormProps) {
                                         type="number"
                                         min={0}
                                         step="any"
+                                        readOnly={managed}
                                         value={multipliers[id]}
                                         onChange={(e) => setMultipliers(previous => ({ ...previous, [id]: e.target.value }))}
                                         aria-invalid={invalid}

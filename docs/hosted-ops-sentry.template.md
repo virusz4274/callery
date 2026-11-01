@@ -40,7 +40,7 @@ SENTRY_URL=
 
 Notes:
 
-- [`next.config.ts`](/home/virusz4274/development/Vosift/next.config.ts) only enables the Sentry build plugin when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are all present
+- [`next.config.ts`](../next.config.ts) only enables the Sentry build plugin when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are all present
 - if they are absent, the app still builds and runtime error capture can still work when DSNs are present
 - keep these values out of public self-host documentation
 

@@ -1,5 +1,5 @@
 import { revalidatePath } from 'next/cache';
-import { waitUntil } from '@vercel/functions';
+import { after } from 'next/server';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { getOAuth2Client } from '@/services/google/oauth';
 import { syncContactsBackground } from '@/services/google/contacts-sync';
@@ -301,14 +301,19 @@ export async function disconnectGoogleContacts(authSubject: string) {
     });
 }
 
-export function scheduleGoogleContactsSyncInBackground(authSubject: string) {
-    waitUntil(
-        runGoogleContactsSync(authSubject).catch(async (error) => {
+export function scheduleGoogleContactsSyncInBackground(
+    authSubject: string,
+    dependencies = { after, runGoogleContactsSync, markGoogleContactsSyncFailed }
+) {
+    dependencies.after(async () => {
+        try {
+            await dependencies.runGoogleContactsSync(authSubject);
+        } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
             logger.error('Error running Google contacts sync in background:', error);
-            await markGoogleContactsSyncFailed(authSubject, errorMessage);
-        })
-    );
+            await dependencies.markGoogleContactsSyncFailed(authSubject, errorMessage);
+        }
+    });
 }
 
 export async function startGoogleContactsSyncWithDependencies(

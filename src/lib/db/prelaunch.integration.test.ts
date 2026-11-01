@@ -7,6 +7,7 @@ import { seedPlans, seedSystemSettings } from './init/seed';
 import { ensureUserProfile } from './users/ensure-profile';
 import { findUserByAuthSubject } from './users/lookup';
 import { updateUserProfile } from './users/profile';
+import { incrementTranscriptionUsed } from './users/usage';
 import { updateSystemSettingsDocument } from './system-settings';
 import { toUserResponse } from './converters';
 import { createRecording } from './recordings/write';
@@ -43,7 +44,7 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
             const plan = await db.collection<Plan>(Collections.PLANS).findOne({ _id: settings.defaultPlanId });
             assert.equal(plan?.key, 'free-trial');
             assert.equal(settings.allowSignups, true);
-            assert.deepEqual(settings.transcriptionMultipliers, { soniox: 1, elevenlabs: 5, gemini: 0.5, openai_compat: 0.1 });
+            assert.equal(settings.transcriptionMultipliers, undefined);
 
             await updateSystemSettingsDocument({
                 maintenanceMode: true,
@@ -57,7 +58,7 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
             const repeated = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
             assert.equal(repeated?.maintenanceMode, true);
             assert.ok(repeated?.defaultPlanId.equals(settings.defaultPlanId));
-            assert.deepEqual(repeated?.transcriptionMultipliers, { soniox: 2, elevenlabs: 4, gemini: 0.5, openai_compat: 0.1 });
+            assert.deepEqual(repeated?.transcriptionMultipliers, { soniox: 2, elevenlabs: 4 });
         });
 
         await t.test('independent Better Auth profiles create complete profiles, including concurrent signup', async () => {
@@ -104,6 +105,17 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
             assert.equal(await updateUserProfile('missing', patch), null);
         });
 
+        await t.test('transcription counter receipts survive concurrent retries and late callbacks do not consume a new period', async () => {
+            await Promise.all(Array.from({ length: 8 }, () => incrementTranscriptionUsed('local', 15.1, 'stable-provider-receipt', db)));
+            assert.equal((await findUserByAuthSubject('local'))?.transcriptionUsed, 16);
+            await db.collection(Collections.USERS).updateOne({ authSubject: 'local' }, {
+                $set: { stripeCurrentPeriodStart: new Date('2026-10-01'), transcriptionUsed: 0 },
+            });
+            await incrementTranscriptionUsed('local', 30, 'late-provider-receipt', db, new Date('2026-09-30'));
+            assert.equal((await findUserByAuthSubject('local'))?.transcriptionUsed, 0);
+            await incrementTranscriptionUsed('local', 30, 'current-provider-receipt', db, new Date('2026-10-02'));
+            assert.equal((await findUserByAuthSubject('local'))?.transcriptionUsed, 30);
+        });
         await t.test('all four provider choices survive profile serialization and unrelated edits', async () => {
             const providers: TranscriptionProvider[] = ['soniox', 'elevenlabs', 'gemini', 'openai_compat'];
             for (const defaultProvider of providers) {

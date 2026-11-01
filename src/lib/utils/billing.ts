@@ -12,3 +12,8 @@ export function calculateBilledDuration(seconds: number): number {
     if (seconds <= 0) return 0;
     return Math.ceil(seconds / 15) * 15;
 }
+
+/** Managed provider calls require a duration verified from the uploaded media. */
+export function isKnownAudioDuration(seconds: number): boolean {
+    return Number.isFinite(seconds) && seconds > 0;
+}

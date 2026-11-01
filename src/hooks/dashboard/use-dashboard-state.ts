@@ -5,6 +5,7 @@ import type { Recording } from '@/lib/types';
 import { useToast } from '@/components/toast-provider';
 import { transcribeRecordingAction } from '@/app/actions/transcription';
 import { logger } from '@/lib/logger';
+import { enrichmentNeedsResume } from '@/lib/transcription/processing-errors';
 
 export type SortConfig = {
     by: 'date' | 'duration';
@@ -86,18 +87,21 @@ export function useDashboardState(itemsPerPage: number = 10) {
     }, [setPage]);
 
     const handleRetryTranscription = useCallback(async (recording: Recording) => {
-        toast({ title: 'Starting transcription...', status: 'default' });
+        const resume = enrichmentNeedsResume(recording.processingStatus);
+        const uncertain = recording.processingStatus?.providerOutcome === 'unknown';
+        if (uncertain && !window.confirm('The previous provider outcome is uncertain. Check the provider result before retrying; another paid attempt may incur a charge. Continue?')) return;
+        toast({ title: resume ? 'Resuming enrichment...' : 'Starting transcription...', status: 'default' });
 
         try {
-            const response = await transcribeRecordingAction(recording.id.toString());
+            const response = await transcribeRecordingAction(recording.id.toString(), uncertain ? { acknowledgeProviderOutcome: true } : undefined);
 
             if (response.error) {
                 throw new Error(response.error);
             }
 
             toast({
-                title: 'Transcription started',
-                description: 'The recording is being processed in the background.',
+                title: resume ? 'Enrichment resumed' : 'Transcription started',
+                description: resume ? 'The saved transcript is reused; audio is not transcribed again.' : 'The recording is being processed in the background.',
                 status: 'success',
             });
         } catch (error) {

@@ -44,6 +44,7 @@ export function GeneralSettings({ settings, onSettingsChange, onSave, isSaving }
                 <Card.Content className="space-y-5 p-5 sm:p-6">
 
                     <Select
+                        isDisabled={isSaving}
                         placeholder="Select a timezone"
                         selectedKey={settings.timezone}
                         onSelectionChange={(key) => {

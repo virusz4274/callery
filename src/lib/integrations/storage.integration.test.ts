@@ -24,7 +24,12 @@ test('isolated S3 transport signs parts, validates audio, and protects promoted 
         const parts: { partNumber: number; etag: string; size: number }[] = [];
         for (let partNumber = 1; partNumber <= 2; partNumber++) {
             const body = wav.subarray((partNumber - 1) * PART_BYTES, partNumber * PART_BYTES);
-            const url = await ingestionStorage.sign(stage, uploadId, partNumber);
+            const url = await ingestionStorage.sign(stage, uploadId, partNumber, body.length);
+            assert.ok(new URL(url).searchParams.get('X-Amz-SignedHeaders')?.includes('content-length'));
+            if (partNumber === 1) for (const wrongBody of [body.subarray(0, body.length - 1), Buffer.concat([body, Buffer.from([0])])]) {
+                const rejected = await fetch(url, { method: 'PUT', body: wrongBody, signal: AbortSignal.timeout(30_000) });
+                assert.ok(rejected.status >= 400 && rejected.status < 500, 'The bucket must reject a body whose actual length differs from the signed length');
+            }
             const response = await fetch(url, { method: 'PUT', body });
             assert.equal(response.status, 200); parts.push({ partNumber, etag: response.headers.get('etag')!, size: body.length });
         }

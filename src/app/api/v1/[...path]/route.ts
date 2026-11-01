@@ -11,6 +11,7 @@ import { getTeamSettings } from '@/lib/team-policy';
 import { simpleUpload } from '@/lib/integrations/simple-upload';
 import { processTranscriptionJobs, recordingJobStatus, requestTranscription } from '@/lib/integrations/jobs';
 import { openApiDocument } from '@/lib/integrations/openapi';
+import { directUploadLengthsVerified, expectedPartLength } from '@/lib/integrations/upload-policy';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ async function dispatch(request: NextRequest, context: Context) {
     return apiHandler(async requestId => {
         const path = (await context.params).path; const method = request.method;
         if (method === 'GET' && path.join('/') === 'openapi.json') return Response.json(openApiDocument(), { headers: { ...corsHeaders, 'Cache-Control': 'no-store', 'X-Request-Id': requestId } });
-        if (method === 'GET' && path.join('/') === 'capabilities') return apiResponse({ apiVersion: 'v1', authentication: 'api-token', uploadModes: ['direct-multipart', 'multipart-form'], maxFileSize: MAX_FILE_BYTES, simpleUploadMaxFileSize: simpleUploadLimit(), partSize: PART_BYTES, uploadSessionSeconds: SESSION_MS / 1000, signedUrlSeconds: URL_SECONDS, formats: ['mp3', 'wav', 'm4a', 'mp4', 'webm'], maxTranscriptionFileSize: 2 * 1024 ** 3, notifications: 'polling' }, 200, requestId);
+        if (method === 'GET' && path.join('/') === 'capabilities') return apiResponse({ apiVersion: 'v1', authentication: 'api-token', uploadModes: [...(directUploadLengthsVerified() ? ['direct-multipart'] : []), 'multipart-form'], maxFileSize: directUploadLengthsVerified() ? MAX_FILE_BYTES : simpleUploadLimit(), simpleUploadMaxFileSize: simpleUploadLimit(), partSize: PART_BYTES, uploadSessionSeconds: SESSION_MS / 1000, signedUrlSeconds: URL_SECONDS, formats: ['mp3', 'wav', 'm4a', 'mp4', 'webm'], maxTranscriptionFileSize: 2 * 1024 ** 3, notifications: 'polling' }, 200, requestId);
         const actor = await authenticateApi(request.headers);
         await apiRateLimit(actor, method === 'POST' && (path.join('/') === 'uploads' || path.join('/') === 'recordings'));
         const respond = (data: unknown, status = 200) => apiResponse(data, status, requestId);
@@ -39,9 +40,10 @@ async function dispatch(request: NextRequest, context: Context) {
                 if (path.length === 2 && method === 'DELETE') return respond(await cancelUpload(session));
                 if (path.length === 3 && path[2] === 'parts' && method === 'POST') {
                     ensureUploading(session);
+                    if (!directUploadLengthsVerified()) throw new ApiError(503, 'direct_upload_unverified', 'Use bounded multipart-form uploads until this bucket passes signed-length verification.');
                     if (session.mode !== 'direct' || !session.storageUploadId) throw new ApiError(409, 'invalid_upload_mode', 'This session does not accept direct-upload parts.');
                     const body = await jsonBody(request, z.object({ partNumbers: z.array(z.number().int().min(1).max(Math.ceil(session.input.fileSize / PART_BYTES))).min(1).max(50) }).strict());
-                    return respond({ parts: await Promise.all([...new Set(body.partNumbers)].map(async partNumber => ({ partNumber, method: 'PUT', url: await ingestionStorage.sign(session.stagingKey, session.storageUploadId!, partNumber), size: Math.min(PART_BYTES, session.input.fileSize - (partNumber - 1) * PART_BYTES), expiresAt: new Date(Date.now() + URL_SECONDS * 1000).toISOString(), headers: {} }))) });
+                    return respond({ parts: await Promise.all([...new Set(body.partNumbers)].map(async partNumber => ({ partNumber, method: 'PUT', url: await ingestionStorage.sign(session.stagingKey, session.storageUploadId!, partNumber, expectedPartLength(session.input.fileSize, partNumber)), size: expectedPartLength(session.input.fileSize, partNumber), expiresAt: new Date(Date.now() + URL_SECONDS * 1000).toISOString(), headers: {} }))) });
                 }
                 if (path.length === 3 && path[2] === 'complete' && method === 'POST') {
                     const result = await completeUpload(session);

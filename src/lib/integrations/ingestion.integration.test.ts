@@ -21,7 +21,7 @@ import { deleteUserData } from '@/lib/db/delete-user-data';
 
 test('API token isolation, atomic quota, retryable ingestion and standalone recovery', { skip: !process.env.VOSIFT_TEST_MONGODB_URI }, async t => {
     const saved = { ...process.env };
-    const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!); uri.pathname = `/vt_ingestion_${randomUUID().replaceAll('-', '')}`;
+    const uri = new URL(process.env.VOSIFT_TEST_MONGODB_URI!); uri.pathname = `/vt_ingestion_${randomUUID().replaceAll('-', '').slice(0, 16)}`;
     process.env.MONGODB_URI = uri.toString(); process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
     const db = await getMongoDb(); const client = await getMongoClient();
     const objects = new Map<string, Buffer>();
@@ -68,7 +68,9 @@ test('API token isolation, atomic quota, retryable ingestion and standalone reco
         });
         await t.test('concurrent quota reservations and counter receipts cannot overcount', async () => {
             process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
-            await db.collection(Collections.USERS).updateOne({ authSubject: owner }, { $set: { storageAllocation: 100, 'billingSettings.allowOverage': false } });
+            await db.collection(Collections.USERS).updateOne({ authSubject: owner }, { $set: { storageAllocation: 100, 'billingSettings.allowOverage': false,
+                billingEntitlement: { source: 'admin', grantedAt: new Date() },
+            } });
             const attempts = await Promise.allSettled([reserveUpload(owner, 'quota-a', 60, db), reserveUpload(owner, 'quota-b', 60, db)]);
             assert.equal(attempts.filter(result => result.status === 'fulfilled').length, 1);
             await releaseUpload(owner, 'quota-a', db); await releaseUpload(owner, 'quota-b', db);
@@ -97,6 +99,27 @@ test('API token isolation, atomic quota, retryable ingestion and standalone reco
             assert.deepEqual(objects.get(session.finalKey), wav);
             await assert.rejects(apiRecording(otherActor, recordingId, 'read'), ApiError);
             assert.equal((await createUpload(actor, input, fingerprint('another'))).recordingId, recordingId);
+        });
+        await t.test('payment failure during transfer blocks completion while existing recordings remain readable', async () => {
+            const session = await createUpload(actor, UploadSchema.parse({ fileName: 'billing-change.wav', fileSize: wav.length }), fingerprint('billing-change'));
+            objects.set(session.stagingKey, wav);
+            await db.collection(Collections.USERS).updateOne({ authSubject: owner }, { $set: {
+                billingEntitlement: { source: 'subscription', reference: 'sub_fixture', grantedAt: new Date() },
+                stripeSubscriptionId: 'sub_fixture', stripeSubscriptionStatus: 'past_due',
+            } });
+            process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';
+            try {
+                await assert.rejects(completeUpload(session), (error: unknown) => error instanceof ApiError && error.code === 'upload_access_denied');
+                assert.equal(await db.collection(Collections.RECORDINGS).countDocuments({ ingestionId: session._id }), 0);
+                assert.equal((await apiRecording(actor, recordingId, 'read'))._id.toString(), recordingId);
+            } finally {
+                process.env.NEXT_PUBLIC_ENABLE_BILLING = 'false';
+                await db.collection(Collections.USERS).updateOne({ authSubject: owner }, {
+                    $set: { billingEntitlement: { source: 'admin', grantedAt: new Date() } },
+                    $unset: { stripeSubscriptionId: '', stripeSubscriptionStatus: '' },
+                });
+                await cancelUpload(await ownedUpload(actor, session._id));
+            }
         });
         await t.test('failed promotion and lost completion checkpoints recover without double accounting', async () => {
             const input = UploadSchema.parse({ fileName: 'recovery.wav', fileSize: wav.length });

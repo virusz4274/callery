@@ -1,6 +1,6 @@
 # Setup Guide
 
-VoSift supports self-hosted and managed SaaS deployments from one codebase.
+Callery supports free AGPL-3.0 self-hosting and paid managed individual accounts from one codebase. Company archives are a separate self-host feature; organizations and seats are not part of the managed launch. Managed Lifetime access retains the billing and processing limits described in [billing](billing.md).
 The Docker deployment uses Next.js standalone on Node. Set public settings
 before building; `NEXT_PUBLIC_*` values are compiled into the browser bundle.
 `.env.example` is the single complete template for native self-hosting, Docker
@@ -13,8 +13,8 @@ settings you intend to change.
 
 ## Prerequisites
 
-*   **Node.js**: v24 or later, with **pnpm 12.9.1** (pinned in `package.json`). `.nvmrc` selects the same Node 24 release line as Docker.
-    Docker users only need Docker Engine/Desktop with Compose v2.20 or later.
+*   **Node.js**: v24.22.0, with **pnpm 12.14.0** (pinned in `package.json`). `.nvmrc` and Docker select the same Node release.
+    Docker users need Docker Engine/Desktop with Compose v2.20 or later. Builds also fetch pinned Node/Go base images, package dependencies and the optional MinIO source. No host Go installation is required.
 *   **MongoDB**: v6.0 or later for ordinary database operations — local, Docker
     (compose `selfhost` profile), or Atlas. Vector search additionally requires
     MongoDB Search support and the index described in [Search setup](#search-setup).
@@ -26,7 +26,8 @@ settings you intend to change.
     Whisper-compatible server (see below). Organizing and playing recordings
     do not require transcription.
 
-Everything else is optional and degrades gracefully (details below).
+Other integrations are optional for self-hosting. Managed paid billing has
+additional required configuration and release checks described below.
 
 ## Quickstart (self-host without Docker)
 
@@ -44,6 +45,7 @@ cp -n .env.example .env
 # Configure every REQUIRED IF field for the optional integrations you enable.
 corepack enable pnpm
 pnpm install --frozen-lockfile
+pnpm run db:init --dry-run
 pnpm run db:init
 pnpm run dev
 ```
@@ -58,6 +60,44 @@ It is the public browser origin used for authentication, callbacks, email and
 share links; it is independent of the server's listening address. Keep the
 public HTTPS origin even when Next.js listens on localhost. Register OAuth and
 webhook URLs with that public origin, and preserve the Contacts callback override.
+
+### What database initialization does
+
+`pnpm db:init` adds missing ordinary indexes, installation plan templates and
+one shared settings document. It preserves existing prices, allowances, Stripe
+IDs, settings, published catalogs and customer records. Its output distinguishes
+created records from preserved records and reports configuration differences.
+The starter paid templates are Standard USD 10/month with 60 weighted minutes
+and 2 GiB, Pro USD 20/month with 120 weighted minutes and 5 GiB, and Lifetime
+USD 250 once with no recurring allowance. Free Trial, Internal and Custom
+templates are also retained.
+New Free Trial templates use a nonrenewing trial interval: 10 weighted minutes,
+100 MiB, and one 30-day deadline. Internal uses an explicit unlimited
+transcription policy instead of a disguised high numeric limit. Existing seed
+differences are still reported and preserved.
+
+Use `pnpm db:init --dry-run` to inspect missing records/indexes, preserved
+differences, onboarding references and local catalog configuration without
+writing to MongoDB or contacting Stripe. Missing bootstrap records are reported
+as planned creation. Missing managed billing configuration is a setup warning;
+structural conflicts, including duplicate settings or conflicting indexes,
+produce a nonzero exit in either mode. Resolve those conflicts explicitly;
+initialization never chooses or deletes one of several settings documents.
+Explicit initialization rechecks and repairs missing indexes even when the
+running process has already cached successful index setup. Unsafe TTL indexes
+on user profiles or any existing `billing_*` collection are structural conflicts;
+the conflict check preserves data and indexes for explicit operator review.
+
+Fresh settings reference the active Free Trial plan and omit optional
+transcription multiplier overrides. Self-hosted installations therefore use
+their environment defaults until an administrator saves an override. Managed
+signups require an active Free Trial default; self-hosted defaults must reference
+an existing active plan. Existing users and entitlements are not reassigned.
+
+Initialization does not seed Stripe IDs, paid ownership, prepaid balances,
+credit grants, published financial terms or acceptance evidence. A managed
+installation cannot sell a seeded plan until its real Stripe catalog has been
+imported, reviewed and published in `/admin/plans`.
 
 For native production, build first, then start on the intended listening port:
 
@@ -93,6 +133,8 @@ starts MongoDB, waits for it to be healthy, then runs the idempotent `db-init`
 service to create indexes and seed missing plans. The app starts only after
 initialization succeeds. `docker compose logs db-init app` shows startup errors.
 
+The community MinIO project is archived. Its optional server and initialization client are now built from pinned upstream source, rather than floating `latest` images. Use maintained external S3-compatible storage for production when ongoing vendor support/security maintenance is required. See [storage image provenance and limitations](releases.md#storage-and-image-provenance). This change does not alter an existing external bucket or its credentials.
+
 Open `http://localhost:3000`, sign up with your `ADMIN_EMAILS` address, and test
 upload → playback → transcription → search → delete with a sample recording.
 `GET /api/health` returns 200 when the app can reach MongoDB, or 503 otherwise;
@@ -123,13 +165,15 @@ Runtime secrets are excluded from the Docker build context and supplied via
 `env_file`. For a direct `docker build`, pass the corresponding public settings
 using `--build-arg`; the Dockerfile defaults to billing disabled.
 
+Compose binds published app/storage/console ports to `127.0.0.1` by default. For another deployment, use a distinct project name and unoccupied `APP_PORT` (default 3000), `MINIO_API_PORT` (9000), and `MINIO_CONSOLE_PORT` (9001). Keep the public HTTPS origin separate from these internal addresses. An external reverse proxy can reach the loopback ports; a proxy in another container needs a shared Docker network. Deliberate LAN/public binding uses `APP_BIND_ADDRESS` or `STORAGE_BIND_ADDRESS`; protect storage administration access. Existing servers must be preserved when choosing ports.
+
 ## Deployment profiles
 
 | Concern | Self-host | Managed (SaaS) |
 |---|---|---|
 | Auth | Better Auth + MongoDB (email/password and optional Google) | Same |
-| Billing | Off by default (set nothing, or `NEXT_PUBLIC_ENABLE_BILLING=false`) | `NEXT_PUBLIC_ENABLE_BILLING=true` + Stripe keys |
-| Email (`EMAIL_PROVIDER`) | `smtp` / `resend` / `none` | `resend` |
+| Billing | Off by default (set nothing, or `NEXT_PUBLIC_ENABLE_BILLING=false`) | `NEXT_PUBLIC_ENABLE_BILLING=true` + reviewed Stripe catalog and release prerequisites |
+| Email (`EMAIL_PROVIDER`) | `smtp` / `resend` (`none` for private testing) | `smtp` / `resend` |
 | Transcription | Your Soniox / ElevenLabs / Gemini key | Same, metered with multipliers |
 | Storage | Any S3-compatible backend | Same |
 | Database | Your MongoDB (compose includes one) | Same (usually Atlas) |
@@ -150,13 +194,31 @@ Billing notes:
 
 *   Billing is **off unless** `NEXT_PUBLIC_ENABLE_BILLING=true`. When off,
     quotas don't enforce, Stripe is never called, and pricing/billing UI hides.
-*   When on, `STRIPE_SECRET_KEY` (+ webhook secret for subscription sync) is required.
+*   Managed billing requires a server-only `STRIPE_SECRET_KEY`, separate
+    `STRIPE_WEBHOOK_SECRET` and `STRIPE_METER_WEBHOOK_SECRET` destinations, and
+    a restricted `STRIPE_PORTAL_CONFIGURATION_ID`. The hosted payment-page flow
+    does not require a browser publishable key.
+*   Configure the three base prices and four physical-quantity meter prices,
+    approved provider credentials/models, verified private storage and upload
+    lifecycle rules, email delivery and
+    authenticated reconciliation jobs. Set cycle-invoice finalization grace to
+    72 hours. Import, review and publish the complete catalog; a successful seed
+    or pasted Stripe ID alone does not enable purchases.
+*   Included usage needs a valid paid plan and remaining allowance; overage and
+    Lifetime usage need prepaid retail credit. There is no required provider-cost
+    policy, profit target, expense-funding reserve or operator spending cap.
+*   Live collection requires reviewed real Stripe sandbox payment/metering,
+    accounting, processing-limit and storage/recovery acceptance. Follow the
+    setup and automatic price-change procedures in [billing](billing.md).
+*   Provider request limits, retry/concurrency limits and optional manual
+    processing pause remain enforced. Monitor costs/alerts in provider dashboards;
+    pricing and profitability are business decisions outside runtime billing.
 
 Public pages follow the billing flag as well. When billing is off or unset, `/`
 opens `/recordings` (preserving query parameters), with the usual login flow for
 signed-out visitors. Pricing, changelog, Terms and Privacy pages return 404 and
 their navigation links are hidden. Support links and `/support` lead to
-[GitHub Issues](https://github.com/virusz4274/Vosift/issues), where users can review
+[GitHub Issues](https://github.com/virusz4274/callery/issues), where users can review
 existing issues or raise a new one. `POST /api/support` returns 403 with `error`
 and `supportUrl` without storing a message or sending email. The sitemap is empty,
 crawling is disallowed, and page metadata requests no indexing. Setting
@@ -217,10 +279,19 @@ the Gemini key with optional `GEMINI_MODEL_TRANSCRIPTION`
 (default `gemini-3.8-flash`), or any Whisper-API server via `openai_compat`
 (`TRANSCRIPTION_COMPAT_BASE_URL` + `TRANSCRIPTION_COMPAT_MODEL`).
 
-Managed metering multiplies raw seconds by `TRANSCRIPTION_PRICING_JSON`
-(default `{"soniox":1,"elevenlabs":5,"gemini":0.5,"openai_compat":0.1}`) into
-billed units, recorded in the `usage_events` ledger. Self-host writes the same
-ledger with gates open, so usage stays visible.
+Managed processing uses the approved model policy and canonical weights:
+Soniox 1×, Gemini 3× and ElevenLabs 5×. Audio duration rounds up to 15 seconds
+before weighting; the app allocates included usage locally and reports only
+chargeable weighted blocks to Stripe. Self-hosted multiplier overrides cannot
+change managed prices or weights, and compatible/local models are not managed
+billing offers. See [billing](billing.md) for the exact approved models and units.
+
+Self-hosted deployments retain configurable provider/model choices.
+`TRANSCRIPTION_PRICING_JSON` supplies their multiplier defaults
+(`{"soniox":1,"elevenlabs":5,"gemini":0.5,"openai_compat":0.1}`); an explicit
+administrator override takes precedence. Fresh seeds omit those overrides, so
+changing an environment default takes effect until an override is saved.
+Billing-off deployments do not enqueue Stripe usage events.
 
 Provider tiers: Soniox and ElevenLabs provide word timestamps and speaker
 diarization. Set `GEMINI_MODEL_TRANSCRIPTION=gemini-3.5-transcribe` for Gemini's
@@ -408,6 +479,15 @@ not prove vector search works. Verify the index explicitly. `/api/health`
 checks only MongoDB connectivity, and the admin AI probe checks embedding
 generation; neither confirms that the vector index is ready.
 
+## Configuration boundaries
+
+`src/lib/config.ts` owns lazy server defaults and validation. Existing `env.ts`
+imports delegate to it; `public-env.ts` contains only explicit browser-safe
+settings. Optional integrations are validated when used, so a self-hosted
+installation without Stripe or SMTP does not need their credentials to build or
+read recordings. Public settings remain compiled at build time; configuration
+cleanup does not change saved deployment values or the public HTTPS origin.
+
 ## Operations
 
 MongoDB data persists in the `mongo-data` volume. Recordings persist in the
@@ -416,9 +496,7 @@ if `R2_ENDPOINT` points elsewhere. Back up the database and whichever
 storage you use.
 `docker compose down` keeps named volumes; `down -v` deletes them.
 
-Transcription currently runs through Next.js `after()` in the app process.
-Wait for active jobs to finish before restarting; jobs are not a durable queue
-and an interrupted recording may need transcription retried.
+Transcription uses a persisted MongoDB queue. Next.js `after()` wakes processing and ingestion cron recovers interrupted work. Uncertain provider outcomes require review before retry to avoid duplicate charges. One recording pipeline runs at a time across the instance, including cloud work awaiting callbacks; measure capacity before expanding the managed service. See [transcription batches](transcription-batches.md).
 
 Scheduled exports, billing retries, retention and activity digests use the protected
 routes documented in [Cron Jobs](cron-jobs.md). Compose includes the scheduler
@@ -495,6 +573,13 @@ All of these can be absent — the app stays fully usable:
 *   `pnpm run typecheck`: Run TypeScript compiler check.
 *   `pnpm run db:init`: Create ordinary indexes, seed plans/settings, and print
     Search index definitions; exits nonzero on failure. Does not create Search indexes.
+*   `pnpm run db:init --dry-run`: Report planned initialization, preserved
+    differences and local setup warnings without database writes or Stripe calls.
+*   `pnpm acceptance:selfhost` / `pnpm acceptance:managed`: Run Docker acceptance
+    against disposable loopback services and a temporary source copy. Managed
+    acceptance verifies that fresh seeds cannot sell unpublished offers; its
+    blank provider keys and isolated network deliberately prevent real Stripe
+    or paid provider calls. It does not certify live payment money movements.
 
 `pnpm check` runs typechecking, lint, tests, dependency checks, and the security
 audit. MongoDB integration tests are opt-in: set `VOSIFT_TEST_MONGODB_URI` to a

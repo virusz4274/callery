@@ -1,11 +1,17 @@
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { SystemSettings, UpdateSystemSettingsInput } from './types';
+import { readSystemSettingsSingleton } from './system-settings-singleton';
+import { assertValidDefaultPlan } from './default-plan';
 
 /** Admin edits require a previously initialized singleton. */
 export async function updateSystemSettingsDocument(data: UpdateSystemSettingsInput): Promise<void> {
     const db = await getMongoDb();
-    const settings = await db.collection<SystemSettings>(Collections.SYSTEM_SETTINGS).findOne({});
+    const settings = await readSystemSettingsSingleton(db, Collections.SYSTEM_SETTINGS);
     if (!settings) throw new Error('System settings are missing. Run `pnpm db:init` first.');
+    if (data.defaultPlanId !== undefined) {
+        const plan = await db.collection<import('./types').Plan>(Collections.PLANS).findOne({ _id: data.defaultPlanId });
+        assertValidDefaultPlan(plan);
+    }
 
     const { transcriptionMultipliers, ...values } = data;
     const fields: Record<string, unknown> = Object.fromEntries(

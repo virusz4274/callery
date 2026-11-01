@@ -64,7 +64,7 @@ test('contact folder keeps its current year/month open after a rename', async ({
     await expect(page.getByRole('button', { name: 'Open Dad', exact: true })).toHaveCount(2, { timeout: 15000 });
     await expect(page.getByRole('heading', { name: '06', exact: true })).toBeVisible();
     await page.getByText('Folder path', { exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Dad', exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Folder breadcrumbs' }).getByRole('link', { name: 'Dad', exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('renamed-contact-folder.png') });
     expect(unexpected).toEqual([]);
 });

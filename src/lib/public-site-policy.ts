@@ -1,5 +1,5 @@
 /** Public pages follow the same explicit billing opt-in as the managed service. */
-export const GITHUB_SUPPORT_URL = 'https://github.com/virusz4274/Vosift/issues';
+export const GITHUB_SUPPORT_URL = 'https://github.com/virusz4274/callery/issues';
 
 // Keep the direct environment access: Next inlines it in browser bundles.
 export function publicSitePolicy() {

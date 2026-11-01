@@ -13,7 +13,7 @@ access product APIs through existing cookies, bearer sessions or limited sync to
 - `/admin`: dashboard, health checks, incidents, and cleanup actions
 - `/admin/users`: user search and account mutations
 - `/admin/users/[id]`: detailed user view with recordings and billing context
-- `/admin/plans`: plan CRUD and Stripe price mapping
+- `/admin/plans`: installation/draft plan definitions and Stripe catalog import, review and publication
 - `/admin/announcements`: system announcement management
 - `/admin/settings`: shared platform settings
 - `/admin/audit`: admin action log
@@ -60,7 +60,9 @@ Use it when the table view is not enough to diagnose a customer issue.
 
 ## Plans
 
-Plans are stored in MongoDB and managed through `/admin/plans`.
+Installation and draft plans are stored in MongoDB and managed through
+`/admin/plans`. They are separate from the immutable published Stripe catalog
+that controls managed purchases and customer usage tariffs.
 
 Each plan document can define:
 
@@ -74,13 +76,29 @@ Each plan document can define:
 - Stripe metered transcription price ID (`stripeTranscriptionPriceId`)
 - active/default state
 
-The app does not create Stripe products for you. The admin UI is where you map existing Stripe prices to plan documents.
-The public pricing page only publishes plans that are active, non-default, and have a non-empty `stripePriceId`.
+`pnpm db:init` inserts missing templates with empty Stripe IDs. Starter offers
+are Standard USD 10/month with 60 weighted minutes and 2 GiB, Pro USD 20/month
+with 120 minutes and 5 GiB, and Lifetime USD 250 once with no recurring allowance.
+Reruns preserve existing definitions, IDs, settings and financial records.
+Changing a draft or pasting a Price ID does not publish an offer.
 
-> [!IMPORTANT]
-> **After a fresh `npm run db:init`, all plan price IDs are empty strings.** No user can complete checkout until you fill them in here. Go to `/admin/plans`, edit each paid plan (Standard, Pro, Lifetime), and paste the corresponding Stripe Price IDs. See [billing.md](billing.md) for step-by-step instructions on creating those prices in Stripe.
->
-> The pricing page shows a configuration warning (rather than plan cards) when all plans have empty price IDs, so it is immediately obvious if this step was skipped.
+For managed sales, create the Stripe products, base prices and four usage meter
+prices, then use the **Stripe catalog** panel to import a complete draft,
+review authoritative amounts and structural validation, and publish it. The import
+template and installation seeds share the same allowance defaults. Published
+snapshots supply public pricing, checkout and billing settings; historical
+snapshots remain available for existing receipts and subscriptions.
+
+A fresh installation shows an unpublished-pricing warning and rejects paid
+checkout. Publication requires valid Stripe structure and mappings; live
+collection additionally requires reviewed sandbox payment, metering, accounting,
+processing-limit and storage/recovery acceptance. Profitability reports,
+provider-cost attestations and monetary operator budgets are not required.
+Included resources use the paid entitlement and allowance; extra usage needs
+prepaid retail credit. See
+[billing](billing.md) for first setup and later price changes. Catalog actions
+and acceptance refreshes are audited. Webhooks refresh discovery without
+automatically publishing prices.
 
 ## Global Settings
 
@@ -88,13 +106,42 @@ The public pricing page only publishes plans that are active, non-default, and h
 
 - `allowSignups`
 - `maintenanceMode`
+- `processingPaused` (optional audited manual pause; false by default)
 - `defaultPlanId`
-- transcription multipliers for Soniox, ElevenLabs, Gemini, and Compatible server
+- self-hosted transcription multipliers for Soniox, ElevenLabs, Gemini, and Compatible server
 
-The multiplier controls show stored overrides, falling back to the configured billing defaults when a value is missing. Multipliers must be finite numbers greater than zero; fractions such as `0.25` are supported. Changes apply to future transcription jobs and do not recalculate existing usage.
+Self-hosted multiplier controls show explicit stored overrides, falling back
+to environment defaults when a value is absent. Fresh initialization omits
+optional overrides. Values must be finite and positive; fractions such as
+`0.25` are supported. Changes affect future jobs, preserving accepted receipts.
+
+Managed weights are read-only: Soniox 1×, Gemini 3× and ElevenLabs 5×, using
+approved models. The settings action rejects multiplier edits in managed mode;
+existing self-hosted overrides cannot change managed estimates or admission.
+Managed onboarding must reference an active Free Trial plan. Self-hosted
+onboarding may reference any existing active plan. Invalid defaults are rejected
+when saving settings and creating a profile; existing entitlements are preserved.
+Free Trial is granted once for 30 days with 10 weighted minutes and 100 MiB;
+it does not renew with a calendar month or another login. Internal has no minute
+quota and includes 1 TiB storage. Internal can be assigned to any user without
+granting administrator permissions. It is free and Stripe-independent; provider
+request/retry/concurrency limits and account restrictions remain enforced.
+Custom keeps assigned quotas, features and expiry. Trial, Internal and Custom
+have no hidden provider-dollar budgets. Administrative assignment does not
+resolve debt, disputes or uncertain financial settlement.
+
+Use `processingPaused` to pause provider calls manually without marking customers
+unpaid or starting media deletion. Check provider dashboards for cost/usage
+alerts. Routine price changes use noticed Stripe Subscription Schedule phases;
+upgrades apply after payment, and downgrades at renewal. New prepaid grants cover
+all approved metered usage and do not require expiry/reissue for new Prices.
 
 These settings apply to every workspace on the instance.
-If `system_settings` is missing on a fresh database, the page now fails with an initialization message instead of silently recreating defaults. Run `npm run db:init` to restore the required seed data.
+If `system_settings` is missing, the page fails with an initialization message
+instead of silently recreating defaults. Inspect with `pnpm db:init --dry-run`,
+then run `pnpm db:init` to add missing data. Duplicate settings or conflicting
+indexes are structural errors and require explicit correction. The initializer
+does not overwrite customization or choose between duplicate documents.
 
 ## Announcements
 
@@ -140,13 +187,14 @@ Admins can:
 Current helper scripts in the repo:
 
 ```bash
-npm run db:init
-npm run audit:prod
-npx tsx scripts/check-db.ts
-npx tsx scripts/check-user-stripe.ts
-npx tsx scripts/debug-contacts.ts
-npx tsx scripts/debug-transcripts.ts
-npx tsx scripts/test-recording.ts
+pnpm db:init --dry-run
+pnpm db:init
+pnpm audit:prod
+pnpm exec tsx scripts/check-db.ts
+pnpm exec tsx scripts/check-user-stripe.ts
+pnpm exec tsx scripts/debug-contacts.ts
+pnpm exec tsx scripts/debug-transcripts.ts
+pnpm exec tsx scripts/test-recording.ts
 ```
 
 ## Recommended Admin Runbook

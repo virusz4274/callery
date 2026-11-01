@@ -3,6 +3,7 @@ import { Button, Dropdown, Tooltip } from '@heroui/react';
 import { FileText, Play, MoreHorizontal, RefreshCcw, Trash2 } from 'lucide-react';
 import type { Recording } from '@/lib/types';
 import { useCanDeleteRecording, useTeamPolicy } from '@/hooks/use-team-policy';
+import { enrichmentNeedsResume } from '@/lib/transcription/processing-errors';
 
 type RecordingActionsMenuProps = {
     recording: Recording;
@@ -21,6 +22,7 @@ export function RecordingActionsMenu({
 }: RecordingActionsMenuProps) {
     const canDelete = useCanDeleteRecording();
     const team = useTeamPolicy();
+    const retryLabel = enrichmentNeedsResume(recording.processingStatus) ? 'Resume enrichment' : 'Retry transcription';
     const canRetry =
         (recording.transcriptionStatus === 'failed' ||
             recording.transcriptionStatus === 'pending' ||
@@ -61,9 +63,9 @@ export function RecordingActionsMenu({
                             </div>
                         </Dropdown.Item>
                         {canRetry && (!team || team.transcriptionMode !== 'off') && (
-                            <Dropdown.Item key="retry" textValue="Retry Transcription" onPress={() => onRetryTranscription(recording)}>
+                            <Dropdown.Item key="retry" textValue={retryLabel} onPress={() => onRetryTranscription(recording)}>
                                 <div className="flex items-center gap-2">
-                                    <RefreshCcw className="h-4 w-4 text-warning" /> Retry Transcription
+                                    <RefreshCcw className="h-4 w-4 text-warning" /> {retryLabel}
                                 </div>
                             </Dropdown.Item>
                         )}

@@ -12,6 +12,12 @@ README.md
 .dev.vars*
 service-account*.json
 *.pem
+*.key
+*.p12
+*.pfx
+release-artifacts
+test-results
+playwright-report
 dist
 .vinext
 .cloudflare
@@ -20,4 +26,7 @@ public/sw.js
 public/sw.js.map
 public/swe-worker-*.js
 public/swe-worker-*.js.map
+
+# Offline video assets and private capture/backup working files.
+video/
 

@@ -7,6 +7,7 @@ This folder contains the maintained documentation for the current Callery codeba
 - [Setup Guide](setup-guide.md): step-by-step local setup, environment variables, service wiring (Better Auth, R2, Stripe, transcription providers, push, SMTP), and first-login admin bootstrap
 - [User Guide](user-guide.md): end-user workflow across recordings, contacts, files, sharing, settings, support, and the web PWA
 - [Admin Guide](admin-guide.md): admin routes, health checks, incidents, async jobs, plans, announcements, and operator runbook
+- [Releases](releases.md): free self-host/paid managed scope, isolated Docker/SMTP/restore gates, source releases and known limits
 
 ## Developer Reference
 

@@ -13,7 +13,7 @@ import { ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 
-export function UploadPage() {
+export function UploadPage({ bulkImportId }: { bulkImportId?: string }) {
     const { toast } = useToast();
     const router = useRouter();
     const { user, isUserLoading } = useUser();
@@ -27,13 +27,13 @@ export function UploadPage() {
         addFiles,
         removeFile,
         handleUpload,
-    } = useUploadQueue(toast);
+    } = useUploadQueue(toast, { bulkImportId });
 
     React.useEffect(() => {
         if (!isUserLoading && !user) {
-            router.replace(buildLoginRedirectHref('/upload'));
+            router.replace(buildLoginRedirectHref(bulkImportId ? '/transcription/import' : '/upload'));
         }
-    }, [isUserLoading, router, user]);
+    }, [bulkImportId, isUserLoading, router, user]);
 
     if (isUserLoading || !user) {
         return (
@@ -52,11 +52,16 @@ export function UploadPage() {
 
 
             <PageHeader
-                title="Upload recordings"
-                description="Add audio files to your archive. Review your queue, then upload when you're ready."
+                title={bulkImportId ? 'Bulk import recordings' : 'Upload recordings'}
+                description={bulkImportId ? 'Upload audio now. Prepare and start transcription batches whenever you are ready.' : "Add audio files to your archive. Review your queue, then upload when you're ready."}
                 meta={<Chip variant="soft" color="default" size="sm">{uploadItems.length} in queue</Chip>}
-                actions={<Button variant="secondary" onPress={() => router.push('/recordings')}>View recordings<ArrowRight className="size-4" /></Button>}
+                actions={<Button variant="secondary" onPress={() => router.push(bulkImportId ? '/transcription' : '/recordings')}>{bulkImportId ? 'Manage batches' : 'View recordings'}<ArrowRight className="size-4" /></Button>}
             />
+            {bulkImportId && (
+                <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 text-sm leading-6" role="note">
+                    Imported audio stays in Waiting recordings. No AI processing starts until you start a batch. You can return another day.
+                </div>
+            )}
             {(successCount > 0 || failedCount > 0 || duplicateCount > 0) && (
                 <div className="flex flex-wrap gap-2" aria-live="polite">
                     {successCount > 0 && <Chip variant="soft" color="success">{successCount} uploaded</Chip>}
@@ -84,6 +89,8 @@ export function UploadPage() {
                             onClearAll={() => setUploadItems([])}
                             onUploadAll={handleUpload}
                             onRemoveFile={removeFile}
+                            successHref={bulkImportId ? '/transcription' : undefined}
+                            successLabel={bulkImportId ? 'Review waiting recordings' : undefined}
                         />
                     ) : (
                         <UploadEmptyState />

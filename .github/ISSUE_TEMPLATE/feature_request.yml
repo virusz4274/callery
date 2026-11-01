@@ -1,0 +1,14 @@
+name: Feature request
+description: Describe a user problem and the outcome you need.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Explain the problem, who has it and a concrete example without personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What outcome would help?

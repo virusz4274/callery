@@ -90,6 +90,7 @@ export function DataSettings({
                         autoTranscribe={settings.transcriptionSettings.autoTranscribe}
                         defaultProvider={settings.transcriptionSettings.defaultProvider}
                         providers={providers}
+                        isDisabled={isSaving}
                         onChange={(newSettings) => {
                             onSettingsChange({
                                 ...settings,
@@ -113,6 +114,7 @@ export function DataSettings({
                         onPolicyChange={(policy) => {
                             onSettingsChange({ ...settings, deletionPolicy: policy });
                         }}
+                        isDisabled={isSaving}
                     />
                     <div className="mt-4 flex justify-end">
                         <Button onPress={onSave} isPending={isSaving} variant="primary">

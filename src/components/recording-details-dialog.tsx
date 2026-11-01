@@ -113,6 +113,8 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
   const isLoadingUrl = !currentRecording.playbackUrl && isFetchingUrl;
   const [availableProviders, setAvailableProviders] = useState<TranscriptionProviderId[]>([]);
   const [isProviderPickerOpen, setIsProviderPickerOpen] = useState(false);
+  const [retryReview, setRetryReview] = useState<{ recordingId: string; provider: TranscriptionProviderId; message: string } | null>(null);
+  const [hasReviewedProviderOutcome, setHasReviewedProviderOutcome] = useState(false);
   const mountedRef = useRef(true);
   const transcribePollAbortRef = useRef<AbortController | null>(null);
 
@@ -171,10 +173,15 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
     return updatedRecording;
   };
 
-  const handleTranscribe = async (provider: TranscriptionProviderId) => {
+  const handleTranscribe = async (provider: TranscriptionProviderId, acknowledgeProviderOutcome = false) => {
     if (isTranscribing) {
       return;
     }
+    if (acknowledgeProviderOutcome && (!hasReviewedProviderOutcome || retryReview?.recordingId !== currentRecording.id || retryReview.provider !== provider)) {
+      return;
+    }
+    setRetryReview(null);
+    setHasReviewedProviderOutcome(false);
     transcribePollAbortRef.current?.abort();
     const controller = new AbortController();
     transcribePollAbortRef.current = controller;
@@ -193,8 +200,20 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
       };
       await pushRecordingUpdate(optimisticRecording);
 
-      const result = await transcribeRecordingAction(currentRecording.id, { provider });
+      const result = await transcribeRecordingAction(currentRecording.id, {
+        provider, ...(acknowledgeProviderOutcome ? { acknowledgeProviderOutcome: true } : {}),
+      });
       if (signal.aborted) {
+        return;
+      }
+
+      if ('requiresReview' in result && result.requiresReview) {
+        await pushRecordingUpdate(previousRecording);
+        setRetryReview({
+          recordingId: currentRecording.id,
+          provider,
+          message: ('error' in result && result.error) || 'The provider outcome is uncertain. Review it before retrying.',
+        });
         return;
       }
 
@@ -380,6 +399,28 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
                   <Button variant="ghost" className="rounded-full" onPress={() => setIsProviderPickerOpen(false)}>
                     Cancel
                   </Button>
+                </Modal.Footer>
+              </Modal.Dialog>
+            </Modal.Container>
+          </Modal.Backdrop>
+          <Modal.Backdrop isOpen={retryReview?.recordingId === currentRecording.id} onOpenChange={(open) => {
+            if (!open) { setRetryReview(null); setHasReviewedProviderOutcome(false); }
+          }} className="bg-black/30 backdrop-blur-sm z-[119]">
+            <Modal.Container placement="center" scroll="inside" className="z-[120] flex items-center justify-center p-4">
+              <Modal.Dialog className="w-full max-w-lg rounded-2xl border border-default-200 bg-background shadow-2xl">
+                <Modal.Header><Modal.Heading>Review provider outcome</Modal.Heading></Modal.Header>
+                <Modal.Body className="space-y-4">
+                  <p className="text-sm text-default-600">{retryReview?.message}</p>
+                  <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-6">
+                    <input type="checkbox" className="mt-1 size-4 shrink-0 accent-primary" checked={hasReviewedProviderOutcome}
+                      onChange={(event) => setHasReviewedProviderOutcome(event.target.checked)} />
+                    <span>I checked the provider outcome. Retrying may incur another charge.</span>
+                  </label>
+                </Modal.Body>
+                <Modal.Footer className="flex flex-wrap gap-2">
+                  <Button variant="ghost" onPress={() => { setRetryReview(null); setHasReviewedProviderOutcome(false); }}>Cancel</Button>
+                  <Button variant="primary" isDisabled={!hasReviewedProviderOutcome || isTranscribing}
+                    onPress={() => { if (retryReview) void handleTranscribe(retryReview.provider, true); }}>Retry transcription</Button>
                 </Modal.Footer>
               </Modal.Dialog>
             </Modal.Container>

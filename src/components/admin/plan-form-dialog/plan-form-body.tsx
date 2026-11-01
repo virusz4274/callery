@@ -187,12 +187,14 @@ export function PlanFormBody({ values, setField, errors }: PlanFormBodyProps) {
                         <Label htmlFor="plan-transcriptionMinutes" className="text-sm font-medium">Transcription (minutes)</Label>
                         <Input
                             aria-label="Transcription limit in minutes"
+                            disabled={values.key === 'internal'}
                             type="number" min={0} step="any"
                             id="plan-transcriptionMinutes" aria-invalid={!!errors.transcriptionMinutes} aria-describedby={`plan-limits-help${errors.transcriptionMinutes ? ' transcriptionMinutes-error' : ''}`} value={values.transcriptionMinutes}
                             onChange={(event) => setField('transcriptionMinutes', event.target.value)}
                             className="min-h-11 w-full"
                         />
                         <FieldError errors={errors} name="transcriptionMinutes" />
+                        {values.key === 'internal' && <p className="text-xs text-muted">Internal transcription is unlimited. Provider limits and spending circuit breakers still apply.</p>}
                     </div>
                 </div>
             </Surface>

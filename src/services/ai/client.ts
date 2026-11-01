@@ -23,7 +23,9 @@ export function getGeminiClient(): GoogleGenAI {
                 'Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable (Gemini features need it). See .env.example.',
             );
         }
-        cached = new GoogleGenAI({ apiKey: key });
+        // The durable job owns the single retry. SDK retries can spend again
+        // without reserving their cost or recording a separate attempt.
+        cached = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 60_000, retryOptions: { attempts: 1 } } });
     }
     return cached;
 }

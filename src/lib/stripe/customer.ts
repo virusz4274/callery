@@ -1,4 +1,6 @@
 import type Stripe from 'stripe';
+import { randomUUID } from 'node:crypto';
+import type { BillingDependencies } from './runtime';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { User } from '@/lib/db/types';
 import { resolveExternalServiceIncident, safelyReportExternalServiceIncident } from '@/lib/external-service-incidents';
@@ -7,6 +9,9 @@ import { getStripe } from '@/lib/stripe';
 type UserWithStripeCustomerSync = User & {
     stripeCustomerSync?: {
         lockedAt: Date;
+        owner?: string;
+        attemptId?: string;
+        params?: Stripe.CustomerCreateParams;
     };
 };
 
@@ -29,12 +34,13 @@ function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function ensureStripeCustomerId(user: User): Promise<string> {
+export async function ensureStripeCustomerId(user: User, dependencies?: BillingDependencies): Promise<string> {
     if (user.stripeCustomerId) {
         return user.stripeCustomerId;
     }
 
-    const db = await getMongoDb();
+    const db = dependencies?.db || await getMongoDb();
+    const stripe = dependencies?.stripe || getStripe();
     const users = db.collection<UserWithStripeCustomerSync>(Collections.USERS);
 
     for (let attempt = 0; attempt < CUSTOMER_CREATE_MAX_ATTEMPTS; attempt++) {
@@ -44,6 +50,9 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
         }
 
         const staleLockBefore = new Date(Date.now() - CUSTOMER_CREATE_LOCK_TIMEOUT_MS);
+        const owner = randomUUID();
+        const attemptId = latestUser?.stripeCustomerSync?.attemptId || randomUUID();
+        const customerParams = latestUser?.stripeCustomerSync?.params || buildCustomerParams(latestUser || user);
         const claimedUser = await users.findOneAndUpdate(
             {
                 _id: user._id,
@@ -64,7 +73,7 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
             },
             {
                 $set: {
-                    stripeCustomerSync: { lockedAt: new Date() },
+                    stripeCustomerSync: { lockedAt: new Date(), owner, attemptId, params: customerParams },
                     updatedAt: new Date(),
                 },
             },
@@ -72,16 +81,17 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
         );
 
         if (claimedUser) {
-            const customerPayload = buildCustomerParams(claimedUser);
+            const customerPayload = claimedUser.stripeCustomerSync!.params!;
 
             try {
-                const customer = await getStripe().customers.create(customerPayload, {
-                    idempotencyKey: `stripe-customer:${claimedUser._id.toString()}`,
+                const customer = await stripe.customers.create(customerPayload, {
+                    idempotencyKey: `stripe-customer:${claimedUser._id.toString()}:${claimedUser.stripeCustomerGeneration || 0}:${attemptId}`,
                 });
 
                 const assignedUser = await users.findOneAndUpdate(
                     {
                         _id: claimedUser._id,
+                        'stripeCustomerSync.owner': owner,
                         $or: [
                             { stripeCustomerId: { $exists: false } },
                             { stripeCustomerId: '' },
@@ -101,7 +111,7 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
                 );
 
                 if (assignedUser?.stripeCustomerId) {
-                    await resolveExternalServiceIncident({
+                    if (!dependencies) await resolveExternalServiceIncident({
                         provider: 'stripe',
                         operation: 'create_customer',
                     });
@@ -110,7 +120,7 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
 
                 const refreshedUser = await users.findOne({ _id: claimedUser._id });
                 if (refreshedUser?.stripeCustomerId) {
-                    await resolveExternalServiceIncident({
+                    if (!dependencies) await resolveExternalServiceIncident({
                         provider: 'stripe',
                         operation: 'create_customer',
                     });
@@ -119,7 +129,7 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
 
                 throw new Error('Failed to persist Stripe customer ID');
             } catch (error) {
-                await safelyReportExternalServiceIncident({
+                if (!dependencies) await safelyReportExternalServiceIncident({
                     provider: 'stripe',
                     service: 'Stripe',
                     operation: 'create_customer',
@@ -131,14 +141,9 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
                     notifyAdmins: true,
                 });
                 await users.updateOne(
-                    { _id: claimedUser._id },
+                    { _id: claimedUser._id, 'stripeCustomerSync.owner': owner },
                     {
-                        $unset: {
-                            stripeCustomerSync: '',
-                        },
-                        $set: {
-                            updatedAt: new Date(),
-                        },
+                        $set: { 'stripeCustomerSync.lockedAt': new Date(0), updatedAt: new Date() },
                     }
                 );
                 throw error;
@@ -149,7 +154,7 @@ export async function ensureStripeCustomerId(user: User): Promise<string> {
     }
 
     const timeoutError = new Error('Timed out while creating Stripe customer');
-    await safelyReportExternalServiceIncident({
+    if (!dependencies) await safelyReportExternalServiceIncident({
         provider: 'stripe',
         service: 'Stripe',
         operation: 'create_customer',

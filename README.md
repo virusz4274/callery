@@ -1,6 +1,10 @@
-# CallOrganizer
+# Callery
 
-A modern web application for managing, transcribing, and organizing phone call recordings.
+A web application for managing, transcribing, and organizing phone call recordings.
+
+**Self-host Callery for free under [AGPL-3.0](LICENSE), or use the paid managed service.** Self-hosters operate their own database, private S3-compatible storage, email and processing providers. Managed users get individual accounts with hosting and setup handled for them. Company archives and employee invitations are self-host features; the managed launch does not offer organizations or seat billing. Managed Lifetime is retained access with the documented processing/usage limits, not unlimited provider services; see [billing](docs/billing.md).
+
+This is beta software. The supported first release is built from source with native Node or Docker Compose. There is no universal prebuilt application image: public settings, including the deployment origin and billing mode, must be chosen before building. Read [release verification and limitations](docs/releases.md), [contributing](CONTRIBUTING.md), and [security reporting](SECURITY.md) before a public deployment.
 
 ## Documentation
 
@@ -11,13 +15,15 @@ A modern web application for managing, transcribing, and organizing phone call r
 *   [**Branch Reconciliation**](docs/branch-reconciliation.md): Preserved snapshots, confirmed decisions, and verification.
 *   [**Dependency Review**](docs/dependency-review.md): Current packages, security patches and upgrade validation.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
-*   [**Billing & Subscriptions**](docs/billing.md): Plans, limits, and Stripe integration.
+*   [**Billing & Subscriptions**](docs/billing.md): Upfront plans, prepaid usage, provider weights and Stripe integration; no runtime profit targets or provider-expense budgets.
 *   [**Cron Jobs**](docs/cron-jobs.md): Exports, retention, digests, and billing retries.
 
 ## Quick Start
 
+Start from a [tagged source release](https://github.com/virusz4274/callery/releases), or clone `https://github.com/virusz4274/callery.git` and enter its directory. Choose a reviewed release tag for a production deployment.
+
 1.  **Install dependencies**:
-    Use Node 24 and the pnpm version pinned in `package.json`:
+    Use Node 24.22.0 (selected by `.nvmrc`) and pnpm 12.14.0 (pinned in `package.json`):
     ```bash
     corepack enable pnpm
     pnpm install --frozen-lockfile
@@ -54,10 +60,12 @@ the browser bundle, so changing billing or other public settings requires
 |---|---|---|
 | Auth | Better Auth + MongoDB (email/password and optional Google) | Same |
 | Billing | Off (`NEXT_PUBLIC_ENABLE_BILLING=false`) | On (Stripe) |
-| Email (`EMAIL_PROVIDER`) | `smtp` / `resend` / `none` | `resend` |
+| Email (`EMAIL_PROVIDER`) | `smtp` / `resend` (`none` for private testing) | `smtp` / `resend` |
 | Transcription | Soniox / ElevenLabs / Gemini or a compatible local server | Same, metered with multipliers |
 | Storage | Any S3-compatible (MinIO, R2, AWS) | Same |
 | Database | Your MongoDB (compose includes one) | Same |
+
+The optional bundled MinIO backend is built from pinned upstream source because the community project is archived and official community images are no longer available from the checked registries. It is provided for compatibility and isolated acceptance tests. Prefer maintained, supported external S3-compatible storage for a production service. No existing external storage configuration needs to change.
 
 Docker self-host quickstart:
 
@@ -75,6 +83,8 @@ and initializes its indexes and plans before starting the app, and bundles
 MinIO for object storage (bucket auto-created; point R2_ENDPOINT elsewhere
 for R2/AWS/external MinIO). The app health check verifies the server and
 database; test upload, playback, and transcription after setup.
+
+Ports bind to loopback by default. Put an HTTPS reverse proxy or tunnel in front of the app and storage for remote use; keep `NEXT_PUBLIC_APP_URL` and `S3_PUBLIC_ENDPOINT` browser-reachable. To run a second deployment, select a unique Compose project (`-p your-name`) and available `APP_PORT`, `MINIO_API_PORT`, and `MINIO_CONSOLE_PORT` values. Containers and volumes use that project's scope. Change `APP_BIND_ADDRESS`/`STORAGE_BIND_ADDRESS` only when deliberately exposing ports on another interface. Configure SMTP or Resend before opening signup to other people; managed hosting rejects email-disabled configuration.
 
 This deployment uses Next.js standalone on Node, including the Serwist service
 worker. The experimental vinext/Workers setup is separate; its compatibility

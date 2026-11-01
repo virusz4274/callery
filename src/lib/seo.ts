@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import type { PublicPlan } from '@/app/actions/plans';
+import type { MarketingPricing } from '@/lib/marketing-pricing';
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import { siteProfile } from '@/lib/site-profile';
 import { publicSitePolicy } from '@/lib/public-site-policy';
@@ -304,28 +304,29 @@ export function buildCollectionPageSchema({
   };
 }
 
-export function buildOfferSchemas(config: SiteSeoConfig, plans: PublicPlan[]): SchemaNode[] {
-  const freePlan: SchemaNode = {
+export function buildOfferSchemas(config: SiteSeoConfig, pricing: MarketingPricing): SchemaNode[] {
+  const trialOffers: SchemaNode[] = pricing.trial ? [{
     '@type': 'Offer',
-    name: 'Free',
+    name: pricing.trial.name,
+    description: pricing.trial.description,
     price: '0',
-    priceCurrency: 'USD',
+    priceCurrency: pricing.trial.currency,
     availability: 'https://schema.org/InStock',
     url: absoluteUrl('/pricing', config),
     seller: {
       '@type': 'Organization',
       name: config.siteName,
     },
-  };
+  }] : [];
 
-  const paidPlans = plans.map<SchemaNode>((plan) => ({
+  const paidPlans = pricing.plans.map<SchemaNode>((plan) => ({
     '@type': 'Offer',
     name: plan.name,
-    description: plan.description || undefined,
+    description: plan.description,
     price: String(plan.price),
-    priceCurrency: plan.currency || 'USD',
+    priceCurrency: plan.currency,
     category: plan.interval,
-    availability: 'https://schema.org/InStock',
+    availability: plan.checkout ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
     url: absoluteUrl('/pricing', config),
     seller: {
       '@type': 'Organization',
@@ -333,5 +334,5 @@ export function buildOfferSchemas(config: SiteSeoConfig, plans: PublicPlan[]): S
     },
   }));
 
-  return [freePlan, ...paidPlans];
+  return [...trialOffers, ...paidPlans];
 }

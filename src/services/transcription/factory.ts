@@ -1,4 +1,5 @@
-import { compatTranscriptionConfig, geminiApiKey, transcriptionMultiplier, type TranscriptionProvider } from '@/lib/config';
+import { billingEnabled, compatTranscriptionConfig, geminiApiKey, transcriptionPricing, type TranscriptionProvider } from '@/lib/config';
+import { effectiveTranscriptionProvider, resolveEffectiveTranscriptionPolicy } from '@/lib/transcription-multipliers';
 import { getTranscriptionService } from './index';
 import type { ITranscriptionService } from './types';
 export type TranscriptionProviderId = TranscriptionProvider;
@@ -26,6 +27,10 @@ export class TranscriptionFactory {
         return !!config && !!process.env[config.envKey];
     }
     static getAvailableProviders(): ProviderConfig[] {
-        return Object.values(PROVIDER_CONFIGS).filter(c => this.isProviderAvailable(c.id)).map(c => ({ ...c, defaultMultiplier: transcriptionMultiplier(c.id) }));
+        const managed = billingEnabled();
+        const policy = resolveEffectiveTranscriptionPolicy(managed, managed ? {} : transcriptionPricing());
+        return Object.values(PROVIDER_CONFIGS)
+            .filter(config => policy.multipliers[config.id] !== undefined && this.isProviderAvailable(config.id))
+            .map(config => ({ ...config, defaultMultiplier: effectiveTranscriptionProvider(policy, config.id).multiplier }));
     }
 }

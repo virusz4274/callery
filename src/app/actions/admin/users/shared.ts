@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import type { User } from '@/lib/db/types';
 import { hasStoredGoogleRefreshToken } from '@/services/google/refresh-token-crypto';
 import { getPlanDisplayName } from '@/lib/plans';
+import { hasUnlimitedTranscription } from '@/lib/transcription/quota-policy';
+import { billingEnabled } from '@/lib/config';
 
 export type InvoiceStatus = 'Paid' | 'Pending' | 'Failed';
 
@@ -75,6 +77,7 @@ export function serializeUser(user: User, planName?: string) {
                 hasRefreshToken: false,
             },
         planName: planName || getPlanDisplayName(user.planKey),
+        transcriptionUnlimited: hasUnlimitedTranscription(user, billingEnabled()),
         stripeSubscriptionStatus: user.stripeSubscriptionStatus,
     };
 }

@@ -22,7 +22,7 @@ function getFileFingerprint(file: File) {
     return `${file.name.toLowerCase()}-${file.size}-${file.lastModified}`;
 }
 
-export function useUploadQueue(toast: ToastFn) {
+export function useUploadQueue(toast: ToastFn, options: { bulkImportId?: string } = {}) {
     const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
     const [isUploading, startUploadTransition] = useTransition();
     const [isDragging, setIsDragging] = useState(false);
@@ -127,7 +127,7 @@ export function useUploadQueue(toast: ToastFn) {
             const results = await Promise.all(
                 pendingItems.map(async (item) => {
                     try {
-                        const result = await uploadFileDirectToR2(item.file);
+                        const result = await uploadFileDirectToR2(item.file, options);
 
                         if (result.success) {
                             updateItemStatus(item.id, 'success');

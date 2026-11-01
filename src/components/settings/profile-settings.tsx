@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button, Card, FieldError, Input, Label, Spinner, TextField } from '@heroui/react';
 import { SettingsSection } from './settings-section';
-import type { UseFormReturn } from 'react-hook-form';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import type { AppUser as User } from '@/lib/auth/types';
 
 type ProfileFormValues = {
@@ -65,17 +65,19 @@ export function ProfileSettings({
 
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <TextField
+                                    isDisabled={isProfileSaving}
                                     isInvalid={!!profileForm.formState.errors.firstName}
                                 >
                                     <Label>First Name</Label>
-                                    <Input placeholder="Your first name" autoComplete="given-name" {...profileForm.register('firstName')} />
+                                    <Controller name="firstName" control={profileForm.control} render={({ field }) => <Input placeholder="Your first name" autoComplete="given-name" {...field} />} />
                                     <FieldError>{profileForm.formState.errors.firstName?.message as string}</FieldError>
                                 </TextField>
                                 <TextField
+                                    isDisabled={isProfileSaving}
                                     isInvalid={!!profileForm.formState.errors.lastName}
                                 >
                                     <Label>Last Name</Label>
-                                    <Input placeholder="Your last name" autoComplete="family-name" {...profileForm.register('lastName')} />
+                                    <Controller name="lastName" control={profileForm.control} render={({ field }) => <Input placeholder="Your last name" autoComplete="family-name" {...field} />} />
                                     <FieldError>{profileForm.formState.errors.lastName?.message as string}</FieldError>
                                 </TextField>
                             </div>
@@ -109,21 +111,21 @@ export function ProfileSettings({
                                     isInvalid={!!passwordForm.formState.errors.currentPassword}
                                 >
                                     <Label>Current Password</Label>
-                                    <Input type="password" placeholder="Your current password" autoComplete="current-password" {...passwordForm.register('currentPassword')} />
+                                    <Controller name="currentPassword" control={passwordForm.control} render={({ field }) => <Input type="password" placeholder="Your current password" autoComplete="current-password" {...field} />} />
                                     <FieldError>{passwordForm.formState.errors.currentPassword?.message as string}</FieldError>
                                 </TextField>
                                 <TextField
                                     isInvalid={!!passwordForm.formState.errors.newPassword}
                                 >
                                     <Label>New Password</Label>
-                                    <Input type="password" placeholder="Enter a new password" autoComplete="new-password" {...passwordForm.register('newPassword')} />
+                                    <Controller name="newPassword" control={passwordForm.control} render={({ field }) => <Input type="password" placeholder="Enter a new password" autoComplete="new-password" {...field} />} />
                                     <FieldError>{passwordForm.formState.errors.newPassword?.message as string}</FieldError>
                                 </TextField>
                                 <TextField
                                     isInvalid={!!passwordForm.formState.errors.confirmPassword}
                                 >
                                     <Label>Confirm New Password</Label>
-                                    <Input type="password" placeholder="Confirm your new password" autoComplete="new-password" {...passwordForm.register('confirmPassword')} />
+                                    <Controller name="confirmPassword" control={passwordForm.control} render={({ field }) => <Input type="password" placeholder="Confirm your new password" autoComplete="new-password" {...field} />} />
                                     <FieldError>{passwordForm.formState.errors.confirmPassword?.message as string}</FieldError>
                                 </TextField>
                             </Card.Content>

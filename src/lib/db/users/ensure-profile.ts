@@ -3,6 +3,8 @@ import { isBootstrapAdminEmail } from '@/lib/admin-bootstrap';
 import { assertSignupAllowed, acceptTeamInvitation } from '@/lib/team-invitations';
 import { getTeamSettings } from '@/lib/team-policy';
 import { createUser, findUserByAuthSubject, getRequiredDefaultPlan, updateUser } from './lookup';
+import { ONE_TIME_TRIAL } from '@/lib/installation-defaults';
+import { isFreeTrialPlanKey } from '@/lib/plans';
 
 /**
  * Ensure a user profile exists, creating one if necessary.
@@ -35,6 +37,7 @@ export async function ensureUserProfile(
     if (team.enabled && emailVerified === true) await acceptTeamInvitation(email, authSubject);
 
     const defaultPlan = await getRequiredDefaultPlan();
+    const trial = isFreeTrialPlanKey(defaultPlan.key), grantedAt = new Date();
 
     const nameParts = (displayName || '').split(' ');
     const firstName = nameParts[0] || '';
@@ -52,6 +55,8 @@ export async function ensureUserProfile(
             role: isBootstrapAdminEmail(email) && emailVerified === true ? 'admin' : 'user',
             ...(team.enabled ? { teamInvitationPending: emailVerified !== true } : {}),
             planKey: defaultPlan.key,
+            billingEntitlement: { source: trial ? 'trial' : 'admin', grantedAt,
+                ...(!trial ? { reference: 'selfhost-default-plan' } : {}) },
             timezone: '',
             notificationSettings: {
                 activityDigest: 'weekly',
@@ -75,7 +80,7 @@ export async function ensureUserProfile(
             totalContacts: 0,
             totalRecordings: 0,
             totalDuration: 0,
-            trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            ...(trial ? { trialEndsAt: new Date(grantedAt.getTime() + ONE_TIME_TRIAL.durationDays * 86400_000) } : {}),
             lastLoginAt: new Date(),
             googleSync: {
                 status: 'not_connected',

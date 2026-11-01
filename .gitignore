@@ -22,10 +22,12 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # local env files (never commit secrets; see .env.example)
-.env*.local
-.env
+.env*
 !.env.example
-service-account.json
+service-account*.json
+*.key
+*.p12
+*.pfx
 
 # vercel
 .vercel
@@ -65,3 +67,18 @@ public/swe-worker-*.js.map
 # Browser test output
 /test-results/
 /playwright-report/
+/release-artifacts/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Introduction video: local/private capture and generation work only.
+/video/callery-introduction/captures/
+/video/callery-introduction/renders/
+/video/callery-introduction/demo-summary-backup.json
+/video/callery-introduction/source/stage_demo_content.mjs
+/video/callery-introduction/source/stage-demo-content-plan.json
+/video/callery-introduction/callery-opening-preview.mp4
+/video/callery-introduction/graphics/qa-*.png
+/video/callery-introduction/graphics/hosting-review.png

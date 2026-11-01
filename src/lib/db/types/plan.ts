@@ -4,6 +4,11 @@ import { ObjectId } from 'mongodb';
  * Plan document stored in MongoDB.
  */
 export interface Plan {
+    billingCatalogVersion?: string;
+    billingPublishedAt?: Date;
+    billingCatalogBundleId?: string;
+    usageTariffs?: import('@/lib/stripe/usage-tariff').UsageTariffPair;
+    archivedAt?: Date;
     _id: ObjectId;
     key: string;
     name: string;
@@ -13,7 +18,7 @@ export interface Plan {
     stripeTranscriptionPriceId?: string; // ID for Metered Transcription
     price: number;
     currency: string;
-    interval: 'monthly' | 'yearly' | 'lifetime';
+    interval: 'monthly' | 'yearly' | 'lifetime' | 'trial';
     limits: {
         storage: number; // in bytes
         transcription: number; // in seconds
@@ -38,7 +43,7 @@ export interface PlanResponse {
     stripeTranscriptionPriceId?: string;
     price: number;
     currency: string;
-    interval: 'monthly' | 'yearly' | 'lifetime';
+    interval: 'monthly' | 'yearly' | 'lifetime' | 'trial';
     limits: {
         storage: number;
         transcription: number;

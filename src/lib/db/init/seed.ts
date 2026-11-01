@@ -1,173 +1,67 @@
-import type { Db } from 'mongodb';
-import type { Plan } from '@/lib/db/types';
+import { MongoServerError, type Db } from 'mongodb';
+import type { Plan, SystemSettings } from '@/lib/db/types';
 import { PLAN_KEYS } from '@/lib/plans';
+import { INSTALLATION_PLANS } from '@/lib/installation-defaults';
 import { logger } from '@/lib/logger';
+import { billingEnabled } from '@/lib/config';
+import { assertValidDefaultPlan } from '../default-plan';
+import { INITIAL_SYSTEM_SETTINGS_ID, readSystemSettingsSingleton } from '../system-settings-singleton';
 
-type CollectionsMap = {
-    PLANS: string;
-    SYSTEM_SETTINGS: string;
-};
-
-type PlanSeedDefinition = Omit<
-    Plan,
-    '_id' | 'createdAt' | 'updatedAt' | 'stripeStoragePriceId' | 'stripeTranscriptionPriceId'
-> & {
-    stripeStoragePriceId?: string;
-    stripeTranscriptionPriceId?: string;
-};
-
-const PLAN_DEFINITIONS: PlanSeedDefinition[] = [
-    {
-        key: PLAN_KEYS.FREE_TRIAL,
-        name: 'Free Trial',
-        description: '30 days of full access without credit card',
-        price: 0,
-        currency: 'USD',
-        interval: 'monthly',
-        limits: { storage: 100 * 1024 * 1024, transcription: 10 * 60 },
-        features: ['Standard Storage', 'Community Support', '30-Day Limit'],
-        isDefault: true,
-        isActive: true,
-        stripePriceId: '',
-    },
-    {
-        key: PLAN_KEYS.STANDARD,
-        name: 'Standard',
-        description: 'For regular usage',
-        price: 10,
-        currency: 'USD',
-        interval: 'monthly',
-        limits: { storage: 2 * 1024 * 1024 * 1024, transcription: 60 * 60 },
-        features: ['Standard Storage', 'Email Support'],
-        isDefault: false,
-        isActive: true,
-        stripePriceId: '',
-        stripeStoragePriceId: '',
-        stripeTranscriptionPriceId: '',
-    },
-    {
-        key: PLAN_KEYS.PRO,
-        name: 'Pro',
-        description: 'Power user access',
-        price: 20,
-        currency: 'USD',
-        interval: 'monthly',
-        limits: { storage: 5 * 1024 * 1024 * 1024, transcription: 120 * 60 },
-        features: ['5 GB Storage', 'Advanced AI Transcription', 'Priority Email Support', 'Data Export', 'Detailed Analytics'],
-        isDefault: false,
-        isActive: true,
-        stripePriceId: '',
-        stripeStoragePriceId: '',
-        stripeTranscriptionPriceId: '',
-    },
-    {
-        key: PLAN_KEYS.LIFETIME,
-        name: 'Lifetime',
-        description: 'One-time payment for platform access',
-        price: 250,
-        currency: 'USD',
-        interval: 'lifetime',
-        limits: { storage: 0, transcription: 0 },
-        features: ['Lifetime Access', 'Pay-as-you-go Storage', 'Pay-as-you-go Transcription'],
-        isDefault: false,
-        isActive: true,
-        stripePriceId: '',
-        stripeStoragePriceId: '',
-        stripeTranscriptionPriceId: '',
-    },
-    {
-        key: PLAN_KEYS.INTERNAL,
-        name: 'Internal',
-        description: 'Team & Family unrestricted access',
-        price: 0,
-        currency: 'USD',
-        interval: 'lifetime',
-        limits: { storage: 1024 * 1024 * 1024 * 1024, transcription: 99999 * 60 },
-        features: ['Unlimited Access', 'Internal Use'],
-        isDefault: false,
-        isActive: true,
-        stripePriceId: '',
-    },
-    {
-        key: PLAN_KEYS.CUSTOM,
-        name: 'Custom',
-        description: 'Enterprise needs',
-        price: 0,
-        currency: 'USD',
-        interval: 'yearly',
-        limits: { storage: 0, transcription: 0 },
-        features: ['Talk to Sales', 'Custom SLA'],
-        isDefault: false,
-        isActive: true,
-        stripePriceId: '',
-    },
-];
-
-export async function seedPlans(db: Db, collections: CollectionsMap): Promise<void> {
-    logger.info('🌱 Seeding/Updating plans...');
-    const now = new Date();
-
-    for (const definition of PLAN_DEFINITIONS) {
-        await db.collection(collections.PLANS).updateOne(
-            { key: definition.key },
-            {
-                $setOnInsert: {
-                    key: definition.key,
-                    name: definition.name,
-                    description: definition.description,
-                    price: definition.price,
-                    currency: definition.currency,
-                    interval: definition.interval,
-                    limits: definition.limits,
-                    features: definition.features,
-                    isDefault: definition.isDefault,
-                    isActive: definition.isActive,
-                    stripePriceId: definition.stripePriceId,
-                    stripeStoragePriceId: definition.stripeStoragePriceId,
-                    stripeTranscriptionPriceId: definition.stripeTranscriptionPriceId,
-                    createdAt: now,
-                    updatedAt: now,
-                },
-            },
-            { upsert: true }
-        );
-    }
-
-    logger.info('✅ Plans seeded/updated');
+export type SeedCollections = { PLANS: string; SYSTEM_SETTINGS: string };
+function duplicateKey(error: unknown) {
+    return error instanceof MongoServerError && error.code === 11000
+        || typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
 }
 
-export async function seedSystemSettings(db: Db, collections: CollectionsMap): Promise<void> {
-    try {
-        const defaultPlan = await db.collection<Plan>(collections.PLANS).findOne({
-            key: PLAN_KEYS.FREE_TRIAL,
-        });
-
-        if (!defaultPlan) {
-            throw new Error('Seed plans before initializing system settings.');
+/** Only missing templates are inserted. Configuration and financial history
+ * are never refreshed from installation defaults. */
+export async function seedPlans(db: Db, collections: SeedCollections): Promise<{ created: string[]; preserved: string[] }> {
+    const result = { created: [] as string[], preserved: [] as string[] };
+    const plans = db.collection<Plan>(collections.PLANS), now = new Date();
+    for (const definition of INSTALLATION_PLANS) {
+        try {
+            const written = await plans.updateOne({ key: definition.key }, {
+                $setOnInsert: { ...structuredClone(definition), createdAt: now, updatedAt: now },
+            }, { upsert: true });
+            (written.upsertedCount ? result.created : result.preserved).push(definition.key);
+        } catch (error) {
+            // A competing initializer may have inserted this exact key. A name
+            // collision with another plan, or any other error, must stay visible.
+            if (!duplicateKey(error) || !await plans.findOne({ key: definition.key })) throw error;
+            result.preserved.push(definition.key);
         }
-
-        await db.collection(collections.SYSTEM_SETTINGS).updateOne(
-            {},
-            {
-                $setOnInsert: {
-                    allowSignups: true,
-                    maintenanceMode: false,
-                    defaultPlanId: defaultPlan._id,
-                    transcriptionMultipliers: {
-                        soniox: 1.0,
-                        elevenlabs: 5.0,
-                        gemini: 0.5,
-                        openai_compat: 0.1,
-                    },
-                    updatedAt: new Date(),
-                },
-            },
-            { upsert: true }
-        );
-
-        logger.info('✅ System Settings seeded');
-    } catch (error) {
-        logger.error('⚠️ System Settings seeding failed:', error);
-        throw error;
     }
+    logger.info(`Plan templates: ${result.created.length} created, ${result.preserved.length} preserved.`);
+    return result;
+}
+
+async function validateSettings(db: Db, collections: SeedCollections, settings: SystemSettings, managed: boolean) {
+    const plan = settings.defaultPlanId && await db.collection<Plan>(collections.PLANS).findOne({ _id: settings.defaultPlanId });
+    assertValidDefaultPlan(plan || null, managed);
+}
+
+export async function seedSystemSettings(db: Db, collections: SeedCollections, managed = billingEnabled()): Promise<'created' | 'preserved'> {
+    const existing = await readSystemSettingsSingleton(db, collections.SYSTEM_SETTINGS);
+    if (existing) {
+        await validateSettings(db, collections, existing, managed);
+        logger.info('System settings preserved.');
+        return 'preserved';
+    }
+    const defaultPlan = await db.collection<Plan>(collections.PLANS).findOne({ key: PLAN_KEYS.FREE_TRIAL });
+    if (!defaultPlan) throw new Error('Seed plans before initializing system settings.');
+    assertValidDefaultPlan(defaultPlan, managed);
+    let created = false;
+    try {
+        const result = await db.collection<SystemSettings>(collections.SYSTEM_SETTINGS).updateOne({ _id: INITIAL_SYSTEM_SETTINGS_ID }, {
+            $setOnInsert: { allowSignups: true, maintenanceMode: false, defaultPlanId: defaultPlan._id, updatedAt: new Date() },
+        }, { upsert: true });
+        created = Boolean(result.upsertedCount);
+    } catch (error) {
+        if (!duplicateKey(error)) throw error;
+    }
+    const saved = await readSystemSettingsSingleton(db, collections.SYSTEM_SETTINGS);
+    if (!saved) throw new Error('System settings creation could not be verified. Retry initialization.');
+    await validateSettings(db, collections, saved, managed);
+    logger.info(`System settings ${created ? 'created' : 'preserved'}. Self-host provider defaults apply unless explicitly overridden.`);
+    return created ? 'created' : 'preserved';
 }

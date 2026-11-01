@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth-utils';
 import { startManualTranscription } from '@/lib/transcription/manual';
+import { processTranscriptionJobs } from '@/lib/integrations/jobs';
 
 export const maxDuration = 300;
 
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body.recordingId !== 'string') {
         return NextResponse.json({ error: 'Missing recordingId' }, { status: 400 });
     }
-    const result = await startManualTranscription(subject, body.recordingId, { provider: body.provider, model: body.model });
+    const result = await startManualTranscription(subject, body.recordingId, { provider: body.provider, model: body.model, acknowledgeProviderOutcome: body.acknowledgeProviderOutcome });
+    if (result.success) after(async () => { await processTranscriptionJobs(); });
     return NextResponse.json(result, { status: result.error ? 400 : 202 });
 }

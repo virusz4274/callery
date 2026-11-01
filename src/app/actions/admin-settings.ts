@@ -4,20 +4,25 @@ import { validationFailure } from '@/lib/admin-validation';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { SystemSettings, SystemSettingsResponse, UpdateSystemSettingsInput } from '@/lib/db/types';
 import { parseObjectId, requireCurrentAdmin } from '@/lib/admin-auth';
-import { getRequiredSystemSettings } from '@/lib/db/users';
+import { getPlanById, getRequiredSystemSettings } from '@/lib/db/users';
+import { assertValidDefaultPlan } from '@/lib/db/default-plan';
 import { updateSystemSettingsDocument } from '@/lib/db/system-settings';
 import { revalidatePath } from 'next/cache';
-import { transcriptionPricing } from '@/lib/config';
-import { resolveTranscriptionMultipliers, TranscriptionMultipliersSchema, type TranscriptionMultipliers } from '@/lib/transcription-multipliers';
+import { billingEnabled, transcriptionPricing } from '@/lib/config';
+import { assertEditableTranscriptionMultipliers, resolveEffectiveTranscriptionPolicy, TranscriptionMultipliersSchema, type EffectiveTranscriptionPolicy } from '@/lib/transcription-multipliers';
 import { z } from 'zod';
 
-function mapSettings(settings: SystemSettings): SystemSettingsResponse & { transcriptionMultipliers: TranscriptionMultipliers } {
+function mapSettings(settings: SystemSettings): Omit<SystemSettingsResponse, 'transcriptionMultipliers'> & { transcriptionPolicyMode: EffectiveTranscriptionPolicy['mode']; transcriptionMultipliers: EffectiveTranscriptionPolicy['multipliers'] } {
+    const managed = billingEnabled();
+    const policy = resolveEffectiveTranscriptionPolicy(managed, managed ? {} : transcriptionPricing(), settings.transcriptionMultipliers);
     return {
         id: settings._id.toString(),
         allowSignups: settings.allowSignups,
         maintenanceMode: settings.maintenanceMode,
+        processingPaused: settings.processingPaused === true,
         defaultPlanId: settings.defaultPlanId.toString(),
-        transcriptionMultipliers: resolveTranscriptionMultipliers(transcriptionPricing(), settings.transcriptionMultipliers),
+        transcriptionMultipliers: policy.multipliers,
+        transcriptionPolicyMode: policy.mode,
         updatedAt: settings.updatedAt.toISOString(),
         team: settings.team,
     };
@@ -39,11 +44,12 @@ export async function getSystemSettings() {
 export async function updateSystemSettings(data: UpdateSystemSettingsPayload) {
     const admin = await requireCurrentAdmin();
     const parsed = z.object({
-        allowSignups: z.boolean().optional(), maintenanceMode: z.boolean().optional(),
+        allowSignups: z.boolean().optional(), maintenanceMode: z.boolean().optional(), processingPaused: z.boolean().optional(),
         defaultPlanId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
         transcriptionMultipliers: TranscriptionMultipliersSchema.partial().optional(),
     }).strict().safeParse(data);
     if (!parsed.success) return validationFailure(parsed.error);
+    assertEditableTranscriptionMultipliers(billingEnabled(), data.transcriptionMultipliers);
     if (data.allowSignups && (await getRequiredSystemSettings()).team?.enabled) throw new Error('Company registration is invitation-only.');
 
     const { defaultPlanId, ...settings } = data;
@@ -52,6 +58,10 @@ export async function updateSystemSettings(data: UpdateSystemSettingsPayload) {
         if (!validation.success) return validationFailure(validation.error);
     }
     if (defaultPlanId !== undefined && !/^[a-f0-9]{24}$/i.test(defaultPlanId)) return { success: false as const, fieldErrors: { defaultPlanId: 'Choose a valid default plan.' } };
+    if (defaultPlanId !== undefined) {
+        try { assertValidDefaultPlan(await getPlanById(parseObjectId(defaultPlanId, 'defaultPlanId'))); }
+        catch (error) { return { success: false as const, fieldErrors: { defaultPlanId: error instanceof Error ? error.message : 'Choose a valid default plan.' } }; }
+    }
     await updateSystemSettingsDocument({
         ...settings,
         ...(defaultPlanId !== undefined ? { defaultPlanId: parseObjectId(defaultPlanId, 'defaultPlanId') } : {}),
