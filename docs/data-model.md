@@ -242,6 +242,8 @@ Tracks long-running export jobs.
 Fields include:
 
 - `authSubject`
+- `requestedByAuthSubject` (the actor, which can be a company administrator)
+- `sourceRevision`, `cacheEligible`
 - `status`
 - `progress`
 - `totalRecordings`
@@ -249,11 +251,28 @@ Fields include:
 - `parts`
 - `checkpoint`
 - `error`
+- `failure` (safe stage/code, retry eligibility, optional transport/HTTP code, timestamp, generation and part)
+- `generationAttempts`, `workerToken`, `workerLeaseUntil`
+- `archiveExpiresAt`, `cleanupPending`, `abortedAt`, `cleanedAt`
 - `createdAt`, `updatedAt`, `startedAt`, `completedAt`
 
 Each part stores a signed download URL, key, size, and expiration time.
 Every new job includes `parts: []` and `checkpoint: { nextPartNumber: 1 }`.
 Processing persists the cursor and next part number for recovery after interruption.
+An atomic claim increments `generationAttempts` and gives one worker a renewable
+lease; only that worker may publish checkpoints or terminal outcomes. Eligible
+failed jobs require an explicit retry and may use at most two generation attempts.
+The original source revision and fresh-export window remain unchanged on retry.
+
+### `export_object_cleanup`
+
+Tracks each archive object before upload so interrupted writes and account erasure
+can be cleaned up safely. `_id` is the storage key; fields include `subject`,
+`jobId`, `owner`, `state` (`writing`, `ready`, `pending`, or `deleting`), write and
+cleanup leases, and `expiresAt`. Worker-specific object keys prevent stale writes
+from overwriting a replacement worker's part. Checkpoint recovery verifies a ready
+object record and matching storage size. Cron claims deletion before removing
+bytes and removes records only after cleanup succeeds.
 
 ### `external_service_incidents`
 
@@ -378,6 +397,7 @@ recordings
 contacts
 plans
 export_jobs
+export_object_cleanup
 system_settings
 announcements
 admin_logs

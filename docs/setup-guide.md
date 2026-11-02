@@ -476,8 +476,8 @@ If an embedding request fails or MongoDB rejects the vector query, the search
 action reports keyword fallback. A missing index can instead return no vector
 results without throwing, so keyword results or a missing fallback badge do
 not prove vector search works. Verify the index explicitly. `/api/health`
-checks only MongoDB connectivity, and the admin AI probe checks embedding
-generation; neither confirms that the vector index is ready.
+checks only MongoDB connectivity, and the admin AI status checks configuration
+without making an embedding request; neither confirms that the vector index is ready.
 
 ## Configuration boundaries
 

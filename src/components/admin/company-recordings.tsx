@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, Input, Label } from '@heroui/react';
 import { RecordingsTable } from '@/components/recordings-table';
 import { TeamChoice } from './team-settings-form';
-import { startExport, getExportStatus } from '@/app/actions/export';
+import { startExport, getExportStatus, retryExport } from '@/app/actions/export';
 import { ExportDataCard } from '@/components/settings/data-settings/ExportDataCard';
 import type { ExportJobResponse } from '@/lib/db/types';
 import type { getCompanyRecordings, getTeamAdministration } from '@/app/actions/team';
@@ -36,6 +36,14 @@ export function CompanyRecordings({ data, administration }: {
         try { const result = await startExport(selectedEmployee); if (!result.success) throw new Error(result.message); setExportJob(await getExportStatus(selectedEmployee)); }
         catch (e) { setError(e instanceof Error ? e.message : 'Could not start export.'); }
     }); };
+    const retryArchive = async () => { if (!selectedEmployee || !exportJob || exporting) return; startExportTransition(async () => {
+        setError(null);
+        try {
+            const result = await retryExport(exportJob.id, selectedEmployee);
+            setExportJob(await getExportStatus(selectedEmployee));
+            if (!result.success) throw new Error(result.message);
+        } catch (e) { setError(e instanceof Error ? e.message : 'Could not retry export.'); }
+    }); };
     return <div className="space-y-5">
         <Card className="space-y-4 p-5">
             <p className="text-sm text-muted">{administration.team.companyName} · {(administration.storageUsed / 1024 ** 3).toFixed(2)} GB audio stored. Includes former employees.</p>
@@ -51,7 +59,7 @@ export function CompanyRecordings({ data, administration }: {
         </Card>
         <RecordingsTable recordings={data.recordings} contacts={[]} page={data.page} setPage={page => navigate({ page: String(page) })} totalCount={data.total} itemsPerPage={25} onRecordingsChange={() => router.refresh()} />
         <Card className="space-y-3 p-5"><h2 className="text-lg font-semibold">Employee storage usage</h2><ul className="divide-y divide-border">{administration.employees.map(u => <li key={u.id} className="flex flex-wrap justify-between gap-2 py-2"><span className="break-words">{u.name}{u.disabled ? ' (access removed)' : ''}</span><span className="text-sm text-muted">{u.totalRecordings} recordings · {(u.storageUsed / 1024 ** 3).toFixed(2)} GB</span></li>)}</ul></Card>
-        {selectedEmployee ? <ExportDataCard archiveOwnerName={administration.employees.find(u => u.id === selectedEmployee)?.name} exportJob={exportJob} isExportStarting={exporting} onStartExport={runExport} /> : <p className="text-sm text-muted">Filter by one employee to export their complete archive, including recordings outside the displayed date range.</p>}
+        {selectedEmployee ? <ExportDataCard archiveOwnerName={administration.employees.find(u => u.id === selectedEmployee)?.name} exportJob={exportJob} isExportStarting={exporting} onStartExport={runExport} onRetryExport={retryArchive} /> : <p className="text-sm text-muted">Filter by one employee to export their complete archive, including recordings outside the displayed date range.</p>}
         {error && <p role="alert" className="text-danger">{error}</p>}
     </div>;
 }

@@ -29,4 +29,5 @@ public/swe-worker-*.js.map
 
 # Offline video assets and private capture/backup working files.
 video/
+docs/assets/
 

@@ -1,8 +1,9 @@
 import type { ExportJob } from '@/lib/db/types';
 import type { ExportPartMeta } from './types';
 
-export function getPartKey(authSubject: string, jobId: string, partNumber: number): string {
-    return `exports/${authSubject}/${jobId}/part_${partNumber}.zip`;
+export function getPartKey(authSubject: string, jobId: string, partNumber: number, workerToken?: string): string {
+    const generation = workerToken ? `${workerToken}/` : '';
+    return `exports/${authSubject}/${jobId}/${generation}part_${partNumber}.zip`;
 }
 
 export function toStorageParts(parts: ExportPartMeta[]): ExportJob['parts'] {

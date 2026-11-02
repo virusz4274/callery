@@ -17,7 +17,7 @@ function fixture(t: test.TestContext, summary = operation()) {
     const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
     t.after(() => { for (const name of names) if (previous[name] === undefined) delete process.env[name]; else process.env[name] = previous[name]; });
     process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true'; process.env.STRIPE_SECRET_KEY = 'sk_test_fixture';
-    const policy = JSON.parse(readFileSync(new URL('../../../docs/billing-cost-policy.example.json', import.meta.url), 'utf8'));
+    const policy = JSON.parse(readFileSync(new URL('./__fixtures__/legacy-cost-policy.json', import.meta.url), 'utf8'));
     Object.assign(policy, { version: 'source-plan-payment-test', reviewedAt: '2020-01-01', expiresAt: '2099-01-01', paymentFeeBasisPoints: 0, paymentFixedMicros: 0, stripeBillingFeeBasisPoints: 0, stripeBillingFixedMicros: 0 });
     process.env.MANAGED_COST_POLICY_JSON = JSON.stringify(policy);
     const memory = new MemoryBillingDatabase(), stripe = new FakeBillingStripe();

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'node:stream';
+import { finished } from 'node:stream/promises';
 import type { Recording } from '@/lib/db/types';
 import { VIEWER_HTML } from '@/lib/export-viewer-template';
 import { storageBucket } from '@/lib/r2';
@@ -14,6 +15,8 @@ import type { ExportPartMeta } from './types';
 import { abandonExportObjectWrite, assertExportActive, beginExportObjectWrite, completeExportObjectWrite } from './object-lifecycle';
 import { boundedExportStream } from './bounded-stream';
 import { getExportStorageClient } from './storage-client';
+import { ExportProcessingError, toExportFailure, wrapExportError } from './errors';
+import { logger } from '@/lib/logger';
 
 function sanitizeForPath(value: string): string {
     return value.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -54,13 +57,13 @@ async function getExistingObjectSize(key: string): Promise<number | null> {
             return null;
         }
 
-        throw error;
+        throw wrapExportError(error, 'archive-upload');
     }
 }
 
 async function fetchRecordingStream(key: string, maximumBytes?: number): Promise<Readable | null> {
     try {
-        const response = await withRetry(`Fetch source object ${key}`, async () => {
+        const response = await withRetry('source-download', async () => {
             return getExportStorageClient().send(
                 new GetObjectCommand({
                     Bucket: storageBucket(),
@@ -73,7 +76,12 @@ async function fetchRecordingStream(key: string, maximumBytes?: number): Promise
             return null;
         }
 
-        const bound = (source: Readable) => maximumBytes && maximumBytes > 0 ? boundedExportStream(source, maximumBytes) : source;
+        const bound = (source: Readable) => {
+            if (!maximumBytes || maximumBytes <= 0) return source;
+            const bounded = boundedExportStream(source, maximumBytes);
+            bounded.once('close', () => source.destroy());
+            return bounded;
+        };
         if (response.Body instanceof Readable) return bound(response.Body);
 
         const maybeWebStream = response.Body as unknown as { getReader?: unknown };
@@ -92,18 +100,21 @@ async function fetchRecordingStream(key: string, maximumBytes?: number): Promise
             return null;
         }
 
-        throw error;
+        throw wrapExportError(error, 'source-download');
     }
 }
 
-async function uploadArchivePart(authSubject: string, jobId: string, key: string, chunk: Recording[], maximumArchiveBytes?: number): Promise<number> {
-    const tempDir = await mkdtemp(path.join(tmpdir(), 'callery-export-'));
+async function uploadArchivePart(authSubject: string, jobId: string, key: string, chunk: Recording[], maximumArchiveBytes?: number, workerToken?: string): Promise<number> {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'callery-export-')).catch(error => { throw wrapExportError(error, 'archive-build', 'archive'); });
     const archivePath = path.join(tempDir, 'part.zip');
+    let outputClosed = Promise.resolve();
+    let primaryFailure: Error | undefined;
 
     try {
         await new Promise<void>((resolve, reject) => {
             const archive = new ZipArchive({ zlib: { level: 9 } });
             const output = createWriteStream(archivePath);
+            outputClosed = finished(output).then(() => {}, () => {});
             let settled = false;
             const sources = new Set<Readable>();
 
@@ -115,7 +126,7 @@ async function uploadArchivePart(authSubject: string, jobId: string, key: string
                 for (const source of sources) source.destroy();
                 archive.abort();
                 output.destroy();
-                reject(error);
+                reject(wrapExportError(error, 'archive-build', 'archive'));
             };
 
             archive.on('warning', (error: unknown) => {
@@ -157,7 +168,7 @@ async function uploadArchivePart(authSubject: string, jobId: string, key: string
                     if (settled) { stream?.destroy(); return; }
                     if (stream) {
                         sources.add(stream);
-                        stream.once('error', fail);
+                        stream.once('error', error => fail(wrapExportError(error, 'source-download')));
                         stream.once('end', () => sources.delete(stream));
                         archive.append(stream, { name: audioPath });
                     } else {
@@ -189,28 +200,45 @@ ${transcriptText}`;
         });
 
         const { size } = await stat(archivePath);
-        if (maximumArchiveBytes !== undefined && size > maximumArchiveBytes) throw new Error('The generated archive exceeded its reserved size budget.');
-        const intent = await beginExportObjectWrite(authSubject, jobId, key);
+        if (maximumArchiveBytes !== undefined && size > maximumArchiveBytes) throw new ExportProcessingError('archive-build', 'budget');
+        const intent = await beginExportObjectWrite(authSubject, jobId, key, undefined, workerToken);
         try {
             // Both attempts fit within the durable five-minute write lease.
-            await withRetry(`Upload ${key}`, async () => {
-                await assertExportActive(authSubject, jobId);
-                await getExportStorageClient().send(new PutObjectCommand({ Bucket: storageBucket(), Key: key,
-                    Body: createReadStream(archivePath), ContentLength: size, ContentType: 'application/zip' }),
-                { abortSignal: AbortSignal.timeout(120_000) });
+            await withRetry('archive-upload', async () => {
+                await assertExportActive(authSubject, jobId, undefined, workerToken);
+                const body = createReadStream(archivePath);
+                const bodyClosed = finished(body).then(() => {}, () => {});
+                try {
+                    await getExportStorageClient().send(new PutObjectCommand({ Bucket: storageBucket(), Key: key,
+                        Body: body, ContentLength: size, ContentType: 'application/zip' }),
+                    { abortSignal: AbortSignal.timeout(120_000) });
+                } finally {
+                    body.destroy();
+                    await bodyClosed;
+                }
             }, 2);
-            if (!await completeExportObjectWrite(intent)) {
-                await getExportStorageClient().send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: key }));
-                throw new Error('This export was cancelled while its archive was uploading.');
+            if (!await completeExportObjectWrite(intent, undefined, workerToken)) {
+                try { await getExportStorageClient().send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: key })); }
+                catch (cleanupError) { logger.warn('[Export] Cancelled archive object cleanup remains pending', toExportFailure(cleanupError, 'archive-upload')); }
+                throw new ExportProcessingError('archive-upload', 'cancelled');
             }
         } catch (error) {
-            await abandonExportObjectWrite(intent);
-            throw error;
+            try { await abandonExportObjectWrite(intent); }
+            catch (cleanupError) { logger.warn('[Export] Object write cleanup remains pending', toExportFailure(cleanupError, 'archive-upload')); }
+            throw wrapExportError(error, 'archive-upload');
         }
 
         return size;
+    } catch (error) {
+        primaryFailure = wrapExportError(error, 'archive-build', 'archive');
+        throw primaryFailure;
     } finally {
-        await rm(tempDir, { recursive: true, force: true });
+        await outputClosed;
+        try { await rm(tempDir, { recursive: true, force: true }); }
+        catch (cleanupError) {
+            if (!primaryFailure) throw wrapExportError(cleanupError, 'archive-build', 'archive');
+            logger.warn('[Export] Temporary archive cleanup failed', toExportFailure(cleanupError, 'archive-build'));
+        }
     }
 }
 
@@ -220,15 +248,16 @@ export async function ensurePartUploaded(
     partNumber: number,
     chunk: Recording[],
     maximumArchiveBytes?: number,
+    workerToken?: string,
 ): Promise<ExportPartMeta> {
-    await assertExportActive(authSubject, jobId);
-    const key = getPartKey(authSubject, jobId, partNumber);
+    await assertExportActive(authSubject, jobId, undefined, workerToken);
+    const key = getPartKey(authSubject, jobId, partNumber, workerToken);
     const existingSize = await getExistingObjectSize(key);
     if (existingSize !== null) {
-        await assertExportActive(authSubject, jobId);
+        await assertExportActive(authSubject, jobId, undefined, workerToken);
         return { key, size: existingSize };
     }
 
-    const uploadedSize = await uploadArchivePart(authSubject, jobId, key, chunk, maximumArchiveBytes);
+    const uploadedSize = await uploadArchivePart(authSubject, jobId, key, chunk, maximumArchiveBytes, workerToken);
     return { key, size: uploadedSize };
 }

@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { isVerifiedLocalFix } from './dependency-patch.mjs';
 
 const cli = process.env.npm_execpath;
 if (!cli || !cli.includes('pnpm')) {
@@ -21,19 +20,13 @@ const report = JSON.parse(raw);
 if (report.error || !report.metadata?.vulnerabilities || !report.advisories) {
     throw new Error(`The registry audit failed or returned an unknown format: ${raw}`);
 }
-let unresolved = 0;
 const advisories = Object.values(report.advisories);
 const reportedCount = Object.values(report.metadata.vulnerabilities).reduce((sum, count) => sum + count, 0);
 if (reportedCount !== advisories.length) {
     throw new Error('Audit totals do not match the returned advisories.');
 }
 for (const advisory of advisories) {
-    if (isVerifiedLocalFix(advisory)) {
-        console.warn(`Locally patched: ${advisory.github_advisory_id} (braces 3.0.3). All reported installed copies verified. Registry scanners still flag this version; upstream has no release with a fix.`);
-    } else {
-        unresolved++;
-        console.error(`Unresolved: ${advisory.module_name}: ${advisory.severity} (${advisory.github_advisory_id})`);
-    }
+    console.error(`Unresolved: ${advisory.module_name}: ${advisory.severity} (${advisory.github_advisory_id})`);
 }
-if (unresolved) process.exitCode = 1;
-else console.log('Dependency audit passed: no unpatched known findings.');
+if (advisories.length) process.exitCode = 1;
+else console.log('Dependency audit passed: no known findings.');

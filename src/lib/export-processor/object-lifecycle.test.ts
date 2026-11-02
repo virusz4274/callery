@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ObjectId } from 'mongodb';
 import { MemoryBillingDatabase, userFixture } from '@/lib/stripe/test-support';
 import { getBillingAccount, ledgerKey } from '@/lib/stripe/ledger';
-import { beginExportJobAttempt, updateActiveExportJob } from '@/lib/db/export-jobs';
+import { claimExportJob, updateActiveExportJob } from '@/lib/db/export-jobs';
 import { beginExportObjectWrite, cleanupExportObjectWrites, completeExportObjectWrite, confirmExportJobAdmission, EXPORT_OBJECT_WRITES, revokeExportObjects } from './object-lifecycle';
 
 function fixture() {
@@ -90,9 +90,13 @@ test('revocation releases queued archive budgets and settles started/crashed arc
 
 test('a crashed archive cannot trigger unlimited generation attempts under one cost reservation', async () => {
     const { memory, db, jobId } = fixture();
-    await beginExportJobAttempt(jobId, 'owner', db);
-    await beginExportJobAttempt(jobId, 'owner', db);
-    await assert.rejects(beginExportJobAttempt(jobId, 'owner', db), /single recovery attempt/);
+    const job = memory.collection('export_jobs').values[0];
+    Object.assign(job, { status: 'pending', createdAt: new Date(), updatedAt: new Date() });
+    assert.ok(await claimExportJob(jobId, 'owner', 180, db));
+    job.workerLeaseUntil = new Date(0);
+    assert.ok(await claimExportJob(jobId, 'owner', 180, db));
+    job.workerLeaseUntil = new Date(0);
+    assert.equal(await claimExportJob(jobId, 'owner', 180, db), null);
     assert.equal(memory.collection('export_jobs').values[0].generationAttempts, 2);
 });
 

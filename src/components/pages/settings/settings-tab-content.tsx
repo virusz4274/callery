@@ -82,6 +82,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                                 exportJob={state.exportJob}
                                 isExportStarting={state.isExportStarting}
                                 onStartExport={state.handleStartExport}
+                                onRetryExport={state.handleRetryExport}
                             />
                         )}
 

@@ -4,12 +4,12 @@ Callery is a Next.js 16 App Router application for ingesting, organizing, transc
 
 ## Stack
 
-- Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3 beta
+- Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3
 - Auth: Better Auth + MongoDB for managed and self-hosted deployments, with shared client/server hooks
 - Database: MongoDB
-- Storage: Cloudflare R2
-- AI: Gemini
-- Transcription: Soniox and ElevenLabs
+- Storage: private S3-compatible storage, including Cloudflare R2, AWS S3, and MinIO
+- AI: Gemini or a compatible chat and embedding server
+- Transcription: Soniox, ElevenLabs, Gemini, or a compatible Whisper API server
 - Billing: Stripe subscriptions, one-time checkout, and metered usage
 - Notifications: MongoDB-backed in-app notifications plus optional browser push
 - Mobile: archived native wrapper; retained authenticated upload/sync APIs
@@ -51,30 +51,39 @@ graph TD
 
 ### Direct Uploads
 
-The primary media path is direct-to-R2:
+The primary media path is direct to the configured S3-compatible storage:
 
 1. The client asks for upload context and a signed `PUT` URL.
-2. The client uploads bytes directly to Cloudflare R2.
+2. The client uploads bytes directly to storage.
 3. The app verifies the object through `HeadObject` and checks the uploaded byte size.
 4. The app creates the recording document and updates storage usage.
-5. If auto-transcription is enabled, the app starts post-response transcription work with `after(...)`.
+5. If auto-transcription is enabled, the app queues persisted transcription work and wakes the dispatcher with `after(...)`.
 
 This keeps large files off the Next.js request body path and works for both web uploads and Android sync.
 
 ### Transcription
 
-The app supports two providers:
+Self-hosted deployments support four provider choices:
 
 - Soniox
 - ElevenLabs
+- Gemini
+- compatible Whisper API servers (`openai_compat`)
+
+Managed processing uses the approved Soniox, Gemini, and ElevenLabs models and
+weights described in [billing](billing.md).
 
 Important design points:
 
 - upload and transcription are separate steps
-- shorter manual and auto-transcription jobs can complete inline
-- recordings longer than `300 seconds` are handed off asynchronously through provider callbacks
-- webhook processing is idempotent through `transcription_webhook_events`
+- manual, automatic, and approved batch requests enter a persisted MongoDB queue
+- one recording pipeline runs at a time across the instance, including work awaiting cloud callbacks
+- Soniox and ElevenLabs recordings longer than `300 seconds` use provider callbacks; shorter jobs and the other providers run within the claimed dispatcher attempt
+- webhook processing is idempotent through `transcription_webhook_events`, and attempt identities fence stale responses
 - weighted transcription usage is reported only once per processing run
+- ingestion cron recovers interrupted work; uncertain provider outcomes require explicit review before retry
+
+See [transcription batches](transcription-batches.md) for pause, retry, and enrichment recovery behavior.
 
 ### Search And Retrieval
 
@@ -83,7 +92,7 @@ The archive supports:
 - standard listing and filtering
 - contact-linked browsing
 - transcript and summary review
-- semantic search backed by Gemini-generated embeddings
+- semantic search backed by embeddings from the configured text AI provider
 
 Embeddings live on the recording document. Atlas vector search support depends on the database indexes and deployment configuration, but the app also exposes fallback mode information in the search action response.
 
@@ -91,10 +100,12 @@ Embeddings live on the recording document. Atlas vector search support depends o
 
 Exports are modeled as background jobs:
 
-- `startExport()` creates an `export_jobs` record
-- development can process inline with `after(...)`
+- `startExport()` reuses an eligible cached archive or creates an `export_jobs` record, with at most one fresh archive per account per 24 hours
+- development wakes processing with `after(...)`
 - production should use `GET /api/cron/process-exports`
-- generated parts are stored in R2 and exposed as signed downloads
+- an atomic worker lease and heartbeat prevent competing workers from publishing checkpoints
+- `retryExport()` can resume an eligible failed job within its two-generation-attempt limit, after verifying its source revision and saved parts
+- generated parts stay in private S3-compatible storage for seven days after completion, with renewable 15-minute download URLs
 
 Each archive part contains audio, JSON metadata, transcript text files, `README.txt`, and `viewer.html`.
 
@@ -102,9 +113,10 @@ Each archive part contains audio, JSON metadata, transcript text files, `README.
 
 Not all background work is cron-managed:
 
-- auto-transcription starts with Next.js `after(...)` after upload finalization
+- transcription is persisted before Next.js `after(...)` wakes the dispatcher; ingestion cron provides recovery
 - support email delivery also uses `after(...)` after the support request is accepted
-- exports remain the only job model that waits for scheduled cron pickup in production
+- production export generation waits for scheduled cron pickup; failed jobs require an explicit eligible retry
+- billing delivery and reconciliation also retain persisted state and scheduled recovery
 
 ### Future mobile clients
 
@@ -127,7 +139,7 @@ src/
     stripe/             Customer, sync, and usage reporting logic
     sync-store/         Android sync persistence helpers
   services/
-    ai/                 Gemini integration
+    ai/                 Gemini and compatible text AI integration
     google/             Google Contacts sync and OAuth helpers
     transcription/      Provider abstraction and adapters
 docs/                   Maintained docs

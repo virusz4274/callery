@@ -172,8 +172,9 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
                 jobId: job._id.toString(), authSubject: 'local', totalRecordings: 2, processedRecordings: 1,
                 cursor: { recordedAt: first.recordedAt, id: first._id.toString() }, nextPartNumber: 2,
                 parts: [{ key: 'export/part-001.zip', size: 1024 }],
+                workerToken: claimed.workerToken,
             });
-            await db.collection(Collections.EXPORT_JOBS).updateOne({ _id: job._id }, { $set: { updatedAt: new Date(0) } });
+            await db.collection(Collections.EXPORT_JOBS).updateOne({ _id: job._id }, { $set: { updatedAt: new Date(0), workerLeaseUntil: new Date(0) } });
             const resumed = await claimNextExportJob();
             assert.ok(resumed);
             assert.equal(resumed.checkpoint.nextPartNumber, 2);

@@ -12,7 +12,7 @@ The 2026-10-18 package update uses vinext 1.2.1, its Cloudflare adapter 1.1.1, V
 
 `cloudflare.config.ts` defines the Worker and `nodejs_compat`. Its runtime secret slots are currently commented examples: declare the required `bindings.secret()` entries (including MongoDB and Better Auth) and supply their values through the provider's secret store before deployment. Node's deployment `.env` is not automatically the Worker's environment. Match the configured email provider to its required bindings. Public settings must match the chosen auth/billing profile at build time, including the saved public HTTPS origin. Workers still need reachable MongoDB and S3-compatible storage.
 
-`vite.config.ts` strips Next's standalone setting and prebundles storage SDKs in development. Its brand-image plugin embeds the existing PNG as a data URL during the Vite build: static assets do not appear under `/bundle/public`, so the Node module's eager filesystem read previously prevented dynamic Worker routes from starting. The Next.js image module remains unchanged. The tr46 patch and punycode aliases are retained for URL-parser compatibility.
+`vite.config.ts` strips Next's standalone setting and prebundles storage SDKs in development. Its brand-image plugin embeds the existing PNG as a data URL during the Vite build: static assets do not appear under `/bundle/public`, so the Node module's eager filesystem read previously prevented dynamic Worker routes from starting. The Next.js image module remains unchanged. The current bundler handles the MongoDB URL parser without local tr46 patches or punycode aliases; isolated dev checks cover the actual dependency graph and Unicode domain conversion. Keep the storage SDK prebundling and brand-image embedding, which address separate runtime requirements.
 
 ## Local verification
 
@@ -22,6 +22,8 @@ Verification used an isolated source/dependency installation without deployment 
 - With fixture bindings, database health returns 200, the anonymous profile API returns 401, session lookup returns `null`, and invalid email/password sign-in returns 401.
 - Signup and public system-settings requests are canceled by workerd as hung. The cause needs investigation before authenticated Workers use can be claimed.
 - `vinext check` reports 86% compatibility. Three flagged Next internal imports belong only to the Node test harness. The remaining unsupported option is `experimental.proxyClientMaxBodySize`. The image optimizer is already configured; Sentry's webpack build features are not supported.
+
+The 2026-11-01 cleanup additionally verified a fresh, unpatched dependency installation and a full production build. Its local production preview returned 200 for login, all retained branding/icon assets, the manifest, both social images and auth capabilities. The intentionally unavailable loopback MongoDB returned health 503 after the driver loaded correctly; profile initialization requires that database and was not certified. The fixture used only generated test bindings, and its preview process was stopped afterward. These checks support retiring the tr46 workaround, while the authenticated-runtime limitations above remain open.
 
 ## Configuration and lifecycle verification
 
@@ -55,4 +57,4 @@ the existing MongoDB job state and recovery schedules remain necessary.
 
 vinext may write types under `.next`. `pnpm typecheck` regenerates Next's route types before TypeScript so the builds do not leave conflicting declarations.
 
-Workers deployment remains opt-in until authenticated requests, email, production-size exports, scheduled recovery and PWA parity pass their own acceptance tests. Preserve the compatibility patches until isolated checks show they are unnecessary. Use the [Node setup guide](setup-guide.md) for the currently supported launch and [reconciliation record](branch-reconciliation.md) for preserved inputs and verification boundaries.
+Workers deployment remains opt-in until authenticated requests, email, production-size exports, scheduled recovery and PWA parity pass their own acceptance tests. Preserve the remaining storage SDK and asset compatibility configuration until isolated checks show it is unnecessary. Use the [Node setup guide](setup-guide.md) for the currently supported launch and [reconciliation record](branch-reconciliation.md) for preserved inputs and verification boundaries.

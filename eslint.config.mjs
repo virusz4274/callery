@@ -21,6 +21,7 @@ const config = [
             "dist/",
             "test-results/",
             "playwright-report/",
+            "video/",
             "node_modules/"
         ],
     },

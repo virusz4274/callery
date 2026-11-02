@@ -10,6 +10,8 @@ import { assertFreshExportWindow, exportBudgetFields, getExportSourceSnapshot, i
 import { ARCHIVE_TTL_MS } from '@/lib/export-processor/constants';
 import { refreshExportDownloadLinks } from '@/lib/export-processor/downloads';
 import { confirmExportJobAdmission } from '@/lib/export-processor/object-lifecycle';
+import { assertQueuedExportRetryIdentity, ExportRetryUnavailableError, getExportRetryAvailability, requeueFailedExport } from '@/lib/export-processor/failed-retry';
+import { getMongoDb } from '@/lib/mongodb';
 
 export async function startExport(targetUserId?: string) {
     const actorSubject = await getAuthSubjectFromSession();
@@ -74,8 +76,41 @@ export async function getExportStatus(targetUserId?: string) {
     const authSubject = actorSubject ? await resolveExportSubject(actorSubject, targetUserId) : null;
     if (!authSubject) return null;
 
-    const job = await getLatestExportJob(authSubject);
+    const db = await getMongoDb();
+    const recoveryId = await getRecoveryExport(authSubject, db);
+    const job = recoveryId ? await getExportJob(recoveryId, authSubject, db) : await getLatestExportJob(authSubject, db);
     if (!job) return null;
 
-    return toExportJobResponse(await refreshExportDownloadLinks(job));
+    const current = await refreshExportDownloadLinks(job);
+    const response = toExportJobResponse(current);
+    if (current.status !== 'failed') return response;
+    try { return { ...response, ...await getExportRetryAvailability(current, db) }; }
+    catch { return { ...response, retryAvailable: false, retryUnavailableReason: 'Retry availability could not be checked. Refresh the export status and try again.' }; }
+}
+
+export async function retryExport(jobId: string, targetUserId?: string) {
+    const actorSubject = await getAuthSubjectFromSession();
+    const authSubject = actorSubject ? await resolveExportSubject(actorSubject, targetUserId) : null;
+    if (!authSubject) throw new Error('Unauthorized');
+    if (typeof jobId !== 'string' || !ObjectId.isValid(jobId)) return { success: false as const, message: 'Export job not found.' };
+
+    try {
+        return await withExportRequestLease(authSubject, async (db, assertOwned) => {
+            const job = await getExportJob(jobId, authSubject, db);
+            if (!job) return { success: false as const, message: 'Export job not found.' };
+            if (['pending', 'processing'].includes(job.status)) {
+                await assertQueuedExportRetryIdentity(job, db);
+                return { success: true as const, jobId, cached: true };
+            }
+            await requeueFailedExport(job, actorSubject!, db, assertOwned);
+            await confirmExportJobAdmission(job, db);
+            if (process.env.NODE_ENV === 'development') {
+                after(async () => { await processExport(jobId, authSubject); });
+            }
+            return { success: true as const, jobId };
+        });
+    } catch (error) {
+        return { success: false as const, message: error instanceof ExportRetryUnavailableError
+            ? error.message : 'The export retry could not be prepared. Refresh its status and try again.' };
+    }
 }

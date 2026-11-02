@@ -20,6 +20,16 @@ import { TeamInvitationsPanel } from '../../src/components/admin/team-invitation
 import { CompanyRecordings } from '../../src/components/admin/company-recordings';
 import { companyRecording, teamAdministration, teamSettings } from './team-data';
 import { BillingSettings } from '../../src/components/settings/billing-settings';
+import { ExportDataCard } from '../../src/components/settings/data-settings/ExportDataCard';
+import { useExportJob } from '../../src/hooks/settings/use-export-job';
+import { useToast } from '../../src/components/toast-provider';
+
+function PersonalExportFixture() {
+    const { toast } = useToast();
+    const state = useExportJob(toast);
+    return <ExportDataCard exportJob={state.exportJob} isExportStarting={state.isExportStarting}
+        onStartExport={state.handleStartExport} onRetryExport={state.handleRetryExport} />;
+}
 
 function AdminFixture() {
     const pathname = usePathname();
@@ -31,6 +41,7 @@ function AdminFixture() {
     const page = Number(params.get('page') || 1);
     let content: React.ReactNode;
     if (pathname === '/admin') content = <AdminDashboard stats={{ totalUsers: 25, totalRecordings: 42, totalStorageUsed: 1024 ** 3, totalTranscriptionUsed: 3600 }} orphanedCount={2} />;
+    else if (pathname === '/admin/export-personal-fixture') content = <AdminPageShell eyebrow="" title="Export"><PersonalExportFixture /></AdminPageShell>;
     else if (pathname.startsWith('/admin/users/')) content = <UserDetailsPage user={adminUsers.find(user => pathname.endsWith(user.id)) || adminProfile} recordings={[]} invoices={[]} />;
     else if (pathname === '/admin/users') content = <AdminPageShell eyebrow="" title={team ? 'Employees' : 'User management'}>{team && <TeamInvitationsPanel data={teamAdministration} />}<UserManagementTable teamMode={team} initialUsers={empty ? [] : users.slice((page - 1) * 10, page * 10)} totalUsers={empty ? 0 : users.length} currentPage={page} totalPages={Math.ceil(users.length / 10)} initialSearch={search} plans={adminPlans} /></AdminPageShell>;
     else if (pathname === '/admin/recordings') content = <AdminPageShell eyebrow="" title="Company recordings"><CompanyRecordings key={JSON.stringify([params.get('employeeId'), search, params.get('startDate'), params.get('endDate'), page])} administration={teamAdministration} data={{ recordings: [companyRecording], total: 26, page, totalPages: 2 }} /></AdminPageShell>;

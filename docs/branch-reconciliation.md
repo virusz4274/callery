@@ -1,6 +1,8 @@
-# Branch reconciliation — 2026-10-05
+# Historical branch reconciliation — 2026-10-05
 
-This integration combines committed `main`, `new-works`, and the uncommitted work on `main`. Code and behavior were compared directly; commit messages and earlier automated audit claims were not treated as proof.
+This archived record describes the October 5 integration, not current setup or runtime behavior. Later billing, processing and deployment changes supersede its implementation and verification notes. Use the [setup guide](setup-guide.md), [billing guide](billing.md) and [Workers readiness checklist](cloudflare-workers.md) for current instructions.
+
+The integration combined committed `main`, `new-works`, and the uncommitted work on `main`. Code and behavior were compared directly; commit messages and earlier automated audit claims were not treated as proof.
 
 ## Preserved inputs
 
@@ -52,8 +54,6 @@ The Cloudflare bundle builds, but deployment/runtime compatibility and PWA parit
 
 Synchronous transcription uses Next.js `after(...)`; a process restart during an active job needs operational recovery. This integration does not introduce a durable transcription worker. Exports and billing delivery have persisted retry state.
 
-## Continue safely
+## Historical recovery references
 
-Continue in the integration worktree on `codex/reconcile-branches`. Keep the original dirty `main` until the result is accepted. Do not reapply its dirty patch: it is already included.
-
-Use `git show <backup-branch>:<path>` to recover an individual removed file, or create a separate worktree from the saved `new-works` branch to revisit Android. The Git bundle restores all three inputs independently of this repository.
+The branch names and machine-specific paths above document the recovery artifacts created at the time; their availability on another checkout is not guaranteed. If those artifacts are available, `git show <backup-branch>:<path>` can recover an individual historical file, and the saved Git bundle can restore the original inputs independently of this repository. These references do not require changing the current branch, checkout or deployment.

@@ -163,14 +163,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  gaxios@6>uuid: ^11.1.1
   fflate@<0.7.5: ^0.7.5
   source-map-js@<1.2.2: ^1.2.2
-  '@grpc/grpc-js@<1.13.6': ^1.14.5
-
-patchedDependencies:
-  braces@3.0.3: 7b56affd8fc0f3073d9b70af2dc7442b868eefd7c7cadc7afc03915d585aee9a
-  tr46@5.1.1: b8a6dbcf96f3ba8f293517612bf2b2b011cf98ba093808adc2a5898434b58c49
 
 importers:
 
@@ -369,9 +363,6 @@ importers:
       eslint-config-next:
         specifier: ^16.4.2
         version: 16.4.2(@typescript-eslint/parser@8.71.2(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2))(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)
-      punycode:
-        specifier: 2.3.1
-        version: 2.3.1
       serwist:
         specifier: ^9.5.13
         version: 9.5.13(@typescript/typescript6@6.0.2)(browserslist@4.29.3)
@@ -7711,7 +7702,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3(patch_hash=7b56affd8fc0f3073d9b70af2dc7442b868eefd7c7cadc7afc03915d585aee9a):
+  braces@3.0.3:
     dependencies:
       fill-range: 7.1.1
 
@@ -9023,7 +9014,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3(patch_hash=7b56affd8fc0f3073d9b70af2dc7442b868eefd7c7cadc7afc03915d585aee9a)
+      braces: 3.0.3
       picomatch: 2.3.2
 
   mime-db@1.54.0: {}
@@ -9957,7 +9948,7 @@ snapshots:
       '@tokenizer/token': 0.3.0
       ieee754: 1.2.1
 
-  tr46@5.1.1(patch_hash=b8a6dbcf96f3ba8f293517612bf2b2b011cf98ba093808adc2a5898434b58c49):
+  tr46@5.1.1:
     dependencies:
       punycode: 2.3.1
 
@@ -10265,7 +10256,7 @@ snapshots:
 
   whatwg-url@14.2.0:
     dependencies:
-      tr46: 5.1.1(patch_hash=b8a6dbcf96f3ba8f293517612bf2b2b011cf98ba093808adc2a5898434b58c49)
+      tr46: 5.1.1
       webidl-conversions: 7.0.0
 
   which-boxed-primitive@1.1.1:

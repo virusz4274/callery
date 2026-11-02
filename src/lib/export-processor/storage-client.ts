@@ -7,7 +7,9 @@ export function getExportStorageClient(): S3Client {
     if (!exportClient) {
         const config = getStorageClient().config;
         exportClient = new S3Client({ region: config.region, endpoint: config.endpoint, forcePathStyle: config.forcePathStyle,
-            credentials: config.credentials, requestHandler: config.requestHandler, maxAttempts: 1 });
+            credentials: config.credentials, requestHandler: config.requestHandler, maxAttempts: 1,
+            // Optional streamed checksum trailers add Transfer-Encoding, which native fetch rejects.
+            requestChecksumCalculation: 'WHEN_REQUIRED' });
     }
     return exportClient;
 }

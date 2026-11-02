@@ -91,6 +91,7 @@ Main actions:
 - `getStatsAction`
 - `startExport`
 - `getExportStatus`
+- `retryExport`
 - `fetchNotifications`
 - `readNotification`
 - `readAllNotifications`
@@ -98,6 +99,15 @@ Main actions:
 - `sendTestNotification`
 - `getPublishedPlans`
 - `getUpgradeablePlans`
+
+`startExport(targetUserId?)` and `getExportStatus(targetUserId?)` default to the
+current account. The optional employee target requires company archive access.
+`retryExport(jobId, targetUserId?)` resumes the same eligible failed archive;
+it preserves the original fresh-export window and permits at most two generation
+attempts in total. Status responses include `retryAvailable` and, when retry is
+unavailable, `retryUnavailableReason`. Retry rechecks access, the source revision,
+archive expiry, and saved parts before queuing work. A failed job is not retried
+automatically by cron. See [exports](user-guide.md#exports).
 
 ## Admin Actions
 
@@ -210,7 +220,7 @@ Security:
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
-| `GET` | `/api/cron/process-exports` | processes pending export jobs |
+| `GET` | `/api/cron/process-exports` | claims pending or stale export workers and cleans up expired archives |
 | `GET` | `/api/cron/cleanup-recordings` | enforces cleanup and retention rules |
 
 All cron routes require:

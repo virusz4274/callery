@@ -26,11 +26,14 @@ The dashboard is the operational overview for the platform. It currently surface
 - total recordings
 - total storage used
 - total transcription used
-- health status for MongoDB, R2, Gemini, Soniox, and ElevenLabs
+- live health for MongoDB and S3 storage, plus configuration status for the selected text AI and available transcription providers
 - open external service incidents
 - orphaned recording cleanup
 
-The health checks are code-backed, not static status text. MongoDB is pinged directly and Gemini performs a real embedding call. R2 currently checks whether the bucket configuration is present, while Soniox and ElevenLabs currently report configured-vs-missing API keys rather than making paid health probes.
+Health checks ping MongoDB and check the configured S3 bucket with `HeadBucket`.
+Text AI and transcription services report available configuration without making
+paid provider calls. Use the provider dashboards to investigate live quota or
+request failures.
 
 ## User Management
 
@@ -182,20 +185,25 @@ Admins can:
 - clear all open external service incidents
 - send an SMTP test email from the admin surface
 
-## Useful Scripts
+## Command-Line Checks
 
-Current helper scripts in the repo:
+Inspect initialization state without changing the database:
 
 ```bash
 pnpm db:init --dry-run
-pnpm db:init
 pnpm audit:prod
-pnpm exec tsx scripts/check-db.ts
-pnpm exec tsx scripts/check-user-stripe.ts
-pnpm exec tsx scripts/debug-contacts.ts
-pnpm exec tsx scripts/debug-transcripts.ts
-pnpm exec tsx scripts/test-recording.ts
 ```
+
+The dry-run reports missing installation templates and indexes, structural
+conflicts, and local billing catalog configuration. Run `pnpm db:init` only when
+you intend to add missing installation data. `pnpm audit:prod` checks production
+dependencies against the package registry; it does not inspect application data.
+
+Use `/admin` for service health, `/admin/audit` for administrative changes, and
+`/admin/users/[id]` for a specific account's plan, usage, and recording context.
+The old ad-hoc scripts that dumped customer content or inserted fabricated
+recordings have been retired. Development fixture tests use isolated databases
+and storage; see the [setup guide](setup-guide.md).
 
 ## Recommended Admin Runbook
 

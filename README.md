@@ -2,6 +2,8 @@
 
 A web application for managing, transcribing, and organizing phone call recordings.
 
+[Watch the Callery product video (3:48)](docs/assets/callery-product-video.mp4)
+
 **Self-host Callery for free under [AGPL-3.0](LICENSE), or use the paid managed service.** Self-hosters operate their own database, private S3-compatible storage, email and processing providers. Managed users get individual accounts with hosting and setup handled for them. Company archives and employee invitations are self-host features; the managed launch does not offer organizations or seat billing. Managed Lifetime is retained access with the documented processing/usage limits, not unlimited provider services; see [billing](docs/billing.md).
 
 This is beta software. The supported first release is built from source with native Node or Docker Compose. There is no universal prebuilt application image: public settings, including the deployment origin and billing mode, must be chosen before building. Read [release verification and limitations](docs/releases.md), [contributing](CONTRIBUTING.md), and [security reporting](SECURITY.md) before a public deployment.
@@ -12,8 +14,8 @@ This is beta software. The supported first release is built from source with nat
 *   [**Small Team Setup and Recovery**](docs/small-team-setup.md): Invitations, company archives, retained employee access and deployment backups.
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
-*   [**Branch Reconciliation**](docs/branch-reconciliation.md): Preserved snapshots, confirmed decisions, and verification.
-*   [**Dependency Review**](docs/dependency-review.md): Current packages, security patches and upgrade validation.
+*   [**Historical Branch Reconciliation**](docs/branch-reconciliation.md): Archived integration evidence, superseded by the current guides.
+*   [**Dependency Review**](docs/dependency-review.md): Current packages, security decisions and upgrade validation.
 *   [**API Reference**](docs/api-reference.md): API endpoints documentation.
 *   [**Billing & Subscriptions**](docs/billing.md): Upfront plans, prepaid usage, provider weights and Stripe integration; no runtime profit targets or provider-expense budgets.
 *   [**Cron Jobs**](docs/cron-jobs.md): Exports, retention, digests, and billing retries.
@@ -61,7 +63,7 @@ the browser bundle, so changing billing or other public settings requires
 | Auth | Better Auth + MongoDB (email/password and optional Google) | Same |
 | Billing | Off (`NEXT_PUBLIC_ENABLE_BILLING=false`) | On (Stripe) |
 | Email (`EMAIL_PROVIDER`) | `smtp` / `resend` (`none` for private testing) | `smtp` / `resend` |
-| Transcription | Soniox / ElevenLabs / Gemini or a compatible local server | Same, metered with multipliers |
+| Transcription | Soniox / ElevenLabs / Gemini or a compatible local server | Approved Soniox / Gemini / ElevenLabs models, metered at 1× / 3× / 5× |
 | Storage | Any S3-compatible (MinIO, R2, AWS) | Same |
 | Database | Your MongoDB (compose includes one) | Same |
 

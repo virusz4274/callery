@@ -37,6 +37,7 @@ interface DataSettingsProps {
     exportJob: ExportJobResponse | null;
     isExportStarting: boolean;
     onStartExport: () => void;
+    onRetryExport: () => void;
 }
 
 export function DataSettings({
@@ -56,6 +57,7 @@ export function DataSettings({
     exportJob,
     isExportStarting,
     onStartExport,
+    onRetryExport,
 }: DataSettingsProps) {
     const team = useTeamPolicy();
 
@@ -130,6 +132,7 @@ export function DataSettings({
                         exportJob={exportJob}
                         isExportStarting={isExportStarting}
                         onStartExport={onStartExport}
+                        onRetryExport={onRetryExport}
                     />
                 </SettingsSection>
                 )}

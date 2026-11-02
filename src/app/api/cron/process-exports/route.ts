@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 import { cleanupExpiredExports } from '@/lib/export-processor/cleanup';
+import { toExportFailure } from '@/lib/export-processor/errors';
 
 export const maxDuration = 300;
 
@@ -36,8 +37,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        logger.info(`[process-exports] Processing job ${job._id.toString()} for ${job.authSubject}`);
-        await processExport(job._id.toString(), job.authSubject);
+        logger.info('[process-exports] Processing claimed archive');
+        await processExport(job._id.toString(), job.authSubject, job.workerToken);
         const refreshed = await getExportJob(job._id.toString(), job.authSubject);
 
         return NextResponse.json({
@@ -49,11 +50,11 @@ export async function GET(request: NextRequest) {
             cleanup,
         });
     } catch (error) {
-        logger.error('[process-exports] Failed to process export queue:', error);
+        logger.error('[process-exports] Failed to process export queue', toExportFailure(error));
         return NextResponse.json(
             {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: 'The export queue could not be processed.',
             },
             { status: 500 }
         );

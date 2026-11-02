@@ -2,10 +2,8 @@ import { defineConfig, normalizePath } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
-import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
 import nextConfig from "./next.config";
 
 // next.config.ts sets `output: "standalone"` for the Docker/Node deployment.
@@ -17,27 +15,10 @@ import nextConfig from "./next.config";
 const { output: _output, ...vinextNextConfig } = nextConfig as Record<string, unknown>;
 void _output;
 
-// The MongoDB driver's `require("punycode/")` (via tr46) is handled by
-// patches/tr46@5.1.1.patch. This alias additionally redirects any other bare
-// `punycode` require to the same
-// package's ESM build, which bundles cleanly in dev and production.
-// NOTE: exact-string aliases, not a regex — the dev runner receives a
-// serialized config where regex `find` patterns do not survive.
-const require = createRequire(import.meta.url);
-const punycodeEsm = path.join(
-  path.dirname(require.resolve("punycode/package.json")),
-  "punycode.es6.js",
-);
 const brandImageModule = normalizePath(fileURLToPath(new URL("./src/lib/brand-image.ts", import.meta.url)));
 const brandLogoPath = fileURLToPath(new URL("./public/brand/callery-logo.png", import.meta.url));
 
 export default defineConfig({
-  resolve: {
-    alias: [
-      { find: "punycode/", replacement: punycodeEsm },
-      { find: "punycode", replacement: punycodeEsm },
-    ],
-  },
   environments: {
     // The AWS SDK's large ESM graph hangs the workerd dev runner when loaded
     // module-by-module; prebundle it (dev only, production builds bundle it).

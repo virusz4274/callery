@@ -73,10 +73,11 @@ test('small team admission, archive permissions, removal, processing and recover
         const { startExport, getExportStatus } = await import('@/app/actions/export');
         const { GET: playback } = await import('@/app/api/recordings/[id]/play/route');
         const { getStorageClient } = await import('./r2');
+        const { getExportStorageClient } = await import('./export-processor/storage-client');
         const { initializeDirectUploadForUser, completeDirectUploadForUser } = await import('./direct-upload-service');
         const { startManualTranscription } = await import('./transcription/manual');
         const { startAutoTranscriptionForRecording } = await import('@/app/actions/upload/transcription');
-        t.mock.method(getStorageClient(), 'send', async (command: { constructor: { name: string }; input: { Key: string; CopySource?: string; Body?: AsyncIterable<Uint8Array> } }) => {
+        const sendStorageFixture = async (command: { constructor: { name: string }; input: { Key: string; CopySource?: string; Body?: AsyncIterable<Uint8Array> } }) => {
             const { Key, Body } = command.input;
             if (command.constructor.name === 'PutObjectCommand') {
                 const chunks: Buffer[] = []; for await (const chunk of Body!) chunks.push(Buffer.from(chunk));
@@ -91,7 +92,9 @@ test('small team admission, archive permissions, removal, processing and recover
             const bytes = objects.get(Key);
             if (!bytes) throw Object.assign(new Error('Fixture object not found'), { name: 'NotFound', $metadata: { httpStatusCode: 404 } });
             return { ContentLength: bytes.length, ContentType: 'audio/wav', Body: Readable.from([bytes], { objectMode: false }) };
-        });
+        };
+        t.mock.method(getStorageClient(), 'send', sendStorageFixture);
+        t.mock.method(getExportStorageClient(), 'send', sendStorageFixture);
         const team = { ...(await getTeamSettings()), enabled: true, companyName: 'Pilot Company' };
         await t.test('activation validates prerequisites, pending cleanup and one-way setup', async () => {
             process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true';

@@ -24,7 +24,7 @@ Delete recordings separately, with the recording deletion confirmation. The admi
 
 Transcription is off, manual on request, or automatic after upload, using one company provider/model. Leaving the model blank uses the provider’s deployment configuration. Members cannot override retention or processing through their settings or direct requests. Transcription failures do not prevent the original audio backup. Provider processing already underway may finish after a policy change.
 
-Storage usage includes former employees and has no team quotas. Administrators exporting a former employee receive the export notification themselves. Export links last seven days; playback links last five minutes. A storage URL already issued remains valid until its expiry even after access is removed. Keep the audio bucket private; a publicly readable bucket would bypass application permissions.
+Storage usage includes former employees and has no team quotas. Administrators exporting a former employee receive the export notification themselves. Completed export archives are retained for seven days; download URLs last 15 minutes and can be refreshed from the export panel. Playback links last five minutes. A storage URL already issued remains valid until its expiry even after access is removed. Keep the audio bucket private; a publicly readable bucket would bypass application permissions.
 
 ## Back up the complete deployment
 

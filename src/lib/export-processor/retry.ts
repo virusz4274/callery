@@ -1,12 +1,13 @@
 import { MAX_RETRIES, RETRY_BASE_MS } from './constants';
 import { logger } from '@/lib/logger';
+import { toExportFailure, type ExportFailureStage } from './errors';
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function withRetry<T>(
-    label: string,
+    stage: ExportFailureStage,
     fn: () => Promise<T>,
     maxAttempts = MAX_RETRIES
 ): Promise<T> {
@@ -22,12 +23,12 @@ export async function withRetry<T>(
             }
 
             const delayMs = RETRY_BASE_MS * Math.pow(2, attempt - 1);
-            logger.warn(`[Export] ${label} failed (attempt ${attempt}/${maxAttempts}), retrying in ${delayMs}ms`);
+            logger.warn('[Export] Storage operation failed; retrying', { ...toExportFailure(error, stage), attempt, maxAttempts, delayMs });
             await sleep(delayMs);
         }
     }
 
-    throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
+    throw lastError instanceof Error ? lastError : new Error('Export storage operation failed', { cause: lastError });
 }
 
 export function isNotFoundError(error: unknown): boolean {

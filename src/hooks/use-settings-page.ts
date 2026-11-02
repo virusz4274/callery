@@ -77,7 +77,7 @@ export function useSettingsPage() {
         onDialogConfirm,
     } = useGoogleSync({ googleSync: userProfile?.googleSync, refetchProfile: refetchUserProfile, searchParams, router, toast });
 
-    const { exportJob, isExportStarting, handleStartExport } = useExportJob(toast);
+    const { exportJob, isExportStarting, handleStartExport, handleRetryExport } = useExportJob(toast);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
@@ -204,5 +204,6 @@ export function useSettingsPage() {
         exportJob,
         isExportStarting,
         handleStartExport,
+        handleRetryExport,
     };
 }

@@ -118,6 +118,14 @@ export interface ExportJob {
     cleanupPending?: boolean;
     abortedAt?: Date;
     generationAttempts?: number;
+    /** The current worker alone may publish checkpoints and terminal outcomes. */
+    workerToken?: string;
+    workerLeaseUntil?: Date;
+    failure?: import('@/lib/export-processor/errors').ExportFailure & {
+        occurredAt: Date;
+        generationAttempt?: number;
+        partNumber?: number;
+    };
     exportAdmissionVersion?: 2;
     exportAccessSource?: 'customer' | 'operator' | 'trial' | 'grant' | 'internal' | 'recovery';
     recoveryClaimId?: string;
@@ -255,6 +263,8 @@ export interface ExportJobResponse {
         expiresAt: string;
     }[];
     error?: string;
+    retryAvailable?: boolean;
+    retryUnavailableReason?: string;
     createdAt: string;
     completedAt?: string;
 }

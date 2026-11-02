@@ -31,8 +31,8 @@ The primary upload flow lives on `/upload`.
 What happens during upload:
 
 1. The app validates the file name, MIME type, and size.
-2. The browser requests a signed R2 upload URL.
-3. File bytes go directly to Cloudflare R2.
+2. The browser requests a signed upload URL.
+3. File bytes go directly to the instance's S3-compatible storage.
 4. The app finalizes the upload, verifies the object and size, creates the recording, and optionally starts auto-transcription after the response.
 
 If the filename contains a recognizable contact name, phone number, or timestamp, the uploader uses that to pre-fill the recording context and storage key.
@@ -118,6 +118,7 @@ The current settings tabs are:
 - `General`: timezone and general workspace preferences
 - `Sources`: Google Contacts connection state
 - `Processing`: auto-transcription, default provider, and model settings
+- `Integrations`: named API tokens and upload/sync client access
 - `Retention`: usage review and automatic deletion policy
 - `Export`: archive export jobs and downloads
 - `Notifications`: digest and ingest preferences
@@ -136,13 +137,17 @@ Exports are designed to stay useful outside the app.
 
 Each export job packages:
 
-- zipped archive parts stored in R2
+- zipped archive parts stored in the instance's private S3-compatible storage
 - recordings grouped by contact and date
 - JSON metadata
 - transcript text files
 - a `viewer.html` file for offline browsing
 
 Only one pending or processing export job is allowed per user at a time.
+
+One fresh full archive is available per 24 hours. If a storage transfer fails, **Retry export** resumes the same job once without starting a new quota window. Saved archive parts are reused only after verification. Retry is unavailable if the recordings changed, the archive expired, access was removed, or both generation attempts were used; the export panel explains the reason. Individual recording downloads remain available.
+
+Archive parts are retained for seven days after completion. Download links last 15 minutes; reopen the export panel for fresh links.
 
 ## Notifications
 

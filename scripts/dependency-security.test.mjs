@@ -6,7 +6,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import test from 'node:test';
 import { ZipArchive } from 'archiver';
-import { BRACES_ADVISORY, isVerifiedLocalFix, resolvePackageChain } from './dependency-patch.mjs';
+import { resolvePackageChain } from './dependency-resolution.mjs';
 import { prepareWindowsStandalone } from './prepare-standalone.mjs';
 
 const chains = [
@@ -18,23 +18,6 @@ const require = createRequire(import.meta.url);
 
 for (const directory of directories) {
     const braces = require(path.join(directory, 'index.js'));
-    test(`braces rejects excessive string and AST nesting (${path.basename(path.dirname(path.dirname(directory)))})`, () => {
-        const tooDeep = '{'.repeat(4_000) + 'a,b' + '}'.repeat(4_000);
-        const tooDeepParens = '('.repeat(4_000) + 'a' + ')'.repeat(4_000);
-        for (const method of ['parse', 'compile', 'expand', 'stringify']) {
-            for (const pattern of [tooDeep, tooDeepParens]) {
-                assert.throws(() => braces[method](pattern), { name: 'SyntaxError', message: /max depth/ });
-            }
-        }
-        let ast = { type: 'text', value: 'a' };
-        for (let n = 0; n < 4_000; n++) ast = { type: 'root', nodes: [ast] };
-        const cyclic = { type: 'root', nodes: [] };
-        cyclic.nodes.push(cyclic);
-        for (const method of ['compile', 'expand', 'stringify']) {
-            assert.throws(() => braces[method](ast), { name: 'SyntaxError', message: /max depth/ });
-            assert.throws(() => braces[method](cyclic), { name: 'SyntaxError', message: /max depth/ });
-        }
-    });
     test('braces preserves ordinary expansion, balanced nesting, escaped and quoted literals', () => {
         assert.deepEqual(braces.expand('src/{app,lib}/{a,b}.ts'), [
             'src/app/a.ts', 'src/app/b.ts', 'src/lib/a.ts', 'src/lib/b.ts',
@@ -46,17 +29,6 @@ for (const directory of directories) {
         assert.doesNotThrow(() => braces.compile('"' + '{'.repeat(3_500) + 'a' + '}'.repeat(3_500) + '"'));
     });
 }
-
-test('audit recognizes only the exact advisory and verifies every installed dependency path', () => {
-    const advisory = {
-        github_advisory_id: BRACES_ADVISORY, module_name: 'braces',
-        findings: [{ version: '3.0.3', paths: chains.map(chain => '.>' + chain.join('>')) }],
-    };
-    assert.equal(isVerifiedLocalFix(advisory), true);
-    assert.equal(isVerifiedLocalFix({ ...advisory, github_advisory_id: 'GHSA-another-advisory' }), false);
-    assert.throws(() => isVerifiedLocalFix({ ...advisory, findings: [{ version: '3.0.2', paths: advisory.findings[0].paths }] }));
-    assert.throws(() => isVerifiedLocalFix({ ...advisory, findings: [] }));
-});
 
 test('Archiver 8 produces a readable ZIP with streamed audio, Unicode paths and transcript files', async () => {
     const fflateDirectory = resolvePackageChain(['vinext', '@vercel/og', 'satori', 'fflate']);

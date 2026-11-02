@@ -4,15 +4,10 @@ allowBuilds:
   protobufjs: true
   unrs-resolver: true
   workerd: true
-patchedDependencies:
-  braces@3.0.3: patches/braces@3.0.3.patch
-  tr46@5.1.1: patches/tr46@5.1.1.patch
 overrides:
   # Security backports for SDKs which still pin older transitive versions.
-  'gaxios@6>uuid': ^11.1.1
   'fflate@<0.7.5': ^0.7.5
   'source-map-js@<1.2.2': ^1.2.2
-  '@grpc/grpc-js@<1.13.6': ^1.14.5
 peerDependencyRules:
   allowedVersions:
     # @eslint/compat adapts these rules to ESLint 10; see eslint.config.mjs.

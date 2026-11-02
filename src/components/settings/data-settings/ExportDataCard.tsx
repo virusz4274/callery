@@ -8,13 +8,15 @@ interface ExportDataProps {
     exportJob: ExportJobResponse | null;
     isExportStarting: boolean;
     onStartExport: () => void;
+    onRetryExport: () => void;
 }
 
 export function ExportDataCard({
     archiveOwnerName,
     exportJob,
     isExportStarting,
-    onStartExport
+    onStartExport,
+    onRetryExport,
 }: ExportDataProps) {
     const isQueued = exportJob?.status === 'pending';
     const isProcessing = exportJob?.status === 'processing';
@@ -46,7 +48,7 @@ export function ExportDataCard({
                         {isExportStarting ? (
                             <>
                                 <Spinner size="sm" color="current" />
-                                Starting...
+                                Preparing export...
                             </>
                         ) : isQueued ? (
                             'Queued for export'
@@ -94,8 +96,20 @@ export function ExportDataCard({
                         )}
 
                         {exportJob.status === 'failed' && (
-                            <div className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
-                                {exportJob.error || 'Export failed'}
+                            <div className="mt-4 space-y-3">
+                                <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
+                                    {exportJob.error || 'Export failed'}
+                                </p>
+                                {exportJob.retryAvailable ? (
+                                    <div className="flex flex-col items-start gap-2">
+                                        <Button onPress={onRetryExport} isDisabled={isBusy} variant="secondary" className="rounded-full">
+                                            Retry export
+                                        </Button>
+                                        <p className="text-sm text-muted">Resume this archive from its saved progress. One retry is available.</p>
+                                    </div>
+                                ) : exportJob.retryUnavailableReason && (
+                                    <p className="text-sm text-muted">{exportJob.retryUnavailableReason}</p>
+                                )}
                             </div>
                         )}
 

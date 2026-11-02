@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getExportStatus, startExport } from '@/app/actions/export';
+import { getExportStatus, retryExport, startExport } from '@/app/actions/export';
 import type { ExportJobResponse } from '@/lib/db/types';
 
 type ToastFn = (params: {
@@ -14,13 +14,15 @@ export function useExportJob(toast: ToastFn) {
 
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | undefined;
+        let active = true;
 
         const checkStatus = async () => {
-            const status = await getExportStatus();
-            setExportJob(status);
-            if ((status?.status === 'completed' || status?.status === 'failed') && interval) {
-                clearInterval(interval);
-            }
+            try {
+                const status = await getExportStatus();
+                if (!active) return;
+                setExportJob(status);
+                if ((status?.status === 'completed' || status?.status === 'failed') && interval) clearInterval(interval);
+            } catch { /* Keep the last known state and retry on the next poll. */ }
         };
 
         checkStatus();
@@ -30,6 +32,7 @@ export function useExportJob(toast: ToastFn) {
         }
 
         return () => {
+            active = false;
             if (interval) {
                 clearInterval(interval);
             }
@@ -37,6 +40,7 @@ export function useExportJob(toast: ToastFn) {
     }, [isExportStarting, exportJob?.status]);
 
     const handleStartExport = async () => {
+        if (isExportStarting) return;
         setIsExportStarting(true);
         try {
             const result = await startExport();
@@ -57,9 +61,30 @@ export function useExportJob(toast: ToastFn) {
         }
     };
 
+    const handleRetryExport = async () => {
+        if (!exportJob || isExportStarting) return;
+        setIsExportStarting(true);
+        try {
+            const result = await retryExport(exportJob.id);
+            if (result.success) {
+                toast({ title: 'Export Retry Queued', description: 'Your existing archive will resume from its saved progress.', status: 'success' });
+                setExportJob({ ...exportJob, status: 'pending', error: undefined, retryAvailable: false, retryUnavailableReason: undefined });
+            } else {
+                toast({ title: 'Export Retry Unavailable', description: result.message, status: 'danger' });
+                const current = await getExportStatus();
+                setExportJob(current);
+            }
+        } catch {
+            toast({ title: 'Error', description: 'Failed to queue the export retry.', status: 'danger' });
+        } finally {
+            setIsExportStarting(false);
+        }
+    };
+
     return {
         exportJob,
         isExportStarting,
         handleStartExport,
+        handleRetryExport,
     };
 }

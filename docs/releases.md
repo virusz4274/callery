@@ -47,12 +47,14 @@ Before upgrading a self-host deployment, record its version and back up MongoDB,
 
 ## Verification status
 
-Local repository verification on 2026-10-20 used host Node 24.22.0 and pnpm 12.14.0 in an isolated source copy with its own frozen-lockfile dependency installation and no deployment environment files:
+The 2026-11-03 review passed typechecking, lint, unit/tooling checks, eight export retry browser checks, peer validation and isolated builds for both Next.js profiles and vinext. Optional service-dependent tests were skipped. The full dependency audit reports 19 unresolved findings and the production audit reports eleven, so `pnpm check` and the release gates remain failing. See [current verification results](dependency-review.md#verification--2026-11-03) for counts and boundaries.
 
-- `pnpm check` passed type generation, TypeScript, full ESLint, 236 application tests, four dependency tests, three release-tooling tests, and the verified-patch dependency audit. Fourteen service-dependent application checks and the Windows-only dependency test were skipped.
+Historical repository verification on 2026-10-20 used host Node 24.22.0 and pnpm 12.14.0 in an isolated source copy with its own frozen-lockfile dependency installation and no deployment environment files:
+
+- `pnpm check` passed type generation, TypeScript, full ESLint, 236 application tests, four dependency tests, three release-tooling tests, and the then-current dependency audit. Fourteen service-dependent application checks and the Windows-only dependency test were skipped.
 - `pnpm peers check` passed. Production builds with billing disabled and enabled both passed, including standalone preparation and all PWA checks.
 - Two browser tests passed at 390px and 1280px, exercising lifetime ownership, continuing-charge disclosure, failed recovery feedback, payment-method action, and the recovered billing state with isolated API fixtures.
-- The production dependency audit passed. Its upstream braces version alert is recognized only after installed patch verification; see [dependency review](dependency-review.md).
+- The then-current production dependency audit passed under the local braces patch. That advisory was later withdrawn and its patch exception has been removed; current audits fail on every reported advisory.
 - The migration `--help` path passed without database or Stripe mutations. No deployment environment files or running deployment processes were changed.
 
 Convenience commands are `pnpm audit:secrets`, `pnpm billing:migrate` (dry run by default), `pnpm acceptance:selfhost`, and `pnpm acceptance:managed`. Acceptance requires Docker Engine; the secret audit requires the pinned existing scanner. Their prerequisite checks fail clearly without installing tools or altering the shared deployment.

@@ -8,7 +8,7 @@ import { S3Client, CreateBucketCommand, GetObjectCommand, ListObjectsV2Command, 
 import { chromium } from '@playwright/test';
 import { encryptGoogleRefreshToken, decryptGoogleRefreshToken } from '../src/services/google/refresh-token-crypto.ts';
 import { waitUntil } from './ci-acceptance.mjs';
-import { resolvePackageChain } from './dependency-patch.mjs';
+import { resolvePackageChain } from './dependency-resolution.mjs';
 import { assertFreshBillingBootstrap, assertFreshBillingPricing } from './ci-billing-smoke.mjs';
 
 const base = new URL(process.env.TEST_BASE_URL);

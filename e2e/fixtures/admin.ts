@@ -13,7 +13,7 @@ let bundle: Promise<Map<string, string | Uint8Array>> | undefined;
 const actionNames = ['checkSystemHealth', 'clearAllServiceIncidents', 'clearServiceIncident', 'sendAdminTestEmail', 'cleanupOrphanedRecordings', 'deletePlan', 'createPlan', 'updatePlan', 'deleteAnnouncement', 'createAnnouncement', 'updateAnnouncement', 'updateContactPlan', 'deleteUser', 'restoreUser', 'toggleUserStatus', 'updateUserLimits', 'updateUserUsage', 'updateUserRole', 'updateSystemSettings'];
 async function assets() {
     if (!actionNames.includes('getUpgradeablePlans')) actionNames.push('getUpgradeablePlans');
-    for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'createShareLinkForClip']) {
+    for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'retryExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'createShareLinkForClip']) {
         if (!actionNames.includes(name)) actionNames.push(name);
     }
     bundle ??= (async () => {

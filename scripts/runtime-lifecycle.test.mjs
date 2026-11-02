@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { resolvePackageChain } from './dependency-patch.mjs';
+import { resolvePackageChain } from './dependency-resolution.mjs';
 
 const require = createRequire(import.meta.url);
 
