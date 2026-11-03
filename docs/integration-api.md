@@ -68,6 +68,12 @@ limited to 50 entries of 64 characters each.
 
 ## Resumable direct uploads
 
+Check `GET /api/v1/capabilities` first. Use this flow only when `uploadModes`
+includes `direct-multipart`. With billing enabled, the bucket must have passed
+signed-length verification (`BILLING_STORAGE_LENGTH_VERIFIED=true`); until then,
+direct upload requests return `503 direct_upload_unverified` and capabilities
+advertise only bounded `multipart-form` uploads and their smaller size limit.
+
 1. `POST /api/v1/uploads` with JSON metadata and a stable `Idempotency-Key`.
 2. `POST /api/v1/uploads/{id}/parts` with `{"partNumbers":[1,2]}` to get signed URLs.
 3. PUT each byte range to its returned URL. Each part is 8 MiB except the final
@@ -131,14 +137,17 @@ console.log(completed.recordingId);
 
 ### Retries and duplicate prevention
 
-Upload creation and simple uploads require `Idempotency-Key`; keep it stable across
-retries. Matching retries return the original session/result. Changing request
-metadata with the same key returns `409 idempotency_conflict`. Keys are retained
-for at least seven days. Completion can be retried without an idempotency header.
+Upload creation and simple uploads require `Idempotency-Key` (1–200 printable
+non-space ASCII characters); keep it stable across retries. The key is scoped to
+the owner and integration identity, which survives token rotation. Matching retries
+return the original session/result. Changing request metadata or switching between
+simple and direct upload modes with the same key returns `409 idempotency_conflict`.
+Keys are retained for at least seven days. Completion can be retried without an
+idempotency header.
 
 Supply `source` plus `externalId` for persistent duplicate protection across token
-rotation, app reinstalls, or different request keys. Their pair is unique within
-the owner's account. Reusing it with conflicting metadata returns
+rotation, app reinstalls, or different request keys while the recording exists.
+Their pair is unique within the owner's recordings. Reusing it with conflicting metadata returns
 `409 external_id_conflict`; it never overwrites the existing recording.
 
 Clients should back off on `409 upload_busy`, `429`, and `503`, honoring
@@ -158,6 +167,11 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 
 List results support `page` (default 1), `limit` (default 20, max 100), `search`,
 `source`, `externalId`, `startDate`, `endDate`, and `includeArchived=true`. Recording
+lists are newest first, use literal case-insensitive keyword matching rather than
+Atlas semantic search, and exclude archived recordings by default. `page` is capped
+at 100000 and `search` at 200 characters. Date-only end bounds include the whole UTC
+day. Company read scope makes the list cover the company archive; without it,
+results belong to the token creator. Recording
 detail includes available transcript/summary and the latest persisted processing
 job state. Poll it with backoff until transcription is completed or failed. Explicit
 transcription returns `202` after work is persisted. Provider submissions with an
@@ -168,7 +182,9 @@ Responses use `{ "success": true, "data": ..., "requestId": ... }` or
 `{ "success": false, "error": { "code": ..., "message": ... }, "requestId": ... }`.
 The request ID is also returned in `X-Request-Id`. Authenticated responses are not
 cached. Limits are 120 requests/minute per token, 600 per owner, 10 new uploads/minute
-per token, and 10 simultaneously reserved uploads per owner.
+per token, and 10 simultaneously reserved uploads per owner, with a combined
+reservation size capped at 5 GiB. Account storage and managed billing checks also
+apply.
 
 ## Self-hosting and operations
 

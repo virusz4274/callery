@@ -6,6 +6,8 @@ Managed billing serves individual accounts. Organizations remain self-hosted. Bi
 
 The app measures usage, allocates included allowances, reserves prepaid retail credit and reports chargeable quantities. Stripe aggregates those quantities and applies its published Prices. Standard, Pro and Lifetime share the same accounting pipeline; Lifetime has a separate usage-price pair and permanent purchase proof.
 
+The amounts and allowances below are [installation defaults](../src/lib/installation-defaults.ts), not proof of a deployed offer. Imported, published catalog snapshots determine the prices and allowances offered by an installation; initialization does not overwrite an existing catalog.
+
 | Plan | Base purchase | Monthly included resources |
 | --- | --- | --- |
 | Standard | USD 10/month, collected in advance | 60 weighted minutes and 2 GiB |
@@ -16,11 +18,13 @@ Lifetime has no monthly hosting minimum. All Lifetime usage and recurring overag
 
 Round verified audio duration up to 15 seconds, then apply the provider weight:
 
-| Provider/model | Weight | Initial recurring price per actual minute |
-| --- | --- | --- |
-| Soniox `stt-async-v5` | 1× | USD 0.01 |
-| Gemini `gemini-3.5-transcribe` | 3× | USD 0.03 |
-| ElevenLabs `scribe_v2` | 5× | USD 0.05 |
+| Provider/model | Weight | Initial recurring price per actual minute | Maximum recording duration |
+| --- | --- | --- | --- |
+| Soniox `stt-async-v5` | 1× | USD 0.01 | 300 minutes |
+| Gemini `gemini-3.5-transcribe` | 3× | USD 0.03 | 30 minutes |
+| ElevenLabs `scribe_v2` | 5× | USD 0.05 | 600 minutes |
+
+These are the approved managed models and weights in the [application catalog](../src/lib/stripe/catalog.ts); other models and OpenAI-compatible transcription are unavailable under managed billing. Every managed provider has a 2 GiB file limit. Self-hosted provider and multiplier settings follow their separate installation policy.
 
 A minute of ElevenLabs audio consumes five weighted minutes, or 20 weighted 15-second blocks. Included units produce no chargeable meter event. Summary, transliteration and embedding are bundled; enrichment retries reuse the saved transcript and receipt. Only a separately requested new transcription creates new audio usage.
 
@@ -51,7 +55,9 @@ Pricing pages, estimates, settings and quotes read the same published snapshots.
 
 ## Prepaid credit and processing limits
 
-Top-ups start at USD 5. Only authoritative payment confirmation creates a paid Stripe Billing Credit Grant and local wallet credit, exactly once. New grants use `scope.price_type = 'metered'` on dedicated app-owned customers. They cover recurring usage, Lifetime usage and replacement usage Prices, while excluding licensed base purchases and the Lifetime purchase. The app validates that those customers contain only approved application subscriptions. Taxes can still require separate payment. [Stripe credit grants](https://docs.stripe.com/api/billing/credit-grant/create)
+Top-ups accept USD 5–1,000 per payment. Only authoritative payment confirmation creates a paid Stripe Billing Credit Grant and local wallet credit, exactly once. New grants use `scope.price_type = 'metered'` on dedicated app-owned customers. They cover recurring usage, Lifetime usage and replacement usage Prices, while excluding licensed base purchases and the Lifetime purchase. The app validates that those customers contain only approved application subscriptions. Taxes can still require separate payment. [Stripe credit grants](https://docs.stripe.com/api/billing/credit-grant/create)
+
+Recurring customers must also enable **Pay per usage** in **Settings → Billing & Plans** before exceeding included allowances; adding wallet credit alone does not enable it. Free Trial cannot enable overage. Lifetime enables separately billed usage as part of setup and conversion; its usage billing is managed or canceled through the restricted portal rather than the recurring-plan overage switch.
 
 Auto-top-up is off until the customer explicitly enables an amount, threshold and daily/monthly limits. Cancellation preserves unused credit for a future return and stops further automatic top-ups. Plan-change credits never create usage-wallet credit. Unspent prepaid deposits remain customer liabilities, not new usage revenue.
 
@@ -61,7 +67,7 @@ New processing records an immutable execution policy: approved models, prompt ve
 
 Request size, duration, token, output, rate and concurrency limits still apply. Hidden SDK retries are disabled; each planned call permits one normal attempt and at most one additional attempt. Completed responses and checkpoints are saved together and reused after a crash. An uncertain submitted call requires reconciliation before another attempt. New enrichment-only continuation does not retranscribe audio or require historical cost-funding proof.
 
-Search and exports have no expense-budget admission. Exports reuse immutable content revisions, permit at most one fresh full archive per account per 24 hours, expire seven days after completion and use 15-minute download URLs. An eligible failed archive can be resumed once through **Retry export**, preserving its original fresh-export window; see [exports](user-guide.md#exports). Uploads retain quota, staging-byte, session, rate and actual-size checks. Direct uploads require verified signed-length enforcement; other paths use bounded streaming. Staging expiry and multipart abortion run after 48 hours; sessions last 24 hours and signed upload links 15 minutes.
+Search and exports have no expense-budget admission. Exports reuse immutable content revisions, permit at most one fresh full archive per account per 24 hours, expire seven days after completion and use 15-minute download URLs. An eligible failed archive can be resumed once through **Retry export**, preserving its original fresh-export window; see [exports](user-guide.md#exports). Uploads retain quota, staging-byte, session, rate and actual-size checks. Direct uploads require verified signed-length enforcement; other paths use bounded streaming. Sessions last 24 hours and signed upload links 15 minutes; ingestion cron expires and cleans abandoned sessions. Separately configure bucket lifecycle rules to expire `_staging/` objects and abort incomplete multipart uploads after 48 hours. The application and bundled bucket initializer do not install those provider-side rules.
 
 The optional audited `processingPaused` setting defaults to false and pauses provider work manually. It is not a monetary limit. Provider configuration, provider quota, manual pause and insufficient customer credit have distinct remedies. Missing cost tables or expired legacy expense reviews do not block new processing, publication or checkout. No operational pause/configuration failure starts customer nonpayment recovery or media deletion.
 
@@ -90,18 +96,22 @@ Existing public payment routes remain:
 - `POST /api/stripe/plan-change/preview`, `POST /api/stripe/plan-change`, `GET /api/stripe/plan-change/:id` and `DELETE /api/stripe/plan-change`
 - `POST`, `PATCH` and `GET /api/stripe/usage-topup`
 - `GET /api/stripe/billing/status`
+- `GET /api/stripe/invoices` and `POST /api/stripe/portal`
+- `POST /api/stripe/lifetime/resume` to restore a Lifetime owner's usage billing
 
 Plan-change responses expose `timing: immediate | period_end`, scheduled status and authoritative effective dates. Processing availability is separate from billing eligibility. The dedicated portal allows payment methods, invoices and period-end cancellation with `proration_behavior=none`; disable portal subscription/customer-detail updates so it cannot bypass app plan-change coordination.
 
 ## Recovery, webhooks and launch acceptance
 
-Authoritative payment failure, terminal cancellation or verified insufficient retained-storage credit stops new chargeable work and starts the existing 30-day recovery window. Warn on days 0, 23 and 29; permit reads and one cached recovery export. Login/export never extend retention. Authoritative funding may restore service before purge. Lifetime ownership survives media deletion. Provider expenses, manual pauses and configuration failures never authorize deletion.
+Authoritative payment failure, terminal cancellation or verified insufficient retained-storage credit stops new chargeable work and starts the existing 30-day recovery window. An expired Free Trial also enters recovery, with the deadline measured from its fixed trial expiry. Warn on days 0, 23 and 29; permit reads and one cached recovery export. Recovery archives still follow export expiry and availability rules; if that archive becomes unavailable, individual recording downloads remain available until purge. Login/export never extend retention. Authoritative funding may restore service before purge. Lifetime ownership survives media deletion. Provider expenses, manual pauses and configuration failures never authorize deletion.
 
 Account erasure removes personal content without waiting indefinitely for payment. Minimal financial tombstones retain late callbacks, usage, debt, disputes and idempotency. Settled financial records may be pruned after 90 days; unresolved operations remain retained. Preserve immutable old receipts and genuinely uncertain settlement. Known expense-only reviews are historical evidence, not new retail admission restrictions.
 
 Register HTTPS `/api/stripe/webhook` with `STRIPE_WEBHOOK_SECRET`, and `/api/stripe/meter-webhook` with its separate `STRIPE_METER_WEBHOOK_SECRET` for signed asynchronous meter errors. Reconciliation checks prior/current subscription debt, missed payments, refunds/disputes, invoice voids and credit notes. An optional unpaid upgrade invoice is not debt for previously delivered service.
 
-Keep 72-hour cycle-invoice finalization grace. Verify meter processing, raw quantities, frozen rates, invoice rounding and per-line grant debits; HTTP acceptance alone is insufficient. Retry identical immutable meter events only within their safe retry window. Older ambiguous or finalized-period events require review, never retimestamping or synthetic catch-up charges.
+The payment endpoint accepts snapshot events; the separate meter endpoint accepts thin notifications for `v1.billing.meter.error_report_triggered` and `v1.billing.meter.no_meter_found`, then fetches their full events. Configure both destinations for the same Stripe account and mode. The payment handler's event families cover Checkout completion/failure/expiry, subscription lifecycle, invoice payment/finalization/voids, automatic top-up payment success, credit-grant updates, refunds/disputes, credit notes, customer deletion and catalog changes; use the event cases in the [handler](../src/app/api/stripe/webhook/route.ts) when configuring the destination. Unhandled event types have no event-specific fulfillment handler, so HTTP 200 alone does not prove that the required events are subscribed.
+
+Configure 72-hour cycle-invoice finalization grace in Stripe; the application does not set this account policy automatically. Verify meter processing, raw quantities, frozen rates, invoice rounding and per-line grant debits; HTTP acceptance alone is insufficient. Retry identical immutable meter events only within their safe retry window. Older ambiguous or finalized-period events require review, never retimestamping or synthetic catch-up charges.
 
 Schedule authenticated cron with `Authorization: Bearer <CRON_SECRET>`:
 

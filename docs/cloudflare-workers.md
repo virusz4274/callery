@@ -44,14 +44,14 @@ pnpm build:runtimes
 The lifecycle test uses the already installed esbuild and Miniflare/workerd dependencies, creates
 only temporary fixture files and a local worker, and disposes them afterward.
 It calls no application database, email provider, transcription provider or
-payment endpoint. `build:runtimes` runs both production builds in separate temporary source snapshots. `after` is a request-lifetime mechanism, not a durable queue;
+payment endpoint. `build:runtimes` runs self-hosted Next.js, managed Next.js and vinext builds in separate temporary source snapshots. Use `pnpm build:runtimes --target=vinext` for only the Workers build. `after` is a request-lifetime mechanism, not a durable queue;
 the existing MongoDB job state and recovery schedules remain necessary.
 
 ## Remaining verification gaps
 
 - vinext ignores the webpack integration. Serwist/PWA behavior is verified only on Node.
 - Google Contacts now uses function-form `next/server.after`, matching other post-response entry points. A narrow lifecycle test verifies the installed Next request context and the installed vinext shim on real local workerd: a deferred callback completes once after the response closes, and its failure handling also runs. This does not certify whole-application request lifetime, SMTP, or long-running Contacts imports.
-- ZIP exports write entire archive parts to temporary files, with a 500 MB part limit. Workers' temporary filesystem uses memory and requires a different strategy for large exports.
+- ZIP exports write entire archive parts to temporary files. Recordings are grouped toward a 500 MiB source-size target; a single recording and ZIP overhead can exceed that target, so it is not a hard archive-size cap. Workers' temporary filesystem uses memory and requires a different strategy for large exports.
 - Scheduled jobs need an HTTP caller; see [scheduled jobs](cron-jobs.md).
 - Some routes are reported as unclassified. Routing and auth require a deployment test after resolving the local request cancellations.
 

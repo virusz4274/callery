@@ -1,22 +1,22 @@
 # Small team setup and recovery
 
-Vosift can serve a small company of roughly 2–15 people. Each deployment is one company. Employees manually upload recordings from their phones, use their own archive, and understand that company administrators can retrieve their uploads. Personal deployments stay personal until an administrator explicitly enables the company archive.
+Each self-hosted deployment can serve one company. Employees manually upload recordings from their phones, use their own archive, and understand that company administrators can retrieve their uploads. Personal deployments stay personal until an administrator explicitly enables the company archive.
 
 ## Enable the company archive
 
 1. Back up the deployment before adopting existing recordings as company records.
 2. Use an existing verified administrator. Keep the current bootstrap administrator configuration.
-3. Keep billing disabled and configure SMTP or Resend. The setup action sends a real test notification to the administrator; delivery failure leaves setup disabled.
+3. Keep billing disabled and configure SMTP or Resend. The setup action sends a real test notification to the administrator; a sending failure leaves setup disabled. Check that the message also reaches the intended inbox.
 4. Run the normal additive `pnpm db:init` on the deployment after upgrading. It adds invitation and company recording indexes and preserves saved settings. Do not copy `.env.example` over the deployment configuration.
-5. Open **Administration → Settings → Set up a small team**. Enter the company name. Start with retention **Until the administrator deletes them** and transcription **Off**.
-6. Confirm adoption. Existing recordings become company records, signup requires invitations, and public share links stop working. There is no switch back to personal mode in this version.
-7. Open **Administration → Employees** to invite employees. Invitations last seven days; resend renews validity. Employees register with the invited email address and verify it, or use Google with that verified address. Invitations create members; promote an employee using the existing administrator role control when needed.
+5. Open **Admin → Settings → Set up a small team** (`/admin/settings`). Enter the company name. Start with retention **Until the administrator deletes them** and transcription **Off — back up audio only**.
+6. Confirm adoption. Existing accounts and recordings join the company archive, new employees need invitations, and public share links stop working. Bootstrap administrator addresses retain their configured signup exception. There is no switch back to personal mode in this version.
+7. Open **Admin → Employees** (`/admin/users`) to invite employees. Invitations last seven days; **Resend** renews validity and **Revoke** cancels a pending invitation. Employees register with the invited email address and verify it, or use Google with that verified address. Invitations create members; use **Make administrator** after verification to promote an employee when needed.
 
 Restore accounts already scheduled for destructive deletion before enabling company mode. If a restore window has expired, resolve its pending cleanup first. Company setup never silently adopts an account already being deleted.
 
 ## Everyday operation
 
-Members upload, search, play, download, export and organise their own recordings. They cannot permanently delete company recordings. Contacts stay private to each uploader. **Company recordings** lets administrators filter by employee, recording date and ordinary text, see the uploader, play/download recordings, and export an employee’s entire archive.
+Members upload, search, play, download, export and organise their own recordings. They cannot permanently delete company recordings. Contacts stay private to each uploader. **Company recordings** (`/admin/recordings`) lets administrators filter by employee, recording date and ordinary text, see the uploader, play/download recordings, and export an employee’s entire archive. Apply a single-employee filter to expose the export panel; it includes recordings outside the displayed date range and has the same fresh-export and retry limits as a personal export.
 
 **Remove access** retains the employee profile, contacts, recordings and usage. It revokes login sessions and denies old sync and upload tokens, including completion of an upload started earlier. **Restore access** permits a fresh login without reviving those old tokens. The last active administrator cannot be removed or demoted.
 

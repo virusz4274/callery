@@ -12,6 +12,9 @@ This is beta software. The supported first release is built from source with nat
 
 *   [**Setup Guide**](docs/setup-guide.md): Installation, environment variables, and running locally.
 *   [**Small Team Setup and Recovery**](docs/small-team-setup.md): Invitations, company archives, retained employee access and deployment backups.
+*   [**User Guide**](docs/user-guide.md): Recording retrieval, sharing, settings, exports, and company archive behavior.
+*   [**Transcription Batches**](docs/transcription-batches.md): Bulk imports, saved batches, explicit starts, and failure recovery.
+*   [**Integration API**](docs/integration-api.md): Scoped client tokens, resumable uploads, downloads, and transcription requests.
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
 *   [**Historical Branch Reconciliation**](docs/branch-reconciliation.md): Archived integration evidence, superseded by the current guides.
@@ -33,9 +36,11 @@ Start from a [tagged source release](https://github.com/virusz4274/callery/relea
 
 2.  **Set up environment variables**:
     For a new installation, copy `.env.example` to `.env`; preserve an existing
-    deployment's file. This is the complete template for native
+    deployment's file. This is the shared configuration template for native
     self-hosting, Docker Compose, and managed deployments. Follow its profile
-    comments to configure MongoDB, storage, auth, and each optional integration.
+    comments to configure MongoDB, storage, auth, and optional integrations.
+    Advanced billing and upload settings are documented in the
+    [billing](docs/billing.md) and [integration](docs/integration-api.md) guides.
 
 3.  **Initialize the Database**:
     ```bash
@@ -92,7 +97,7 @@ This deployment uses Next.js standalone on Node, including the Serwist service
 worker. The experimental vinext/Workers setup is separate; its compatibility
 percentage does not govern the Docker deployment.
 
-See the [Setup Guide](docs/setup-guide.md) for storage, local AI, and every variable.
+See the [Setup Guide](docs/setup-guide.md) for storage, local AI, and deployment configuration.
 For semantic search, follow [Search setup](docs/setup-guide.md#search-setup):
 `db:init` prints the Search index definitions but does not create them.
 The bundled MongoDB service supports ordinary keyword search; vector search

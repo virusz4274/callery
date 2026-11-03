@@ -11,12 +11,13 @@ access product APIs through existing cookies, bearer sessions or limited sync to
 ## Admin Routes
 
 - `/admin`: dashboard, health checks, incidents, and cleanup actions
-- `/admin/users`: user search and account mutations
+- `/admin/users`: user search and account mutations; **Employees** and invitations in company mode
 - `/admin/users/[id]`: detailed user view with recordings and billing context
 - `/admin/plans`: installation/draft plan definitions and Stripe catalog import, review and publication
 - `/admin/announcements`: system announcement management
 - `/admin/settings`: shared platform settings
 - `/admin/audit`: admin action log
+- `/admin/recordings`: company-wide recording retrieval and employee exports when company mode is enabled
 
 ## Dashboard
 
@@ -37,7 +38,7 @@ request failures.
 
 ## User Management
 
-From `/admin/users`, admins can:
+Outside company mode, admins can use `/admin/users` to:
 
 - search users
 - change roles
@@ -50,6 +51,11 @@ From `/admin/users`, admins can:
 Soft deletion preserves restore state in the user document and defers final cleanup to the retention flow.
 The restore window defaults to `30 days` and is controlled by `SOFT_DELETE_RESTORE_DAYS`.
 
+In company mode, the page provides invitations, role changes, **Remove access**,
+and **Restore access**. Removal preserves company recordings and usage instead
+of scheduling account erasure. Quota, plan, and usage-edit controls are hidden.
+The last active administrator cannot be removed or demoted.
+
 ## User Detail View
 
 `/admin/users/[id]` is the support-oriented drill-down view. It includes:
@@ -60,6 +66,18 @@ The restore window defaults to `30 days` and is controlled by `SOFT_DELETE_RESTO
 - invoice history when Stripe is configured
 
 Use it when the table view is not enough to diagnose a customer issue.
+Company mode shows employee usage and retained-access controls, with billing panels
+hidden. Use **Company recordings** for playback, downloads, deletion, or exports.
+
+## Company Archive
+
+**Settings → Set up a small team** enables one self-hosted company archive with
+billing disabled and working SMTP or Resend. Adoption requires a verified
+administrator, retains existing recordings as company records, requires employee
+invitations, and disables public sharing. It cannot be switched back here.
+The admin navigation replaces **Plans** with **Company recordings** and labels
+the user list **Employees**. See [setup and recovery](small-team-setup.md) before
+adoption or retention changes.
 
 ## Plans
 
@@ -183,7 +201,7 @@ Admins can:
 
 - clear one external service incident
 - clear all open external service incidents
-- send an SMTP test email from the admin surface
+- send a test notification email through the configured SMTP or Resend backend; a blank recipient uses the administrator's address
 
 ## Command-Line Checks
 
@@ -213,4 +231,4 @@ When something is wrong:
 2. Check `/admin/audit` for recent platform-side changes.
 3. Inspect the affected user in `/admin/users` or `/admin/users/[id]`.
 4. Clear incidents only after you understand the root cause.
-5. Verify Stripe, transcription provider, webhook, or SMTP configuration if the issue crosses an external boundary.
+5. Verify Stripe, transcription provider, webhook, or email configuration if the issue crosses an external boundary.

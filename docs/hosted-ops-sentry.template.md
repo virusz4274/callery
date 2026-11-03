@@ -23,8 +23,16 @@ NEXT_PUBLIC_SENTRY_DSN=
 Notes:
 
 - `SENTRY_DSN` is used by the server and edge runtimes
-- `NEXT_PUBLIC_SENTRY_DSN` is used by the browser runtime
+- `NEXT_PUBLIC_SENTRY_DSN` is used by the browser runtime and must be set before
+  building; changing it requires rebuilding the browser bundle
 - if either value is absent, the corresponding runtime will no-op
+- the current server, edge and browser configurations use a trace sample rate of
+  `1`; browser Replay samples `0.1` of sessions and `1.0` of sessions with errors
+  when its integration is available. Review these settings in
+  [`sentry.server.config.ts`](../sentry.server.config.ts),
+  [`sentry.edge.config.ts`](../sentry.edge.config.ts) and
+  [`src/instrumentation-client.ts`](../src/instrumentation-client.ts) as part of
+  the hosted monitoring policy
 
 ## Build-Time Source Map Upload
 
@@ -42,7 +50,8 @@ Notes:
 
 - [`next.config.ts`](../next.config.ts) only enables the Sentry build plugin when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are all present
 - if they are absent, the app still builds and runtime error capture can still work when DSNs are present
-- keep these values out of public self-host documentation
+- keep actual credentials, DSNs and account/project identifiers out of public
+  documentation; the optional variable names are documented in `.env.example`
 
 ## Release and Alerting Checklist
 
@@ -53,10 +62,9 @@ Notes:
 
 ## Self-Host Boundary
 
-Self-host operators are responsible for their own monitoring. If they want Sentry, they should add it in their deployment copy, typically by running:
-
-```bash
-npx @sentry/wizard@latest -i nextjs
-```
-
-Their Sentry configuration is separate from the hosted Callery platform.
+Self-host operators are responsible for their own monitoring. The repository
+already includes optional Sentry instrumentation, so they can configure their
+own DSNs and optional source-map upload credentials through the variables above;
+no setup wizard or source change is required to enable it. Their Sentry account,
+alert routing and incident response remain separate from the hosted Callery
+platform. See [optional integrations](setup-guide.md#optional-integrations).

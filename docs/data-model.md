@@ -2,7 +2,10 @@
 
 This document describes the MongoDB collections currently used by Callery.
 
-Collection names are defined in `src/lib/mongodb.ts`.
+Core collection names are defined in `src/lib/mongodb.ts`. Integration collection
+names and indexes live in `src/lib/integrations/database.ts`; processing and
+financial modules also define their own operational collections. This guide
+summarizes maintained data shapes rather than listing every internal journal.
 
 ## Core Collections
 
@@ -22,6 +25,7 @@ Important fields:
 - `role`
 - `planKey`
 - `disabled`
+- `teamInvitationPending`, `accessRevokedAt`
 - `timezone`
 - `notificationSettings`
 - `transcriptionSettings`
@@ -38,6 +42,7 @@ Important fields:
 - `pushSubscriptions`
 - `googleSync`
 - `softDelete`
+- `uploadReservations`, `uploadReceipts` (atomic capacity holds and completed-upload accounting)
 
 Signup validates the configured active onboarding plan before creating a
 profile. Managed defaults must be Free Trial; self-hosted defaults may reference
@@ -49,9 +54,7 @@ Free Trial has a nonrenewing `trial` plan interval and one `trialEndsAt` deadlin
 30 days after its original grant. Existing-profile login does not reset that
 deadline or consumption. `UserResponse.transcriptionUnlimited` is derived only
 for a verified Internal entitlement; it does not overwrite usage counters or
-authorize customer Stripe billing. Recording `processingStatus` identifies the
-current phase, known or uncertain outcome, and permitted retry action alongside
-the existing transcription status.
+authorize customer Stripe billing.
 
 `googleSync` starts with `status: 'not_connected'` and stores encrypted refresh-token material:
 
@@ -100,8 +103,13 @@ Important fields:
 - `authSubject`
 - `contactId`, `contactName`, `phoneNumber`, `normalizedPhoneNumber`
 - `r2Key`, `fileName`, `standardizedDisplayName`, `fileSize`, `mimeType`, `duration`
+- `ingestionId`, `integration.source`, `integration.externalId`, `integration.metadata`, `integration.fingerprint`
+- `bulkImportId`, `transcriptionBatchId`, `recordingDateKey`
 - `recordedAt`, `createdAt`, `updatedAt`
 - `transcriptionStatus`
+- `processingStatus`, `transcriptionJobId`, `transcriptionAttemptId`
+- `transcriptionEnrichmentPending`, `transcriptionEnrichmentSteps`, `transcriptionCompletionPending`
+- `aiWorkPlan`, `aiWorkCheckpoints`, `aiWorkRevision` (server-only recovery state)
 - `fullTranscript`
 - `languageCode`
 - `transcriptionProvider`, `transcriptionModel`, `transcriptionCostMultiplier`
@@ -110,6 +118,13 @@ Important fields:
 - `summary`, `summaryEmbedding`
 - `tags`
 - `isStarred`, `isArchived`
+
+`processingStatus` identifies the current phase, known or uncertain outcome, and
+permitted retry action alongside the existing transcription status.
+`recordingDateKey` retains the validated call calendar date from a recognized
+filename for batch grouping; it can be null or absent on older recordings.
+The scoped API v1 response exposes integration source, external ID and custom
+metadata, while omitting storage keys and private execution checkpoints.
 
 Transcript segments are stored as:
 
@@ -175,6 +190,8 @@ Important fields:
 
 - `allowSignups`
 - `maintenanceMode`
+- `processingPaused` (optional instance pause on new provider calls)
+- `team` (self-hosted company settings)
 - `defaultPlanId`
 - `transcriptionMultipliers.soniox`
 - `transcriptionMultipliers.elevenlabs`
@@ -219,6 +236,9 @@ Fields include:
 - `isRead`
 - `link`
 - `createdAt`
+
+An optional `eventKey` deduplicates processing notifications per user through a
+partial unique index; ordinary unkeyed notifications remain valid.
 
 ### `admin_logs`
 
@@ -322,6 +342,51 @@ Important fields:
 
 ## Integration And Idempotency Collections
 
+### `integration_tokens`
+
+Named API credentials contain `owner`, stable `integrationId`, display `name`,
+hashed secret and visible `prefix`, allowed `scopes`, credential issue/expiration
+dates, and optional revocation/last-use timestamps. Rotation replaces the hash
+without changing the integration identity. Only the creation/rotation response
+contains the raw secret; it is not persisted.
+
+### `integration_uploads`
+
+Durable upload sessions contain the owner/integration identity, hashed
+`requestKey`, metadata fingerprint, validated input/prepared metadata, staging and
+final object keys, storage upload ID, reservation/lease state, expiry, and eventual
+recording ID. Browser and mobile uploads use `integrationId: 'legacy'` in the same
+collection. States are `initializing`, `uploading`, `finalizing`, `completed`,
+`cancelled`, and `expired`. Cleanup is explicit rather than TTL deletion, so object
+references and capacity holds survive until recovery finishes. Completed sessions
+retain idempotency keys for at least seven days; cleaned terminal sessions can be
+removed after 30 days, and completed upload-accounting receipts compact after one day.
+
+### `integration_jobs` and `transcription_dispatch`
+
+Manual, automatic and approved batch transcription share `integration_jobs`.
+Each job stores its owner, recording ID, options, state, attempt identity, lease,
+safe processing status, optional batch ID, and bounded attempt history. States are
+`pending`, `running`, `submitted`, `completed`, `failed`, and `needs_review`.
+`transcription_dispatch` holds the instance-wide `transcription` slot, identifying
+the one admitted job/attempt, including work waiting for a provider callback.
+
+### `transcription_imports` and `transcription_batches`
+
+Imports retain their owner and creation time. A batch retains its owner, selected
+recording IDs, name/date grouping, provider/model, total duration, status, and
+standalone MongoDB reservation-recovery markers. Batch states are `draft`,
+`running`, `paused`, `completed`, and `needs_review`. Creating an import or draft
+does not itself authorize provider calls; see [transcription batches](transcription-batches.md).
+
+### Other operational records
+
+`team_invitations` stores company admission state with unique invitation email.
+`search_embedding_cache` stores expiring search-query embeddings with an expiry
+TTL. `processing_execution_policies` and `processing_provider_calls` retain accepted
+execution limits and provider-call observations; `ai_cost_receipts` retains AI
+receipt evidence. These are distinct from the recording's user-visible transcript.
+
 ### `stripe_webhook_events`
 
 Tracks Stripe webhook processing state.
@@ -370,6 +435,8 @@ The current init code creates:
 - unique indexes on `users.authSubject`, `recordings.r2Key`, and `plans.name`
 - unique `plans.key` and financial idempotency/payment/grant constraints
 - contact uniqueness by `authSubject + googleContactId`
+- unique API token hashes, upload request keys by owner/integration, recording ingestion IDs, and recording source/external IDs by owner
+- unique team invitation emails; processing and batch work/owner indexes
 - sort/filter indexes for recordings, contacts, notifications, logs, export jobs, and incidents
 - payment state/update-time, usage-processing/account-drain, historical base-price/publication, and nonunique Stripe-customer lookup indexes
 - partial TTL on successfully processed Stripe events 90 days after completion; transcription callback history retains its separate receipt-time TTL
@@ -389,12 +456,16 @@ onboarding references and local catalog configuration without writes or Stripe
 calls. Missing bootstrap data is planned creation; missing managed prerequisites
 are warnings. Structural conflicts fail in both inspection and normal modes.
 
-## Collection Summary
+## Core And Integration Collection Summary
+
+Financial collections and selected additional operational records are described
+separately above and below.
 
 ```text
 users
 recordings
 contacts
+team_invitations
 plans
 export_jobs
 export_object_cleanup
@@ -407,6 +478,13 @@ support_messages
 rate_limit_buckets
 stripe_webhook_events
 transcription_webhook_events
+integration_tokens
+integration_uploads
+integration_jobs
+transcription_dispatch
+transcription_imports
+transcription_batches
+search_embedding_cache
 ```
 
 ## Managed financial records

@@ -3,9 +3,10 @@
 Callery supports free AGPL-3.0 self-hosting and paid managed individual accounts from one codebase. Company archives are a separate self-host feature; organizations and seats are not part of the managed launch. Managed Lifetime access retains the billing and processing limits described in [billing](billing.md).
 The Docker deployment uses Next.js standalone on Node. Set public settings
 before building; `NEXT_PUBLIC_*` values are compiled into the browser bundle.
-`.env.example` is the single complete template for native self-hosting, Docker
-Compose, and managed deployments. Copy it once and follow the profile comments;
-every optional integration is included in that same file.
+`.env.example` is the shared starting template for native self-hosting, Docker
+Compose, and managed deployments. Copy it once and follow the profile comments.
+Advanced billing acceptance flags and API upload limits are documented in the
+[billing](billing.md) and [integration API](integration-api.md) guides.
 
 Copy the template only for a new installation. Preserve an existing `.env`,
 including its credentials, provider choices, and public URLs; update only the
@@ -15,12 +16,13 @@ settings you intend to change.
 
 *   **Node.js**: v24.22.0, with **pnpm 12.14.0** (pinned in `package.json`). `.nvmrc` and Docker select the same Node release.
     Docker users need Docker Engine/Desktop with Compose v2.20 or later. Builds also fetch pinned Node/Go base images, package dependencies and the optional MinIO source. No host Go installation is required.
-*   **MongoDB**: v6.0 or later for ordinary database operations — local, Docker
-    (compose `selfhost` profile), or Atlas. Vector search additionally requires
+*   **MongoDB**: local, Docker (compose `selfhost` profile), or Atlas. The bundled
+    and currently verified baseline is 8.0.34. Vector search additionally requires
     MongoDB Search support and the index described in [Search setup](#search-setup).
     The bundled `mongo:8` service has no `mongot` search process, so it provides
     regex keyword search. A separately configured self-managed search deployment
     can support vectors too; follow MongoDB's version and deployment requirements.
+    Older external MongoDB versions are not certified by the current verification results.
 *   **S3-compatible storage**: MinIO, Cloudflare R2, AWS S3, or similar.
 *   **Transcription**: a Soniox, ElevenLabs, or Gemini key, or a local
     Whisper-compatible server (see below). Organizing and playing recordings
@@ -53,7 +55,7 @@ pnpm run dev
 Open `http://localhost:9000`. The template defaults to this app URL, R2's `auto`
 region and path style off. It leaves storage endpoints and credentials blank
 so you can supply your own backend. For an upload/playback-only test, disable
-automatic transcription in Settings → Data Processing before uploading.
+automatic transcription in Settings → Processing before uploading.
 
 For a tunnel or deployed site, open the saved `NEXT_PUBLIC_APP_URL` instead.
 It is the public browser origin used for authentication, callbacks, email and
@@ -174,7 +176,7 @@ Compose binds published app/storage/console ports to `127.0.0.1` by default. For
 | Auth | Better Auth + MongoDB (email/password and optional Google) | Same |
 | Billing | Off by default (set nothing, or `NEXT_PUBLIC_ENABLE_BILLING=false`) | `NEXT_PUBLIC_ENABLE_BILLING=true` + reviewed Stripe catalog and release prerequisites |
 | Email (`EMAIL_PROVIDER`) | `smtp` / `resend` (`none` for private testing) | `smtp` / `resend` |
-| Transcription | Your Soniox / ElevenLabs / Gemini key | Same, metered with multipliers |
+| Transcription | Your Soniox / ElevenLabs / Gemini key or compatible Whisper server | Approved Soniox / Gemini / ElevenLabs models, metered at 1× / 3× / 5× |
 | Storage | Any S3-compatible backend | Same |
 | Database | Your MongoDB (compose includes one) | Same (usually Atlas) |
 
@@ -259,6 +261,9 @@ for Linux. On Linux, storage must listen on an address reachable from the Docker
 bridge, rather than only 127.0.0.1. If storage is instead a container on the
 app's Docker network, use its service name for `R2_ENDPOINT`.
 
+Native development also uses port 9000. When storage runs on the same host,
+choose an available storage port and update both endpoint URLs accordingly.
+
 `S3_PUBLIC_ENDPOINT` must also be reachable by hosted transcription services
 when they fetch audio by URL. For Soniox/ElevenLabs, localhost playback URLs
 cannot be fetched by their servers; use a reachable HTTPS storage endpoint.
@@ -270,10 +275,17 @@ browser playback uses `S3_PUBLIC_ENDPOINT`. Those hosts may differ.
 
 **AWS S3**: the regional endpoint, your region, path style off, no public endpoint.
 
+Keep the bucket private. Configure provider-side lifecycle rules to expire
+`_staging/` objects and abort incomplete multipart uploads after 48 hours.
+The bundled initializer creates the bucket but does not install these rules.
+Ingestion cron separately expires application upload sessions after 24 hours.
+Managed direct uploads also require verified signed-length enforcement; keep
+the bounded upload path until that bucket passes the [billing acceptance checks](billing.md).
+
 ## Transcription providers
 
 `TRANSCRIPTION_PROVIDER` sets the instance default (`soniox`); each user can
-override it in Settings → Data Processing. Keys: `SONIOX_API_KEY`,
+override it in Settings → Processing when company policy permits. Keys: `SONIOX_API_KEY`,
 `ELEVENLABS_API_KEY` (+ optional `ELEVENLABS_MODEL_ID`, default `scribe_v2`),
 the Gemini key with optional `GEMINI_MODEL_TRANSCRIPTION`
 (default `gemini-3.8-flash`), or any Whisper-API server via `openai_compat`
@@ -334,8 +346,9 @@ Summary and transliteration settings do not change the audio model. Restart the
 app after editing `.env` (recreate the app container for Docker deployments).
 Changing summary/transliteration models does not change the embedding dimensions.
 
-Choose models available to your API key. Google restricts Gemini 2.5 models
-to existing users; see the [Gemini deprecations guide](https://ai.google.dev/gemini-api/docs/deprecations).
+Choose models available to your API key and check Google's
+[deprecations guide](https://aistudio.google.com/docs/deprecations) for model-specific
+access restrictions, retirement dates and automatic routing changes.
 Changing the embedding model requires re-embedding recordings and matching the
 Atlas vector index dimensions. The model settings do not expose Gemini's full
 generation API: task prompts, response formats, and native transcription options
@@ -468,9 +481,11 @@ Then use AI search with a topic from a completed recording whose summary was
 embedded. A successful transcription alone is insufficient: the app saves a
 summary embedding only when summary generation succeeds. Creating an index
 indexes existing stored vectors; it does not generate missing embeddings.
-Retry transcription to run the current summary/embedding pipeline for an
-individual recording that is missing them. There is no dedicated bulk
-re-embedding command in the current scripts.
+For interrupted AI processing, use **Resume enrichment** to continue from the
+saved transcript and successful steps. For a completed recording that needs a
+new embedding, **Transcribe again** runs a new audio transcription and the current
+summary/embedding pipeline; it can consume additional processing usage. There is
+no dedicated bulk re-embedding command in the current scripts.
 
 If an embedding request fails or MongoDB rejects the vector query, the search
 action reports keyword fallback. A missing index can instead return no vector
@@ -513,7 +528,7 @@ needed. See [Search setup](#search-setup) for index creation and verification.
 
 Better Auth sends verification and password-reset mail via `EMAIL_PROVIDER`:
 
-*   `resend` — recommended for anything real. Needs `RESEND_API_KEY` + `EMAIL_FROM`.
+*   `resend` — Resend API delivery. Needs `RESEND_API_KEY` + `EMAIL_FROM`.
 *   `smtp` — your own relay (`SMTP_HOST` + `EMAIL_FROM`, optional port/secure/user/pass).
 *   `none` — testing only: accounts verify automatically and recovery is unavailable.
 
@@ -570,7 +585,7 @@ All of these can be absent — the app stays fully usable:
 *   `pnpm run build`: Production build (runs the PWA check after).
 *   `pnpm run start`: Start the built production server (port 3000 by default).
 *   `pnpm run lint`: Run ESLint.
-*   `pnpm run typecheck`: Run TypeScript compiler check.
+*   `pnpm run typecheck`: Generate Next.js route types, then run the TypeScript compiler check.
 *   `pnpm run db:init`: Create ordinary indexes, seed plans/settings, and print
     Search index definitions; exits nonzero on failure. Does not create Search indexes.
 *   `pnpm run db:init --dry-run`: Report planned initialization, preserved
@@ -586,6 +601,12 @@ audit. MongoDB integration tests are opt-in: set `VOSIFT_TEST_MONGODB_URI` to a
 reachable test MongoDB before running it. Each integration suite creates and
 drops a randomly named database; it does not use the application database.
 Without that variable, the integration suites are reported as skipped.
+Browser tests read the saved `.env` public origin unless `TEST_BASE_URL` overrides
+their target. Use a separate fixture deployment for tests that write data;
+changing only `TEST_BASE_URL` does not isolate the application's database or providers.
+
+Current verification results and outstanding dependency-audit findings are
+recorded in the [dependency review](dependency-review.md#verification--2026-11-03).
 
 The historical auth-unification validation on 2026-10-06 used `pnpm run check` (112 application
 tests, including isolated standalone MongoDB auth/cleanup tests, and five dependency

@@ -1,6 +1,8 @@
 # Documentation Index
 
 This folder contains the maintained documentation for the current Callery codebase.
+The maintained guides were checked against repository source on 2026-11-03.
+Runtime verification and remaining deployment checks are recorded in [Releases](releases.md).
 
 ## Start Here
 
@@ -8,7 +10,7 @@ This folder contains the maintained documentation for the current Callery codeba
 - [User Guide](user-guide.md): end-user workflow across recordings, contacts, files, sharing, settings, support, and the web PWA
 - [Small Team Setup and Recovery](small-team-setup.md): self-host company archives, invitations, access removal, and complete deployment backups
 - [Transcription Batches](transcription-batches.md): bulk imports, saved batches, processing limits, and failure recovery
-- [Admin Guide](admin-guide.md): admin routes, health checks, incidents, async jobs, plans, announcements, and operator runbook
+- [Admin Guide](admin-guide.md): admin routes, company access, health checks, incidents, plans, announcements, and operator runbook
 - [Releases](releases.md): free self-host/paid managed scope, isolated Docker/SMTP/restore gates, source releases and known limits
 
 ## Developer Reference
@@ -26,8 +28,8 @@ This folder contains the maintained documentation for the current Callery codeba
 ## Product Snapshot
 
 - Next.js 16 App Router app with React 19 and Tailwind v4
-- Direct client-to-S3-compatible-storage uploads with signed completion tokens
-- Recording archive with transcripts, summaries, tags, star/archive state, and semantic search support
+- Upload sessions with signed completion tokens, using direct S3-compatible uploads when verified or bounded app streaming otherwise
+- Recording archive with transcripts, summaries, contact matching, and semantic search support
 - Google Contacts sync plus contact-linked recording history
 - Export jobs with downloadable archive parts and an offline viewer
 - Better Auth authentication backed by MongoDB in every deployment

@@ -36,7 +36,7 @@ Apple-specific patterns are outside this change.
   they do not identify the phone's timezone. Local DST gaps are rejected.
 - Phone numbers preserve their leading zeros and formatting. Only a leading plus,
   digits, whitespace, hyphens and balanced parentheses are accepted, with 3–15 digits.
-  No country code is guessed. Name underscores become spaces; Unicode names and
+  Underscores in phone fields are removed. No country code is guessed. Name underscores become spaces; Unicode names and
   joining characters are preserved.
 - Unknown/private caller placeholders and sequence numbers never identify contacts.
 - Empty names, paths, control/bidirectional formatting characters and names over
@@ -44,6 +44,11 @@ Apple-specific patterns are outside this change.
 - An unrecognized pattern or invalid metadata does not block an otherwise supported
   audio upload. It yields an unknown caller and the upload time. A recognized call
   date may still be used when the filename explicitly marks the caller unknown.
+
+New uploads also retain `recordingDateKey`, the validated call calendar day as
+written in the filename, for batch ordering. It is `null` when no recognized valid
+call timestamp exists, including OPPO recording-end timestamps. This field does
+not change the stored `recordedAt` instant or migrate older recordings.
 
 `parseRecordingFilename` reports the format, recognition status and issues for
 diagnostics. `parseUploadContactFromFilename` returns only validated call metadata.

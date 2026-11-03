@@ -38,9 +38,9 @@ Files:
 Main browser flow:
 
 1. `initializeDirectUpload`
-2. client `PUT` to R2
+2. client `PUT` to the returned storage URL or bounded `/api/uploads/content` fallback
 3. `completeDirectUpload`
-4. optional auto-transcription start with `after(...)`
+4. persisted auto-transcription work, woken with `after(...)` when eligible; bulk imports require batch approval
 
 ### Search And Transcription
 
@@ -71,8 +71,10 @@ Files:
 Main actions:
 
 - `getGoogleAuthUrl`
-- `syncGoogleContacts`
 - `saveContactsToMongoDB`
+
+Google Contacts refresh and disconnection use `POST /api/contacts/sync` and
+`POST /api/contacts/disconnect`; they are route handlers, not exported actions.
 
 ### Sharing, Stats, Export, Notifications, Plans
 
@@ -125,12 +127,13 @@ Current admin action files:
 - `src/app/actions/admin/users/mutations.ts`
 - `src/app/actions/update-contact-plan.ts`
 - `src/app/actions/delete-recordings.ts`
+- `src/app/actions/team.ts`
 
 Main admin capabilities:
 
 - health checks and incident clearing
-- async job retry
-- SMTP test email
+- company setup, employee invitations, and company archive queries
+- test email through the configured SMTP or Resend backend
 - plan CRUD
 - announcement CRUD
 - system settings updates
@@ -169,18 +172,48 @@ their instance-session/mobile-token authentication contracts.
 | `GET`, `PATCH` | `/api/user/profile` | reads or updates the current profile via cookie or bearer sessions |
 | `POST` | `/api/user/ensure-profile` | ensures a MongoDB user exists for the current authenticated identity |
 | `PATCH` | `/api/user/billing-settings` | toggles overage preferences and seeds the current storage baseline when enabled |
-| `GET` | `/api/system-settings/public` | returns public maintenance-mode state |
+| `GET` | `/api/system-settings/public` | returns maintenance-mode state and enabled company settings; falls back to maintenance off on a settings read failure |
 
 ### Product Data
 
 | Method | Path | Purpose |
 | :--- | :--- | :--- |
 | `GET` | `/api/contacts` | returns contacts for the current user |
+| `GET` | `/api/contacts/[id]` | returns an owned contact |
 | `POST` | `/api/contacts/sync` | runs a foreground Google Contacts refresh for the current user |
+| `POST` | `/api/contacts/disconnect` | removes the current user's saved Google Contacts connection |
 | `GET` | `/api/filesystem` | returns the storage/file tree for the current user |
-| `GET` | `/api/recordings/[id]` | returns a single recording payload |
+| `GET` | `/api/recordings` | lists/searches the current user's recordings |
+| `GET` | `/api/recordings/[id]` | returns an owned recording, or company recording when authorized |
+| `GET` | `/api/recordings/[id]/play` | returns a signed playback URL after recording access checks |
+| `GET` | `/api/stats` | returns the current user's dashboard statistics |
+| `POST` | `/api/transcribe` | persists an authorized manual transcription request |
+| `PUT` | `/api/uploads/content` | streams the bounded upload fallback with an instance session, upload token, and allowed Origin |
 | `POST`, `DELETE` | `/api/notifications/subscribe` | registers or removes a browser push subscription |
 | `POST` | `/api/support` | creates a support request and may send support email after the response |
+
+### Transcription Workspace
+
+These routes require an instance cookie or bearer session. See
+[batch behavior](transcription-batches.md) for approval, pause, and retry rules.
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/transcription/imports` | creates the user's persisted bulk-import identity |
+| `GET` | `/api/transcription/workspace` | lists waiting recordings and batches with pagination cursors |
+| `POST` | `/api/transcription/batches` | saves a batch selection |
+| `PATCH` | `/api/transcription/batches/[id]` | edits, starts, pauses, retries, or removes an owned batch |
+
+### Integration Credential Management
+
+These routes require an instance session and allowed Origin, rather than an API
+token. They are limited to 30 credential operations per owner per minute.
+
+| Method | Path | Purpose |
+| :--- | :--- | :--- |
+| `GET`, `POST` | `/api/user/api-tokens` | lists named credentials or creates one, displaying its secret once |
+| `DELETE` | `/api/user/api-tokens/[id]` | revokes an owned credential |
+| `POST` | `/api/user/api-tokens/[id]/rotate` | rotates an active owned credential; send `{}` as JSON |
 
 ### Billing
 
@@ -189,9 +222,18 @@ their instance-session/mobile-token authentication contracts.
 | `POST` | `/api/stripe/checkout` | creates a Stripe Checkout session |
 | `POST` | `/api/stripe/portal` | creates a Stripe customer portal session |
 | `GET` | `/api/stripe/invoices` | lists recent invoices for the current user |
+| `GET` | `/api/stripe/billing/status` | returns billing, prepaid, processing, and pending-change status |
+| `POST` | `/api/stripe/plan-change/preview` | previews an allowed plan change |
+| `POST`, `DELETE` | `/api/stripe/plan-change` | requests a plan change or cancels a scheduled change |
+| `GET` | `/api/stripe/plan-change/[id]` | reads an owned change operation |
+| `GET`, `POST`, `PATCH` | `/api/stripe/usage-topup` | reads prepaid state, creates a top-up, or updates automatic top-up settings |
+| `POST` | `/api/stripe/lifetime/resume` | starts recovery of Lifetime usage billing |
 | `POST` | `/api/stripe/webhook` | processes Stripe events idempotently |
+| `POST` | `/api/stripe/meter-webhook` | validates thin meter-error notifications with a separate signing secret |
 
-Billing routes return `403` unless `NEXT_PUBLIC_ENABLE_BILLING=true`.
+Customer billing operations require `NEXT_PUBLIC_ENABLE_BILLING=true` and return
+`403` when it is off. The two Stripe webhook endpoints instead acknowledge billing
+disabled with `200` and perform no processing.
 
 ### Mobile Sync
 
@@ -201,7 +243,8 @@ Billing routes return `403` unless `NEXT_PUBLIC_ENABLE_BILLING=true`.
 | `POST` | `/api/mobile/direct-upload/init` | initializes client mobile direct upload |
 | `POST` | `/api/mobile/direct-upload/complete` | finalizes client mobile direct upload |
 
-Mobile upload routes authenticate with the sync token created by `/api/mobile/sync-session`. That token currently expires after `24 hours`.
+Mobile upload routes accept an instance session or the limited sync token created
+by `/api/mobile/sync-session`. The sync token expires after `24 hours`.
 
 ### Webhooks
 
@@ -222,6 +265,9 @@ Security:
 | :--- | :--- | :--- |
 | `GET` | `/api/cron/process-exports` | claims pending or stale export workers and cleans up expired archives |
 | `GET` | `/api/cron/cleanup-recordings` | enforces cleanup and retention rules |
+| `GET` | `/api/cron/process-ingestion` | recovers uploads and persisted transcription work |
+| `GET` | `/api/cron/process-usage` | reconciles managed billing and retries persisted usage delivery |
+| `GET` | `/api/cron/digest` | sends eligible weekly/monthly activity digests |
 
 All cron routes require:
 
@@ -241,6 +287,10 @@ This is a page route, not an API route.
 - maximum transcription-eligible size: `2 GiB`
 - supported upload formats: `mp3`, `wav`, `m4a`, `mp4`, `webm`
 - direct upload URL lifetime: `15 minutes`
+
+These are accepted recording limits, subject to account capacity. Versioned simple
+uploads default to `25 MiB`; direct integration uploads are advertised only when
+the deployed bucket permits them. See [integration capabilities](integration-api.md).
 
 ## Support Route Behavior
 
@@ -262,6 +312,9 @@ This is a page route, not an API route.
 - checkout expiration notifications
 - subscription create, update, pause, resume, delete, and pending-update lifecycle events
 - invoice payment success and failure events
+- invoice finalization, voiding/uncollectible state, prepaid payment success, and credit-grant updates
+- charge refunds, disputes, refund updates, and credit-note review events
+- product/price/meter changes that invalidate catalog discovery
 - `customer.deleted`
 
 The webhook processor records state in `stripe_webhook_events`.
@@ -272,10 +325,14 @@ Better Auth serves `/api/auth/*` for every deployment. Browser API requests send
 
 `POST /api/mobile/sync-session` accepts instance-native cookie/bearer auth. The upload init/complete endpoints accept that identity or a limited sync token; upload completion tokens cannot be used for sync authentication.
 
-`POST /api/transcribe` accepts `recordingId` and optional `provider`/`model`; configured providers are `soniox`, `elevenlabs`, `gemini` and `openai_compat`. Successful scheduling returns 202.
+`POST /api/transcribe` accepts `recordingId`, optional `provider`/`model`, and
+`acknowledgeProviderOutcome` for an eligible reviewed retry; configured providers
+are `soniox`, `elevenlabs`, `gemini` and `openai_compat`. Successful scheduling returns 202.
 
 `GET /api/recordings` accepts `page`, `limit`, and `search` for owner-scoped search
 with Atlas/regex fallback and inclusive full-day date filters.
-`GET /api/recordings/[id]/play` returns a public-host signed playback URL.
+`GET /api/recordings/[id]/play` returns a public-host signed playback URL, valid for
+five minutes in company mode or one hour otherwise. API v1 download links have
+their separate five-minute lifetime.
 
 `GET /api/health` checks process/database readiness. `GET /api/cron/process-usage` retries persisted managed meter events; see [scheduled jobs](cron-jobs.md).

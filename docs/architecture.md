@@ -21,7 +21,7 @@ graph TD
     User["User"] --> UI["Next.js UI"]
     UI --> SA["Server Actions"]
     UI --> API["Route Handlers"]
-    UI --> R2PUT["Signed R2 PUT upload"]
+    UI --> R2PUT["Signed storage PUT or bounded upload route"]
 
     SA --> Mongo["MongoDB"]
     SA --> Gemini["Gemini or compatible text AI"]
@@ -53,13 +53,17 @@ graph TD
 
 The primary media path is direct to the configured S3-compatible storage:
 
-1. The client asks for upload context and a signed `PUT` URL.
-2. The client uploads bytes directly to storage.
-3. The app verifies the object through `HeadObject` and checks the uploaded byte size.
-4. The app creates the recording document and updates storage usage.
-5. If auto-transcription is enabled, the app queues persisted transcription work and wakes the dispatcher with `after(...)`.
+1. The client asks for upload context; the app persists an upload session and reserves capacity before issuing upload authorization.
+2. The client uploads to a staging key through a signed `PUT` URL. With billing enabled, direct uploads require signed-length verification for the bucket; otherwise the app returns the bounded `PUT /api/uploads/content` route.
+3. Completion verifies storage size and audio/container compatibility, then copies the object to a separate finalized key.
+4. The app creates the recording document and updates storage usage idempotently; interrupted completion and staging cleanup remain recoverable.
+5. If auto-transcription is enabled, the app queues persisted transcription work and wakes the dispatcher with `after(...)`. Bulk imports stay held until an approved batch runs them.
 
-This keeps large files off the Next.js request body path and works for both web uploads and Android sync.
+The direct path keeps media off the Next.js request body path. The bounded fallback
+streams through a route handler rather than a Server Action. Both web uploads and
+the retained mobile APIs use this service. The scoped `/api/v1` integration API
+also supports resumable multipart and bounded multipart-form uploads; see
+[integration API](integration-api.md).
 
 ### Transcription
 
@@ -108,6 +112,10 @@ Exports are modeled as background jobs:
 - generated parts stay in private S3-compatible storage for seven days after completion, with renewable 15-minute download URLs
 
 Each archive part contains audio, JSON metadata, transcript text files, `README.txt`, and `viewer.html`.
+Parts are grouped at a 500 MiB source-size target, not a hard ZIP-file limit; an
+individual recording can make a part larger. Generation writes ZIP files to the
+operating system's temporary directory before upload, so hosts need suitable
+temporary disk space and request/runtime limits.
 
 ### Post-Response Work
 
@@ -129,15 +137,16 @@ src/
   app/
     actions/            Server Actions
     api/                Auth, billing, cron, filesystem, mobile, support, webhook routes
-    admin/              Admin pages
+    (app)/admin/        Admin pages inside the authenticated route group
   components/           UI and page components
   hooks/                Client-side hooks
   lib/
     db/                 Collections, types, indexes, init, query helpers
     export-processor/   Export packaging and lifecycle
+    integrations/       API tokens, durable uploads, transcription queue and dispatcher
+    transcription/      Batch approval, processing policy and enrichment recovery
     auth/               Better Auth configuration, server and client hooks
     stripe/             Customer, sync, and usage reporting logic
-    sync-store/         Android sync persistence helpers
   services/
     ai/                 Gemini and compatible text AI integration
     google/             Google Contacts sync and OAuth helpers
@@ -150,6 +159,7 @@ src/scripts/            Backfill and repair scripts
 ## Security Boundaries
 
 - Upload completion is protected with signed upload session tokens.
+- The versioned integration API uses named, scoped API tokens; token management requires an instance session. Company archive scopes also require current company administrator access.
 - Future sync clients use separately signed, limited sync tokens after instance-native login.
 - Public share pages use signed, time-limited tokens.
 - Stripe return URLs are forced to same-origin values.
@@ -161,6 +171,6 @@ src/scripts/            Backfill and repair scripts
 ## Deployment Notes
 
 - The build uses `output: 'standalone'`.
-- Server Actions are configured with a `20mb` body limit, but audio uploads avoid that limit through direct R2 uploads.
+- Server Actions are configured with a `1mb` body limit; audio bytes use signed storage uploads or streaming route handlers.
 - Production adds HSTS headers.
 - Google login uses `/api/auth/callback/google`; separate Contacts authorization uses `/api/auth/google/callback`.
