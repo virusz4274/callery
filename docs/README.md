@@ -28,7 +28,7 @@ Runtime verification and remaining deployment checks are recorded in [Releases](
 ## Product Snapshot
 
 - Next.js 16 App Router app with React 19 and Tailwind v4
-- Upload sessions with signed completion tokens, using direct S3-compatible uploads when verified or bounded app streaming otherwise
+- Upload sessions with signed completion tokens, using direct S3-compatible uploads or bounded app streaming according to deployment configuration
 - Recording archive with transcripts, summaries, contact matching, and semantic search support
 - Google Contacts sync plus contact-linked recording history
 - Export jobs with downloadable archive parts and an offline viewer

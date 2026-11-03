@@ -53,6 +53,13 @@ Notes:
 - keep actual credentials, DSNs and account/project identifiers out of public
   documentation; the optional variable names are documented in `.env.example`
 
+Native builds can read these values from their build environment. The stock
+Dockerfile and Compose build forward only the public build arguments, including
+`NEXT_PUBLIC_SENTRY_DSN`; they do not deliver private Sentry upload credentials to
+the builder. Putting those credentials in the runtime `env_file` does not enable
+source-map uploads. Uploading maps from an image build requires an explicitly
+configured secure build-time secret mechanism, which is not included here.
+
 ## Release and Alerting Checklist
 
 - Confirm runtime DSNs point to the hosted platform's Sentry project
@@ -64,7 +71,8 @@ Notes:
 
 Self-host operators are responsible for their own monitoring. The repository
 already includes optional Sentry instrumentation, so they can configure their
-own DSNs and optional source-map upload credentials through the variables above;
-no setup wizard or source change is required to enable it. Their Sentry account,
+own runtime DSNs through the variables above without a setup wizard or source
+change. Source-map uploads need the separate build-time configuration described
+above. Their Sentry account,
 alert routing and incident response remain separate from the hosted Callery
 platform. See [optional integrations](setup-guide.md#optional-integrations).

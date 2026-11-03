@@ -577,7 +577,10 @@ All of these can be absent — the app stays fully usable:
 *   **Sentry** — set `SENTRY_DSN` for server errors and `NEXT_PUBLIC_SENTRY_DSN`
     for browser errors. Optional build-time source-map uploads require all three
     of `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`. See the template's
-    Sentry section. With both DSNs absent, error reporting is disabled.
+    Sentry section. Native builds can read those build-time credentials; the stock
+    Docker/Compose build forwards only public build arguments, so runtime
+    `env_file` credentials do not enable source-map uploads. With both DSNs absent,
+    error reporting is disabled.
 
 ## Scripts
 

@@ -10,7 +10,7 @@ references. There is no maintained native client or replacement release in this 
 The web app/PWA and reusable backend endpoints remain active:
 
 - `POST /api/mobile/sync-session`: exchange a Better Auth cookie or bearer session for a limited 24-hour sync token.
-- `POST /api/mobile/direct-upload/init`: validate metadata and return an upload URL/token and required headers; verified direct-storage uploads and bounded app-streaming uploads share this contract.
+- `POST /api/mobile/direct-upload/init`: validate metadata and return an upload URL/token and required headers; direct-storage uploads and bounded app-streaming uploads share this contract.
 - `POST /api/mobile/direct-upload/complete`: verify the object, create the recording and schedule optional transcription. Repeating completion returns the existing recording.
 
 These mobile upload endpoints accept either the sync token or the instance's

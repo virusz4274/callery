@@ -32,7 +32,7 @@ export function scanSecrets(root, approvedFingerprints = []) {
   const baselinePath = path.join(root, 'security/revoked-history.json');
   try {
     const tree = path.join(temporary, 'tree'); mkdirSync(tree);
-    // Scan only version-controlled files. Never read an ignored deployment .env.
+    // Scan tracked and untracked nonignored files. Never read an ignored deployment .env.
     const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
     for (const file of files) {
       if (!existsSync(path.join(root, file))) continue;

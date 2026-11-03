@@ -10,7 +10,7 @@ Only the latest tagged release is targeted for security fixes. This is a beta pr
 
 The operator has stated that credentials formerly present in Git history were revoked. History is retained. Revocation is not evidence that every historical credential has been identified: the full-history audit must still run before a public release.
 
-CI uses pinned Gitleaks to scan the current tracked source and all reachable Git history. The wrapper emits only locations and SHA-256 fingerprints; raw reports exist briefly in a private temporary directory and are deleted. Historical exceptions may contain only fingerprints of findings individually confirmed revoked by the operator. They never exempt the current source tree. Review new findings before adding a baseline; do not automatically accept all findings to make CI green.
+CI uses pinned Gitleaks to scan current tracked files, untracked nonignored files, and all reachable Git history. Ignored deployment environment files are excluded from the current-tree scan. The wrapper emits only locations and SHA-256 fingerprints; raw reports exist briefly in a private temporary directory and are deleted. Historical exceptions may contain only fingerprints of findings individually confirmed revoked by the operator. They never exempt the current source tree. Review new findings before adding a baseline; do not automatically accept all findings to make CI green.
 
 ```sh
 # Requires an existing Gitleaks 8.30.1 executable; no tool is downloaded here.

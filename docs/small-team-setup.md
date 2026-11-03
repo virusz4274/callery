@@ -65,7 +65,7 @@ aws --profile vosift-restore --endpoint-url "$restoreStorageEndpoint" s3 sync ".
 ```
 
 5. Compare collection counts/indexes, audio counts/sizes/hashes, company policy and per-employee usage with the manifest. Check retained former employees and their contacts. Clear restored login sessions before exposing a recovered deployment; employees should sign in again. Expired invitations need resending.
-6. Start the matching app revision. Verify administrator and member login, member isolation, playback of several samples, an employee export, and retained access removal. Confirm that a stored Google token can be decrypted before reconnecting Contacts. Existing export download URLs may point to the old bucket; regenerate exports in the recovered deployment.
+6. Start the matching app revision. Verify administrator and member login, member isolation, playback of several samples, an employee export, and retained access removal. Confirm that a stored Google token can be decrypted before reconnecting Contacts. Reopen the Export panel to refresh completed-archive links against the restored bucket. Request a fresh archive only if the saved parts are unavailable or expired and a new export is eligible; fresh-export limits still apply.
 7. For actual recovery, route the saved public origin to the recovered deployment only after these checks pass. Restore email/integration settings and resume cron jobs after reviewing retention dates. Keep the previous deployment and backup available until recovery has been checked.
 
 Repeat a restore rehearsal after major upgrades and periodically during use. The automated team integration test exercises a BSON copy to a separately named MongoDB database and a byte-for-byte audio copy, plus restored identity and policy checks. An operational `mongodump`/bucket restore rehearsal using deployment backups is still needed before relying on disaster recovery.
@@ -83,7 +83,7 @@ For two weeks, note whether employees upload regularly, how often the administra
 The real database suite in `src/lib/team.integration.test.ts` is opt-in. Set `VOSIFT_TEST_MONGODB_URI` only in the test process, using a MongoDB account permitted to create/drop temporary databases. The suite replaces the database name with a random test name before connecting and drops only its test/recovery databases. Email and storage are intercepted; no external messages or transcription jobs are sent.
 
 ```powershell
-node --conditions=react-server --import tsx --test --import ./src/test/env-test-setup.ts src/lib/team.integration.test.ts
+pnpm exec tsx --test --import ./src/test/env-test-setup.ts src/lib/team.integration.test.ts
 pnpm exec playwright test e2e/team-workflow.spec.ts
 ```
 

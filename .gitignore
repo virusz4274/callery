@@ -61,7 +61,7 @@ public/swe-worker-*.js.map
 /dist/
 .vinext/
 .cloudflare/
-.dev.vars
+.dev.vars*
 
 # Browser test output
 /test-results/

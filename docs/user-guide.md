@@ -33,7 +33,7 @@ What happens during upload:
 
 1. The app validates the file name, MIME type, and size.
 2. The browser requests an upload session and URL.
-3. File bytes go directly to S3-compatible storage when verified signed-length uploads are configured; otherwise, the app streams them to storage with a size limit.
+3. File bytes go directly to S3-compatible storage or through the app's bounded streaming path, depending on deployment configuration.
 4. The app finalizes the upload, verifies the object and size, creates the recording, and optionally starts auto-transcription after the response.
 
 If the filename contains a recognizable contact name, phone number, or timestamp, the uploader uses that to pre-fill the recording context and storage key.
@@ -193,12 +193,12 @@ When billing is enabled, users can:
 
 - review the active plan
 - see storage and transcription usage
-- enable or disable overage
+- enable or disable overage on an eligible recurring plan
 - start Stripe Checkout
 - open the Stripe customer portal
 - review invoice history
 
-If billing is disabled for the deployment, these controls are not shown. Free-trial users cannot enable pay-per-usage overage.
+If billing is disabled for the deployment, these controls are not shown. Free-trial users cannot enable pay-per-usage overage. Lifetime owners manage or cancel their separately billed usage through the customer portal; they do not have the recurring-plan overage switch.
 
 ## Company Archives
 

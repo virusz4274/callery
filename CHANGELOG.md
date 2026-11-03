@@ -11,6 +11,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Excluded Cloudflare `.dev.vars` environment files and their named variants from isolated verification snapshots.
 - Prevented competing or stale export workers from publishing checkpoints, and coordinated archive expiry and object cleanup with active generation.
 - Bounded archive transfers and preserved completed exports when notification delivery fails, with safe failure details and clearer retry feedback.
 

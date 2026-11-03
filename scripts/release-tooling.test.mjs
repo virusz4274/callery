@@ -19,7 +19,12 @@ test('secret findings expose locations and stable fingerprints, never matched by
 });
 
 test('acceptance snapshots exclude deployment configuration and generated state', () => {
-  for (const file of ['.env', '.env.local', 'nested/.env.production', 'service-account.json', 'tls.key', '.next/server.js', 'node_modules/a.js', '.git/config']) assert.equal(sourceFileAllowed(file), false, file);
+  for (const file of [
+    '.env', '.env.local', 'nested/.env.production',
+    '.dev.vars', '.dev.vars.staging', '.dev.vars.production.local',
+    'nested/.dev.vars', 'nested/.dev.vars.preview', 'nested/.dev.vars.preview.local',
+    'service-account.json', 'tls.key', '.next/server.js', 'node_modules/a.js', '.git/config',
+  ]) assert.equal(sourceFileAllowed(file), false, file);
   for (const file of ['package.json', 'Dockerfile', 'src/app/page.tsx', 'scripts/ci-smoke.mjs']) assert.equal(sourceFileAllowed(file), true, file);
   const safe = isolatedEnvironment({ PATH: '/usr/bin', HOME: '/fixture', STRIPE_SECRET_KEY: 'private-value', MONGODB_URI: 'private-uri', NEXT_PUBLIC_APP_URL: 'https://shared.invalid' });
   assert.equal(safe.PATH, '/usr/bin');

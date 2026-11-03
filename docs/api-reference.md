@@ -190,7 +190,7 @@ their instance-session/mobile-token authentication contracts.
 | `POST` | `/api/transcribe` | persists an authorized manual transcription request |
 | `PUT` | `/api/uploads/content` | streams the bounded upload fallback with an instance session, upload token, and allowed Origin |
 | `POST`, `DELETE` | `/api/notifications/subscribe` | registers or removes a browser push subscription |
-| `POST` | `/api/support` | creates a support request and may send support email after the response |
+| `POST` | `/api/support` | accepts managed-site support requests; billing-disabled instances return `403` with the GitHub support URL |
 
 ### Transcription Workspace
 
@@ -294,15 +294,18 @@ the deployed bucket permits them. See [integration capabilities](integration-api
 
 ## Support Route Behavior
 
-`POST /api/support` currently:
+With billing disabled, `POST /api/support` returns `403` with `error` and
+`supportUrl`, without validating or storing a submission or sending email.
+On the managed site (`NEXT_PUBLIC_ENABLE_BILLING=true`), it:
 
 - validates the JSON body with `zod`
 - rejects submissions that fill the honeypot `companyWebsite` field
 - rejects cross-origin submissions that do not match the public app origin
 - rate limits by client IP
 - stores every accepted request in `support_messages`
-- stores `pending` delivery state when `SUPPORT_EMAIL` is configured, otherwise `skipped`
-- sends the support email after the response with Next.js `after(...)`
+- resolves the recipient from `siteProfile.supportEmail`, falling back to `SUPPORT_EMAIL`
+- stores `pending` delivery state only when that recipient exists and `EMAIL_PROVIDER` is not `none`, otherwise `skipped`
+- sends eligible support email after the response with Next.js `after(...)`
 
 ## Stripe Webhook Events
 

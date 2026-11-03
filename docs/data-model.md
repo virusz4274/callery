@@ -52,9 +52,10 @@ atomically and preserve their siblings. Google credentials and subscription
 details remain optional until the corresponding service is connected.
 Free Trial has a nonrenewing `trial` plan interval and one `trialEndsAt` deadline
 30 days after its original grant. Existing-profile login does not reset that
-deadline or consumption. `UserResponse.transcriptionUnlimited` is derived only
-for a verified Internal entitlement; it does not overwrite usage counters or
-authorize customer Stripe billing.
+deadline or consumption. `UserResponse.transcriptionUnlimited` is derived for
+the Internal plan in self-hosted mode and requires a verified Internal
+entitlement in managed mode. It does not overwrite usage counters or authorize
+customer Stripe billing.
 
 `googleSync` starts with `status: 'not_connected'` and stores encrypted refresh-token material:
 
@@ -523,7 +524,7 @@ Billing-off instances do not enqueue Stripe usage events.
 `storageUsed` is current capacity; the ledger keeps a monotonic chargeable peak
 above the current allowance. Deleting recordings cannot reduce that period's
 charge. Renewal persists the retained-storage baseline. Audio allowance is
-allocated once on successful transcription; enrichment retries reuse the
+reserved at acceptance and consumed once on successful transcription; enrichment retries reuse the
 original transcript/receipt. Late callbacks settle against their original
 period. Immediate upgrades preserve consumed allowance and charge only
 additional storage units at the new tariff. Before a scheduled boundary opens

@@ -9,7 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export function sourceFileAllowed(file) {
-  return !file.split('/').some(part => /^(?:\.env(?:\..*)?|\.git|node_modules|\.next|release-artifacts|test-results|playwright-report)$/.test(part))
+  return !file.split('/').some(part => /^(?:(?:\.env|\.dev\.vars)(?:\..*)?|\.git|node_modules|\.next|release-artifacts|test-results|playwright-report)$/.test(part))
     && !/(?:^|\/)service-account[^/]*\.json$|\.(?:pem|key|p12|pfx)$/.test(file);
 }
 
