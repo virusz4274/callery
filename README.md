@@ -2,7 +2,7 @@
 
 A web application for managing, transcribing, and organizing phone call recordings.
 
-[Watch the Callery product video (3:48)](docs/assets/callery-product-video.mp4)
+[![Watch the Callery product demo on YouTube](https://i.ytimg.com/vi/Z4hJoVGuXgw/maxresdefault.jpg)](https://www.youtube.com/watch?v=Z4hJoVGuXgw)
 
 **Self-host Callery for free under [AGPL-3.0](LICENSE), or use the paid managed service.** Self-hosters operate their own database, private S3-compatible storage, email and processing providers. Managed users get individual accounts with hosting and setup handled for them. Company archives and employee invitations are self-host features; the managed launch does not offer organizations or seat billing. Managed Lifetime is retained access with the documented processing/usage limits, not unlimited provider services; see [billing](docs/billing.md).
 
