@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "callery",
+  "version": "0.1.0",
+  "description": "Find recorded conversations, inspect transcript evidence, and open recordings in Callery.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Callery",
+        "shortDescription": "Find your recorded calls",
+        "longDescription": "Search your authorized Callery recordings, read relevant transcript passages, and open calls in Callery. Additional actions require separate permissions.",
+        "category": "Productivity",
+        "defaultPrompt": "Find my calls about a delivery date change and show the relevant transcript passages."
+      }
+    }
+  }
+}

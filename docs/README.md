@@ -20,6 +20,7 @@ Runtime verification and remaining deployment checks are recorded in [Releases](
 - [Architecture](architecture.md): system shape, async flows, security boundaries, and repository layout
 - [API Reference](api-reference.md): Server Actions, route handlers, signed upload flow, webhooks, and cron endpoints
 - [Integration API](integration-api.md): scoped tokens, recording uploads/downloads, transcription, and client examples
+- [AI Assistant Connections](mcp-platforms.md): remote MCP, OAuth, client setup, platform acceptance, and public listing preparation
 - [Recording Filenames](recording-filenames.md): supported recorder patterns and validated contact/date metadata
 - [Data Model](data-model.md): MongoDB collections, important document fields, and index/TTL notes
 - [Billing](billing.md): seeded plans, complete Stripe configuration walkthrough, overage accounting, access control matrix, and troubleshooting

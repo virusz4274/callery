@@ -26,6 +26,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: absoluteUrl('/developers'),
+      lastModified,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
       url: absoluteUrl('/changelog'),
       lastModified,
       changeFrequency: 'weekly',

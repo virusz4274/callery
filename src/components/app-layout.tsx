@@ -26,7 +26,7 @@ type AppLayoutProps = {
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
 const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance', '/account-closed']);
-const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance', '/~offline', '/account-closed']);
+const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/oauth/login', '/oauth/consent', '/maintenance', '/~offline', '/account-closed']);
 const MARKETING_LAYOUT_PATHS = new Set([
   '/',
   '/pricing',

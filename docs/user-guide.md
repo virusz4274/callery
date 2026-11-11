@@ -188,7 +188,11 @@ Notable settings behavior:
 In a company archive, **Processing** and **Retention** show the administrator's
 policy instead of personal editing controls. **Integrations** creates scoped API
 tokens for clients, displays each new secret once, and lets you rotate or revoke
-tokens separately; see [integration setup](integration-api.md).
+tokens separately. Connected OAuth apps are listed with their permissions and
+can be disconnected independently. AI search results link back to Callery for
+playback; opening a link still requires an authorized Callery session. The public
+`/developers` page links [integration setup](integration-api.md), the live OpenAPI
+reference, and [AI assistant connection instructions](mcp-platforms.md).
 
 ### Closing a personal account
 

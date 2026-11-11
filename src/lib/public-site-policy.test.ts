@@ -18,7 +18,10 @@ test('public pages, navigation and indexing follow the billing opt-in', () => {
                 supportHref: managed ? '/support' : GITHUB_SUPPORT_URL,
             });
             assert.equal(navigationConfig.public.length, managed ? 2 : 0);
-            assert.equal(sitemap().length, managed ? 6 : 0);
+            const indexedPaths = sitemap().map(entry => new URL(entry.url).pathname);
+            assert.deepEqual(indexedPaths, managed
+                ? ['/', '/pricing', '/support', '/developers', '/changelog', '/privacy-policy', '/terms-of-service']
+                : [], 'Managed discovery includes the developer hub; self-host indexing stays disabled.');
             if (!managed) {
                 assert.deepEqual(robots(), { rules: { userAgent: '*', disallow: '/' } });
                 assert.deepEqual(createSiteMetadata(siteSeoConfig).robots, {
@@ -30,6 +33,8 @@ test('public pages, navigation and indexing follow the billing opt-in', () => {
             }
             const metadata = createMarketingMetadata({ config: siteSeoConfig, title: 'Test', description: 'Test', path: '/' });
             assert.equal(typeof metadata.robots === 'object' && metadata.robots?.index, managed);
+            const developersMetadata = createMarketingMetadata({ config: siteSeoConfig, title: 'Developer documentation', description: 'API and MCP integration guides.', path: '/developers' });
+            assert.equal(typeof developersMetadata.robots === 'object' && developersMetadata.robots?.index, managed);
         }
     } finally {
         if (previous === undefined) delete process.env.NEXT_PUBLIC_ENABLE_BILLING;

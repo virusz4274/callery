@@ -4,6 +4,10 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { bearer } from 'better-auth/plugins/bearer';
 import { nextCookies } from 'better-auth/next-js';
+import { jwt } from 'better-auth/plugins/jwt';
+import { oauthProvider } from '@better-auth/oauth-provider';
+import { cimd } from '@better-auth/cimd';
+import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { ObjectId, type Db } from 'mongodb';
 import { getMongoDb } from '@/lib/mongodb';
 import { getAuthCapabilities, getAuthSecret, getGoogleCredentials } from './config';
@@ -12,6 +16,7 @@ import { assertSignupAllowed } from '@/lib/team-invitations';
 import { getTeamSettings } from '@/lib/team-policy';
 import { sendAuthEmail } from '@/lib/email';
 import type { SessionUser } from './types';
+import { createOAuthTokenClaims, OAUTH_SCOPES } from '@/lib/integrations/oauth-state';
 
 function escapeHtml(value: string): string {
     return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -46,7 +51,7 @@ export function createAuth(db: Db, sendEmail: typeof sendAuthEmail = sendAuthEma
         secret,
         advanced: { disableOriginCheck: false, disableCSRFCheck: false },
         database: mongodbAdapter(db, { transaction: false }),
-        disabledPaths: emailsEnabled ? [] : ['/request-password-reset', '/reset-password', '/send-verification-email'],
+        disabledPaths: ['/token', ...(emailsEnabled ? [] : ['/request-password-reset', '/reset-password', '/send-verification-email'])],
         emailAndPassword: {
             enabled: true,
             requireEmailVerification: emailsEnabled,
@@ -73,7 +78,20 @@ export function createAuth(db: Db, sendEmail: typeof sendAuthEmail = sendAuthEma
         ...(google
             ? { socialProviders: { google } }
             : {}),
-        plugins: [bearer(), nextCookies()],
+        plugins: [bearer(), jwt({ disableSettingJwtHeader: true }), oauthProvider({
+            loginPage: '/oauth/login', consentPage: '/oauth/consent', scopes: [...OAUTH_SCOPES],
+            grantTypes: ['authorization_code', 'refresh_token'], accessTokenExpiresIn: 15 * 60,
+            refreshTokenExpiresIn: 30 * 86400, refreshTokenReuseInterval: 0,
+            allowDynamicClientRegistration: true, allowUnauthenticatedClientRegistration: true,
+            clientRegistrationDefaultScopes: ['openid', 'profile', 'email', 'offline_access', 'recordings:read'],
+            clientRegistrationAllowedScopes: ['recordings:upload', 'recordings:download', 'recordings:transcribe'],
+            clientRegistrationDefaultResources: [`${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:9000'}/mcp/v1`, `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:9000'}/api/v1`],
+            resources: ['/mcp/v1', '/api/v1'].map(path => ({ identifier: `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:9000'}${path}`, allowedScopes: [...OAUTH_SCOPES], accessTokenTtl: 900, refreshTokenTtl: 30 * 86400 })),
+            extensions: [{ claims: { accessToken: async input => {
+                try { return await createOAuthTokenClaims(db, input); }
+                catch { throw new APIError('UNAUTHORIZED', { error: 'invalid_grant', error_description: 'Authorize this connection again.' }); }
+            } } }],
+        }), cimd({ fetchClientMetadataResource }), nextCookies()],
         databaseHooks: {
             user: {
                 create: {

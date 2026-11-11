@@ -10,6 +10,7 @@ import styles from './marketing-shell.module.css';
 const links = [
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/developers', label: 'Developers' },
   { href: '/support', label: 'Support' },
 ];
 

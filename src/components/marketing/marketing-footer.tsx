@@ -17,6 +17,7 @@ export function MarketingFooter() {
             <Link href="/#how-it-works">How it works</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/changelog">Updates</Link>
+            <Link href="/developers">Developers</Link>
           </nav>
           <nav className={styles.footerGroup} aria-label="Help and legal links">
             <h2>Help and information</h2>

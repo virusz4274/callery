@@ -14,6 +14,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/admin/',
           '/api/',
+          '/oauth/',
+          '/mcp/',
           '/recordings/',
           '/contacts/',
           '/files/',

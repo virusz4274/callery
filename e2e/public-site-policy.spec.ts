@@ -18,6 +18,9 @@ test('public routes and discovery follow the deployment billing flag', async ({ 
     expect(support.status()).toBe(managed ? 200 : 307);
     if (!managed) expect(support.headers().location).toBe(GITHUB_SUPPORT_URL);
 
+    const developers = await request.get('/developers', { maxRedirects: 0 });
+    expect(developers.status()).toBe(200);
+
     const sitemap = await request.get('/sitemap.xml');
     expect(sitemap.ok()).toBe(true);
     expect((await sitemap.text()).includes('<loc>')).toBe(managed);
@@ -30,6 +33,30 @@ test('public routes and discovery follow the deployment billing flag', async ({ 
         expect(await response.json()).toMatchObject({ supportUrl: GITHUB_SUPPORT_URL });
     }
 });
+
+for (const width of [360, 1280]) {
+    test(`developer documentation is public and usable at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.route('**/api/auth/get-session*', route => route.fulfill({ json: null }));
+        await page.route('**/api/auth/capabilities', route => route.fulfill({ json: { googleEnabled: false, emailVerificationRequired: false, passwordResetEnabled: false } }));
+        const response = await page.goto('/developers');
+        expect(response?.status()).toBe(200);
+        await expect(page.getByRole('heading', { level: 1, name: 'Build around your conversations.' })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Read the integration guide', exact: true })).toHaveAttribute('href', 'https://github.com/virusz4274/callery/blob/main/docs/integration-api.md');
+        await expect(page.getByRole('link', { name: 'Open this server’s API reference', exact: true })).toHaveAttribute('href', '/api/v1/openapi.json');
+        await expect(page.getByRole('link', { name: 'Manage API keys and connected apps', exact: true })).toHaveAttribute('href', '/settings?tab=integrations');
+        await expect(page.getByRole('link', { name: 'ChatGPT, Claude, and Gemini setup', exact: true })).toHaveAttribute('href', 'https://github.com/virusz4274/callery/blob/main/docs/mcp-platforms.md');
+        await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Developers', exact: true })).toHaveAttribute('href', '/developers');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        if (!managed) await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute('content', /noindex/);
+        if (width < 761) {
+            await page.getByRole('button', { name: 'Site menu', exact: true }).click();
+            await expect(page.getByRole('navigation', { name: 'Mobile site navigation' }).getByRole('link', { name: 'Developers', exact: true })).toBeVisible();
+        } else {
+            await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Developers', exact: true })).toBeVisible();
+        }
+    });
+}
 
 test('self-host homepage preserves query context through signed-out login', async ({ page, request }) => {
     test.skip(managed, 'Self-host workspace entry only.');

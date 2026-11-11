@@ -192,6 +192,33 @@ Auth notes:
     `GET /api/auth/capabilities` reports login, verification and recovery availability
     without connecting to MongoDB or disclosing credentials.
 
+### External API and MCP connections
+
+The public `/developers` hub is available on both managed and self-hosted
+instances. New mobile and CRM clients use `/api/v1` with a named API key or an
+OAuth access token for that API resource. AI clients use `/mcp/v1`; their OAuth
+resource must match that full public URL. Do not change the saved public origin
+to a server listening address while configuring either integration.
+
+Callery's Better Auth provider owns `/api/auth/oauth2/*`, including authorization,
+token, refresh/revocation, and registration operations. The issuer is the public
+origin plus `/api/auth`; discovery is exposed at
+`/.well-known/oauth-authorization-server/api/auth` (with a root discovery alias).
+Protected-resource metadata is at
+`/.well-known/oauth-protected-resource/api/v1` and
+`/.well-known/oauth-protected-resource/mcp/v1`. Keep those routes and the MCP
+endpoint reachable from the client's cloud service through the same trusted
+HTTPS origin. OAuth sign-in/consent is separate from optional Google sign-in and
+Contacts authorization.
+
+Run `pnpm db:init` as part of deployment to establish the provider/integration
+indexes; no replacement deployment environment file is needed. Preserve the auth
+secret and persisted signing keys during upgrades. Use the client setup and
+publication checklists in [AI assistant connections](mcp-platforms.md). Platform
+account/device tests and public directory approval are not implied by a locally
+reachable endpoint. For native clients, direct resumable storage uploads must be
+advertised by capabilities; otherwise honor the bounded form-upload limit.
+
 Billing notes:
 
 *   Billing is **off unless** `NEXT_PUBLIC_ENABLE_BILLING=true`. When off,

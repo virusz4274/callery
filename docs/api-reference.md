@@ -2,6 +2,22 @@
 
 Callery uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
 
+This is the internal application reference. Third-party/mobile/CRM developers
+should start at the public `/developers` hub and [Integration API](integration-api.md).
+The deployed machine-readable contract is `/api/v1/openapi.json`; private browser
+routes and Server Actions below are not public integration endpoints.
+
+## Public integration interfaces
+
+- `/api/v1` accepts scoped API keys and resource-bound OAuth access tokens.
+- `POST /api/v1/recordings/search` calls the existing passage/keyword retrieval
+  service and returns whitelisted recording DTOs, evidence, coverage, and app links.
+- `GET /api/v1/recordings/[id]/transcript` provides revision-aware bounded pages.
+- `/mcp/v1` exposes remote tools through stateless Streamable HTTP, backed by the
+  same authorized services. Audio playback and manual uploads link to Callery.
+- OAuth discovery, sign-in, consent, and connection management are distinct from
+  Google sign-in/Contacts consent. See [platform setup](mcp-platforms.md).
+
 ## Server Actions
 
 Primary action directories:

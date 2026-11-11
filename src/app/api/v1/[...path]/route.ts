@@ -12,6 +12,7 @@ import { simpleUpload } from '@/lib/integrations/simple-upload';
 import { processTranscriptionJobs, recordingJobStatus, requestTranscription } from '@/lib/integrations/jobs';
 import { openApiDocument } from '@/lib/integrations/openapi';
 import { directUploadLengthsVerified, expectedPartLength } from '@/lib/integrations/upload-policy';
+import { readAccessibleTranscript, RecordingSearchSchema, searchAccessibleRecordings } from '@/lib/integrations/recording-access';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -20,7 +21,7 @@ async function dispatch(request: NextRequest, context: Context) {
     return apiHandler(async requestId => {
         const path = (await context.params).path; const method = request.method;
         if (method === 'GET' && path.join('/') === 'openapi.json') return Response.json(openApiDocument(), { headers: { ...corsHeaders, 'Cache-Control': 'no-store', 'X-Request-Id': requestId } });
-        if (method === 'GET' && path.join('/') === 'capabilities') return apiResponse({ apiVersion: 'v1', authentication: 'api-token', uploadModes: [...(directUploadLengthsVerified() ? ['direct-multipart'] : []), 'multipart-form'], maxFileSize: directUploadLengthsVerified() ? MAX_FILE_BYTES : simpleUploadLimit(), simpleUploadMaxFileSize: simpleUploadLimit(), partSize: PART_BYTES, uploadSessionSeconds: SESSION_MS / 1000, signedUrlSeconds: URL_SECONDS, formats: ['mp3', 'wav', 'm4a', 'mp4', 'webm'], maxTranscriptionFileSize: 2 * 1024 ** 3, notifications: 'polling' }, 200, requestId);
+        if (method === 'GET' && path.join('/') === 'capabilities') return apiResponse({ apiVersion: 'v1', authentication: 'api-token', authenticationMethods: ['api-token', 'oauth2'], mcpEndpoint: '/mcp/v1', uploadModes: [...(directUploadLengthsVerified() ? ['direct-multipart'] : []), 'multipart-form'], maxFileSize: directUploadLengthsVerified() ? MAX_FILE_BYTES : simpleUploadLimit(), simpleUploadMaxFileSize: simpleUploadLimit(), partSize: PART_BYTES, uploadSessionSeconds: SESSION_MS / 1000, signedUrlSeconds: URL_SECONDS, formats: ['mp3', 'wav', 'm4a', 'mp4', 'webm'], maxTranscriptionFileSize: 2 * 1024 ** 3, notifications: 'polling' }, 200, requestId);
         const actor = await authenticateApi(request.headers);
         await apiRateLimit(actor, method === 'POST' && (path.join('/') === 'uploads' || path.join('/') === 'recordings'));
         const respond = (data: unknown, status = 200) => apiResponse(data, status, requestId);
@@ -53,6 +54,8 @@ async function dispatch(request: NextRequest, context: Context) {
             }
         }
         if (path[0] === 'recordings') {
+            if (path.length === 2 && path[1] === 'search' && method === 'POST') return respond(await searchAccessibleRecordings(actor, await jsonBody(request, RecordingSearchSchema)));
+            if (path.length === 3 && path[2] === 'transcript' && method === 'GET') return respond(await readAccessibleTranscript(actor, path[1], Object.fromEntries(request.nextUrl.searchParams)));
             if (path.length === 1 && method === 'GET') return respond(await listRecordings(actor, request.nextUrl.searchParams));
             if (path.length === 1 && method === 'POST') {
                 requireScope(actor, 'recordings:upload');

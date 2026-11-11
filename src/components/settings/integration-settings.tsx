@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/api-client';
 import { INTEGRATION_SCOPES, SCOPE_LABELS } from '@/lib/integrations/shared';
 import { useTeamPolicy } from '@/hooks/use-team-policy';
 import { publicEnv } from '@/lib/public-env';
+import { ConnectedApps } from './connected-apps';
 
 type Scope = typeof INTEGRATION_SCOPES[number];
 interface Token { id: string; name: string; prefix: string; scopes: Scope[]; expiresAt: string | null; createdAt: string; revokedAt: string | null; lastUsedAt: string | null }
@@ -50,7 +51,7 @@ export function IntegrationSettings({ isAdmin }: { isAdmin: boolean }) {
                 <div className="flex items-center gap-3"><KeyRound className="size-5" /><h3 className="text-lg font-semibold">Integrations</h3></div>
                 <p className="text-sm text-muted">Connect a sync client or CRM with this server URL and a named API token. Uploads follow your account or company’s automatic transcription and retention settings.</p>
                 <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-medium">Server URL</span><code className="break-all text-sm">{baseUrl}</code><Button size="sm" variant="secondary" onPress={() => copy(baseUrl)}><Copy className="size-4" />Copy URL</Button></div>
-                <a className="text-sm text-accent underline" href="/api/v1/openapi.json" target="_blank" rel="noreferrer">API reference (OpenAPI)</a>
+                <div className="flex flex-wrap gap-4 text-sm text-accent underline"><a href="/developers">Developer documentation</a><a href="https://github.com/virusz4274/callery/blob/main/docs/integration-api.md" target="_blank" rel="noreferrer">Integration guide</a><a href="/api/v1/openapi.json" target="_blank" rel="noreferrer">API reference (OpenAPI)</a></div>
                 {secret && <div className="space-y-3 rounded-xl border border-warning bg-warning/10 p-4">
                     <p className="text-sm font-medium">Save your API token. It will not be displayed again.</p>
                     <code className="block break-all select-all text-sm">{secret}</code>
@@ -87,5 +88,6 @@ export function IntegrationSettings({ isAdmin }: { isAdmin: boolean }) {
             })}
             {!loading && loadError && <Button size="sm" variant="secondary" onPress={() => { void load(); }}>Retry loading</Button>}
         </Card.Content></Card>
+        <ConnectedApps />
     </div>;
 }

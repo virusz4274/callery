@@ -5,6 +5,7 @@ import { getRecordingById } from './db/recordings';
 import { hydrateRecordingContacts } from './db/recordings/hydrate-contacts';
 import type { Recording, User } from './db/types';
 import { DEFAULT_TEAM_SETTINGS, canAccessTeamRecording, canDeleteTeamRecording, type TeamSettings } from './team-config';
+import { revokeOwnerOAuth } from './integrations/oauth-state';
 
 export async function getTeamSettings(db?: Db): Promise<TeamSettings> {
     const settings = db ? await db.collection(Collections.SYSTEM_SETTINGS).findOne({}) : await getSystemSettings();
@@ -85,4 +86,5 @@ export async function revokeUserSessions(subject: string, database?: Db): Promis
     const ids: (string | ObjectId)[] = [subject];
     if (ObjectId.isValid(subject)) ids.push(new ObjectId(subject));
     await db.collection('session').deleteMany({ userId: { $in: ids } });
+    await revokeOwnerOAuth(db, subject);
 }

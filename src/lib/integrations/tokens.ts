@@ -11,7 +11,13 @@ export interface ApiToken {
     scopes: Scope[]; createdAt: Date; credentialIssuedAt: Date; expiresAt: Date | null;
     revokedAt?: Date; lastUsedAt?: Date;
 }
-export interface ApiActor { token: ApiToken; user: User }
+export type IntegrationCredential = Omit<ApiToken, 'hash' | 'prefix'>;
+export interface IntegrationPrincipal {
+    kind: 'api-key' | 'oauth'; owner: string; connectionId: string; credentialId: string;
+    scopes: Scope[]; issuedAt: Date; expiresAt: Date | null;
+}
+/** token is the compatibility credential view used by existing ingestion clients. */
+export interface ApiActor { token: IntegrationCredential; user: User; principal?: IntegrationPrincipal }
 export function newCredential() {
     const secret = `vst_${randomBytes(32).toString('base64url')}`;
     return { secret, hash: createHash('sha256').update(secret).digest('hex'), prefix: secret.slice(0, 12) };
@@ -23,16 +29,22 @@ export function tokenIsActive(token: ApiToken, user: User | null, now = new Date
     return !!user && !user.disabled && !user.softDelete?.isDeleted && !user.teamInvitationPending && !token.revokedAt &&
         (!token.expiresAt || token.expiresAt > now) && (!user.accessRevokedAt || token.credentialIssuedAt > user.accessRevokedAt);
 }
-export async function authenticateApi(headers: Headers, database?: Db): Promise<ApiActor> {
+export async function authenticateApi(headers: Headers, database?: Db, audience: 'api' | 'mcp' = 'api'): Promise<ApiActor> {
     const secret = headers.get('authorization')?.match(/^Bearer (vst_[A-Za-z0-9_-]{43})$/i)?.[1];
-    if (!secret) throw new ApiError(401, 'unauthorized', 'A valid API token is required.');
+    if (!secret) {
+        const oauth = headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i)?.[1];
+        if (!oauth) throw new ApiError(401, 'unauthorized', 'A valid API token or OAuth access token is required.');
+        const { authenticateOAuth } = await import('./oauth');
+        return authenticateOAuth(oauth, database || await integrationDb(), audience);
+    }
     const db = database || await integrationDb();
     const hash = createHash('sha256').update(secret).digest('hex');
     const token = await db.collection<ApiToken>(IntegrationCollections.tokens).findOne({ hash });
     const user = token ? await db.collection<User>(Collections.USERS).findOne({ authSubject: token.owner }) : null;
     if (!token || !tokenIsActive(token, user) || !timingSafeEqual(Buffer.from(hash), Buffer.from(token.hash))) throw new ApiError(401, 'unauthorized', 'API token expired, revoked, or invalid.');
     await db.collection<ApiToken>(IntegrationCollections.tokens).updateOne({ _id: token._id, hash, $or: [{ lastUsedAt: { $exists: false } }, { lastUsedAt: { $lt: new Date(Date.now() - 60_000) } }] }, { $set: { lastUsedAt: new Date() } });
-    return { token, user: user! };
+    return { token, user: user!, principal: { kind: 'api-key', owner: token.owner, connectionId: token.integrationId, credentialId: token._id,
+        scopes: token.scopes, issuedAt: token.credentialIssuedAt, expiresAt: token.expiresAt } };
 }
 export function requireScope(actor: ApiActor, scope: Scope) {
     if (!actor.token.scopes.includes(scope)) throw new ApiError(403, 'insufficient_scope', `Required permission: ${scope}.`);
@@ -74,6 +86,13 @@ export async function changeApiToken(owner: string, id: string, rotate: boolean)
 }
 export async function activeIntegration(owner: string, integrationId: string) {
     const db = await getMongoDb();
+    if (integrationId.startsWith('oauth:')) {
+        const { currentOAuthConnection, oauthAccountActive } = await import('./oauth-state');
+        const { integrationResource } = await import('./oauth-resource');
+        const connection = await currentOAuthConnection(db, owner, integrationId);
+        const user = await db.collection<User>(Collections.USERS).findOne({ authSubject: owner });
+        return connection && connection.resources.includes(integrationResource('api')) && connection.scopes.includes('recordings:upload') && oauthAccountActive(user, connection.createdAt) ? user : null;
+    }
     const token = await db.collection<ApiToken>(IntegrationCollections.tokens).findOne({ owner, integrationId, revokedAt: { $exists: false } });
     const user = await db.collection<User>(Collections.USERS).findOne({ authSubject: owner });
     return token && tokenIsActive(token, user) ? user : null;

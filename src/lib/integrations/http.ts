@@ -5,8 +5,9 @@ import { ApiError, jsonDepth } from './contracts';
 import { consumeRateLimit } from '@/lib/rate-limit';
 import type { ApiActor } from './tokens';
 import { logger } from '@/lib/logger';
+import { integrationOAuthChallenge } from './oauth-resource';
 
-export const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key', 'Access-Control-Expose-Headers': 'X-Request-Id, Retry-After' };
+export const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key', 'Access-Control-Expose-Headers': 'X-Request-Id, Retry-After, WWW-Authenticate' };
 export async function jsonBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
     const reader = request.body?.getReader();
     if (!reader) throw new ApiError(400, 'invalid_request', 'JSON body required.');
@@ -47,6 +48,6 @@ export async function apiHandler(work: (requestId: string) => Promise<Response>)
         const failure = error instanceof ApiError ? error : new ApiError(500, 'internal_error', 'An unexpected error occurred.');
         // SDK errors may contain signed URLs and private metadata. Log identifiers only.
         if (failure.status >= 500) logger.error(`[integration-api] ${failure.code}; requestId=${requestId}`);
-        return NextResponse.json({ success: false, error: { code: failure.code, message: failure.message }, requestId }, { status: failure.status, headers: { ...corsHeaders, 'Cache-Control': 'no-store', 'X-Request-Id': requestId, ...(failure.retryAfter ? { 'Retry-After': String(failure.retryAfter) } : {}), ...(failure.status === 401 ? { 'WWW-Authenticate': 'Bearer realm="Vosift API"' } : {}) } });
+        return NextResponse.json({ success: false, error: { code: failure.code, message: failure.message }, requestId }, { status: failure.status, headers: { ...corsHeaders, 'Cache-Control': 'no-store', 'X-Request-Id': requestId, ...(failure.retryAfter ? { 'Retry-After': String(failure.retryAfter) } : {}), ...(failure.status === 401 ? { 'WWW-Authenticate': integrationOAuthChallenge('api') } : {}) } });
     }
 }

@@ -49,6 +49,15 @@ graph TD
 - Server actions and route handlers share identity resolution and reject disabled/deleted profiles.
 - Verified bootstrap emails may create admin profiles; other admin access uses MongoDB role checks.
 
+External clients use named API keys or Better Auth's OAuth provider. OAuth uses
+PKCE, consent, short-lived access tokens, rotating refresh credentials, and
+separate API/MCP resource audiences. A stable OAuth connection identity joins
+permission, upload-session, and durable recovery checks; browser sessions remain
+a separate principal. Revocation and account closure fence future integration
+work. The remote `/mcp/v1` service calls the same authorized recording/search
+services as `/api/v1`, rather than using browser cookies or exposing storage keys.
+See [integration API](integration-api.md) and [MCP platform setup](mcp-platforms.md).
+
 ### Direct Uploads
 
 The primary media path is direct to the configured S3-compatible storage:

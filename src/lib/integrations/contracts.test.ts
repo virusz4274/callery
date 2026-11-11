@@ -53,7 +53,7 @@ test('bounded JSON and typed errors provide actionable status without leaking in
 });
 test('OpenAPI documents every implemented public operation and valid schema references', () => {
     const document = openApiDocument(); assert.equal(document.openapi, '3.1.0');
-    for (const path of ['/capabilities', '/me', '/uploads', '/uploads/{id}', '/uploads/{id}/parts', '/uploads/{id}/complete', '/recordings', '/recordings/{id}', '/recordings/{id}/download', '/recordings/{id}/transcribe', '/openapi.json']) assert.ok(path in document.paths, path);
+    for (const path of ['/capabilities', '/me', '/uploads', '/uploads/{id}', '/uploads/{id}/parts', '/uploads/{id}/complete', '/recordings', '/recordings/search', '/recordings/{id}', '/recordings/{id}/transcript', '/recordings/{id}/download', '/recordings/{id}/transcribe', '/openapi.json']) assert.ok(path in document.paths, path);
     const serialized = JSON.stringify(document);
     for (const match of serialized.matchAll(/#\/components\/schemas\/([^"\s]+)/g)) assert.ok(match[1] in document.components.schemas, match[1]);
 });

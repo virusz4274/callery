@@ -118,6 +118,8 @@ async function deleteUserDataUnlocked(subject: string, dependencies: CleanupDepe
         await db.collection(collection).deleteMany({ authSubject: subject });
     }
     await db.collection(IntegrationCollections.tokens).deleteMany({ owner: subject });
+    await db.collection('integration_oauth_connections').deleteMany({ owner: subject });
+    for (const name of ['oauthAccessToken', 'oauthRefreshToken']) await db.collection(name).deleteMany({ userId: { $in: [subject, new ObjectId(subject)] } });
     await db.collection(IntegrationCollections.jobs).deleteMany({ owner: subject, state: { $ne: 'submitted' } });
     await db.collection('transcription_batches').deleteMany({ owner: subject });
     await db.collection('transcription_imports').deleteMany({ owner: subject });

@@ -14,6 +14,14 @@ The Mongo adapter stores `user._id` and linked `account.userId`/`session.userId`
 as ObjectIds. Permanent deletion uses those reference types and removes reset
 verification records after retryable storage/billing cleanup succeeds.
 
+The OAuth provider also owns `oauthClient`, `oauthConsent`, `oauthAccessToken`,
+`oauthRefreshToken`, and its resource/client metadata collections; the JWT plugin
+owns signing keys. `integration_oauth_connections` records a stable per-consent
+connection ID, account owner, client/consent IDs, granted scopes/resources,
+creation/last-use timestamps, and revocation. Upload sessions refer to that stable
+connection, not to an individual rotating access token. Revocation and account
+closure invalidate provider consent/tokens as well as this application boundary.
+
 ### `users`
 
 Stores application profiles linked to Better Auth. `authSubject` is the stable string form of the Better Auth user ObjectId.

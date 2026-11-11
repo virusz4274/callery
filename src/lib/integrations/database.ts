@@ -9,6 +9,11 @@ export const IntegrationCollections = { tokens: 'integration_tokens', uploads: '
 // serve an apparently healthy API when deduplication cannot be enforced.
 const ready = new WeakMap<Db, Promise<void>>();
 export const INTEGRATION_INDEX_GROUPS: InitializationIndexGroup[] = [
+    { collection: 'integration_oauth_connections', indexes: [{ key: { owner: 1, createdAt: -1 }, name: 'oauth_connection_owner' }] },
+    { collection: 'oauthClient', indexes: [{ key: { clientId: 1 }, unique: true, name: 'oauth_client_id' }] },
+    { collection: 'oauthConsent', indexes: [{ key: { userId: 1, clientId: 1 }, name: 'oauth_consent_user_client' }] },
+    { collection: 'oauthRefreshToken', indexes: [{ key: { token: 1 }, unique: true, name: 'oauth_refresh_hash' }, { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: 'oauth_refresh_expiry' }] },
+    { collection: 'oauthAccessToken', indexes: [{ key: { token: 1 }, unique: true, name: 'oauth_access_hash' }, { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: 'oauth_access_expiry' }] },
     { collection: IntegrationCollections.tokens, indexes: [
         { key: { hash: 1 }, unique: true, name: 'token_hash_unique' },
         { key: { owner: 1, createdAt: -1 }, name: 'token_owner' },

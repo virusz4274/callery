@@ -15,6 +15,7 @@ This is beta software. The supported first release is built from source with nat
 *   [**User Guide**](docs/user-guide.md): Recording retrieval, sharing, settings, exports, and company archive behavior.
 *   [**Transcription Batches**](docs/transcription-batches.md): Bulk imports, saved batches, explicit starts, and failure recovery.
 *   [**Integration API**](docs/integration-api.md): Scoped client tokens, resumable uploads, downloads, and transcription requests.
+*   [**AI Assistant Connections**](docs/mcp-platforms.md): MCP and OAuth setup for ChatGPT, Claude, Gemini, and compatible clients. The public `/developers` page links these guides and the instance's live OpenAPI contract.
 *   [**Architecture**](docs/architecture.md): System overview, tech stack, and diagrams.
 *   [**Data Model**](docs/data-model.md): MongoDB schema and types.
 *   [**Historical Branch Reconciliation**](docs/branch-reconciliation.md): Archived integration evidence, superseded by the current guides.

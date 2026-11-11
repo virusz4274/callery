@@ -4,6 +4,18 @@ Connect a sync client, CRM, or other trusted tool to any Vosift instance using i
 public server URL and a named API token from **Settings → Integrations**. No Android
 client is included. The machine-readable contract is `GET /api/v1/openapi.json`.
 
+The public **`/developers`** page links this guide, the current instance's live
+OpenAPI contract, credential settings, and [AI assistant setup](mcp-platforms.md).
+This is the external contract for native/mobile apps, phone CRMs, sync clients,
+and other services. Internal Server Actions and cookie-authenticated browser
+upload routes are not replacements for `/api/v1`.
+
+The GitHub guide follows the repository version; use a matching release's guide
+when running an older deployment, and inspect its live capabilities/OpenAPI
+before using newer operations. API uploads transfer actual audio bytes into
+private storage. A Callery app link points to an existing recording; it does not
+upload a file.
+
 ## Credentials and permissions
 
 Send `Authorization: Bearer <token>` on authenticated `/api/v1` requests. Never send
@@ -12,6 +24,12 @@ choose a date or no expiration. The secret is displayed once and only its hash i
 stored. Rotation immediately invalidates the previous credential while preserving
 the integration identity and upload sessions. Revocation prevents further API
 access. Disabling/deleting an account or revoking its access invalidates its tokens.
+
+Create a separate named key for each mobile app/device or CRM connection and
+select only the needed permissions. Store it in the operating system's secure
+credential store or the integration service's secret store. A published mobile
+application must not contain a shared Callery account key. The account owning
+the key owns its uploads; there is no arbitrary upload-on-behalf-of-user field.
 
 | Permission | Access |
 | --- | --- |
@@ -31,6 +49,51 @@ completion tokens. Token management endpoints require an instance-native session
 upload-only tokens. The transcription permission controls explicit API requests.
 Transcription eligibility, quotas, configured providers, and company overrides
 still apply. Recording retention also follows account/company settings.
+
+### OAuth connections
+
+OAuth lets a supported integration redirect a person to Callery to sign in and
+approve access, rather than asking them to copy an API key. API keys remain
+supported independently. Callery uses authorization code with S256 PKCE,
+discovery, consent, resource-bound access tokens, and rotating refresh tokens.
+Access tokens last 15 minutes; refresh credentials have a 30-day lifetime.
+
+An HTTP API OAuth client requests the exact resource
+`https://YOUR_CALLERY_ORIGIN/api/v1`; an MCP client requests
+`https://YOUR_CALLERY_ORIGIN/mcp/v1`. Tokens are not interchangeable across these
+resources. Use discovery to obtain authorization/token endpoints, retain and
+validate OAuth state in the client, and register exact callback URLs. Do not use
+browser session tokens or an AI tool argument as OAuth credential storage.
+
+New AI connections start with personal recording read access. Upload, download,
+and explicit transcription need separate grants. Company-wide OAuth access is
+not offered in this release; existing company API-key permissions still apply.
+Users manage/disconnect OAuth apps alongside API keys in Settings → Integrations.
+Disconnecting a grant, revoking account access, or disabling/deleting an account
+prevents future authorized requests. API-key rotation does not refresh an OAuth
+grant, and OAuth reconnection does not rotate an API key.
+
+OAuth access is also bound to the Callery sign-in session used for consent.
+Signing out or expiry of that session requires reconnecting the application;
+the refresh credential's maximum lifetime does not override session expiry.
+Settings **Disconnect** immediately revokes the connection grant for API/MCP
+authorization. The standard provider revocation endpoint supports refresh-token
+revocation; individual self-contained JWT access tokens are not revoked through
+that endpoint. Use connection disconnect to stop those tokens immediately.
+
+The issuer is `https://YOUR_CALLERY_ORIGIN/api/auth`. Discover it using
+`/.well-known/oauth-authorization-server/api/auth`; clients first discovering a
+protected resource can use
+`/.well-known/oauth-protected-resource/api/v1` or
+`/.well-known/oauth-protected-resource/mcp/v1`. The provider explicitly enables
+dynamic registration with a limit of five requests per minute per IP. It also
+supports preconfigured clients through Better Auth's session-authorized client
+registration API; register exact callback URLs through that trusted flow. These
+management operations are not authorized by a recording API key. Clients that
+omit the initial scope receive the read/offline-access default rather than
+implicit write access.
+
+For interactive ChatGPT/Claude/Gemini connections, see [MCP setup](mcp-platforms.md).
 
 ## Quick start
 
@@ -155,6 +218,47 @@ Clients should back off on `409 upload_busy`, `429`, and `503`, honoring
 session requires a new upload key. Simple uploads restart the transfer on retry;
 resumable uploads retain confirmed parts. Multipart ETags are not whole-file hashes.
 
+### Mobile restart and CRM synchronization
+
+Keep a durable local queue containing the instance origin, local file reference,
+stable `source`/`externalId`, original metadata, idempotency key, upload session ID,
+and resulting recording ID. Keep credentials separately in secure storage. A
+useful external ID is the CRM's call ID or a device-qualified immutable recording
+ID; a filename alone is not a reliable identity.
+
+After a timeout or process restart, read the saved session first. If it is
+completed, save its `recordingId` instead of starting another upload. If it is
+uploading, ask for storage-confirmed parts, request fresh URLs for missing parts,
+and continue. Expired/cancelled sessions require a new request key; preserve the
+same source/external ID so a retry cannot silently create another logical call.
+Do not reuse a request key for a changed local file or changed metadata.
+
+Only use large-file resumability if capabilities advertises `direct-multipart`.
+The ordinary `multipart-form` path retries the complete bounded request; it does
+not become resumable by calling the browser's cookie-authenticated upload routes.
+Make this limitation visible to native clients before sending a file. A direct
+upload is finalized through Callery, which validates storage contents and applies
+account policy; uploading a storage part alone does not create a recording.
+
+For CRM context, for example:
+
+```json
+{
+  "fileName": "call-123.m4a",
+  "fileSize": 16044,
+  "recordedAt": "2026-11-12T09:00:00+05:30",
+  "phoneNumber": "+15551234567",
+  "source": "my-phone-crm",
+  "externalId": "call-123",
+  "tags": ["sales"],
+  "metadata": { "customerId": "customer-456", "dealId": "deal-789" }
+}
+```
+
+Replace the sample byte count with the actual file length. Retain the metadata
+for retries. IDs inside arbitrary metadata do not grant access to another
+Callery account or implicitly create contacts.
+
 ## Read, download, and process recordings
 
 ```sh
@@ -177,6 +281,68 @@ job state. Poll it with backoff until transcription is completed or failed. Expl
 transcription returns `202` after work is persisted. Provider submissions with an
 uncertain outcome are flagged for review rather than blindly submitted again.
 Download URLs expire after five minutes. Outbound webhooks are deferred.
+
+### Search recordings and read transcript pages
+
+Semantic search is an additive endpoint; the existing list `search` parameter
+keeps its literal matching behavior. Search requires personal `recordings:read`
+permission and excludes archived recordings. Company-wide semantic search is not
+part of this release.
+
+```sh
+curl -X POST "$BASE_URL/api/v1/recordings/search" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"query":"we agreed to move the delivery date","page":1,"pageSize":10,"startDate":"2026-11-01","endDate":"2026-11-12"}'
+```
+
+The JSON body accepts `query` (1–2000 characters), `page` (1–100000, default 1),
+`pageSize` (1–50, default 10), optional owned `contactId`, and optional date-only
+`startDate`/`endDate` (`YYYY-MM-DD`). The start cannot be after the end. It returns
+`recordings`, `page`, `pageSize`, `totalCount`, `hasMore`, `mode`, `coverage`, and
+where applicable `resultLimit` and `fallbackReason`. Each recording has an app
+`url`, summary, and `matches` with text, segment index, transcript revision,
+available timestamps, and a link to that passage.
+
+Search reuses Callery's transcript-passage and keyword retrieval. `coverage`
+reports ready/pending/failed/total transcript indexing; unavailable vectors
+produce explicit keyword fallback. The semantic result window is bounded, not
+an exhaustive count of every related recording. Search does not queue indexing,
+regenerate embeddings, or retranscribe audio. Contact identity, anonymous speaker
+labels, and a person's name mentioned in speech are different kinds of evidence.
+
+Use bounded transcript pages instead of reading an entire long transcript:
+
+```sh
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/api/v1/recordings/RECORDING_ID/transcript?limit=50"
+```
+
+The response contains `recordingId`, app `url`, `revision`, `transcriptionStatus`,
+`totalSegments`, `segments`, and `nextCursor`. Each segment entry includes
+`segmentIndex`, source text offsets `from`/`to` (UTF-16, end exclusive), `text`,
+`speakerId`, available `start`/`end`, and an app link. `limit` is 1–100 entries
+(default 50); a page also caps text at 16,000 UTF-16 characters. Long segments can
+be split across pages, so concatenate by the offsets rather than assuming an
+entry is a complete segment.
+
+Pass the returned `nextCursor` as `cursor`, URL-encoded, to continue. Stop when it
+is `null`. A client may provide `revision` to require a particular transcript;
+stale cursors or revisions return `409 transcript_changed`. Restart paging from
+the first page rather than joining text from different transcript versions.
+
+### App links and private audio
+
+Recording and evidence URLs open the Callery app. The browser may need to sign in
+and must have access to the recording; the link does not grant public access.
+Transcript links preserve a segment/time target when the revision still matches.
+These are the normal links to display in a CRM or assistant result. They are not
+permanent R2/S3 URLs and do not automatically create public shares.
+
+If a trusted client needs audio bytes, explicitly use the separate download
+permission and `/recordings/{id}/download`. Treat its short-lived signed URL as a
+credential, keep it out of logs, and request a fresh one after expiry. Never send
+the Callery bearer credential to object storage. AI chat uploads in this release
+open `/upload`; native apps and CRMs upload actual bytes using the API above.
 
 Responses use `{ "success": true, "data": ..., "requestId": ... }` or
 `{ "success": false, "error": { "code": ..., "message": ... }, "requestId": ... }`.
