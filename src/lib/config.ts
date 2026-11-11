@@ -207,6 +207,18 @@ export function geminiModel(feature: GeminiFeature): string {
     return process.env[name]?.trim() || (feature === 'embedding' ? 'gemini-embedding-001' : 'gemini-3.8-flash');
 }
 
+/** Vector width is part of the model identity, never inferred from another model's vectors. */
+export function searchEmbeddingDimensions(provider: AiProvider = aiProvider(), model?: string): number {
+    const selectedModel = model ?? (provider === 'gemini' ? geminiModel('embedding') : compatTextConfig()?.embeddingModel);
+    const raw = process.env.SEARCH_EMBEDDING_DIMENSIONS?.trim();
+    if (!raw && provider === 'gemini' && selectedModel === 'gemini-embedding-001') return 3072;
+    const value = raw ? Number(raw) : NaN;
+    if (!Number.isSafeInteger(value) || value <= 0 || value > 65_536) {
+        throw new Error('Set SEARCH_EMBEDDING_DIMENSIONS to the vector width of the configured embedding model.');
+    }
+    return value;
+}
+
 /** Configurable self-hosted quota multiplier. Managed policy uses its canonical weights. */
 export function transcriptionMultiplier(provider: string): number {
     return transcriptionPricing()[provider] ?? 1;

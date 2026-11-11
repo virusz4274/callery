@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
+import type { RecordingPassage } from '@/lib/search/passages';
 import type { Recording, User } from '@/lib/db/types';
 import type { AiStepContext, IAIService } from '@/services/ai/types';
 import type { ExecutionPolicySnapshot } from '@/lib/stripe/execution-policy';
@@ -8,7 +9,7 @@ import { ProcessingError } from './processing-errors';
 import { defaultTranscriptEnvelope, processingModels } from './ai-work-plan';
 import { AI_PROMPT_V1 } from '@/services/ai/prompts';
 
-type Fixture = { recording: Partial<Recording> | null; user: Partial<User>; service: IAIService; budgets: Map<string, ExecutionPolicySnapshot>;
+type Fixture = { passages: Map<string, RecordingPassage>; recording: Partial<Recording> | null; user: Partial<User>; service: IAIService; budgets: Map<string, ExecutionPolicySnapshot>;
     children: Map<string, { receipt: { id: string; parentReceiptId: string }; outcome?: string }>;
     calls: string[]; writes: number; settlementFailures: number; budgetDenial?: boolean; operatingError?: Error; saveFailure?: string; policy: Record<string, unknown>; legacyRetirements?: string[] };
 const key = Symbol.for('vosift.test.bundle.v1');
@@ -20,6 +21,7 @@ const hook = registerHooks({ resolve(specifier, context, next) {
             '@/lib/db/recordings': `export async function getRecordingById(){return structuredClone(s().recording);}`,
             '@/lib/db/users': `export async function findUserByAuthSubject(){return structuredClone(s().user);}`,
             '@/services/ai': `export function getAiService(){return s().service;}`,
+            '@/lib/search/passages': `export async function claimPassageAttempt(){} export function passageId(o,r,g,n){return g+':'+n;} export async function preparePassageRows(o,r,g,rev,profile,parts){for(const p of parts){const id=g+':'+p.ordinal;if(!s().passages.has(id))s().passages.set(id,{...p,_id:id,owner:o,recordingId:r,generation:g,transcriptRevision:rev,profileId:profile.id});}} export async function savedPassageResponse(id,o,req,c){const p=s().passages.get(id);return p?.response?.reservationId===c.reservationId?structuredClone(p):null;} export async function savePassageResponse(id,o,req,c,vector,usage){const p=s().passages.get(id);if(!p)throw new Error('Deleted');Object.assign(p,{vector,response:{reservationId:c.reservationId,usage}});} export async function publishPassageGeneration(){}` ,
             '@/lib/stripe/legacy-processing-budget': `export async function retireLegacyProcessingBudget(owner,id){(s().legacyRetirements??=[]).push(id);return true;}`,
             './execution': `export async function updateEnrichmentCheckpoint(owner,id,previous,patch){const f=s();if(!f.recording||f.recording.aiWorkRevision!==previous.aiWorkRevision||JSON.stringify(f.recording.fullTranscript)!==JSON.stringify(previous.fullTranscript))throw new Error('A newer processing checkpoint owns this recording');if(f.saveFailure&&patch.aiWorkCheckpoints&&Object.values(patch.aiWorkCheckpoints).some(c=>c.state===f.saveFailure)){f.saveFailure=undefined;throw new Error('Checkpoint unavailable');}const revision=(previous.aiWorkRevision||0)+1;Object.assign(f.recording,structuredClone(patch),{aiWorkRevision:revision});f.writes++;return revision;}`,
             '@/lib/stripe/execution-policy': `export async function getExecutionPolicy(owner,id){return structuredClone(s().budgets.get(id));}
@@ -42,7 +44,7 @@ function setup(text = 'A fictional demo recording.'): Fixture {
     const rate = { inputUsdMicrosPerMillionTokens: 300_000, outputUsdMicrosPerMillionTokens: 2_500_000 };
     const policy = { version: 'bundle-test', expiresAt: '2999-01-01', ai: { 'gemini:test': rate } };
     process.env.NEXT_PUBLIC_ENABLE_BILLING = 'true'; process.env.MANAGED_COST_POLICY_JSON = JSON.stringify(policy);
-    const f: Fixture = { recording: { duration: 30, fullTranscript: [{ speakerId: 'A', text, words: [{ text, start: 0, end: 30 }] }], languageCode: 'en',
+    const f: Fixture = { passages: new Map(), recording: { duration: 30, fullTranscript: [{ speakerId: 'A', text, words: [{ text, start: 0, end: 30 }] }], languageCode: 'en',
         transcriptionEnrichmentPending: true, transcriptionResultAttemptId: 'original-audio', transcriptionStatus: 'processing' },
         user: { planKey: 'internal', billingEntitlement: { source: 'admin', grantedAt: new Date() } }, budgets: new Map(), children: new Map(), calls: [], writes: 0, settlementFailures: 0, policy,
         service: { countInputTokens: async (_model, text) => Math.ceil(Buffer.byteLength(text) / 4),
@@ -73,11 +75,12 @@ test('saved response and checkpoint survive a completion-journal crash without a
 });
 test('completed summary is reused when a bounded embedding retry is requested', async () => {
     const f = setup(); let fail = true;
-    f.service.generateEmbedding = async (_text, context) => { f.calls.push('embedding'); if (fail) throw Object.assign(new Error('Provider429 quota'), { status: 429 }); await measured(context); return [0.5]; };
+    f.service.generateEmbedding = async (_text, context) => { f.calls.push('embedding'); if (fail) throw Object.assign(new Error('Provider429 quota'), { status: 429 }); await measured(context); return [0.5, 0.25]; };
     await assert.rejects(finishTranscriptionEnrichment('owner', 'recording'), (e: unknown) => e instanceof ProcessingError && e.processingStatus.retryAction === 'resume_enrichment');
     fail = false; await finishTranscriptionEnrichment('owner', 'recording');
     assert.deepEqual(f.calls, ['summary', 'embedding', 'embedding']);
-    assert.deepEqual(f.recording!.summaryEmbedding, [0.5]);
+    assert.equal(f.recording!.searchIndex?.state, 'ready');
+    assert.deepEqual([...f.passages.values()][0].vector, [0.5, 0.25]);
 });
 test('unknown response remains reviewable and never starts an automatic paid retry', async () => {
     const f = setup(); f.service.generateSummary = async () => { f.calls.push('summary'); throw new Error('Socket reset after request'); };
@@ -270,4 +273,20 @@ test('a legacy physical envelope still constrains first enrichment after default
     await assert.rejects(finishTranscriptionEnrichment('owner', 'recording'), /accepted processing envelope/);
     assert.equal(f.calls.length, 0); assert.equal(f.recording!.aiWorkPlan, undefined);
     assert.deepEqual(f.recording!.transcriptionReceipt, receipt);
+});
+
+
+test('saved external embedding repairs a lost parent reference without another paid call or inline vector', async () => {
+    const f = setup();
+    f.service.generateEmbedding = async (_text, context) => {
+        f.calls.push('embedding'); await measured(context); f.saveFailure = 'response_saved'; return [0.25, 0.75];
+    };
+    await assert.rejects(finishTranscriptionEnrichment('owner', 'recording'), /durable result could not be confirmed/);
+    assert.equal(f.recording!.aiWorkCheckpoints!['passage-0'].state, 'started');
+    assert.ok([...f.passages.values()][0].vector);
+    await finishTranscriptionEnrichment('owner', 'recording');
+    assert.equal(f.calls.filter(call => call === 'embedding').length, 1);
+    assert.equal(f.recording!.aiWorkCheckpoints!['passage-0'].result, undefined);
+    assert.equal(typeof f.recording!.aiWorkCheckpoints!['passage-0'].resultRef, 'string');
+    assert.equal(f.recording!.searchIndex?.state, 'ready');
 });

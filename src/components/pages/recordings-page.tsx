@@ -19,6 +19,8 @@ import { buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useRecordingsFilters } from '@/hooks/use-recordings-filters';
 import { useSemanticSearch } from '@/hooks/use-semantic-search';
+import { SemanticResults } from '@/components/recordings/semantic-results';
+import { SearchIndexingControls } from '@/components/recordings/search-indexing-controls';
 
 const SAVED_VIEWS_STORAGE_KEY = 'callery:recordings:saved-views';
 const CHECKLIST_DISMISSED_STORAGE_KEY = 'callery:recordings:checklist-dismissed';
@@ -52,6 +54,9 @@ export function RecordingsPage() {
         query: semanticQuery,
         setQuery: setSemanticQuery,
         results: semanticResults,
+        matches: semanticMatches,
+        coverage: semanticCoverage,
+        resultLimit: semanticResultLimit,
         submittedQuery: semanticSubmittedQuery,
         page: semanticPage,
         hasMore: semanticHasMore,
@@ -64,7 +69,7 @@ export function RecordingsPage() {
         hasRun: hasRunSemanticSearch,
         search: runSemanticSearch,
         clear: clearSemanticSearch,
-    } = useSemanticSearch(limit);
+    } = useSemanticSearch(limit, { contactId, startDate, endDate });
 
     const [savedViews, setSavedViews] = useLocalStorage<SavedRecordingsView[]>(SAVED_VIEWS_STORAGE_KEY, EMPTY_SAVED_VIEWS);
     const [isChecklistDismissed, setIsChecklistDismissed] = useLocalStorage<boolean>(CHECKLIST_DISMISSED_STORAGE_KEY, false);
@@ -245,6 +250,8 @@ export function RecordingsPage() {
                     semanticResultsCount={semanticResults !== null ? displayedRecordings.length : undefined}
                     semanticSearchMode={semanticSearchMode}
                     semanticFallbackReason={semanticFallbackReason}
+                    semanticCoverage={semanticCoverage}
+                    semanticResultLimit={semanticResultLimit}
                     savedViews={savedViews}
                     activeViewId={activeViewId}
                     smartCollections={SMART_COLLECTIONS}
@@ -259,6 +266,8 @@ export function RecordingsPage() {
                     onDensityChange={setDensity}
                     onResetAll={handleResetAll}
                 />
+
+                {isShowingSemanticResults && <SearchIndexingControls key={user.id} scope={{ contactId, startDate, endDate }} onUpdated={retrySemanticSearch} />}
 
                 <section>
                     <div className="min-h-[400px]">
@@ -279,6 +288,10 @@ export function RecordingsPage() {
                             </div>
                         ) : isShowingSemanticResults && semanticResults === null ? (
                             <div className="px-4 py-12 text-center text-sm text-muted">Describe a conversation above to find related recordings.</div>
+                        ) : isShowingSemanticResults ? (
+                            <SemanticResults recordings={displayedRecordings} matches={semanticMatches} page={semanticPage}
+                                hasMore={semanticHasMore} pending={isSemanticSearching} onPageChange={changeSemanticPage}
+                                onOpen={(recording, target) => workspace.open(recording, Boolean(target), target)} />
                         ) : (
                             <RecordingsTable
                                 recordingWorkspace={workspace}

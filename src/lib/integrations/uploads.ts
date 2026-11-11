@@ -24,7 +24,7 @@ import { directUploadLengthsVerified } from './upload-policy';
 export interface UploadSession {
     _id: string; owner: string; integrationId: string; requestKey?: string; fingerprint: string;
     input: UploadInput; prepared: PreparedUploadContext;
-    mode: 'direct' | 'simple' | 'legacy'; state: 'initializing' | 'uploading' | 'finalizing' | 'completed' | 'cancelled' | 'expired';
+    mode: 'direct' | 'simple' | 'legacy' | 'browser'; state: 'initializing' | 'uploading' | 'finalizing' | 'completed' | 'cancelled' | 'expired';
     stagingKey: string; finalKey: string; storageUploadId?: string; recordingId?: string;
     createdAt: Date; expiresAt: Date; leaseUntil: Date; leaseOwner?: string;
     cleanupPending: boolean; errorCode?: string; autoQueued?: boolean;
@@ -62,11 +62,25 @@ async function preparedContext(owner: string, input: UploadInput) {
     prepared.r2Key = generateRecordingKey(owner, prepared.contactId, prepared.phoneNumber, prepared.recordedAt, prepared.extension);
     return prepared;
 }
+type UploadPrincipal = { kind: 'integration'; owner: string; integrationId: string } | { kind: 'browser'; owner: string; integrationId: 'browser' };
+
 export async function createUpload(actor: ApiActor, input: UploadInput, requestKey: string, mode: 'direct' | 'simple' = 'direct'): Promise<UploadSession> {
+    return createPrincipalUpload({ kind: 'integration', owner: actor.token.owner, integrationId: actor.token.integrationId }, input, requestKey, mode);
+}
+
+/** Browser sessions authenticate with the current instance session, never an API credential. */
+export async function createBrowserUpload(owner: string, input: UploadInput, requestKey: string, bulkImportId?: string): Promise<UploadSession> {
+    return createPrincipalUpload({ kind: 'browser', owner, integrationId: 'browser' }, input, requestKey, 'browser', bulkImportId);
+}
+
+async function createPrincipalUpload(principal: UploadPrincipal, input: UploadInput, requestKey: string, mode: UploadSession['mode'], bulkImportId?: string): Promise<UploadSession> {
     if (mode === 'direct' && !directUploadLengthsVerified()) throw new ApiError(503, 'direct_upload_unverified', 'Use bounded multipart-form uploads until this bucket passes signed-length verification.');
     const db = await integrationDb(); const uploads = db.collection<UploadSession>(IntegrationCollections.uploads);
-    const existing = await uploads.findOne({ owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey });
-    const signature = fingerprint({ input, mode });
+    const existing = await uploads.findOne({ owner: principal.owner, integrationId: principal.integrationId, requestKey });
+    const signature = fingerprint({ input, mode, ...(bulkImportId ? { bulkImportId } : {}) });
+    if (bulkImportId !== undefined && (principal.kind !== 'browser' || !await db.collection<{ _id: string; owner: string }>('transcription_imports').findOne({ _id: bulkImportId, owner: principal.owner }))) {
+        throw new ApiError(404, 'import_not_found', 'Bulk import not found for this account.');
+    }
     if (existing) {
         if (existing.fingerprint !== signature) throw new ApiError(409, 'idempotency_conflict', 'This Idempotency-Key was used for a different upload.');
         if (existing.state === 'initializing') return initializeUpload(existing, db);
@@ -74,27 +88,27 @@ export async function createUpload(actor: ApiActor, input: UploadInput, requestK
         return existing;
     }
     if (input.externalId) {
-        const duplicate = await db.collection<Recording>(Collections.RECORDINGS).findOne({ authSubject: actor.token.owner, 'integration.source': input.source, 'integration.externalId': input.externalId });
+        const duplicate = await db.collection<Recording>(Collections.RECORDINGS).findOne({ authSubject: principal.owner, 'integration.source': input.source, 'integration.externalId': input.externalId });
         if (duplicate) {
             if (duplicate.integration?.fingerprint !== fingerprint(input)) throw new ApiError(409, 'external_id_conflict', 'The source/external ID already identifies a different recording.');
-            return duplicateReceipt(actor, input, requestKey, signature, duplicate, db);
+            return duplicateReceipt(principal, input, requestKey, signature, duplicate, db);
         }
     }
-    const prepared = await preparedContext(actor.token.owner, input);
+    const prepared = await preparedContext(principal.owner, input);
     const id = randomUUID(); const now = new Date();
-    const session: UploadSession = { _id: id, owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey, fingerprint: signature, input, prepared, mode, state: 'initializing', stagingKey: `_staging/${actor.token.owner}/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false };
+    const session: UploadSession = { _id: id, owner: principal.owner, integrationId: principal.integrationId, requestKey, fingerprint: signature, input, prepared, mode, state: 'initializing', stagingKey: `_staging/${principal.owner}/${id}`, finalKey: prepared.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false, ...(bulkImportId ? { bulkImportId } : {}) };
     try { await uploads.insertOne(session); }
     catch (error) {
         if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
-        return createUpload(actor, input, requestKey, mode);
+        return createPrincipalUpload(principal, input, requestKey, mode, bulkImportId);
     }
     return initializeUpload(session, db);
 }
-async function duplicateReceipt(actor: ApiActor, input: UploadInput, key: string, signature: string, recording: Recording, db: Db): Promise<UploadSession> {
+async function duplicateReceipt(principal: UploadPrincipal, input: UploadInput, key: string, signature: string, recording: Recording, db: Db): Promise<UploadSession> {
     const now = new Date();
-    const session: UploadSession = { _id: randomUUID(), owner: actor.token.owner, integrationId: actor.token.integrationId, requestKey: key, fingerprint: signature, input, prepared: { contactId: recording.contactId?.toString() ?? null, contactName: recording.contactName, phoneNumber: recording.phoneNumber, extension: '', mimeType: recording.mimeType, recordedAt: recording.recordedAt, standardizedDisplayName: recording.standardizedDisplayName, r2Key: recording.r2Key }, mode: 'direct', state: 'completed', recordingId: recording._id.toString(), stagingKey: '', finalKey: recording.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false, autoQueued: true };
+    const session: UploadSession = { _id: randomUUID(), owner: principal.owner, integrationId: principal.integrationId, requestKey: key, fingerprint: signature, input, prepared: { contactId: recording.contactId?.toString() ?? null, contactName: recording.contactName, phoneNumber: recording.phoneNumber, extension: '', mimeType: recording.mimeType, recordedAt: recording.recordedAt, standardizedDisplayName: recording.standardizedDisplayName, r2Key: recording.r2Key }, mode: 'direct', state: 'completed', recordingId: recording._id.toString(), stagingKey: '', finalKey: recording.r2Key, createdAt: now, expiresAt: new Date(now.getTime() + SESSION_MS), leaseUntil: new Date(0), cleanupPending: false, autoQueued: true };
     try { await db.collection<UploadSession>(IntegrationCollections.uploads).insertOne(session); return session; }
-    catch (error) { if (!(error instanceof MongoServerError) || error.code !== 11000) throw error; return createUpload(actor, input, key); }
+    catch (error) { if (!(error instanceof MongoServerError) || error.code !== 11000) throw error; return createPrincipalUpload(principal, input, key, principal.kind === 'browser' ? 'browser' : 'direct'); }
 }
 export async function initializeUpload(session: UploadSession, database?: Db) {
     const db = database || await integrationDb();
@@ -203,10 +217,12 @@ export async function completeUpload(session: UploadSession, database?: Db) {
         throw failure;
     } finally { clearInterval(heartbeat); }
 }
-export async function assertUploadAccess(session: UploadSession, db: Db) {
-    const user = session.mode === 'legacy' ? await db.collection<import('@/lib/db/types').User>(Collections.USERS).findOne({ authSubject: session.owner }) : await activeIntegration(session.owner, session.integrationId);
+export async function assertUploadAccess(session: UploadSession, db: Db, requireStorage = true) {
+    const sessionAuthenticated = session.mode === 'legacy' || session.mode === 'browser';
+    const user = sessionAuthenticated ? await db.collection<import('@/lib/db/types').User>(Collections.USERS).findOne({ authSubject: session.owner }) : await activeIntegration(session.owner, session.integrationId);
     if (!user || user.disabled || user.softDelete?.isDeleted || user.teamInvitationPending ||
-        (session.mode === 'legacy' && user.accessRevokedAt && session.createdAt <= user.accessRevokedAt)) throw new ApiError(403, 'account_unavailable', 'Upload access was revoked.');
+        (sessionAuthenticated && user.accessRevokedAt && session.createdAt <= user.accessRevokedAt)) throw new ApiError(403, 'account_unavailable', 'Upload access was revoked.');
+    if (!requireStorage) return;
     const otherReservations = Object.entries(user.uploadReservations || {}).reduce((sum, [id, bytes]) => sum + (id === session._id ? 0 : bytes), 0);
     const access = checkStorageAccess({ ...user, storageUsed: user.storageUsed + otherReservations }, session.input.fileSize);
     if (!access.allowed) throw new ApiError(403, 'upload_access_denied', access.reason || 'New uploads are unavailable until billing is healthy.');

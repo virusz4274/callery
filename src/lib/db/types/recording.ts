@@ -25,6 +25,8 @@ export interface TranscriptionSegment {
  * Recording document stored in MongoDB.
  */
 export interface Recording {
+    /** Embedding-only rebuild checkpoints; personal content, never a billing receipt. */
+    searchIndexWork?: import('@/lib/search/reindex').SearchIndexWork;
     _id: ObjectId;
     authSubject: string;
     contactId: ObjectId | null;
@@ -67,6 +69,8 @@ export interface Recording {
     aiWorkRevision?: number;
     /** Durable dispatcher and execution attempt used to reconcile provider callbacks. */
     transcriptionJobId?: string;
+    /** Server-only queue journal identity, projected as public queued processing state. */
+    transcriptionQueuedJobId?: string;
     transcriptionAttemptId?: string;
     transcriptionError?: string;
     /** A saved transcript may still need summaries, transliteration or embeddings. */
@@ -100,7 +104,7 @@ export interface Recording {
 
     // Summary & Embeddings
     summary?: string; // English summary for search
-    summaryEmbedding?: number[]; // Vector embedding of the summary
+    searchIndex?: import('@/lib/search/types').RecordingSearchIndex;
     // Metadata
     tags: string[];
     isStarred: boolean;
@@ -111,6 +115,8 @@ export type CreateRecordingInput = Omit<Recording, '_id' | 'createdAt' | 'update
 export type UpdateRecordingInput = Partial<Omit<Recording, '_id' | 'authSubject' | 'createdAt'>>;
 
 export interface RecordingResponse {
+    transcriptRevision?: string;
+    searchIndex?: import('@/lib/search/types').RecordingSearchIndex;
     processingProgress?: import('@/lib/transcription/progress').ProcessingProgress;
     processingStatus?: ProcessingStatus;
     /** Only set by the administrator company archive query. */

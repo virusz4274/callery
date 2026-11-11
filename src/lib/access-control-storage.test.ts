@@ -32,8 +32,6 @@ function createUser(overrides: Partial<User> = {}): User {
         timezone: 'UTC',
         notificationSettings: {
             activityDigest: 'weekly',
-            ingestSuccess: true,
-            ingestFail: true,
         },
         transcriptionSettings: {
             autoTranscribe: true,

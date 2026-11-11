@@ -26,6 +26,12 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
     const [isPending, setPending] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [orphanState, setOrphanState] = useState({ source: orphanedCount, remaining: orphanedCount });
+    const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+    if (orphanState.source !== orphanedCount) {
+        setOrphanState({ source: orphanedCount, remaining: orphanedCount });
+    }
+    const remainingCount = orphanState.source === orphanedCount ? orphanState.remaining : orphanedCount;
     const busy = useRef(false);
     const { toast } = useToast();
     const router = useRouter();
@@ -35,7 +41,14 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
         busy.current = true; setPending(true); setError(null);
         try {
             const result = await cleanupOrphanedRecordings();
-            toast({ title: 'Cleanup complete', description: `Removed ${result.deletedDb ?? 0} database records and ${result.deletedR2 ?? 0} files.`, status: 'success' });
+            const description = `${result.deletedDb} recording${result.deletedDb === 1 ? '' : 's'} cleaned${result.failedCount ? `; ${result.failedCount} retained for retry` : ''}.`;
+            setOrphanState({ source: orphanedCount, remaining: result.remaining });
+            setCleanupMessage(description);
+            toast({
+                title: result.failedCount ? result.deletedDb ? 'Cleanup partially complete' : 'Cleanup failed' : 'Cleanup complete',
+                description,
+                status: result.failedCount ? result.deletedDb ? 'warning' : 'danger' : 'success',
+            });
             setConfirming(false); router.refresh();
         } catch (error) { setError(error instanceof Error ? error.message : 'Please try again.'); }
         finally { busy.current = false; setPending(false); }
@@ -92,10 +105,11 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
             ]}
         >
             <div className="space-y-6">
-                {confirming && <ConfirmActionDialog title="Clean up orphaned recordings?" description={`Permanently delete ${orphanedCount} recordings with no associated user, including their stored audio files.`} label="Clean up recordings" pending={isPending} error={error} onConfirm={() => void handleCleanup()} onClose={() => setConfirming(false)} />}
+                {confirming && <ConfirmActionDialog title="Clean up orphaned recordings?" description={`Permanently delete ${remainingCount} recordings with no associated user, including their stored audio files.`} label="Clean up recordings" pending={isPending} error={error} onConfirm={() => void handleCleanup()} onClose={() => setConfirming(false)} />}
                 <HealthDashboard />
+                {cleanupMessage && <p role="status" className="text-sm text-muted">{cleanupMessage}</p>}
 
-                {orphanedCount > 0 && (
+                {remainingCount > 0 && (
                     <Card className="border-warning/50 bg-warning/5">
                         <Card.Header className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                             <div className="flex items-center gap-3">
@@ -105,7 +119,7 @@ export function AdminDashboard({ stats, orphanedCount }: AdminDashboardProps) {
                                 <div>
                                     <h3 className="font-semibold text-foreground">System maintenance required</h3>
                                     <p className="text-sm text-muted">
-                                        Found {orphanedCount} orphaned recordings with no associated user.
+                                        Found {remainingCount} orphaned recording{remainingCount === 1 ? '' : 's'} with no associated user.
                                     </p>
                                 </div>
                             </div>

@@ -15,6 +15,7 @@ export interface ProcessingTranscriptEnvelope {
 export interface ProcessingAiModel {
     provider: string;
     model: string;
+    embeddingProfile?: import('@/lib/search/types').EmbeddingProfile;
 }
 
 export type AiPlannerVersion = 1 | 2;

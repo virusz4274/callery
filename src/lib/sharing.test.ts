@@ -1,94 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SignJWT } from 'jose';
+import { decodeJwt, SignJWT } from 'jose';
 import { featureSigningKey } from './signing-key';
+import { generateShareToken, verifyShareToken } from './sharing';
 
-async function getSharingModule() {
-    process.env.SHARE_LINK_SECRET = 'unit-test-share-secret';
-    return import('@/lib/sharing');
-}
+const now = new Date('2030-01-01T00:00:00Z');
+const claims = { shareId: '507f1f77bcf86cd799439011', issuedAt: now.getTime() / 1000, expiresAt: now.getTime() / 1000 + 3600 };
 
-test('verifies clip bounds embedded in the share token', async () => {
-    const { generateShareToken, verifyShareToken } = await getSharingModule();
-    const token = await generateShareToken({
-        recordingId: 'recording-123',
-        clipStartSeconds: 15,
-        clipEndSeconds: 45,
-    });
-
-    const payload = await verifyShareToken(token);
-
-    assert.deepEqual(payload, {
-        recordingId: 'recording-123',
-        clipStartSeconds: 15,
-        clipEndSeconds: 45,
-    });
+test('share tokens contain only grant identity and stable lifetime and can be reconstructed', async () => {
+    const token = await generateShareToken(claims);
+    assert.deepEqual(await verifyShareToken(token, now), claims);
+    assert.equal(await generateShareToken(claims), token);
+    assert.deepEqual(Object.keys(decodeJwt(token)).sort(), ['aud', 'exp', 'iat', 'shareId']);
+    assert.equal(await verifyShareToken(token, new Date(claims.expiresAt * 1000)), null);
 });
 
-test('rejects tampered share tokens and invalid clip windows', async () => {
-    const { generateShareToken, verifyShareToken } = await getSharingModule();
-    const token = await generateShareToken({
-        recordingId: 'recording-123',
-        clipStartSeconds: 10,
-        clipEndSeconds: 20,
-    });
-
+test('rejects tampering and another feature audience', async () => {
+    const token = await generateShareToken(claims);
     const [header, payload, signature] = token.split('.');
-    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
-        recordingId: string;
-        clipStartSeconds: number;
-        clipEndSeconds: number;
-    };
-    decodedPayload.clipEndSeconds = 999;
-    const tamperedPayload = Buffer.from(JSON.stringify(decodedPayload)).toString('base64url');
-    const tamperedToken = `${header}.${tamperedPayload}.${signature}`;
-
-    assert.equal(await verifyShareToken(tamperedToken), null);
-    await assert.rejects(
-        generateShareToken({
-            recordingId: 'recording-123',
-            clipStartSeconds: 30,
-            clipEndSeconds: 30,
-        }),
-        /Clip end must be greater/
-    );
+    const modified = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, 'base64url').toString()), shareId: '507f1f77bcf86cd799439012' })).toString('base64url');
+    assert.equal(await verifyShareToken(`${header}.${modified}.${signature}`, now), null);
+    const wrongAudience = await new SignJWT({ shareId: claims.shareId }).setProtectedHeader({ alg: 'HS256' })
+        .setAudience('vosift:upload').setIssuedAt(claims.issuedAt).setExpirationTime(claims.expiresAt)
+        .sign(featureSigningKey('SHARE_LINK_SECRET', 'share'));
+    assert.equal(await verifyShareToken(wrongAudience, now), null);
 });
 
-test('malformed signed clip bounds cannot fall back to full-recording access', async () => {
-    const { verifyShareToken } = await getSharingModule();
-    const invalidBounds = [
-        { clipStartSeconds: -1 }, { clipEndSeconds: -1 },
-        { clipStartSeconds: '10' }, { clipEndSeconds: '20' },
-        { clipStartSeconds: null }, { clipEndSeconds: null },
-        { clipEndSeconds: 0 }, { clipStartSeconds: 20, clipEndSeconds: 10 },
-    ];
-    for (const bounds of invalidBounds) {
-        const token = await new SignJWT({ recordingId: 'recording-123', ...bounds })
-            .setProtectedHeader({ alg: 'HS256' }).setAudience('vosift:share').setExpirationTime('1h')
-            .sign(featureSigningKey('SHARE_LINK_SECRET', 'share'));
-        assert.equal(await verifyShareToken(token), null, JSON.stringify(bounds));
+test('recording-only, clip, missing-lifetime, and malformed grants do not authorize sharing', async () => {
+    for (const payload of [
+        { recordingId: '507f1f77bcf86cd799439011' },
+        { shareId: claims.shareId, clipStartSeconds: 10 },
+        { shareId: claims.shareId, recordingId: '507f1f77bcf86cd799439011' },
+        { shareId: 'not-an-id' }, { shareId: claims.shareId },
+    ]) {
+        const token = await new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setAudience('vosift:share')
+            .setExpirationTime(claims.expiresAt).sign(featureSigningKey('SHARE_LINK_SECRET', 'share'));
+        assert.equal(await verifyShareToken(token, now), null, JSON.stringify(payload));
     }
-});
-
-test('clip validation preserves fractional and one-sided bounds and checks recording duration', async () => {
-    const { generateShareToken, verifyShareToken, parseShareClipBounds, resolveShareClipBounds } = await getSharingModule();
-    const fractional = { clipStartSeconds: 10.75, clipEndSeconds: 20.25 };
-    assert.deepEqual(await verifyShareToken(await generateShareToken({ recordingId: 'recording-123', ...fractional })), { recordingId: 'recording-123', ...fractional });
-    assert.deepEqual(resolveShareClipBounds({ clipEndSeconds: 20 }, 60), { start: 0, end: 20 });
-    assert.deepEqual(resolveShareClipBounds({ clipStartSeconds: 20 }, 60), { start: 20, end: 60 });
-    assert.deepEqual(resolveShareClipBounds({ clipStartSeconds: 0 }, 60), { start: 0, end: 60 });
-    assert.equal(resolveShareClipBounds({}, 60), null);
-    for (const value of [-1, Number.NaN, Number.POSITIVE_INFINITY, '1', null]) {
-        assert.throws(() => parseShareClipBounds({ clipStartSeconds: value }), /Clip bounds/);
-    }
-    for (const bounds of [{ clipStartSeconds: 60 }, { clipEndSeconds: 61 }]) {
-        assert.throws(() => resolveShareClipBounds(bounds, 60), /recording duration/);
-    }
-    assert.throws(() => resolveShareClipBounds({ clipStartSeconds: 0 }, 0), /recording duration/);
-});
-
-test('valid full shares remain unrestricted and expired tokens remain invalid', async () => {
-    const { generateShareToken, verifyShareToken } = await getSharingModule();
-    assert.deepEqual(await verifyShareToken(await generateShareToken({ recordingId: 'recording-123' })), { recordingId: 'recording-123' });
-    assert.equal(await verifyShareToken(await generateShareToken({ recordingId: 'recording-123' }, '-1s')), null);
+    const noExpiry = await new SignJWT({ shareId: claims.shareId }).setProtectedHeader({ alg: 'HS256' })
+        .setAudience('vosift:share').setIssuedAt(claims.issuedAt).sign(featureSigningKey('SHARE_LINK_SECRET', 'share'));
+    assert.equal(await verifyShareToken(noExpiry, now), null);
+    await assert.rejects(generateShareToken({ ...claims, shareId: '' }), /Invalid share/);
+    await assert.rejects(generateShareToken({ ...claims, expiresAt: claims.issuedAt }), /Invalid share/);
 });

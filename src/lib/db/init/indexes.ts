@@ -3,6 +3,8 @@ import { logger } from '@/lib/logger';
 import { initializeIntegrationIndexes, INTEGRATION_INDEX_GROUPS } from '@/lib/integrations/database';
 import { initializeBillingIndexes, BILLING_INDEX_GROUPS } from '@/lib/stripe/database';
 import { initializationIndexName, type InitializationIndexGroup } from '@/lib/db/index-definitions';
+import { SHARING_INDEX_GROUPS } from '@/lib/recording-share-indexes';
+import { SEARCH_INDEX_GROUPS } from '@/lib/search/passages';
 
 export type CollectionsMap = {
     TEAM_INVITATIONS: string;
@@ -85,6 +87,7 @@ function coreIndexTasks(collections: CollectionsMap): IndexTask[] {
                 { key: { authSubject: 1, normalizedPhoneNumber: 1 }, name: 'authSubject_normalizedPhoneNumber' },
                 { key: { r2Key: 1 }, unique: true, name: 'r2Key_unique' },
                 { key: { authSubject: 1, isArchived: 1 }, name: 'authSubject_isArchived' },
+                { key: { transcriptionQueuedJobId: 1 }, name: 'transcription_queue_marker', partialFilterExpression: { transcriptionQueuedJobId: { $type: 'string' } } },
             ],
             errorMessage: '⚠️ Recordings index creation failed:',
         },
@@ -122,7 +125,7 @@ function coreIndexTasks(collections: CollectionsMap): IndexTask[] {
             collection: collections.NOTIFICATIONS,
             indexes: [
                 { key: { userId: 1, isRead: 1, createdAt: -1 }, name: 'userId_isRead_createdAt' },
-                { key: { userId: 1, createdAt: -1 }, name: 'userId_createdAt' },
+                { key: { userId: 1, createdAt: -1, _id: -1 }, name: 'userId_createdAt_id' },
                 { key: { userId: 1, eventKey: 1 }, name: 'userId_eventKey_unique', unique: true, partialFilterExpression: { eventKey: { $type: 'string' } } },
             ],
             errorMessage: '⚠️ Notifications index creation failed:',
@@ -197,7 +200,7 @@ export interface InitializationIndexInspection {
 }
 
 export function initializationIndexGroups(collections: CollectionsMap): InitializationIndexGroup[] {
-    return [...coreIndexTasks(collections), ...INTEGRATION_INDEX_GROUPS, ...BILLING_INDEX_GROUPS];
+    return [...coreIndexTasks(collections), ...INTEGRATION_INDEX_GROUPS, ...BILLING_INDEX_GROUPS, ...SHARING_INDEX_GROUPS, ...SEARCH_INDEX_GROUPS];
 }
 
 function canonical(value: unknown): unknown {
@@ -303,4 +306,5 @@ export async function createCoreIndexes(db: Db, collections: CollectionsMap): Pr
     }
     await initializeIntegrationIndexes(db);
     await initializeBillingIndexes(db);
+    for (const group of [...SHARING_INDEX_GROUPS, ...SEARCH_INDEX_GROUPS]) await db.collection(group.collection).createIndexes(group.indexes);
 }

@@ -13,6 +13,7 @@ export interface PlannedAiRequest {
     maxOutputTokens: number;
     /** Output cap includes reasoning tokens; minimal does not mean free thinking. */
     thinking: 'off' | 'minimal';
+    embedding?: { purpose: 'document' | 'query'; dimensions: number; profileId: string };
 }
 export interface AiUsage {
     provider: 'gemini' | 'openai_compat';
@@ -43,6 +44,7 @@ export interface AiStepContext {
     reservationId?: string;
     fundingSource?: 'customer' | 'trial' | 'grant' | 'internal' | 'selfhost';
     plannedRequest?: PlannedAiRequest;
+    embedding?: { purpose: 'document' | 'query'; dimensions: number; profileId: string };
 }
 
 export interface IAIService {

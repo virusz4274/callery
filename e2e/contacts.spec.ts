@@ -9,7 +9,7 @@ const profile: UserResponse = {
     id: 'directory-fixture', email: 'directory@example.com', firstName: 'Directory', lastName: 'Fixture',
     name: 'Directory Fixture', phoneNumber: '', role: 'user', timezone: 'UTC',
     planKey: 'lifetime', planName: 'Lifetime', createdAt: '2026-01-01T00:00:00Z',
-    notificationSettings: { activityDigest: 'off', ingestSuccess: false, ingestFail: false },
+    notificationSettings: { activityDigest: 'off' },
     storageSettings: { deletionPolicy: 'never' }, storageUsed: 0, storageAllocation: 1024 ** 3,
     transcriptionUsed: 0, transcriptionAllocation: 3600, transcriptionSettings: { autoTranscribe: false },
     billingSettings: { allowOverage: false }, totalRecordings: 0,

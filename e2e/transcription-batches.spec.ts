@@ -170,21 +170,14 @@ test('uncertain provider work needs explicit review before retrying', async ({ p
 test('dedicated bulk import creates the durable hold before upload initialization', async ({ page }) => {
     const fixture = await mockBatchWorkspace(page);
     const initializations: Array<{ fileName: string; bulkImportId?: string }> = [];
-    await page.route('**/transcription/import*', async route => {
-        const request = route.request();
-        if (request.method() !== 'POST' || !request.headers()['next-action']) return route.fallback();
-        const [input] = request.postDataJSON();
-        let result: unknown;
-        if (input?.fileName) {
+    await page.route('**/api/uploads', async route => {
+        if (route.request().method() === 'POST') {
+            const input = route.request().postDataJSON();
             initializations.push(input);
             expect(fixture.importsCreated()).toBe(1);
-            result = { success: true, uploadUrl: `${new URL(request.url()).origin}/__batch-audio-fixture`, uploadToken: 'fixture-upload', headers: {} };
-        } else if (input?.uploadToken) {
-            result = { success: true, recordingId: 'uploaded-fixture' };
-        } else return route.fallback();
-        return route.fulfill({ contentType: 'text/x-component', body: `0:${JSON.stringify({ a: result, f: '' })}\n` });
+        }
+        return route.fallback();
     });
-    await page.route('**/__batch-audio-fixture', route => route.fulfill({ status: 200, body: '' }));
     await page.getByRole('button', { name: 'Bulk import', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Bulk import recordings', exact: true })).toBeVisible();
     await expect(page.getByRole('note')).toContainText('No AI processing starts until you start a batch');

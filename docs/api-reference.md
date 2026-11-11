@@ -35,12 +35,18 @@ Files:
 - `src/app/actions/upload/transcription.ts`
 - `src/app/actions/upload/prepare-upload-context.ts`
 
-Main browser flow:
+The browser uses cookie-authenticated resumable routes:
 
-1. `initializeDirectUpload`
-2. client `PUT` to the returned storage URL or bounded `/api/uploads/content` fallback
-3. `completeDirectUpload`
-4. persisted auto-transcription work, woken with `after(...)` when eligible; bulk imports require batch approval
+- `POST /api/uploads` initializes/reuses an idempotent session.
+- `GET /api/uploads/[id]` reconciles state and storage-confirmed parts.
+- Part authorization and bounded part PUT routes transfer missing parts.
+- `POST /api/uploads/[id]/complete` finalizes the same session idempotently.
+- `DELETE /api/uploads/[id]` cancels unfinished work.
+
+Binary parts are 8 MiB, with an exact shorter final part. Mutations enforce
+same-origin checks and every operation revalidates ownership/account access.
+The retained mobile direct-upload contract and scoped integration API continue
+using the shared ingestion service.
 
 ### Search And Transcription
 
@@ -59,7 +65,10 @@ Main actions:
 - `getProviderMultiplier`
 - `updateTranscriptionSettings`
 
-`searchRecordingsAction` also reports whether semantic search used Atlas vector search or fell back to keyword mode through `mode` and `fallbackReason`.
+`searchRecordingsAction` accepts `{query, page, pageSize, contactId, startDate,
+endDate}` and returns recording results, per-recording passage matches with source
+segments/timing/revision, indexing coverage, `hasMore`, and explicit `mode` /
+`fallbackReason`. Ranked totals describe the bounded candidate window.
 
 ### Contacts And Google Sync
 
@@ -89,7 +98,8 @@ Files:
 Main actions:
 
 - `createShareLink`
-- `createShareLinkForClip`
+- `listRecordingShares`
+- `revokeShareLink`
 - `getStatsAction`
 - `startExport`
 - `getExportStatus`
@@ -101,6 +111,12 @@ Main actions:
 - `sendTestNotification`
 - `getPublishedPlans`
 - `getUpgradeablePlans`
+
+`fetchNotifications({ limit?, cursor? })` returns
+`{ notifications, unreadCount, nextCursor }`. The default page size is 20, with a
+maximum of 100. Pass the returned opaque cursor to load older notifications in
+descending creation-time/ID order. The unread count covers the current user's
+whole history; reading or clearing all notifications also covers unloaded pages.
 
 `startExport(targetUserId?)` and `getExportStatus(targetUserId?)` default to the
 current account. The optional employee target requires company archive access.

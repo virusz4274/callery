@@ -5,12 +5,13 @@ import { billingEnabled } from '@/lib/config';
 import { calculateBilledDuration } from '@/lib/utils/billing';
 import { drainLedgerOutbox, reportUsage } from '@/lib/stripe/usage';
 import { settleCanonicalTranscription } from '@/lib/stripe/transcription-receipt';
-import { assertTranscriptEnvelope } from './ai-work-plan';
+import { assertTranscriptEnvelope, transcriptRevision } from './ai-work-plan';
 import { updateDeferredTranscriptionResult, updateLegacyTranscriptionResult, updateTranscriptionAttempt } from './execution';
 import { finishTranscriptionEnrichment } from './enrichment';
 import type { TranscriptionExecution } from './manual';
 import { processingFailure, type ProcessingStatus } from './processing-errors';
 import { notifyProcessingOutcome } from './notifications';
+import { removePassageGeneration } from '@/lib/search/passages';
 
 export interface AcceptedTranscriptResult {
     segments: TranscriptionSegment[];
@@ -79,7 +80,8 @@ export async function acceptTranscriptionResult(owner: string, recordingId: stri
         if (envelope) assertTranscriptEnvelope(result.segments, envelope);
         const patch: UpdateRecordingInput = {
             fullTranscript: result.segments, languageCode: result.languageCode,
-            transcriptionStatus: deferEnrichment ? 'pending' : 'processing', aiWorkPlan: null, aiWorkCheckpoints: {}, summary: '', summaryEmbedding: [],
+            transcriptionStatus: deferEnrichment ? 'pending' : 'processing', aiWorkPlan: null, aiWorkCheckpoints: {}, summary: '',
+            searchIndex: { generation: resultAttempt, transcriptRevision: transcriptRevision(result.segments), profileId: '', state: 'pending', totalPassages: 0, completedPassages: 0 },
             transcriptionEnrichmentPending: true, transcriptionEnrichmentSteps: {}, transcriptionResultAttemptId: resultAttempt,
             processingStatus: deferEnrichment ? { stage: 'summary', state: 'blocked', code: 'enrichment_queued', retryAction: 'none', providerOutcome: 'not_started' }
                 : { stage: 'summary', state: 'running', providerOutcome: 'not_started' },
@@ -91,6 +93,7 @@ export async function acceptTranscriptionResult(owner: string, recordingId: stri
         };
         if (deferEnrichment && execution) await updateDeferredTranscriptionResult(owner, recordingId, recording, execution, patch);
         else await saveResult(owner, recordingId, recording, patch, execution);
+        if (recording.searchIndex?.state === 'ready') await removePassageGeneration(owner, recordingId, recording.searchIndex.generation);
     }
     const saved = await getRecordingById(recordingId, owner);
     if (!saved) throw new Error('Recording unavailable after transcript acceptance.');

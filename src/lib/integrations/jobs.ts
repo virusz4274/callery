@@ -8,6 +8,7 @@ import { getTeamSettings } from '@/lib/team-policy';
 import { IntegrationCollections, integrationDb } from './database';
 import { ApiError, fingerprint } from './contracts';
 import { legacyEnrichmentBlock, processingFailure, type ProcessingStatus } from '@/lib/transcription/processing-errors';
+import { transcriptRevision } from '@/lib/transcription/ai-work-plan';
 
 export interface IngestionJob {
     _id: string; owner: string; recordingId: string; options: ManualTranscriptionOptions; automatic: boolean;
@@ -18,6 +19,9 @@ export interface IngestionJob {
     startedAt?: Date;
     submittedAt?: Date;
     processingStatus?: ProcessingStatus;
+    kind?: 'search_index';
+    searchProfileId?: string;
+    searchTranscriptRevision?: string;
     attemptHistory?: { attemptId?: string; state: IngestionJob['state']; error?: string; processingStatus?: ProcessingStatus; startedAt?: Date; submittedAt?: Date; archivedAt: Date }[];
 }
 interface DispatchSlot { _id: string; jobId?: string; attemptId?: string; until: Date }
@@ -31,6 +35,70 @@ function archiveAttempt(job: IngestionJob) {
     if ((job.attemptHistory?.length || 0) >= 32) throw new ApiError(409, 'processing_review_required', 'The processing retry history is full. Contact your administrator before starting another attempt.');
     return [...(job.attemptHistory || []), { attemptId: job.attemptId, state: job.state, error: job.error,
         processingStatus: job.processingStatus, startedAt: job.startedAt, submittedAt: job.submittedAt, archivedAt: new Date() }];
+}
+
+/** A queued journal is visible before the dispatcher starts a provider. Keep
+ * failure evidence intact; the response converter projects this marker. */
+async function markQueuedRecording(db: Db, job: IngestionJob) {
+    if (job.kind === 'search_index' || job.state !== 'pending') return;
+    const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: new ObjectId(job.recordingId), authSubject: job.owner });
+    if (!recording || recording.transcriptionStatus === 'processing' || recording.transcriptionQueuedJobId === job._id ||
+        (recording.transcriptionStatus === 'completed' && !job.retranscribe && !recording.transcriptionEnrichmentPending)) return;
+    if (!await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ _id: job._id, owner: job.owner, state: 'pending' })) return;
+    await db.collection<Recording>(Collections.RECORDINGS).updateOne({ _id: recording._id, authSubject: job.owner,
+        transcriptionStatus: recording.transcriptionStatus, updatedAt: recording.updatedAt }, {
+        $set: { transcriptionQueuedJobId: job._id, updatedAt: new Date() },
+    });
+}
+
+async function clearQueuedRecording(db: Db, job: IngestionJob, failure?: { status: ProcessingStatus; message: string }) {
+    if (job.kind === 'search_index') return;
+    const current = await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ _id: job._id, owner: job.owner });
+    if (job.attemptId && current && current.attemptId !== job.attemptId) return;
+    const filter = { _id: new ObjectId(job.recordingId), authSubject: job.owner, transcriptionQueuedJobId: job._id };
+    if (failure) await db.collection<Recording>(Collections.RECORDINGS).updateOne({ ...filter, transcriptionStatus: { $ne: 'completed' } }, {
+        $set: { transcriptionStatus: 'failed', transcriptionError: failure.message, processingStatus: failure.status, updatedAt: new Date() },
+    });
+    await db.collection<Recording>(Collections.RECORDINGS).updateOne(filter, { $unset: { transcriptionQueuedJobId: '' } });
+    const next = await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ _id: job._id, owner: job.owner, state: 'pending' });
+    if (next) await markQueuedRecording(db, next);
+}
+
+/** Repair a crash between the queue journal and its recording presentation. */
+async function repairQueuedRecordingMarkers(db: Db) {
+    const jobs = db.collection<IngestionJob>(IntegrationCollections.jobs);
+    for await (const job of jobs.find({ state: 'pending', kind: { $ne: 'search_index' } }).limit(100)) await markQueuedRecording(db, job);
+    for await (const recording of db.collection<Recording>(Collections.RECORDINGS).find({ transcriptionQueuedJobId: { $type: 'string' } }).limit(100)) {
+        const job = await jobs.findOne({ _id: recording.transcriptionQueuedJobId, owner: recording.authSubject, recordingId: recording._id.toString() });
+        if (job && ['pending', 'running', 'submitted'].includes(job.state)) continue;
+        if (job) await clearQueuedRecording(db, job, ['failed', 'needs_review'].includes(job.state) ? {
+            status: job.processingStatus || processingFailure(new Error(job.error || 'Processing stopped.'), recording.transcriptionEnrichmentPending ? 'summary' : 'transcription', job.state === 'needs_review' ? 'unknown' : 'not_started'),
+            message: job.error || 'Processing stopped. Review this recording before retrying.',
+        } : undefined);
+        else await db.collection<Recording>(Collections.RECORDINGS).updateOne({ _id: recording._id, transcriptionQueuedJobId: recording.transcriptionQueuedJobId }, { $unset: { transcriptionQueuedJobId: '' } });
+    }
+}
+
+/** Older timeout recovery could settle the journal while leaving the failed
+ * recording's presentation running after its slot and queue marker were gone. */
+async function repairTerminalRecordingStatuses(db: Db) {
+    const jobs = db.collection<IngestionJob>(IntegrationCollections.jobs);
+    const recordings = db.collection<Recording>(Collections.RECORDINGS);
+    for await (const recording of recordings.find({ transcriptionStatus: 'failed', 'processingStatus.state': 'running',
+        transcriptionQueuedJobId: { $exists: false } }).limit(100)) {
+        if (!recording.transcriptionJobId || !recording.transcriptionAttemptId) continue;
+        const identity = { owner: recording.authSubject, recordingId: recording._id.toString(), kind: { $ne: 'search_index' as const } };
+        const job = await jobs.findOne({ ...identity, _id: recording.transcriptionJobId, attemptId: recording.transcriptionAttemptId,
+            state: { $in: ['failed', 'needs_review'] } });
+        const status = job?.processingStatus;
+        if (!status || !['failed', 'blocked', 'needs_review'].includes(status.state)
+            || !['transcription', 'summary', 'transliteration', 'embedding'].includes(status.stage)) continue;
+        if (await jobs.findOne({ ...identity, state: { $in: ['pending', 'running', 'submitted'] } })) continue;
+        await recordings.updateOne({ _id: recording._id, authSubject: recording.authSubject,
+            transcriptionJobId: recording.transcriptionJobId, transcriptionAttemptId: recording.transcriptionAttemptId,
+            transcriptionStatus: 'failed', 'processingStatus.state': 'running', transcriptionQueuedJobId: { $exists: false },
+            updatedAt: recording.updatedAt }, { $set: { processingStatus: status, updatedAt: new Date() } });
+    }
 }
 
 export async function enqueueTranscription(owner: string, recordingId: string, options: ManualTranscriptionOptions, id: string, automatic = false, database?: Db, batchId?: string, retranscribe = false) {
@@ -48,6 +116,45 @@ export async function enqueueTranscription(owner: string, recordingId: string, o
     if (!job || job.owner !== owner || job.recordingId !== recordingId || job.automatic !== automatic || job.batchId !== batchId || fingerprint(job.options) !== fingerprint(options)) {
         throw new ApiError(409, 'transcription_conflict', 'A transcription with different options is already queued.');
     }
+    await markQueuedRecording(db, job);
+    return { jobId: id, recordingId, state: 'queued' as const };
+}
+
+/** Explicit search-only work shares the dispatcher, never the ASR journal or
+ * recording processing state. A changed transcript receives a new identity. */
+export async function enqueueSearchIndex(owner: string, recordingId: string, profileId: string, database?: Db, acknowledgeProviderOutcome = false) {
+    if (!ObjectId.isValid(recordingId) || !profileId) throw new ApiError(400, 'invalid_search_index_request', 'Choose a recording and an embedding profile.');
+    const db = database || await integrationDb();
+    const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: new ObjectId(recordingId), authSubject: owner });
+    if (!recording?.fullTranscript?.length) throw new ApiError(409, 'transcript_required', 'A saved transcript is required to build its search index.');
+    const revision = transcriptRevision(recording.fullTranscript);
+    const id = `search-index:${recordingId}:${profileId}:${revision}`;
+    const jobs = db.collection<IngestionJob>(IntegrationCollections.jobs);
+    let job: IngestionJob | null;
+    try {
+        job = await jobs.findOneAndUpdate({ _id: id }, { $setOnInsert: {
+            owner, recordingId, options: {}, automatic: false, kind: 'search_index', searchProfileId: profileId, searchTranscriptRevision: revision,
+            state: 'pending', createdAt: new Date(), leaseUntil: new Date(0),
+        } }, { upsert: true, returnDocument: 'after' });
+    } catch (error) {
+        if (!(error instanceof MongoServerError) || error.code !== 11000) throw error;
+        job = await jobs.findOne({ _id: id });
+    }
+    if (!job || job.owner !== owner || job.recordingId !== recordingId || job.kind !== 'search_index' || job.searchProfileId !== profileId || job.searchTranscriptRevision !== revision) {
+        throw new ApiError(409, 'search_index_conflict', 'This search index request has changed. Refresh before retrying.');
+    }
+    if (job.state === 'completed' && recording.searchIndex?.state === 'ready' && recording.searchIndex.profileId === profileId
+        && recording.searchIndex.transcriptRevision === revision) return { jobId: id, recordingId, state: 'completed' as const };
+    if (['pending', 'running', 'submitted'].includes(job.state)) return { jobId: id, recordingId, state: 'queued' as const };
+    if ((job.state === 'needs_review' || job.processingStatus?.providerOutcome === 'unknown') && !acknowledgeProviderOutcome) {
+        return { jobId: id, recordingId, state: 'needs_review' as const, error: job.error, processingStatus: job.processingStatus };
+    }
+    const changed = await jobs.updateOne({ _id: id, owner, state: job.state,
+        ...(job.attemptId ? { attemptId: job.attemptId } : { attemptId: { $exists: false } }) }, {
+        $set: { state: 'pending', leaseUntil: new Date(0), attemptHistory: archiveAttempt(job) },
+        $unset: { attemptId: '', leaseOwner: '', error: '', processingStatus: '', startedAt: '', submittedAt: '' },
+    });
+    if (!changed.matchedCount) throw new ApiError(409, 'search_index_conflict', 'This search index job changed. Refresh before retrying.');
     return { jobId: id, recordingId, state: 'queued' as const };
 }
 
@@ -59,20 +166,22 @@ export async function requestTranscription(owner: string, recording: Recording, 
     const db = await integrationDb();
     try { await validateTranscriptionRequest(owner, recording._id.toString(), options); }
     catch (error) { throw new ApiError(403, 'transcription_blocked', error instanceof Error ? error.message : 'Transcription is unavailable.'); }
-    const uncertainJobs = await db.collection<IngestionJob>(IntegrationCollections.jobs).find({ owner, recordingId: recording._id.toString(), state: 'needs_review' }).toArray();
+    const uncertainJobs = await db.collection<IngestionJob>(IntegrationCollections.jobs).find({ owner, recordingId: recording._id.toString(), state: 'needs_review', kind: { $ne: 'search_index' } }).toArray();
     if (uncertainJobs.some(job => job.processingStatus && ['contact_admin', 'none'].includes(job.processingStatus.retryAction || ''))) {
         throw new ApiError(409, 'processing_review_required', 'This processing result needs administrator review before it can resume.');
     }
     if (uncertainJobs.some(job => !legacyEnrichmentBlock(recording, job.error)) && !options.acknowledgeProviderOutcome) throw new ApiError(409, 'transcription_review_required', 'The provider outcome is uncertain. Review it before requesting another transcription.');
     const id = `manual:${recording._id}`;
-    const active = await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ owner, recordingId: recording._id.toString(), state: { $in: ['pending', 'running', 'submitted'] } });
+    const active = await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ owner, recordingId: recording._id.toString(), state: { $in: ['pending', 'running', 'submitted'] }, kind: { $ne: 'search_index' } });
     if (active) {
         if (fingerprint(active.options) !== fingerprint(options)) throw new ApiError(409, 'transcription_conflict', 'This recording already has queued transcription work.');
+        await markQueuedRecording(db, active);
         return { jobId: active._id, recordingId: recording._id.toString(), state: 'queued' as const };
     }
     const existing = await db.collection<IngestionJob>(IntegrationCollections.jobs).findOne({ _id: id, owner, recordingId: recording._id.toString() });
     if (existing && ['pending', 'running', 'submitted'].includes(existing.state)) {
         if (fingerprint(existing.options) !== fingerprint(options)) throw new ApiError(409, 'transcription_conflict', 'A transcription with different options is already queued.');
+        await markQueuedRecording(db, existing);
         return { jobId: id, recordingId: recording._id.toString(), state: 'queued' as const };
     }
     if (existing?.state === 'needs_review' && !legacyEnrichmentBlock(recording, existing.error) && !options.acknowledgeProviderOutcome) throw new ApiError(409, 'transcription_review_required', 'The provider outcome is uncertain. Review it before requesting another transcription.');
@@ -142,7 +251,7 @@ export async function settleQueuedTranscription(owner: string, recordingId: stri
         ...(recording.processingStatus ? { processingStatus: recording.processingStatus } : {}),
         leaseUntil: new Date(0),
     }, $unset: { leaseOwner: '' } }, { returnDocument: 'after' });
-    if (job) await releaseSlot(db, job);
+    if (job) { await clearQueuedRecording(db, job); await releaseSlot(db, job); }
     await reconcileTranscriptionBatches(db);
 }
 
@@ -206,6 +315,8 @@ export async function queueDeferredTranscriptionCompletion(owner: string, record
         });
     }
     await recordings.updateOne({ _id: recording._id, authSubject: owner, ...markerFilter }, { $unset: { transcriptionCompletionPending: '' } });
+    const queued = await jobs.findOne({ _id: job._id, owner, state: 'pending' });
+    if (queued) await markQueuedRecording(db, queued);
 }
 
 /** Repair a crash after result acceptance or settlement but before queue handoff. */
@@ -222,6 +333,7 @@ async function recoverLegacyJobs(db: Db): Promise<boolean> {
     const jobs = db.collection<IngestionJob>(IntegrationCollections.jobs);
     let busy = false;
     for await (const job of jobs.find({ state: { $in: ['running', 'submitted'] }, attemptId: { $exists: false } })) {
+        if (job.kind === 'search_index') continue;
         const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: new ObjectId(job.recordingId), authSubject: job.owner });
         if (recording?.transcriptionStatus === 'completed') await jobs.updateOne({ _id: job._id, attemptId: { $exists: false } }, { $set: { state: 'completed' } });
         else if (recording?.externalTranscriptionId && recording.transcriptionStatus === 'processing') busy = true;
@@ -244,12 +356,48 @@ async function recoverActiveSlot(db: Db) {
         if (slot.until <= new Date()) await slots(db).updateOne({ _id: SLOT, jobId: slot.jobId, attemptId: slot.attemptId }, { $unset: { jobId: '', attemptId: '' } });
         return;
     }
+    if (job.kind === 'search_index') {
+        if (['completed', 'failed', 'needs_review'].includes(job.state)) await releaseSlot(db, job);
+        else if (slot.until <= new Date() && job.leaseUntil <= new Date()) {
+            const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: new ObjectId(job.recordingId), authSubject: job.owner });
+            const work = recording?.searchIndexWork;
+            const matchesSource = Boolean(recording?.fullTranscript && job.searchTranscriptRevision === transcriptRevision(recording.fullTranscript));
+            const matchesWork = !work || work.profile.id === job.searchProfileId && work.transcriptRevision === job.searchTranscriptRevision;
+            const { isSearchIndexRetrySafe } = await import('@/lib/search/reindex');
+            const safe = matchesSource && matchesWork && await isSearchIndexRetrySafe(work, job.owner, job.recordingId);
+            const message = safe ? 'Search indexing was interrupted. Retry to resume its saved progress.'
+                : 'Search indexing was interrupted. Review the embedding provider outcome before retrying.';
+            const status: ProcessingStatus = safe ? { stage: 'embedding', state: 'blocked', code: 'search_index_interrupted',
+                retryAction: 'resume_enrichment', providerOutcome: work ? 'responded' : 'not_started' }
+                : { stage: 'embedding', state: 'needs_review', code: 'search_index_review', retryAction: 'contact_admin', providerOutcome: 'unknown' };
+            const recovered = await jobs.updateOne({ _id: job._id, owner: job.owner, attemptId: job.attemptId,
+                state: { $in: ['running', 'submitted'] }, leaseUntil: job.leaseUntil }, {
+                $set: { state: safe ? 'failed' : 'needs_review', error: message, processingStatus: status, leaseUntil: new Date(0) },
+                $unset: { leaseOwner: '' },
+            });
+            if (recovered.matchedCount) {
+                if (recording && work && matchesSource) {
+                    await db.collection<Recording>(Collections.RECORDINGS).updateOne({
+                        _id: recording._id, authSubject: job.owner, updatedAt: recording.updatedAt,
+                        'searchIndexWork.id': work.id, 'searchIndexWork.profile.id': job.searchProfileId,
+                        'searchIndexWork.transcriptRevision': job.searchTranscriptRevision,
+                        'searchIndex.state': 'indexing', 'searchIndex.generation': work.id,
+                        'searchIndex.transcriptRevision': job.searchTranscriptRevision, 'searchIndex.profileId': job.searchProfileId,
+                    }, { $set: { 'searchIndex.state': 'failed', updatedAt: new Date() } });
+                }
+                await releaseSlot(db, job);
+            }
+        }
+        return;
+    }
     const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: new ObjectId(job.recordingId), authSubject: job.owner });
     if (recording && ['completed', 'failed'].includes(recording.transcriptionStatus) && recording.transcriptionAttemptId === job.attemptId) {
         await settleQueuedTranscription(job.owner, job.recordingId, { jobId: job._id, attemptId: job.attemptId! }, db);
+        // A callback can have settled the journal before releasing its slot.
+        await releaseSlot(db, job);
     } else if (['completed', 'failed', 'needs_review'].includes(job.state)) {
         await releaseSlot(db, job);
-    } else if (slot.until <= new Date()) {
+    } else if (slot.until <= new Date() && job.leaseUntil <= new Date()) {
         if (recording?.externalTranscriptionId && recording.transcriptionAttemptId === job.attemptId && !recording.transcriptionEnrichmentPending && Date.now() - (job.submittedAt || job.startedAt || job.createdAt).getTime() < ASYNC_WAIT_MS) {
             await jobs.updateOne({ _id: job._id, attemptId: job.attemptId }, { $set: { state: 'submitted' } });
             return;
@@ -257,10 +405,23 @@ async function recoverActiveSlot(db: Db) {
         const message = recording?.externalTranscriptionId && !recording.transcriptionEnrichmentPending
             ? 'No provider completion arrived within 24 hours. Check the provider outcome before retrying.'
             : 'Execution was interrupted. The provider outcome may be uncertain; review before explicitly retrying.';
-        await jobs.updateOne({ _id: job._id, attemptId: job.attemptId }, { $set: { state: 'needs_review', error: message } });
+        const status = processingFailure(new Error(message), recording?.transcriptionEnrichmentPending ? 'summary' : 'transcription', 'unknown');
+        const recovered = await jobs.updateOne({ _id: job._id, owner: job.owner, recordingId: job.recordingId,
+            attemptId: job.attemptId, state: { $in: ['running', 'submitted'] }, leaseUntil: job.leaseUntil }, {
+            $set: { state: 'needs_review', error: message, processingStatus: status, leaseUntil: new Date(0) }, $unset: { leaseOwner: '' },
+        });
+        if (!recovered.matchedCount) return;
         if (recording?.transcriptionStatus === 'processing') await db.collection<Recording>(Collections.RECORDINGS).updateOne(
-            { _id: recording._id, transcriptionAttemptId: job.attemptId }, { $set: { transcriptionStatus: 'failed', transcriptionError: message } },
+            { _id: recording._id, authSubject: job.owner, transcriptionJobId: job._id, transcriptionAttemptId: job.attemptId,
+                transcriptionStatus: 'processing', updatedAt: recording.updatedAt }, {
+                $set: { transcriptionStatus: 'failed', transcriptionError: message, processingStatus: status, updatedAt: new Date() },
+            },
         );
+        // A queued request can fail before claiming the recording. Once an
+        // attempt owns it, only the guarded update above may replace its result.
+        const beforeClaim = recording?.transcriptionQueuedJobId === job._id && recording.transcriptionStatus !== 'processing'
+            && (!recording.transcriptionAttemptId || job.startedAt && recording.updatedAt <= job.startedAt);
+        await clearQueuedRecording(db, job, beforeClaim ? { status, message } : undefined);
         await releaseSlot(db, job);
     }
 }
@@ -283,7 +444,7 @@ export async function resetBatchJobsForRetry(owner: string, batchId: string, rec
         });
         if (!result.matchedCount) throw new ApiError(409, 'transcription_conflict', 'This processing job changed. Refresh before retrying.');
         await db.collection<Recording>(Collections.RECORDINGS).updateOne({ _id: new ObjectId(job.recordingId), authSubject: owner, transcriptionBatchId: batchId }, {
-            $set: { transcriptionStatus: 'pending', transcriptionError: '' },
+            $set: { transcriptionStatus: 'pending', transcriptionError: '', transcriptionQueuedJobId: job._id, updatedAt: new Date() },
         });
     }
 }
@@ -294,6 +455,8 @@ export async function processTranscriptionJobs(limit = 5, database?: Db) {
     const { repairTranscriptionBatchReservations } = await import('@/lib/transcription/batches');
     await repairTranscriptionBatchReservations(db);
     await recoverActiveSlot(db);
+    await repairQueuedRecordingMarkers(db);
+    await repairTerminalRecordingStatuses(db);
     await repairDeferredTranscriptionCompletions(db);
     await reconcileTranscriptionBatches(db);
     if (await recoverLegacyJobs(db)) return 0;
@@ -335,8 +498,23 @@ export async function processTranscriptionJobs(limit = 5, database?: Db) {
                 await jobs.updateOne({ _id: job._id, attemptId }, { $set: { state: 'pending' }, $unset: { attemptId: '', leaseOwner: '' } });
                 await releaseSlot(db, job); break;
             }
+            if (job.kind === 'search_index') {
+                if (!job.searchProfileId || !job.searchTranscriptRevision) throw new ApiError(409, 'search_index_conflict', 'This search index request is incomplete.');
+                const { runSearchIndexJob } = await import('@/lib/search/reindex');
+                executionUncertain = true;
+                const outcome = await runSearchIndexJob(job.owner, job.recordingId, { jobId: job._id, attemptId }, job.searchProfileId, job.searchTranscriptRevision);
+                await jobs.updateOne({ _id: job._id, owner: job.owner, attemptId, state: 'running' }, outcome === 'continue' ? {
+                    $set: { state: 'pending', leaseUntil: new Date(0) }, $unset: { leaseOwner: '', attemptId: '' },
+                } : {
+                    $set: { state: 'completed', error: '', leaseUntil: new Date(0) }, $unset: { leaseOwner: '' },
+                });
+                await releaseSlot(db, job);
+                processed++;
+                continue;
+            }
             if (recording.transcriptionStatus === 'completed' && !job.retranscribe) {
                 await jobs.updateOne({ _id: job._id, attemptId }, { $set: { state: 'completed' } });
+                await clearQueuedRecording(db, job);
                 await releaseSlot(db, job); await reconcileTranscriptionBatches(db); continue;
             }
             if (job.automatic) {
@@ -355,16 +533,18 @@ export async function processTranscriptionJobs(limit = 5, database?: Db) {
                 failureStatus = 'processingStatus' in result ? result.processingStatus : undefined;
                 throw new Error(result.error);
             }
+            await clearQueuedRecording(db, job);
             await settleQueuedTranscription(job.owner, job.recordingId, { jobId: job._id, attemptId }, db);
             const latest = await jobs.findOne({ _id: job._id, attemptId });
             if (latest?.state === 'running') await jobs.updateOne({ _id: job._id, attemptId, state: 'running' }, { $set: { state: 'submitted', submittedAt: new Date(), leaseUntil: new Date(0) }, $unset: { leaseOwner: '' } });
         } catch (error) {
             const message = (error instanceof Error ? error.message : 'Transcription failed').slice(0, 500);
-            const processingStatus = failureStatus || processingFailure(error, 'transcription', executionUncertain ? 'unknown' : 'not_started');
+            const processingStatus = failureStatus || processingFailure(error, job.kind === 'search_index' ? 'embedding' : 'transcription', executionUncertain ? 'unknown' : 'not_started');
             await jobs.updateOne({ _id: job._id, attemptId, state: { $in: ['running', 'submitted'] } }, {
                 $set: { state: processingStatus.state === 'needs_review' || processingStatus.providerOutcome === 'unknown' ? 'needs_review' : 'failed', error: message,
                     processingStatus, leaseUntil: new Date(0) }, $unset: { leaseOwner: '' },
             });
+            await clearQueuedRecording(db, job, { status: processingStatus, message });
             await releaseSlot(db, job);
             await reconcileTranscriptionBatches(db);
         } finally { clearInterval(heartbeat); }
@@ -374,6 +554,6 @@ export async function processTranscriptionJobs(limit = 5, database?: Db) {
 }
 
 export async function recordingJobStatus(owner: string, recordingId: string) {
-    const job = await (await integrationDb()).collection<IngestionJob>(IntegrationCollections.jobs).findOne({ owner, recordingId }, { sort: { createdAt: -1 } });
+    const job = await (await integrationDb()).collection<IngestionJob>(IntegrationCollections.jobs).findOne({ owner, recordingId, kind: { $ne: 'search_index' } }, { sort: { createdAt: -1 } });
     return job ? { state: job.state, error: job.error ?? null, processingStatus: job.processingStatus } : null;
 }

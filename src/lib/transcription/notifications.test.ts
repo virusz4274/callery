@@ -16,7 +16,7 @@ const modules:Record<string,string>={
     '@/lib/access-control-common':`export function checkUserAccess(){return {allowed:true};}`,
     '@/lib/logger':`export const logger={error(){},warn(){}};`,
 };
-const hook=registerHooks({resolve(specifier,context,next){const source=/(?:\/lib\/notifications|\/transcription\/notifications)\.ts$/.test(context.parentURL||'')?modules[specifier]:undefined;return source?{url:'data:text/javascript,'+encodeURIComponent(prelude+source),shortCircuit:true}:next(specifier,context);}});
+const hook=registerHooks({resolve(specifier,context,next){const source=/(?:\/lib\/notifications|\/lib\/push-delivery|\/transcription\/notifications)\.ts$/.test(context.parentURL||'')?modules[specifier]:undefined;return source?{url:'data:text/javascript,'+encodeURIComponent(prelude+source),shortCircuit:true}:next(specifier,context);}});
 const {notifyProcessingOutcome}=await import('./notifications');
 after(()=>hook.deregister());
 function setup(){const f:Fixture={recording:{_id:new ObjectId(),transcriptionAttemptId:'attempt',transcriptionResultAttemptId:'original-result',

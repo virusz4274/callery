@@ -16,10 +16,12 @@ test('upload, sharing and sync tokens cannot substitute for each other even with
         recordedAtIso: new Date().toISOString(), standardizedDisplayName: 'Audio',
     });
     const sync = await createMobileSyncSessionToken('owner');
-    const share = await generateShareToken({ recordingId: 'recording' });
+    const shareId = '0123456789abcdef01234567';
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const share = await generateShareToken({ shareId, issuedAt, expiresAt: issuedAt + 3600 });
     assert.equal((await verifyUploadSessionToken(upload))?.authSubject, 'owner');
     assert.equal((await verifyMobileSyncSessionToken(sync))?.authSubject, 'owner');
-    assert.equal((await verifyShareToken(share))?.recordingId, 'recording');
+    assert.equal((await verifyShareToken(share))?.shareId, shareId);
     assert.equal(await verifyMobileSyncSessionToken(upload), null);
     assert.equal(await verifyUploadSessionToken(sync), null);
     const wrongAudience = await new SignJWT({ recordingId: 'recording', authSubject: 'owner' })

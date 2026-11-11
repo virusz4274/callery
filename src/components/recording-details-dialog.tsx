@@ -21,10 +21,13 @@ import type { TranscriptionProviderId } from '@/services/transcription/factory';
 import { useUser } from '@/lib/auth/client';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useTeamPolicy } from '@/hooks/use-team-policy';
+import type { TranscriptTarget } from '@/lib/transcript-navigation';
+import { recordingNeedsRefresh } from '@/lib/recording-refresh';
 
 type RecordingDetailsDialogProps = {
   recording: Recording;
   autoPlay?: boolean;
+  initialTarget?: TranscriptTarget;
   onOpenChange: (open: boolean) => void;
   onRecordingUpdated?: (recording: Recording) => Promise<void> | void;
 };
@@ -47,7 +50,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
+export function RecordingDetailsDialog({ recording, autoPlay = false, initialTarget, onOpenChange, onRecordingUpdated }: RecordingDetailsDialogProps) {
   const team = useTeamPolicy();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -98,6 +101,7 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
   const [updatedRecording, setCurrentRecording] = useState<Recording | null>(null);
   const currentRecording = updatedRecording?.id === recording.id && updatedRecording.updatedAt > recording.updatedAt
     ? updatedRecording : recording;
+  const staleTarget = Boolean(initialTarget?.transcriptRevision && currentRecording.transcriptRevision && initialTarget.transcriptRevision !== currentRecording.transcriptRevision);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [pendingProvider, setActiveTranscriptionProvider] = useState<TranscriptionProviderId | null>(null);
   const activeTranscriptionProvider = currentRecording.transcriptionStatus === 'processing' ? pendingProvider : null;
@@ -227,8 +231,9 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
         status: 'success',
       });
 
-      let lastSeen: Recording | null = null;
-      for (let attempt = 0; attempt < 30; attempt++) {
+      // Queue wait and provider callbacks can exceed 90 seconds. Keep observing
+      // the accepted request until a terminal result or this viewer closes.
+      while (!signal.aborted) {
         await sleep(3000, signal);
         if (signal.aborted) {
           return;
@@ -240,20 +245,11 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
         if (!latest) {
           continue;
         }
-        lastSeen = latest;
-
-        if (latest.transcriptionStatus === 'completed' || latest.transcriptionStatus === 'failed') {
+        if (latest.transcriptionStatus === 'completed' || latest.transcriptionStatus === 'failed' || (latest.processingStatus && !recordingNeedsRefresh(latest))) {
           break;
         }
       }
 
-      if (lastSeen && lastSeen.transcriptionStatus === 'processing') {
-        toast({
-          title: 'Still Processing',
-          description: 'Transcription is taking longer than expected. Results will appear automatically once complete.',
-          status: 'warning',
-        });
-      }
     } catch (error) {
       if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
         return;
@@ -275,7 +271,7 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
     }
   };
 
-  const isProcessing = currentRecording.transcriptionStatus === 'processing' || isTranscribing;
+  const isProcessing = recordingNeedsRefresh(currentRecording) || isTranscribing;
   const defaultProvider = userProfile?.transcriptionSettings?.defaultProvider || 'soniox';
   const preferredProvider = availableProviders.includes(defaultProvider)
     ? defaultProvider
@@ -373,8 +369,10 @@ export function RecordingDetailsDialog({ recording, autoPlay = false, onOpenChan
             <Accordion className="mt-1" hideSeparator><Accordion.Item id="filename"><Accordion.Heading><Accordion.Trigger className="min-h-11 text-xs text-muted">Original filename<Accordion.Indicator /></Accordion.Trigger></Accordion.Heading><Accordion.Panel><Accordion.Body className="break-all text-xs text-muted">{currentRecording.fileName}</Accordion.Body></Accordion.Panel></Accordion.Item></Accordion>
           </div>
           <div className="min-h-0 flex-1 md:p-6">
+            {staleTarget && <p role="status" className="px-4 py-2 text-sm text-warning">This transcript has changed. Search again to find the updated passage.</p>}
             <RecordingContent
               recording={currentRecording} playbackUrl={playbackUrl} isLoadingUrl={isLoadingUrl} autoPlay={autoPlay}
+              playbackOwnerId={user?.id} initialTarget={staleTarget ? undefined : initialTarget}
               onTranscribe={availableProviders.length && (!team || (team.transcriptionMode !== 'off' && recording.authSubject === user?.id)) ? handleRequestTranscribe : undefined}
               isProcessing={isProcessing} activeTranscriptionProvider={activeTranscriptionProvider}
               workspace mobilePanelActive={hasPanel}

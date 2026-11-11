@@ -14,6 +14,7 @@ import { hasBillingIssue, isBillingEnabled, isTrialExpired } from '@/lib/access-
 import { hasBlockingBillingReview } from '@/lib/stripe/financial-review';
 import { effectiveBillingEntitlementSource } from '@/lib/stripe/entitlement-source';
 import { getTranscriptionAllowanceUsed, hasUnlimitedTranscription } from '@/lib/transcription/quota-policy';
+import { transcriptRevision } from '@/lib/transcription/ai-work-plan';
 
 // ============================================================================
 // Recording Converters
@@ -38,6 +39,10 @@ import { getTranscriptionAllowanceUsed, hasUnlimitedTranscription } from '@/lib/
  * ```
  */
 export function toRecordingResponse(recording: Recording, playbackUrl?: string): RecordingResponse {
+    const queued = recording.transcriptionQueuedJobId && recording.transcriptionStatus !== 'processing';
+    const processingStatus: RecordingResponse['processingStatus'] = queued ? {
+        stage: recording.transcriptionEnrichmentPending ? 'summary' : 'transcription', state: 'running', code: recording.transcriptionEnrichmentPending ? 'enrichment_queued' : 'queued', providerOutcome: 'not_started',
+    } : recording.processingStatus;
     return {
         id: recording._id.toString(),
         authSubject: recording.authSubject,
@@ -57,14 +62,16 @@ export function toRecordingResponse(recording: Recording, playbackUrl?: string):
         createdAt: recording.createdAt.toISOString(),
         updatedAt: recording.updatedAt.toISOString(),
         transcriptionStatus: recording.transcriptionStatus,
-        processingStatus: recording.processingStatus,
-        processingProgress: processingProgress(recording),
+        processingStatus,
+        processingProgress: processingProgress({ ...recording, processingStatus }),
         fullTranscript: recording.fullTranscript,
         languageCode: recording.languageCode,
         transcriptionProvider: recording.transcriptionProvider,
         transcriptionModel: recording.transcriptionModel,
         transcriptionCostMultiplier: recording.transcriptionCostMultiplier,
         summary: recording.summary,
+        searchIndex: recording.searchIndex,
+        transcriptRevision: recording.searchIndex?.transcriptRevision || (recording.fullTranscript ? transcriptRevision(recording.fullTranscript) : undefined),
         tags: recording.tags,
         isStarred: recording.isStarred,
         isArchived: recording.isArchived,
@@ -125,7 +132,7 @@ export function toUserResponse(user: User, planName: string): UserResponse {
         planName,
         timezone: user.timezone,
         createdAt: user.createdAt.toISOString(),
-        notificationSettings: user.notificationSettings,
+        notificationSettings: { activityDigest: user.notificationSettings.activityDigest },
         storageSettings: user.storageSettings,
         storageUsed: user.storageUsed,
         storageAllocation: user.storageAllocation,

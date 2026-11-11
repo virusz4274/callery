@@ -45,7 +45,7 @@ test('saving one settings section refreshes clean fields while retaining another
     await page.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Profile', exact: true }).click();
     await expect(page.getByLabel('First Name', { exact: true })).toHaveValue('Unsaved first name');
     await expect(page.getByLabel('Last Name', { exact: true })).toHaveValue('Refreshed surname');
-    expect(fixture.patches).toEqual([{ notificationSettings: { activityDigest: 'weekly', ingestSuccess: false, ingestFail: false } }]);
+    expect(fixture.patches).toEqual([{ notificationSettings: { activityDigest: 'weekly' } }]);
     expect(fixture.profile().firstName).toBe(originalProfile.firstName);
 });
 

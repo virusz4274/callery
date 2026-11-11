@@ -35,6 +35,7 @@ const defaultEnv: Record<string, string> = {
     GEMINI_MODEL_SUMMARY: 'test',
     GEMINI_MODEL_TRANSLITERATION: 'test',
     GEMINI_MODEL_EMBEDDING: 'test',
+    SEARCH_EMBEDDING_DIMENSIONS: '2',
     SONIOX_API_KEY: 'test',
     SONIOX_API_BASE_URL: 'https://api.soniox.example.com',
     SONIOX_MODEL_ID: 'test',

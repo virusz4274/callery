@@ -6,6 +6,9 @@ import { CURRENT_AI_PLANNER_VERSION, type AiPlannerVersion, type ProcessingAiMod
 import { AI_LIMITS, AI_PROMPT_V1, AI_PROMPT_VERSION, buildSummaryPrompt, buildTransliterationPrompt, truncateUtf8 } from '@/services/ai/prompts';
 import type { AiStep, AiUsage, IAIService, PlannedAiRequest } from '@/services/ai/types';
 import { ProcessingError } from './processing-errors';
+import { embeddingProfile } from '@/lib/search/profile';
+import { chunkTranscript } from '@/lib/search/chunking';
+import type { EmbeddingProfile, TranscriptPassage } from '@/lib/search/types';
 
 const bytes = (text: string) => Buffer.byteLength(text, 'utf8');
 export const fingerprint = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -27,7 +30,9 @@ export interface AiCallCheckpoint {
     reservationId: string;
     request: AiPlannedCall;
     /** Content is deliberately in the recording, never in financial journals. */
-    result?: string | number[] | string[];
+    result?: string | string[];
+    /** Embedding payload and response receipt live atomically in the passage row. */
+    resultRef?: string;
     usage?: AiUsage;
     actualCostMicros?: number;
     error?: string;
@@ -42,6 +47,8 @@ export interface AiWorkPlan {
     transliterationChunks: { call: AiPlannedCall; segments: TranscriptionSegment[]; sources: { index: number; part: number }[] }[];
     passthroughIndexes: number[];
     maximumReduceCalls: number;
+    embeddingProfile: EmbeddingProfile;
+    embeddingPassages: { passage: TranscriptPassage; call: AiPlannedCall }[];
 }
 
 function configurationError(message: string, step: AiStep = 'summary'): ProcessingError {
@@ -53,7 +60,7 @@ export function processingModels(): Record<AiStep, ProcessingAiModel> {
     return Object.fromEntries((['summary', 'transliteration', 'embedding'] as const).map(step => {
         const model = provider === 'gemini' ? geminiModel(step) : step === 'embedding' ? compatTextConfig()?.embeddingModel : compatTextConfig()?.chatModel;
         if (!model) throw new ProcessingError('Configure every bundled AI model before processing.', { stage: step, state: 'blocked', code: 'provider_configuration', retryAction: 'contact_admin', providerOutcome: 'not_started' });
-        return [step, { provider, model }];
+        return [step, { provider, model, ...(step === 'embedding' ? { embeddingProfile: embeddingProfile({ provider, model }) } : {}) }];
     })) as Record<AiStep, ProcessingAiModel>;
 }
 
@@ -161,10 +168,12 @@ export async function buildAiWorkPlan(input: AiWorkPlanInput): Promise<AiWorkPla
     const version = input.plannerVersion ?? CURRENT_AI_PLANNER_VERSION;
     if (version !== 1 && version !== 2) throw configurationError('The accepted AI planner version is unsupported.');
     const promptVersion = version === 1 ? AI_PROMPT_V1 : AI_PROMPT_VERSION;
+    const profile = input.aiModels.embedding.embeddingProfile ?? embeddingProfile({ provider: input.aiModels.embedding.provider as EmbeddingProfile['provider'], model: input.aiModels.embedding.model,
+        countBasis: input.service.countInputTokens ? 'provider_tokenizer' : 'utf8_byte_bound' });
     const revision = transcriptRevision(input.segments);
-    // Preserve the exact historical identity when accepted work has no version.
+    // Chunking/model space is part of durable request identity.
     const identity = fingerprint({ revision, parent: input.parentReceiptId, models: input.aiModels, prompts: promptVersion,
-        ...(version === 1 ? {} : { plannerVersion: version }) });
+        ...(version === 1 ? {} : { plannerVersion: version }), embeddingProfile: profile.id });
     const sourceParts: { source: string; sourceIndexes: number[] }[] = [];
     let source = '', indexes: number[] = [];
     const flush = () => { if (source.trim()) sourceParts.push({ source, sourceIndexes: indexes }); source = ''; indexes = []; };
@@ -202,7 +211,17 @@ export async function buildAiWorkPlan(input: AiWorkPlanInput): Promise<AiWorkPla
     if (transliterationChunks.length > input.envelope.maxTransliterationChunks) throw configurationError('Transliteration coverage exceeds the accepted envelope.', 'transliteration');
     // Pairwise reduction needs at most leaves-1 calls; this is a request limit.
     const maximumReduceCalls = Math.max(0, summaryLeaves.length - 1);
+    const passages = await chunkTranscript(input.segments, input.service.countInputTokens
+        ? text => input.service.countInputTokens!(profile.model, text) : undefined);
+    const embeddingPassages: AiWorkPlan['embeddingPassages'] = [];
+    for (const passage of passages) {
+        const call: AiPlannedCall = { version: 1, id: `passage-${passage.ordinal}`, step: 'embedding', provider: profile.provider, model: profile.model,
+            prompt: passage.text, promptVersion, inputTokens: passage.inputTokens, maxOutputTokens: 0, thinking: 'off', inputCountBasis: profile.countBasis,
+            sourceIndexes: [...new Set(passage.sources.map(source => source.segmentIndex))],
+            embedding: { purpose: 'document', dimensions: profile.dimensions, profileId: profile.id } };
+        embeddingPassages.push({ passage, call });
+    }
     return { version, id: identity, transcriptRevision: revision, parentReceiptId: input.parentReceiptId, fundingSource: input.fundingSource,
         promptVersion, createdAt: new Date().toISOString(), aiModels: structuredClone(input.aiModels),
-        summaryLeaves, transliterationChunks, passthroughIndexes, maximumReduceCalls };
+        summaryLeaves, transliterationChunks, passthroughIndexes, maximumReduceCalls, embeddingProfile: profile, embeddingPassages };
 }

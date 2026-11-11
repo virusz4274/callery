@@ -65,12 +65,12 @@ test('Internal can use an explicit physical input estimate when a self-host prov
     assert.equal(call.inputCountBasis, 'utf8_byte_bound'); assert.equal(call.maximumCostMicros, undefined);
 });
 
-test('accepted v1 work retains its historical identity and per-part requests', async () => {
+test('v1 prompt requests retain their per-part shape while indexing pins the embedding profile', async () => {
     const segments = Array.from({ length: 8 }, (_, index) => ({ speakerId: String(index), text: 'അ', words: [] }));
     const input = { segments, language: 'ml', parentReceiptId: 'accepted', fundingSource: 'internal' as const, aiModels: processingModels(), service, managed: true, envelope: defaultTranscriptEnvelope(60) };
     const legacy = await buildAiWorkPlan({ ...input, plannerVersion: 1 });
     assert.equal(legacy.version, 1);
-    assert.equal(legacy.id, fingerprint({ revision: transcriptRevision(segments), parent: input.parentReceiptId, models: input.aiModels, prompts: AI_PROMPT_V1 }));
+    assert.equal(legacy.id, fingerprint({ revision: transcriptRevision(segments), parent: input.parentReceiptId, models: input.aiModels, prompts: AI_PROMPT_V1, embeddingProfile: legacy.embeddingProfile.id }));
     assert.deepEqual(legacy.transliterationChunks.map(chunk => chunk.call.id), segments.map((_, index) => `transliteration-${index}-0`));
     const current = await buildAiWorkPlan(input);
     assert.equal(current.transliterationChunks.length, 1);

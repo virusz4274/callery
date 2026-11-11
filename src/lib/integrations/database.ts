@@ -20,6 +20,7 @@ export const INTEGRATION_INDEX_GROUPS: InitializationIndexGroup[] = [
     { collection: IntegrationCollections.jobs, indexes: [
         { key: { state: 1, leaseUntil: 1, createdAt: 1 }, name: 'job_worker' },
         { key: { batchId: 1, state: 1 }, name: 'batch_job_state' },
+        { key: { owner: 1, kind: 1, searchProfileId: 1, state: 1, recordingId: 1 }, name: 'search_index_owner_queue' },
     ] },
     { collection: 'transcription_batches', indexes: [
         { key: { owner: 1, createdAt: -1 }, name: 'transcription_batch_owner' },

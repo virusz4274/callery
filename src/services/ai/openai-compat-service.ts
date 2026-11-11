@@ -128,6 +128,7 @@ export class OpenAiCompatService implements IAIService {
             if (!Array.isArray(values) || !values.length || !values.every((v) => typeof v === 'number' && Number.isFinite(v))) {
                 throw new Error('Embeddings response had no numeric vector');
             }
+            if ((planned?.embedding || context?.embedding) && values.length !== (planned?.embedding || context?.embedding)!.dimensions) throw new Error('Embedding dimensions differ from the accepted search profile.');
             return values as number[];
         } catch (error) {
             logger.error('Error generating embedding (compat):', error);

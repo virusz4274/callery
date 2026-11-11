@@ -6,7 +6,9 @@ import useSWR from 'swr';
 import type { Recording } from '@/lib/types';
 import { getRecordingDetailsAction } from '@/app/actions/recordings';
 import { useUser } from '@/lib/auth/client';
-import { closeRecordingWorkspace, initializeRecordingWorkspaceNavigation, openRecordingWorkspace } from '@/lib/recording-workspace-navigation';
+import { closeRecordingWorkspace, initializeRecordingWorkspaceNavigation, openRecordingWorkspace, readTranscriptTarget } from '@/lib/recording-workspace-navigation';
+import type { TranscriptTarget } from '@/lib/transcript-navigation';
+import { recordingNeedsRefresh } from '@/lib/recording-refresh';
 
 export function useRecordingWorkspace(recordings: Recording[] = [], enabled = true) {
   const params = useSearchParams();
@@ -72,21 +74,23 @@ export function useRecordingWorkspace(recordings: Recording[] = [], enabled = tr
       if ('error' in result) throw new Error(result.error);
       return result.recording as Recording;
     },
-    { shouldRetryOnError: false, fallbackData: seed, revalidateOnMount: true },
+    { shouldRetryOnError: false, fallbackData: seed, revalidateOnMount: true,
+      refreshInterval: latest => recordingNeedsRefresh(latest || seed) ? 3000 : 0 },
   );
 
   return {
     id,
+    initialTarget: readTranscriptTarget(params),
     autoPlay: Boolean(id && user && autoPlayId === ownerKey(id)),
     recording: data && (!seed || data.updatedAt >= seed.updatedAt) ? data : seed,
     error,
     isLoading,
     retry: () => mutate(),
-    open: (recording: Recording, play = false) => {
+    open: (recording: Recording, play = false, target?: TranscriptTarget) => {
       rememberOrigin();
       setAutoPlayId(play ? ownerKey(recording.id) : null);
       setOpened(current => ({ ...current, [ownerKey(recording.id)]: recording }));
-      openRecordingWorkspace(recording.id);
+      openRecordingWorkspace(recording.id, target);
     },
     openId: (recordingId: string) => { rememberOrigin(); openRecordingWorkspace(recordingId); },
     close: () => { if (id) closeRecordingWorkspace(id); },

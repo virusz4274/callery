@@ -4,6 +4,25 @@ import { logger } from '@/lib/logger';
 
 let vapidConfigured = false;
 
+export interface WebPushPayload {
+    title: string;
+    body: string;
+    icon?: string;
+    url?: string;
+}
+
+export interface WebPushDeliveryResult {
+    success: boolean;
+    endpoint: string;
+    statusCode?: number;
+    error?: string;
+}
+
+function responseStatus(error: unknown): number | undefined {
+    const status = error && typeof error === 'object' && 'statusCode' in error ? error.statusCode : undefined;
+    return typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? status : undefined;
+}
+
 function ensureVapidConfigured(): boolean {
     if (vapidConfigured) {
         return true;
@@ -28,19 +47,22 @@ function ensureVapidConfigured(): boolean {
  */
 export async function sendWebPushNotification(
     subscription: WebPushSubscription,
-    payload: { title: string; body: string; icon?: string; url?: string }
-): Promise<{ success: boolean; endpoint: string; error?: string }> {
+    payload: WebPushPayload
+): Promise<WebPushDeliveryResult> {
     try {
         if (!ensureVapidConfigured()) return { success: false, endpoint: subscription.endpoint, error: 'Web push is not configured' };
-        await webpush.sendNotification(
+        const response = await webpush.sendNotification(
             subscription,
             JSON.stringify(payload)
         );
-        return { success: true, endpoint: subscription.endpoint };
+        return { success: true, endpoint: subscription.endpoint, statusCode: response.statusCode };
     } catch (error: unknown) {
-        logger.error('[Web Push] Failed to send notification:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        return { success: false, endpoint: subscription.endpoint, error: errorMessage };
+        const statusCode = responseStatus(error);
+        // Provider errors can contain endpoint URLs, response bodies and request
+        // credentials. Only the HTTP status belongs in application logs.
+        logger.warn('[Web Push] Delivery failed.', statusCode ? { statusCode } : {});
+        return { success: false, endpoint: subscription.endpoint, ...(statusCode ? { statusCode } : {}),
+            error: statusCode ? `Web push provider returned HTTP ${statusCode}.` : 'Web push delivery failed.' };
     }
 }
 

@@ -8,7 +8,7 @@ const initialProfile: UserResponse = {
     id: 'settings-fixture', email: 'settings@example.com', name: 'Settings Fixture',
     firstName: 'Settings', lastName: 'Fixture', phoneNumber: '', role: 'user', timezone: 'Asia/Calcutta',
     planKey: 'lifetime', planName: 'Lifetime', createdAt: '2026-01-01T00:00:00Z',
-    notificationSettings: { activityDigest: 'monthly', ingestSuccess: true, ingestFail: false },
+    notificationSettings: { activityDigest: 'monthly' },
     storageSettings: { deletionPolicy: '3m' }, storageUsed: 0, storageAllocation: 1024 ** 3,
     transcriptionUsed: 0, transcriptionAllocation: 3600,
     transcriptionSettings: { autoTranscribe: true, defaultProvider: 'gemini', defaultModel: 'configured-model' },
@@ -77,7 +77,8 @@ async function mockSettings(page: Page, failSaves = false) {
             const action = actionNames.get(request.headers()['next-action']);
             let result: unknown;
             if (action === 'getAvailableProviders') result = providers;
-            else if (action === 'fetchNotifications' || action === 'getActiveAnnouncements') result = [];
+            else if (action === 'fetchNotifications') result = { notifications: [], unreadCount: 0, nextCursor: null };
+            else if (action === 'getActiveAnnouncements') result = [];
             else if (action === 'getExportStatus') result = null;
             else {
                 unexpectedActions.push(action || 'Unknown action');

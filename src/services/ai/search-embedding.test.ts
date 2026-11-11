@@ -11,6 +11,7 @@ const state = `globalThis[Symbol.for('vosift.test.search-execution')]`;
 const hooks = registerHooks({ resolve(specifier, context, next) {
     if (context.parentURL?.endsWith('/ai/search-embedding.ts') || context.parentURL?.endsWith('/ai/usage.ts')) {
         const source = specifier === '@/lib/config' ? `export function billingEnabled(){return true;} export function aiProvider(){return 'gemini';} export function geminiModel(){return 'test-embedding';} export function geminiApiKey(){return 'fixture';} export function compatTextConfig(){return undefined;}`
+            : specifier === '@/lib/search/profile' ? `export function embeddingProfile(){return {id:'profile',provider:'gemini',model:'test-embedding',dimensions:2};} export function validateEmbedding(v){if(v.length!==2)throw new Error('Wrong dimensions');}`
             : specifier === '@/lib/mongodb' ? `export async function getMongoDb(){return {collection(name){return {async findOne(filter){if(name==='users')return {planKey:${state}.planKey,billingEntitlement:{source:${state}.source}};const row=${state}.rows.get(name+':'+filter._id);return row&&(!row.expiresAt||row.expiresAt>new Date())?structuredClone(row):null;},async updateOne(filter,patch){const k=name+':'+filter._id;${state}.rows.set(k,{...(${state}.rows.get(k)||patch.$setOnInsert||{}),...patch.$set});return {matchedCount:1};}};}};}`
             : specifier === '@/lib/access-control' ? `export function checkUserAccess(){return {allowed:!${state}.denied};}`
             : specifier === '@/lib/access-control-common' ? `export function isTrialExpired(){return Boolean(${state}.trialExpired);} export function hasBillingIssue(){return ${state}.billingBlocked?{allowed:false}:null;}`
@@ -28,8 +29,8 @@ const { assertAiCallAuthorized } = await import('./usage');
 hooks.deregister();
 const setup = (): State => root[key] = { rows: new Map(), calls: [], rateCount: 0, source: 'subscription', planKey: 'standard' };
 
-test('semantic search bounds input and caches without any customer or operator monetary reservation', async () => {
-    const s = setup(); const query = '搜索'.repeat(1000);
+test('semantic search preserves the full query and caches without any customer or operator monetary reservation', async () => {
+    const s = setup(); const query = '搜索 delivery';
     assert.deepEqual(await getSearchEmbedding('owner', query), { embedding: [0.25, 0.75] });
     assert.deepEqual(await getSearchEmbedding('owner', query), { embedding: [0.25, 0.75] });
     assert.equal(s.calls.length, 1); assert.ok(Buffer.byteLength(s.calls[0]) <= 496);
@@ -93,4 +94,11 @@ test('cached semantic results survive billing holds while fresh calls require ac
     assert.deepEqual(await getSearchEmbedding('owner', 'fresh-debt'), { embedding: [], fallbackReason: 'processing_unavailable' });
     assert.deepEqual(await getSearchEmbedding('owner', 'cached'), { embedding: [0.25, 0.75] });
     assert.equal(s.calls.length, calls);
+});
+
+
+test('oversized queries are rejected rather than silently losing their search meaning', async () => {
+    const s = setup();
+    assert.deepEqual(await getSearchEmbedding('owner', '搜索'.repeat(1000)), { embedding: [], fallbackReason: 'query_too_long' });
+    assert.equal(s.calls.length, 0);
 });

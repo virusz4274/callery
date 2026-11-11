@@ -10,6 +10,11 @@ Each endpoint is a `GET` handler requiring `Authorization: Bearer <CRON_SECRET>`
 | `/api/cron/cleanup-recordings` | Daily at 03:00 | Apply recording retention and retry expired account cleanup |
 | `/api/cron/digest` | Daily at 08:00 | Send eligible weekly/monthly digests when email is configured |
 
+Digest reporting intervals include their start and exclude their end. Monthly
+digests use the previous UTC calendar month; weekly digests use the seven days
+ending at the captured Monday run time. Both recording totals and top-contact
+statistics apply the same interval and exclude future-dated recordings.
+
 Set a random `CRON_SECRET` in `.env`. `EXPORT_JOB_STALE_MINUTES` defaults to 30 and `SOFT_DELETE_RESTORE_DAYS` to 30.
 
 Compose's `selfhost` profile includes a scheduler sidecar. For Compose with external MongoDB/storage, enable it with `--profile scheduler`. It waits for app health and requires `CRON_SECRET`. Container startup still needs a smoke test on a machine with Docker Engine.
@@ -27,3 +32,14 @@ controls the actual request/runtime limit. A large archive may require later
 invocations to recover its saved checkpoints.
 
 Transcription uses a durable MongoDB queue and shared dispatch slot. Next.js `after(...)` wakes it after uploads, batch actions, and provider callbacks; ingestion cron recovers interrupted work and continues approved batches. Unapproved bulk imports and saved batches remain waiting. See [Transcription batches](transcription-batches.md). Support delivery remains process-bound. Exports and billing delivery keep persisted retry state. Failed storage cleanup retains object metadata for retry. Deletion frees capacity without lowering the period's storage peak.
+
+Confirmed saved-transcript indexing batches also use this dispatcher. Each worker
+slice checkpoints at most 20 new passage embedding calls or yields at its time
+budget; ingestion cron continues the same approved job. Safe interrupted work can
+be explicitly resumed from AI search. Unconfirmed provider responses stay held for
+administrator review. These jobs never submit audio or increment transcription usage.
+
+Ingestion also repairs up to 100 recordings per invocation whose old timeout
+recovery left a running processing status on a failed transcription. It requires
+matching terminal job/attempt evidence and preserves pending work, newer results,
+the saved transcript and its error. No separate data migration is required.

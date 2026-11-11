@@ -4,6 +4,8 @@ import { incrementContactRecordings } from '../contacts';
 import { normalizeContactPhoneNumber } from '../contacts/normalize';
 import type { CreateRecordingInput, Recording, UpdateRecordingInput } from '../types';
 import { updateUserRecordingStats } from '../users';
+import { removeRecordingDerivedData } from '../recording-derived-data';
+import { syncRecordingPassageMetadata } from '@/lib/search/passages';
 
 export function buildRecordingWriteData(data: CreateRecordingInput, timestamp: Date): Omit<Recording, '_id'> {
     return {
@@ -57,13 +59,15 @@ export async function updateRecording(
         updateData.normalizedPhoneNumber = normalizeContactPhoneNumber(data.phoneNumber);
     }
 
-    return db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate(
+    const updated = await db.collection<Recording>(Collections.RECORDINGS).findOneAndUpdate(
         { _id: new ObjectId(recordingId), authSubject },
         {
             $set: updateData,
         },
         { returnDocument: 'after' }
     );
+    if (updated && ['contactId', 'recordedAt', 'isArchived'].some(key => Object.hasOwn(data, key))) await syncRecordingPassageMetadata(updated, db);
+    return updated;
 }
 
 /**
@@ -101,6 +105,7 @@ export async function markTranscriptionUsageReported(
  */
 export async function deleteRecording(recordingId: string, authSubject: string): Promise<Recording | null> {
     const db = await getMongoDb();
+    await removeRecordingDerivedData([recordingId], authSubject, db);
 
     const result = await db.collection<Recording>(Collections.RECORDINGS).findOneAndDelete({
         _id: new ObjectId(recordingId),
@@ -137,6 +142,7 @@ export async function deleteRecordings(recordingIds: string[], authSubject: stri
         })
         .toArray();
 
+    await removeRecordingDerivedData(recordings.map(recording => recording._id.toString()), authSubject, db);
     await db.collection<Recording>(Collections.RECORDINGS).deleteMany({
         _id: { $in: objectIds },
         authSubject,

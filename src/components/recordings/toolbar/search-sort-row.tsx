@@ -26,7 +26,7 @@ export function SearchSortRow(props: RecordingsToolbarProps & { supplementalActi
                 {(['text', 'semantic'] as const).map(mode => <Button key={mode} size="sm" variant={props.searchMode === mode ? 'secondary' : 'ghost'} aria-pressed={props.searchMode === mode} onPress={() => props.onSearchModeChange(mode)}>{mode === 'text' ? 'Text' : 'AI search'}</Button>)}
             </div>
         </div>
-        {!semantic && <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <Popover>
                 <Button variant={props.contactId || props.startDate || props.endDate ? 'secondary' : 'ghost'} size="sm"><SlidersHorizontal className="size-4" />Filters</Button>
                 <Popover.Content placement="bottom start" offset={8} className="w-[min(94vw,24rem)] p-4">
@@ -40,13 +40,13 @@ export function SearchSortRow(props: RecordingsToolbarProps & { supplementalActi
                     </Popover.Dialog>
                 </Popover.Content>
             </Popover>
-            <RecordingSortSelect value={`${props.sortBy}-${props.sortOrder}`} onChange={value => { const [by, order] = value.split('-'); props.onSortChange(by, order); }} />
-            {props.supplementalActions}
+            {!semantic && <RecordingSortSelect value={`${props.sortBy}-${props.sortOrder}`} onChange={value => { const [by, order] = value.split('-'); props.onSortChange(by, order); }} />}
+            {!semantic && props.supplementalActions}
             <div className="ml-auto inline-flex rounded-lg border border-border bg-surface-secondary p-1" role="group" aria-label="Row density">
                 <Tooltip><Button isIconOnly size="sm" variant={props.density === 'comfortable' ? 'secondary' : 'ghost'} aria-label="Comfortable density" aria-pressed={props.density === 'comfortable'} onPress={() => props.onDensityChange('comfortable')}><LayoutGrid className="size-4" /></Button><Tooltip.Content>Comfortable density</Tooltip.Content></Tooltip>
                 <Tooltip><Button isIconOnly size="sm" variant={props.density === 'dense' ? 'secondary' : 'ghost'} aria-label="Dense density" aria-pressed={props.density === 'dense'} onPress={() => props.onDensityChange('dense')}><Rows3 className="size-4" /></Button><Tooltip.Content>Dense density</Tooltip.Content></Tooltip>
             </div>
-        </div>}
+        </div>
         <ActiveFilters {...props} />
         <SemanticFeedback {...props} />
     </div>;

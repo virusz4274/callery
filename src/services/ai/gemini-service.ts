@@ -194,6 +194,10 @@ export class GeminiService implements IAIService {
             const result = await getGeminiClient().models.embedContent({
                 model,
                 contents: boundedText,
+                ...((planned?.embedding || context?.embedding) ? { config: {
+                    taskType: (planned?.embedding || context?.embedding)!.purpose === 'query' ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT',
+                    outputDimensionality: (planned?.embedding || context?.embedding)!.dimensions,
+                } } : {}),
             });
             // The Gemini embedding endpoint supplies no token usage on the
             // Developer API. Retain that fact; settlement uses the reserved cap.
@@ -201,6 +205,7 @@ export class GeminiService implements IAIService {
                 ...(planned ? { inputTokens: planned.inputTokens, outputTokens: 0 } : {}) });
             const values = result.embeddings?.[0]?.values;
             if (!values?.length || !values.every(value => Number.isFinite(value))) throw new Error('Embedding response had no finite numeric vector');
+            if ((planned?.embedding || context?.embedding) && values.length !== (planned?.embedding || context?.embedding)!.dimensions) throw new Error('Embedding dimensions differ from the accepted search profile.');
             return values;
         } catch (error) {
             logger.error('Error generating embedding:', error);

@@ -53,17 +53,17 @@ graph TD
 
 The primary media path is direct to the configured S3-compatible storage:
 
-1. The client asks for upload context; the app persists an upload session and reserves capacity before issuing upload authorization.
-2. The client uploads to a staging key through a signed `PUT` URL. With billing enabled, direct uploads require signed-length verification for the bucket; otherwise the app returns the bounded `PUT /api/uploads/content` route.
-3. Completion verifies storage size and audio/container compatibility, then copies the object to a separate finalized key.
-4. The app creates the recording document and updates storage usage idempotently; interrupted completion and staging cleanup remain recoverable.
-5. If auto-transcription is enabled, the app queues persisted transcription work and wakes the dispatcher with `after(...)`. Bulk imports stay held until an approved batch runs them.
+1. The browser creates a session-authenticated durable multipart upload and reserves capacity.
+2. Missing 8 MiB parts transfer directly to verified storage or through a bounded same-origin part route.
+3. Completion verifies size and audio/container compatibility, publishes a finalized object and creates one recording with idempotent accounting.
+4. The existing ingestion worker recovers interrupted finalization and abandoned-part cleanup.
+5. Eligible ordinary uploads queue transcription; bulk imports retain their explicit approval hold.
 
-The direct path keeps media off the Next.js request body path. The bounded fallback
-streams through a route handler rather than a Server Action. Both web uploads and
-the retained mobile APIs use this service. The scoped `/api/v1` integration API
-also supports resumable multipart and bounded multipart-form uploads; see
-[integration API](integration-api.md).
+The app-scoped queue keeps File references across navigation and account-scoped
+session metadata in IndexedDB. It uses two active files and four global part
+transfers, supports pause/cancel/reconnect, and requires reselecting the original
+file after reload. The retained mobile and integration contracts share the same
+underlying ingestion/accounting service.
 
 ### Transcription
 
@@ -98,7 +98,26 @@ The archive supports:
 - transcript and summary review
 - semantic search backed by embeddings from the configured text AI provider
 
-Embeddings live on the recording document. Atlas vector search support depends on the database indexes and deployment configuration, but the app also exposes fallback mode information in the search action response.
+Passage vectors and provider response receipts live in `recording_passages`.
+The recording holds the active generation/revision and compact checkpoints.
+Checkpointed enrichment indexes the complete transcript; only complete matching
+profiles are published. Retrieval combines lexical and vector ranking, applies
+owner/contact/date/archive constraints and rechecks live recording revisions.
+MongoDB Vector Search requires a search-enabled deployment and the passage index;
+the action exposes explicit keyword fallback and coverage otherwise.
+
+Explicit saved-transcript rebuilds use `search_index` jobs in the same dispatch
+slot, with job identities scoped to recording, profile and transcript revision.
+Their `searchIndexWork` plan pins a separate operation generation and embedding
+requests without modifying transcription receipts, summaries or audio usage.
+Workers yield between saved responses after 20 new passage calls or their bounded
+execution window, then continue the approved job. Known failures resume explicitly;
+uncertain calls require outcome review. Keyword fallback paginates all matches;
+semantic ranking discloses its 200-conversation candidate window.
+
+Public sharing uses persisted, expiring, revocable full-recording grants. Shared
+audio streams through an authorized range-capable route, so future requests honor
+revocation without exposing a separately reusable storage URL.
 
 ### Exports
 

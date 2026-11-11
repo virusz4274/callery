@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import type { RecordingResponse } from '@/lib/db/types';
 import { getRecordingsAction, deleteRecordingAction, updateRecordingAction, GetRecordingsOptions } from '@/app/actions/recordings';
 import { useUser } from '@/lib/auth/client';
+import { recordingNeedsRefresh } from '@/lib/recording-refresh';
 
 interface UseRecordingsResult {
     data: RecordingResponse[] | null;
@@ -36,6 +37,7 @@ export function useRecordings(
         // SWR Configuration
         revalidateOnFocus: true,
         dedupingInterval: 5000,
+        refreshInterval: latest => latest?.recordings?.some(recordingNeedsRefresh) ? 5000 : 0,
     });
 
     return {

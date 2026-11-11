@@ -13,7 +13,7 @@ let bundle: Promise<Map<string, string | Uint8Array>> | undefined;
 const actionNames = ['checkSystemHealth', 'clearAllServiceIncidents', 'clearServiceIncident', 'sendAdminTestEmail', 'cleanupOrphanedRecordings', 'deletePlan', 'createPlan', 'updatePlan', 'deleteAnnouncement', 'createAnnouncement', 'updateAnnouncement', 'updateContactPlan', 'deleteUser', 'restoreUser', 'toggleUserStatus', 'updateUserLimits', 'updateUserUsage', 'updateUserRole', 'updateSystemSettings'];
 async function assets() {
     if (!actionNames.includes('getUpgradeablePlans')) actionNames.push('getUpgradeablePlans');
-    for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'retryExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'createShareLinkForClip']) {
+    for (const name of ['saveTeamSettings', 'inviteTeamMember', 'revokeTeamInvitation', 'startExport', 'retryExport', 'getExportStatus', 'deleteRecordings', 'getAvailableProviders', 'getPlaybackUrlAction', 'getRecordingDetailsAction', 'updateRecordingAction', 'transcribeRecordingAction', 'createShareLink', 'listRecordingShares', 'revokeShareLink']) {
         if (!actionNames.includes(name)) actionNames.push(name);
     }
     bundle ??= (async () => {
@@ -79,7 +79,7 @@ export async function mockAdmin(page: Page, url = '/admin', action?: (name: stri
                         { name: 'MongoDB', status: 'operational', latency: 20 },
                         { name: 'Text AI', status: 'configured', latency: 0, message: 'Configuration present; live requests are not tested.' },
                     ], incidents: { openCount: 0, recent: [] },
-                } : call.name === 'updateContactPlan' ? { success: true } : call.name === 'cleanupOrphanedRecordings' ? { deletedDb: 2, deletedR2: 2 } : undefined;
+                } : call.name === 'updateContactPlan' ? { success: true } : call.name === 'cleanupOrphanedRecordings' ? { found: 2, deletedDb: 2, deletedR2: 2, failedCount: 0, remaining: 0 } : undefined;
                 return route.fulfill({ json: { result } });
             } catch (error) { return route.fulfill({ status: 500, json: { error: error instanceof Error ? error.message : 'Fixture outage' } }); }
         }

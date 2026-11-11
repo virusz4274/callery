@@ -18,6 +18,7 @@ import type {
 } from '@/lib/db/types';
 import { logAdminAction } from '@/app/actions/audit-log';
 import { sendNotificationEmail } from '@/lib/email';
+import { inspectSearchReadiness } from '@/lib/search/readiness';
 
 type ServiceStatus = {
     name: string;
@@ -71,6 +72,12 @@ export async function checkSystemHealth(): Promise<SystemHealthResponse> {
     }
 
     const ai = aiProvider();
+    try {
+        const readiness = await inspectSearchReadiness(await getMongoDb());
+        results.push({ name: 'Semantic search', status: readiness.ready ? 'operational' : 'degraded', latency: 0, message: readiness.message });
+    } catch {
+        results.push({ name: 'Semantic search', status: 'degraded', latency: 0, message: 'Search readiness could not be checked. Keyword search remains available.' });
+    }
     const aiConfigured = ai === 'gemini' ? !!geminiApiKey() : !!compatTextConfig();
     results.push({ name: `Text AI (${ai})`, status: aiConfigured ? 'configured' : 'disabled', latency: 0,
         message: aiConfigured ? 'Configuration present; live provider requests are not tested here.' : 'Optional text AI is not configured.' });

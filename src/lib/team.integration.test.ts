@@ -245,11 +245,10 @@ test('small team admission, archive permissions, removal, processing and recover
             assert.equal(await db.collection(Collections.RECORDINGS).countDocuments({ authSubject: member.authSubject }), 1);
             assert.equal((await findUserByAuthSubject(member.authSubject))?.softDelete, undefined);
             assert.equal(await db.collection(Collections.CONTACTS).countDocuments({ authSubject: member.authSubject }), 1);
-            const { sendDigestEmail, notifyIngestComplete } = await import('./email/notifications');
+            const { sendDigestEmail } = await import('./email/notifications');
             const removed = (await findUserByAuthSubject(member.authSubject))!;
             const before = emails.length;
             assert.equal(await sendDigestEmail(removed, 'weekly', { recordings: 1, seconds: 1, topContacts: [] }), false);
-            await notifyIngestComplete(removed, { succeeded: 1, failed: 0, failedNames: [] });
             assert.equal(emails.length, before);
             assert.equal(await resolveExportSubject(admin.authSubject, member._id.toString()), member.authSubject);
             const administration = await inActionContext(adminToken, getTeamAdministration);

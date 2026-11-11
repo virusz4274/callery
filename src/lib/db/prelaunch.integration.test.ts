@@ -75,7 +75,7 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
                 assert.equal(user.totalContacts, 0);
                 assert.equal(user.role, 'user');
                 assert.deepEqual(user.googleSync, { status: 'not_connected', lastError: null });
-                assert.deepEqual(user.notificationSettings, { activityDigest: 'weekly', ingestSuccess: true, ingestFail: true });
+                assert.deepEqual(user.notificationSettings, { activityDigest: 'weekly' });
                 assert.deepEqual(user.storageSettings, { deletionPolicy: 'never' });
                 assert.deepEqual(user.transcriptionSettings, { autoTranscribe: true });
                 assert.deepEqual(user.billingSettings, { allowOverage: false });
@@ -91,14 +91,14 @@ test('fresh profiles, settings, contacts and export checkpoints use the current 
             });
             await updateUserProfile('local', patch);
             await Promise.all([
-                updateUserProfile('local', { notificationSettings: { ingestSuccess: false }, firstName: '$firstName' }),
-                updateUserProfile('local', { notificationSettings: { ingestFail: false }, lastName: 'Changed' }),
+                updateUserProfile('local', { firstName: '$firstName' }),
+                updateUserProfile('local', { lastName: 'Changed' }),
                 updateUserProfile('local', { transcriptionSettings: { autoTranscribe: false } }),
             ]);
             const user = await findUserByAuthSubject('local');
             assert.ok(user);
             assert.equal(user.name, '$firstName Changed');
-            assert.deepEqual(user.notificationSettings, { activityDigest: 'monthly', ingestSuccess: false, ingestFail: false });
+            assert.deepEqual(user.notificationSettings, { activityDigest: 'monthly' });
             assert.deepEqual(user.storageSettings, { deletionPolicy: '3m' });
             assert.deepEqual(user.transcriptionSettings, { autoTranscribe: false, defaultModel: 'chosen-model' });
             assert.equal((await findUserByAuthSubject('another-user'))?.name, 'New User');

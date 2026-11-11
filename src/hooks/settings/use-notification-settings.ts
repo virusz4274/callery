@@ -9,7 +9,7 @@ export function useNotificationSettings(user: AppUser | null, userProfile: UserP
     const { toast } = useToast();
     const saveProfile = useProfileSave(user?.id);
     const { form, state: notificationsState, setState: setNotificationsState } = useSettingsForm<UserProfile['notificationSettings']>(user?.id,
-        userProfile?.notificationSettings || { activityDigest: 'weekly', ingestSuccess: true, ingestFail: true });
+        userProfile?.notificationSettings || { activityDigest: 'weekly' });
     const [isSavingNotifications, setSavingNotifications] = useState(false);
 
     const handleSaveNotifications = async () => {

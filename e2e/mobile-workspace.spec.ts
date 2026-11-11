@@ -285,7 +285,7 @@ test('upload queue actions stay reachable and retain failures and duplicates', a
   const navBox = await navigation.boundingBox();
   expect(barBox!.y + barBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
   await bar.getByRole('button', { name: 'Upload All', exact: true }).click();
-  await expect(page.getByRole('list').getByText('Failed', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list').getByText('Needs attention', { exact: true })).toBeVisible();
   await expect(page.getByRole('list').getByText(/Fixture storage unavailable/)).toBeVisible();
   await expect(bar.getByRole('button', { name: 'Upload All', exact: true })).toBeEnabled();
   await bar.getByRole('button', { name: 'Clear All', exact: true }).click();

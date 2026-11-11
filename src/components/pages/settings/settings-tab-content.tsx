@@ -6,6 +6,7 @@ import { DataSettings } from '@/components/settings/data-settings';
 import { GeneralSettings } from '@/components/settings/general-settings';
 import { NotificationsSettings } from '@/components/settings/notifications-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
+import { AccountClosureSettings } from '@/components/settings/account-closure-settings';
 import type { useSettingsPage } from '@/hooks/use-settings-page';
 
 type SettingsPageState = ReturnType<typeof useSettingsPage>;
@@ -43,7 +44,7 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                 <div className="space-y-4 md:space-y-6">
                     <ClientOnly>
                         {state.activeTab === 'integrations' && <IntegrationSettings isAdmin={state.userProfile?.role === 'admin'} />}
-                        {state.activeTab === 'profile' && (
+                        {state.activeTab === 'profile' && (<>
                             <ProfileSettings
                                 user={state.user!}
                                 profileForm={state.profileForm}
@@ -53,7 +54,8 @@ export function SettingsTabContent({ isMobileDetailView, state }: SettingsTabCon
                                 isProfileSaving={state.isSavingProfile}
                                 isPasswordSaving={state.isSavingPassword}
                             />
-                        )}
+                            {state.user && <AccountClosureSettings key={state.user.id} user={state.user} />}
+                        </>)}
 
                         {state.activeTab === 'general' && (
                             <GeneralSettings

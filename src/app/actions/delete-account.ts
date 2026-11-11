@@ -1,40 +1,51 @@
 'use server';
 
+import { headers } from 'next/headers';
+import { z } from 'zod';
 import { deleteUserData } from '@/lib/db/delete-user-data';
 import { logSystemEvent } from '@/lib/db/system-log';
-import { getAuthSubjectFromSession } from '@/lib/auth-utils';
+import { getAuth } from '@/lib/auth/server';
+import { findUserByAuthSubject } from '@/lib/db/users';
+import { logger } from '@/lib/logger';
+import { AccountClosurePolicyError, hasRecentAccountClosureLogin, type AccountClosureInput, type AccountClosureResult } from '@/lib/account-closure';
 
-/**
- * Delete the current user's own account and all associated data
- * (recordings, audio files, contacts, subscription). Irreversible.
- */
-export async function deleteOwnAccount(): Promise<{ success: boolean; message: string }> {
-    const authSubject = await getAuthSubjectFromSession();
+const ConfirmationSchema = z.object({
+    expectedAuthSubject: z.string().min(1).max(200),
+    confirmationEmail: z.string().trim().email().max(320),
+}).strict();
 
-    if (!authSubject) {
-        return { success: false, message: 'Not authenticated' };
-    }
-
+/** Close only the freshly authenticated account, preserving pending cleanup. */
+export async function deleteOwnAccount(input: AccountClosureInput): Promise<AccountClosureResult> {
     try {
-        const result = await deleteUserData(authSubject);
-
-        await logSystemEvent('USER_SELF_DELETE', {
-            deletedUserEmail: result.email,
-            recordingsDeleted: result.recordingsDeleted,
-            r2Failures: result.r2Failures,
-            stripeSubscriptionCanceled: result.stripeSubscriptionCanceled,
-        });
-
-        if (result.cleanupPending) {
-            return { success: false, message: 'Your account is disabled while cleanup retries. Its storage records are retained until deletion succeeds.' };
+        const session = await (await getAuth()).api.getSession({ headers: await headers() });
+        if (!session?.user || !hasRecentAccountClosureLogin(session.session.createdAt)) {
+            return { status: 'reauth_required', message: 'Sign in again before permanently deleting your account.' };
+        }
+        const parsed = ConfirmationSchema.safeParse(input);
+        if (!parsed.success || parsed.data.expectedAuthSubject !== session.user.id
+            || parsed.data.confirmationEmail.toLowerCase() !== session.user.email.toLowerCase()) {
+            return { status: 'blocked', message: 'Confirm the email address of the account currently signed in.' };
+        }
+        const profile = await findUserByAuthSubject(session.user.id);
+        if (!profile || profile.disabled || profile.softDelete?.isDeleted || profile.teamInvitationPending) {
+            return { status: 'blocked', message: 'This account cannot be closed from Settings. Contact the administrator.' };
         }
 
-        return { success: true, message: 'Your account and all data have been permanently deleted.' };
+        const result = await deleteUserData(session.user.id);
+        try {
+            await logSystemEvent('USER_SELF_DELETE', {
+                recordingsDeleted: result.recordingsDeleted,
+                storageFailures: result.r2Failures.length,
+                cleanupPending: result.cleanupPending,
+            }, session.user.id);
+        } catch (error) { logger.error('Account closure accepted; audit logging failed:', error); }
+
+        return result.cleanupPending
+            ? { status: 'cleanup_pending', message: 'Your account closure was accepted and access has been disabled. Remaining cleanup will continue automatically.' }
+            : { status: 'deleted', message: 'Your account and recording library have been permanently deleted.' };
     } catch (error) {
-        console.error('Error deleting own account:', error);
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Failed to delete account',
-        };
+        if (error instanceof AccountClosurePolicyError) return { status: 'blocked', message: error.message };
+        logger.error('Account closure could not be accepted:', error);
+        return { status: 'error', message: 'Account closure could not be completed. Please try again.' };
     }
 }

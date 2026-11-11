@@ -3,18 +3,19 @@
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
 import { findUserByAuthSubject } from '@/lib/db/users';
 import { getNotifications, markAsRead, markAllAsRead, createNotification, deleteAllNotifications } from '@/lib/notifications';
+import type { NotificationPage, NotificationPageOptions } from '@/lib/notification-pagination';
 
 /**
  * Fetch notifications for the current user.
  */
-export async function fetchNotifications() {
+export async function fetchNotifications(options: NotificationPageOptions = {}): Promise<NotificationPage> {
     const authSubject = await getAuthSubjectFromSession();
-    if (!authSubject) return [];
+    if (!authSubject) return { notifications: [], unreadCount: 0, nextCursor: null };
 
     const user = await findUserByAuthSubject(authSubject);
-    if (!user) return [];
+    if (!user) return { notifications: [], unreadCount: 0, nextCursor: null };
 
-    return getNotifications(user._id);
+    return getNotifications(user._id, options);
 }
 
 /**

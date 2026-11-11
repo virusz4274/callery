@@ -1,5 +1,6 @@
 import type { Contact } from '@/lib/types';
 import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
+import type { SearchCoverage } from '@/lib/search/types';
 
 export type SavedRecordingsView = {
     needsTranscription?: boolean;
@@ -45,6 +46,8 @@ export type RecordingsToolbarProps = {
     semanticResultsCount?: number;
     semanticSearchMode?: SemanticSearchMode;
     semanticFallbackReason?: SemanticFallbackReason;
+    semanticCoverage?: SearchCoverage;
+    semanticResultLimit?: number;
     savedViews: SavedRecordingsView[];
     activeViewId?: string;
     smartCollections: SmartCollection[];

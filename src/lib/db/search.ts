@@ -1,222 +1,29 @@
 import { normalizeEndDate } from './recordings';
 import { ObjectId } from 'mongodb';
 import { getMongoDb, Collections } from '@/lib/mongodb';
-import { getSearchEmbedding, type SearchEmbeddingFallback } from '@/services/ai/search-embedding';
 import { Recording } from '@/lib/db/types';
-import { logger } from '@/lib/logger';
 import { hydrateRecordingContacts } from './recordings/hydrate-contacts';
-
-
-const VECTOR_SEARCH_INDEX = 'recordings_vector_search';
-const KEYWORD_MATCH_SCORE = 2;
+import { retrieveRecordings, fuseRecordingRanks, type RankedRecording } from '@/lib/search/retrieval';
+import type { SemanticSearchInput } from '@/lib/search/types';
+export type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/search/retrieval';
 
 const SEARCH_RESULT_PROJECTION = {
-    _id: 1,
-    authSubject: 1,
-    contactId: 1,
-    contactName: 1,
-    phoneNumber: 1,
-    r2Key: 1,
-    fileName: 1,
-    standardizedDisplayName: 1,
-    fileSize: 1,
-    mimeType: 1,
-    duration: 1,
-    recordedAt: 1,
-    createdAt: 1,
-    updatedAt: 1,
-    transcriptionStatus: 1,
-    summary: 1,
-    tags: 1,
-    isStarred: 1,
-    isArchived: 1,
+    _id: 1, authSubject: 1, contactId: 1, contactName: 1, phoneNumber: 1, r2Key: 1,
+    fileName: 1, standardizedDisplayName: 1, fileSize: 1, mimeType: 1, duration: 1,
+    recordedAt: 1, createdAt: 1, updatedAt: 1, transcriptionStatus: 1, summary: 1,
+    tags: 1, isStarred: 1, isArchived: 1, searchIndex: 1,
 } as const;
-
-export interface SearchResult extends Recording {
-    searchScore: number;
-}
-
-export type SemanticSearchMode = 'vector' | 'fallback';
-export type SemanticFallbackReason = SearchEmbeddingFallback | 'vector_unavailable';
-
-function escapeRegex(input: string): string {
-    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function buildKeywordPatterns(query: string): string[] {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
-        return [];
-    }
-
-    const termPatterns = trimmedQuery
-        .split(/\s+/)
-        .map((part) => part.trim())
-        .filter((part) => part.length >= 3);
-
-    return [...new Set([trimmedQuery, ...termPatterns].map(escapeRegex))];
-}
-
-function buildKeywordSearchQuery(query: string, authSubject: string): Record<string, unknown> {
-    const patterns = buildKeywordPatterns(query);
-
-    if (patterns.length === 0) {
-        return {
-            authSubject,
-            isArchived: { $ne: true },
-            _id: { $exists: false },
-        };
-    }
-
-    const searchableFields = ['summary', 'contactName', 'phoneNumber', 'fileName', 'standardizedDisplayName', 'tags', 'fullTranscript.text'];
-
-    return {
-        authSubject,
-        isArchived: { $ne: true },
-        $or: patterns.flatMap((pattern) =>
-            searchableFields.map((field) => ({
-                [field]: { $regex: pattern, $options: 'i' },
-            }))
-        ),
-    };
-}
-
-async function searchRecordingsByKeyword(
-    query: string,
-    authSubject: string,
-    windowLimit: number
-): Promise<{ results: SearchResult[]; totalCount: number }> {
-    const db = await getMongoDb();
-    const keywordQuery = buildKeywordSearchQuery(query, authSubject);
-    const totalCount = await db.collection<Recording>(Collections.RECORDINGS).countDocuments(keywordQuery);
-
-    if (totalCount === 0 || windowLimit <= 0) {
-        return { results: [], totalCount };
-    }
-
-    const results = await db
-        .collection<Recording>(Collections.RECORDINGS)
-        .find(keywordQuery, { projection: SEARCH_RESULT_PROJECTION })
-        .sort({ recordedAt: -1 })
-        .limit(windowLimit)
-        .toArray();
-
-    return {
-        results: results.map((recording) => ({
-            ...recording,
-            searchScore: KEYWORD_MATCH_SCORE,
-        })),
-        totalCount,
-    };
-}
+export type SearchResult = RankedRecording;
 
 export function mergeSearchResults(keywordResults: SearchResult[], vectorResults: SearchResult[]): SearchResult[] {
-    const merged = new Map<string, SearchResult>();
-
-    for (const result of vectorResults) {
-        merged.set(result._id.toString(), result);
-    }
-
-    for (const result of keywordResults) {
-        const key = result._id.toString();
-        if (!merged.has(key)) {
-            merged.set(key, result);
-        }
-    }
-
-    return [...merged.values()];
+    const rows = new Map([...keywordResults, ...vectorResults].map(recording => [recording._id.toString(), recording]));
+    return fuseRecordingRanks(keywordResults.map(row => row._id.toString()), vectorResults.map(row => row._id.toString()))
+        .map(row => ({ ...rows.get(row.id)!, searchScore: row.score }));
 }
 
-/**
- * Semantic search for recordings using Vector Search with keyword fallback.
- */
-export async function searchRecordingsByVector(
-    query: string,
-    authSubject: string,
-    page: number = 1,
-    pageSize: number = 10
-): Promise<{
-    results: SearchResult[];
-    totalCount: number;
-    hasMore: boolean;
-    mode: SemanticSearchMode;
-    fallbackReason?: SemanticFallbackReason;
-}> {
-    if (!query) return { results: [], totalCount: 0, hasMore: false, mode: 'vector' };
-
-    try {
-        const db = await getMongoDb();
-        const safePage = Math.max(1, page);
-        const safePageSize = Math.max(1, pageSize);
-        const pageWindow = safePage * safePageSize;
-        const pageStart = (safePage - 1) * safePageSize;
-
-        const keywordSearch = await searchRecordingsByKeyword(query, authSubject, pageWindow + 1);
-        const searchEmbedding = await getSearchEmbedding(authSubject, query);
-        const queryEmbedding = searchEmbedding.embedding;
-        let vectorResults: SearchResult[] = [];
-        let mode: SemanticSearchMode = 'vector';
-        let fallbackReason: SemanticFallbackReason | undefined;
-
-        if (!queryEmbedding || queryEmbedding.length === 0) {
-            logger.warn('Semantic embedding unavailable; returning keyword results.');
-            mode = 'fallback';
-            fallbackReason = searchEmbedding.fallbackReason || 'embedding_unavailable';
-        } else {
-            try {
-                const vectorWindow = Math.max(pageWindow * 3, 25);
-                const numCandidates = Math.max(100, vectorWindow * 10);
-                const aggregation = [
-                    {
-                        $vectorSearch: {
-                            index: VECTOR_SEARCH_INDEX,
-                            path: 'summaryEmbedding',
-                            queryVector: queryEmbedding,
-                            numCandidates,
-                            limit: vectorWindow,
-                            filter: {
-                                $and: [
-                                    { authSubject: { $eq: authSubject } },
-                                    { isArchived: { $ne: true } },
-                                ],
-                            },
-                        },
-                    },
-                    {
-                        $project: {
-                            ...SEARCH_RESULT_PROJECTION,
-                            searchScore: { $meta: 'vectorSearchScore' },
-                        },
-                    },
-                ];
-
-                vectorResults = await db
-                    .collection<Recording>(Collections.RECORDINGS)
-                    .aggregate<SearchResult>(aggregation)
-                    .toArray();
-            } catch (error) {
-                logger.error('Vector search unavailable, returning keyword results only:', error);
-                mode = 'fallback';
-                fallbackReason = 'vector_unavailable';
-            }
-        }
-
-        const mergedResults = mergeSearchResults(keywordSearch.results, vectorResults);
-        if (mergedResults.length === 0) {
-            return { results: [], totalCount: 0, hasMore: false, mode, fallbackReason };
-        }
-
-        return {
-            results: await hydrateRecordingContacts(authSubject, mergedResults.slice(pageStart, pageStart + safePageSize)),
-            totalCount: Math.max(keywordSearch.totalCount, mergedResults.length),
-            hasMore: mergedResults.length > pageWindow || keywordSearch.totalCount > pageWindow,
-            mode,
-            fallbackReason,
-        };
-    } catch (error) {
-        logger.error('Vector search error:', error);
-        throw new Error('Failed to perform vector search');
-    }
+export async function searchRecordingsByVector(query: string, authSubject: string, page = 1, pageSize = 10,
+    filters: Pick<SemanticSearchInput, 'contactId' | 'startDate' | 'endDate'> = {}) {
+    return retrieveRecordings(authSubject, { query, page, pageSize, ...filters });
 }
 
 export interface PaginatedSearchResult {
@@ -239,7 +46,7 @@ export interface AtlasSearchOptions {
 
 /** Atlas Search index name for keyword/full-text search (see init.ts). */
 export const RECORDINGS_TEXT_SEARCH_INDEX = 'recordings_text_search';
-export const RECORDINGS_VECTOR_SEARCH_INDEX = 'recordings_vector_search';
+export { PASSAGE_VECTOR_INDEX as RECORDINGS_VECTOR_SEARCH_INDEX } from '@/lib/search/passages';
 
 
 export async function searchRecordingsByAtlas(

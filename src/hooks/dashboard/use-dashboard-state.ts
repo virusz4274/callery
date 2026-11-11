@@ -63,7 +63,7 @@ export function useDashboardState(itemsPerPage: number = 10) {
             // Reset to page 1 if it's a new search (event passed)
             if (e && typeof e !== 'number') setPage(1);
 
-            const response = await searchRecordingsAction(semanticQuery, targetPage, itemsPerPage);
+            const response = await searchRecordingsAction({ query: semanticQuery, page: targetPage, pageSize: itemsPerPage });
             if (response.success) {
                 setSemanticResults(response.results);
                 setSemanticTotalCount(response.totalCount || response.results.length);

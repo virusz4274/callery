@@ -46,8 +46,6 @@ export interface User {
     timezone: string;
     notificationSettings: {
         activityDigest: 'off' | 'weekly' | 'monthly';
-        ingestSuccess: boolean;
-        ingestFail: boolean;
     };
     transcriptionSettings: {
         autoTranscribe: boolean;
@@ -168,8 +166,6 @@ export interface UserResponse {
     createdAt: string;
     notificationSettings: {
         activityDigest: 'off' | 'weekly' | 'monthly';
-        ingestSuccess: boolean;
-        ingestFail: boolean;
     };
     storageSettings: {
         deletionPolicy: 'never' | '3m' | '6m' | '1y';

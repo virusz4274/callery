@@ -4,11 +4,14 @@ import { deleteFromR2 } from '@/lib/r2';
 import { billingEnabled } from '@/lib/config';
 import { removeStoredObjects } from '@/lib/storage-cleanup';
 import type { ExportJob, Recording, User } from './types';
-import { getTeamSettings, withTeamAccessLock } from '@/lib/team-policy';
+import { assertNotLastAdmin, getTeamSettings, revokeUserSessions, withTeamAccessLock } from '@/lib/team-policy';
 import { IntegrationCollections } from '@/lib/integrations/database';
 import { cleanupUpload, type UploadSession } from '@/lib/integrations/uploads';
 import { retainFinancialSettlement } from '@/lib/stripe/financial-settlement';
 import { revokeExportObjects } from '@/lib/export-processor/object-lifecycle';
+import { AccountClosurePolicyError } from '@/lib/account-closure';
+import { logger } from '@/lib/logger';
+import { removeAccountDerivedData } from './recording-derived-data';
 
 export interface DeleteUserDataResult {
     authSubject: string;
@@ -39,23 +42,48 @@ async function removeIdentity(db: Db, user: User): Promise<void> {
 
 export async function deleteUserData(subject: string, dependencies?: CleanupDependencies): Promise<DeleteUserDataResult> {
     const db = dependencies?.db || await getMongoDb();
-    if (!dependencies?.accessLockHeld) {
-        return withTeamAccessLock(() => deleteUserData(subject, { ...dependencies, db, accessLockHeld: true }), db);
+    let accepted: DeleteUserDataResult | undefined;
+    const work = () => deleteUserDataUnlocked(subject, { ...dependencies, db }, result => { accepted = result; });
+    try {
+        return await (dependencies?.accessLockHeld ? work() : withTeamAccessLock(work, db));
+    } catch (error) {
+        if (!accepted) throw error;
+        // The persistent disable marker is the acceptance boundary. Keep that
+        // result even if later cleanup or releasing the access lease fails.
+        logger.error('Accepted account closure needs cleanup retry:', error);
+        return accepted;
     }
-    if ((await getTeamSettings(db)).enabled) throw new Error('Company accounts must be disabled without deleting their archive.');
+}
+
+async function deleteUserDataUnlocked(subject: string, dependencies: CleanupDependencies, onAccepted: (result: DeleteUserDataResult) => void): Promise<DeleteUserDataResult> {
+    const { db } = dependencies;
+    if ((await getTeamSettings(db)).enabled) throw new AccountClosurePolicyError('Company accounts must be disabled without deleting their archive. Contact your administrator.');
     const user = await db.collection<User>(Collections.USERS).findOne({ authSubject: subject });
     if (!user) throw new Error('User not found');
+    try { await assertNotLastAdmin(user, db); }
+    catch (error) {
+        if (error instanceof Error && error.message === 'Keep at least one active administrator.') {
+            throw new AccountClosurePolicyError('Make another user an administrator before closing this account. Keep at least one active administrator.');
+        }
+        throw error;
+    }
     const result: DeleteUserDataResult = {
         authSubject: subject, email: user.email, recordingsDeleted: 0, r2Failures: [],
         stripeSubscriptionCanceled: null, stripeCancelError: null, cleanupPending: true,
     };
     const now = new Date();
-    await db.collection<User>(Collections.USERS).updateOne({ authSubject: subject }, { $set: {
+    const disabled = await db.collection<User>(Collections.USERS).updateOne({ authSubject: subject }, { $set: {
         disabled: true,
+        accessRevokedAt: now,
         softDelete: { isDeleted: true, deletedAt: user.softDelete?.deletedAt || now, restoreUntil: now, previousDisabled: !!user.disabled },
         updatedAt: now,
     } });
-    await db.collection(IntegrationCollections.tokens).updateMany({ owner: subject }, { $set: { revokedAt: now } });
+    if (!disabled.matchedCount) throw new Error('Account changed before closure. Please try again.');
+    onAccepted(result);
+    await Promise.all([
+        revokeUserSessions(subject, db),
+        db.collection(IntegrationCollections.tokens).updateMany({ owner: subject }, { $set: { revokedAt: now } }),
+    ]);
     if (billingEnabled()) await retainFinancialSettlement(user, db);
     // Let an already claimed completion settle before deleting its archive;
     // subsequent cleanup attempts are retried by the existing account cron.
@@ -83,6 +111,7 @@ export async function deleteUserData(subject: string, dependencies?: CleanupDepe
 
     // External failures leave every key in MongoDB for the cleanup cron to retry.
     await (dependencies?.removeIdentity ? dependencies.removeIdentity(user) : removeIdentity(db, user));
+    await removeAccountDerivedData(subject, db);
     const deleted = await db.collection(Collections.RECORDINGS).deleteMany({ authSubject: subject });
     result.recordingsDeleted = deleted.deletedCount;
     for (const collection of [Collections.CONTACTS, Collections.EXPORT_JOBS, Collections.SUPPORT_MESSAGES]) {

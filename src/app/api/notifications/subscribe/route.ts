@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthSubjectFromSession } from '@/lib/auth-utils';
-import { findUserByAuthSubject, updateUser } from '@/lib/db/users';
+import { findUserByAuthSubject } from '@/lib/db/users';
 import { PushSubscriptionEntry } from '@/lib/db/types';
 import { PushSubscribeBodySchema } from '@/lib/schemas';
 import { logger } from '@/lib/logger';
+import { getMongoDb } from '@/lib/mongodb';
+import { removePushSubscription, savePushSubscription } from '@/lib/push-subscriptions';
 
 /**
  * POST /api/notifications/subscribe
@@ -44,16 +46,9 @@ export async function POST(request: NextRequest) {
             createdAt: new Date(),
         };
 
-        // Get existing subscriptions and filter out this endpoint if it already exists
-        const existingSubscriptions = user.pushSubscriptions || [];
-        const filteredSubscriptions = existingSubscriptions.filter(
-            (sub) => sub.endpoint !== endpoint
-        );
-
-        // Add the new/updated subscription
-        await updateUser(user.authSubject, {
-            pushSubscriptions: [...filteredSubscriptions, newSubscription],
-        });
+        if (!await savePushSubscription(user.authSubject, newSubscription, await getMongoDb())) {
+            return NextResponse.json({ error: 'Account cannot manage notifications.' }, { status: 403 });
+        }
 
         return NextResponse.json({ success: true, message: 'Subscription saved' });
     } catch (error) {
@@ -88,14 +83,9 @@ export async function DELETE(request: NextRequest) {
         }
         const { endpoint } = parsed.data;
 
-        const existingSubscriptions = user.pushSubscriptions || [];
-        const filteredSubscriptions = existingSubscriptions.filter(
-            (sub) => sub.endpoint !== endpoint
-        );
-
-        await updateUser(user.authSubject, {
-            pushSubscriptions: filteredSubscriptions,
-        });
+        if (!await removePushSubscription(user.authSubject, endpoint, await getMongoDb())) {
+            return NextResponse.json({ error: 'Account cannot manage notifications.' }, { status: 403 });
+        }
 
         return NextResponse.json({ success: true, message: 'Subscription removed' });
     } catch (error) {

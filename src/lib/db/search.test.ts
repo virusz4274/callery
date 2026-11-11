@@ -28,7 +28,7 @@ function createSearchResult(id: string, searchScore: number): SearchResult {
     };
 }
 
-test('mergeSearchResults keeps vector-ranked results first and appends keyword-only matches', () => {
+test('mergeSearchResults rewards agreement between lexical and vector ranks', () => {
     const keywordOnly = createSearchResult('507f1f77bcf86cd799439011', 2);
     const shared = createSearchResult('507f1f77bcf86cd799439012', 2);
     const vectorTop = createSearchResult('507f1f77bcf86cd799439013', 0.92);
@@ -38,9 +38,9 @@ test('mergeSearchResults keeps vector-ranked results first and appends keyword-o
     assert.deepEqual(
         merged.map((result) => result._id.toString()),
         [
-            vectorTop._id.toString(),
             shared._id.toString(),
             keywordOnly._id.toString(),
+            vectorTop._id.toString(),
         ]
     );
 });

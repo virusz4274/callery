@@ -1,10 +1,11 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { MongoServerError, ObjectId, type Db } from 'mongodb';
 import type { TranscriptionExecution } from '@/lib/transcription/manual';
 import { LEGACY_AI_BUDGET_REJECTION, ProcessingError } from '@/lib/transcription/processing-errors';
 import type { Recording } from '@/lib/db/types';
+import { recordingNeedsRefresh } from '@/lib/recording-refresh';
 
 type Row = Record<string, unknown>;
 // This stateful boundary double exercises dispatcher decisions and claim filters.
@@ -45,8 +46,20 @@ function matches(row: Row, filter: Row): boolean {
     });
 }
 function patch(row: Row, update: Row, inserting = false) {
-    Object.assign(row, copy(update.$set as Row || {}), inserting ? copy(update.$setOnInsert as Row || {}) : {});
-    for (const field of Object.keys(update.$unset as Row || {})) delete row[field];
+    for (const [field, value] of Object.entries({ ...update.$set as Row || {}, ...(inserting ? update.$setOnInsert as Row || {} : {}) })) {
+        const parts = field.split('.');
+        let target = row;
+        for (const part of parts.slice(0, -1)) {
+            if (!target[part] || typeof target[part] !== 'object') target[part] = {};
+            target = target[part] as Row;
+        }
+        target[parts.at(-1)!] = copy(value);
+    }
+    for (const field of Object.keys(update.$unset as Row || {})) {
+        const parts = field.split('.');
+        const target = parts.slice(0, -1).reduce<Row | undefined>((value, part) => value?.[part] as Row | undefined, row);
+        if (target) delete target[parts.at(-1)!];
+    }
 }
 class Rows {
     values: Row[] = [];
@@ -100,6 +113,9 @@ interface RunnerState {
     calls: { owner: string; recordingId: string; execution: TranscriptionExecution }[];
     complete: boolean;
     onRun?: () => Promise<void>;
+    searchCalls: { owner: string; recordingId: string; execution: TranscriptionExecution; profileId: string; revision: string }[];
+    onSearchRun?: () => Promise<void | 'continue'>;
+    searchRecoverySafe?: boolean;
 }
 const stateKey = Symbol.for('vosift.test.queue-unit');
 const shared = globalThis as typeof globalThis & { [stateKey]: RunnerState };
@@ -120,15 +136,25 @@ const hook = registerHooks({
             }`)}`,
             shortCircuit: true,
         };
+        if (context.parentURL?.endsWith('/integrations/jobs.ts') && specifier === '@/lib/search/reindex') return {
+            url: `data:text/javascript,${encodeURIComponent(`export async function runSearchIndexJob(owner, recordingId, execution, profileId, revision) {
+                const state = globalThis[Symbol.for('vosift.test.queue-unit')];
+                state.searchCalls.push({ owner, recordingId, execution, profileId, revision });
+                return await state.onSearchRun?.();
+            }
+            export async function isSearchIndexRetrySafe() {
+                return globalThis[Symbol.for('vosift.test.queue-unit')].searchRecoverySafe ?? true;
+            }`)}`, shortCircuit: true,
+        };
         return nextResolve(specifier, context);
     },
 });
-const { batchJobId, beginQueuedWebhookExecution, enqueueTranscription, processTranscriptionJobs, queueDeferredTranscriptionCompletion, requestTranscription, resetBatchJobsForRetry, settleQueuedTranscription } = await import('./jobs');
-hook.deregister();
+const { batchJobId, beginQueuedWebhookExecution, enqueueSearchIndex, enqueueTranscription, processTranscriptionJobs, queueDeferredTranscriptionCompletion, requestTranscription, resetBatchJobsForRetry, settleQueuedTranscription } = await import('./jobs');
+after(() => hook.deregister());
 
 function setup(count: number) {
     const database = new MemoryDatabase();
-    const state: RunnerState = { database, calls: [], complete: true };
+    const state: RunnerState = { database, calls: [], searchCalls: [], complete: true };
     shared[stateKey] = state;
     database.collection('users').values.push({ authSubject: 'owner', transcriptionSettings: { autoTranscribe: true } });
     const recordings = Array.from({ length: count }, () => ({ _id: new ObjectId(), authSubject: 'owner', transcriptionStatus: 'pending', updatedAt: new Date() }));
@@ -400,4 +426,569 @@ test('cron repairs a crash between late transcript persistence and queue handoff
     assert.equal((recordings[0] as Row).transcriptionCompletionPending, undefined);
     const history = database.collection('integration_jobs').values[0].attemptHistory as Row[];
     assert.equal(history[0].attemptId, execution.attemptId);assert.equal(history[0].error, 'Original timeout');
+});
+
+test('accepted pending work is visible on its recording without changing provider outcome evidence', async () => {
+    const { state, database, db, recordings } = setup(2);
+    const id = recordings[0]._id.toString();
+    const prior = { stage: 'transcription', state: 'failed', providerOutcome: 'responded' };
+    Object.assign(recordings[0], { processingStatus: prior });
+    await enqueueTranscription('owner', id, {}, `manual:${id}`, false, db);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, `manual:${id}`);
+    assert.deepEqual((recordings[0] as Row).processingStatus, prior);
+    assert.equal((recordings[1] as Row).transcriptionQueuedJobId, undefined, 'An unrequested recording must not look queued');
+    assert.equal(state.calls.length, 0);
+    delete (recordings[0] as Row).transcriptionQueuedJobId;
+    await requestTranscription('owner', recordings[0] as Recording, {});
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, `manual:${id}`, 'Reusing a pending request repairs its presentation marker');
+    await processTranscriptionJobs(1, db);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, undefined);
+    assert.equal(database.collection('integration_jobs').values[0].state, 'completed');
+    await enqueueTranscription('owner', id, {}, `manual:${id}`, false, db);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, undefined, 'A completed journal cannot recreate a queued marker');
+});
+
+test('a policy rejection before provider execution clears the marker and publishes a terminal failure', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const id = recordings[0]._id.toString();
+    await enqueueTranscription('owner', id, {}, `auto:${id}`, true, db);
+    Object.assign(database.collection('users').values[0], { transcriptionSettings: { autoTranscribe: false } });
+    await processTranscriptionJobs(1, db);
+    assert.equal(state.calls.length, 0);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, undefined);
+    assert.equal(recordings[0].transcriptionStatus, 'failed');
+    assert.equal(((recordings[0] as Row).processingStatus as Row).providerOutcome, 'not_started');
+});
+
+test('cron repairs a marker left behind by terminal queue settlement', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const id = recordings[0]._id.toString();
+    await enqueueTranscription('owner', id, {}, `manual:${id}`, false, db);
+    const status = { stage: 'transcription', state: 'blocked', code: 'provider_configuration', providerOutcome: 'not_started' };
+    Object.assign(database.collection('integration_jobs').values[0], { state: 'failed', processingStatus: status, error: 'Provider configuration changed.' });
+    await processTranscriptionJobs(1, db);
+    assert.equal(state.calls.length, 0);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, undefined);
+    assert.deepEqual((recordings[0] as Row).processingStatus, status);
+    assert.equal(recordings[0].transcriptionStatus, 'failed');
+});
+
+test('a dispatcher crash before recording claim stops queued presentation for explicit outcome review', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const id = recordings[0]._id.toString(), jobId = `manual:${id}`;
+    await enqueueTranscription('owner', id, {}, jobId, false, db);
+    Object.assign(database.collection('integration_jobs').values[0], { state: 'running', attemptId: 'interrupted-before-claim', leaseUntil: new Date(0) });
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId, attemptId: 'interrupted-before-claim', until: new Date(0) });
+    await processTranscriptionJobs(1, db);
+    assert.equal(state.calls.length, 0);
+    assert.equal((recordings[0] as Row).transcriptionQueuedJobId, undefined);
+    assert.equal(recordings[0].transcriptionStatus, 'failed');
+    assert.equal(((recordings[0] as Row).processingStatus as Row).state, 'needs_review');
+});
+
+test('a submitted callback timeout publishes terminal recording status after its queue marker was cleared', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    state.complete = false;
+    state.onRun = async () => { Object.assign(recording, {
+        processingStatus: { stage: 'transcription', state: 'running', providerOutcome: 'not_started' }, updatedAt: new Date(0),
+    }); };
+    await enqueueTranscription('owner', recording._id.toString(), {}, `manual:${recording._id}`, false, db);
+    await processTranscriptionJobs(1, db);
+    assert.equal(recording.transcriptionQueuedJobId, undefined);
+    assert.equal(recordingNeedsRefresh(recording), true);
+    const job = database.collection('integration_jobs').values[0];
+    assert.equal(job.state, 'submitted');
+    job.submittedAt = new Date(Date.now() - 25 * 60 * 60_000);
+    database.collection('transcription_dispatch').values[0].until = new Date(0);
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(job.state, 'needs_review');
+    assert.equal(recording.transcriptionStatus, 'failed');
+    assert.equal(recording.processingStatus?.state, 'needs_review');
+    assert.equal(recording.processingStatus?.retryAction, 'review_provider');
+    assert.equal(recording.processingStatus?.providerOutcome, 'unknown');
+    assert.ok(recording.updatedAt.getTime() > 0);
+    assert.equal(recordingNeedsRefresh(recording), false);
+    assert.equal(state.calls.length, 1, 'Recovery must not repeat the provider call');
+    await requestTranscription('owner', recording, { acknowledgeProviderOutcome: true });
+    assert.equal(job.state, 'pending', 'Explicit provider-outcome review permits retry');
+});
+
+function previousTimeout(database: MemoryDatabase, recording: Row) {
+    const id = (recording._id as ObjectId).toString(), jobId = `manual:${id}`;
+    Object.assign(recording, { transcriptionStatus: 'failed', transcriptionJobId: jobId, transcriptionAttemptId: 'timed-out-attempt',
+        processingStatus: { stage: 'transcription', state: 'running' }, transcriptionError: 'Original timeout explanation',
+        fullTranscript: [{ speakerId: 'A', text: 'Retained source', words: [] }], summary: 'Retained summary', updatedAt: new Date(0) });
+    const job: Row = { _id: jobId, owner: 'owner', recordingId: id, automatic: false, options: {}, state: 'needs_review',
+        attemptId: 'timed-out-attempt', createdAt: new Date(0), leaseUntil: new Date(0),
+        processingStatus: { stage: 'transcription', state: 'needs_review', code: 'provider_outcome_unknown', retryAction: 'review_provider', providerOutcome: 'unknown' } };
+    database.collection('integration_jobs').values.push(job);
+    return job;
+}
+
+test('cron repairs an existing failed recording left running after its terminal journal released the slot', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    const job = previousTimeout(database, recording as unknown as Row);
+    const snapshot = copy(recording);
+    assert.equal(recording.transcriptionQueuedJobId, undefined);
+    assert.equal(database.collection('transcription_dispatch').values.length, 0);
+    assert.equal(recordingNeedsRefresh(recording), true);
+
+    await processTranscriptionJobs(0, db);
+
+    assert.deepEqual(recording.processingStatus, job.processingStatus);
+    assert.ok(recording.updatedAt.getTime() > 0);
+    Object.assign(snapshot, { processingStatus: job.processingStatus, updatedAt: recording.updatedAt });
+    assert.deepEqual(recording, snapshot, 'Repair preserves the original transcript, summary, error and failed ASR status');
+    assert.equal(recordingNeedsRefresh(recording), false);
+    assert.equal(state.calls.length, 0);
+    await requestTranscription('owner', recording, { acknowledgeProviderOutcome: true });
+    assert.equal(job.state, 'pending');
+});
+
+for (const mismatch of ['attempt', 'owner', 'recording', 'search_job', 'nonterminal_status', 'pending_request'] as const) test(`terminal presentation repair ignores ${mismatch} evidence`, async () => {
+    const { state, database, db, recordings } = setup(1);
+    const source = recordings[0] as Row;
+    const job = previousTimeout(database, source);
+    if (mismatch === 'attempt') job.attemptId = 'other-attempt';
+    if (mismatch === 'owner') job.owner = 'other-owner';
+    if (mismatch === 'recording') job.recordingId = new ObjectId().toString();
+    if (mismatch === 'search_job') job.kind = 'search_index';
+    if (mismatch === 'nonterminal_status') job.processingStatus = { stage: 'transcription', state: 'running' };
+    if (mismatch === 'pending_request') {
+        job.state = 'pending';
+        source.transcriptionQueuedJobId = job._id;
+    }
+    const snapshot = copy(source);
+
+    await processTranscriptionJobs(0, db);
+
+    assert.deepEqual(source, snapshot);
+    assert.equal(state.calls.length, 0);
+});
+
+for (const race of ['new_attempt', 'new_queue_marker', 'completed_result', 'newer_revision'] as const) test(`terminal presentation repair preserves a concurrent ${race}`, async () => {
+    const { state, database, db, recordings } = setup(1);
+    const source = recordings[0] as Row;
+    previousTimeout(database, source);
+    const rows = database.collection('recordings');
+    const update = rows.updateOne.bind(rows);
+    let snapshot: Row | undefined;
+    rows.updateOne = async (filter, patch, options) => {
+        if (filter['processingStatus.state'] === 'running' && !snapshot) {
+            if (race === 'new_attempt') source.transcriptionAttemptId = 'new-attempt';
+            if (race === 'new_queue_marker') source.transcriptionQueuedJobId = 'new-queued-job';
+            if (race === 'completed_result') {
+                source.transcriptionStatus = 'completed';
+                source.processingStatus = { stage: 'completed', state: 'completed' };
+            }
+            if (race === 'newer_revision') source.updatedAt = new Date();
+            snapshot = copy(source);
+        }
+        return update(filter, patch, options);
+    };
+
+    await processTranscriptionJobs(0, db);
+
+    assert.ok(snapshot);
+    assert.deepEqual(source, snapshot);
+    assert.equal(state.calls.length, 0);
+});
+
+test('terminal presentation repair drains at most 100 existing stuck records per invocation', async () => {
+    const { state, database, db, recordings } = setup(101);
+    for (const recording of recordings) previousTimeout(database, recording);
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(recordings.filter(recording => ((recording as Row).processingStatus as Row).state === 'needs_review').length, 100);
+    await processTranscriptionJobs(0, db);
+    assert.equal(recordings.filter(recording => ((recording as Row).processingStatus as Row).state === 'needs_review').length, 101);
+    assert.equal(state.calls.length, 0);
+});
+
+test('interrupted claimed enrichment publishes terminal status without losing the saved result', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    const jobId = `manual:${recording._id}`;
+    await enqueueTranscription('owner', recording._id.toString(), {}, jobId, false, db);
+    Object.assign(database.collection('integration_jobs').values[0], { state: 'running', attemptId: 'interrupted', leaseUntil: new Date(0) });
+    Object.assign(recording, { transcriptionStatus: 'processing', transcriptionJobId: jobId, transcriptionAttemptId: 'interrupted',
+        transcriptionEnrichmentPending: true, fullTranscript: ['Saved transcript'], summary: 'Saved summary',
+        processingStatus: { stage: 'summary', state: 'running' }, updatedAt: new Date(0) });
+    delete recording.transcriptionQueuedJobId;
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId, attemptId: 'interrupted', until: new Date(0) });
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(recording.processingStatus?.stage, 'summary');
+    assert.equal(recording.processingStatus?.state, 'needs_review');
+    assert.equal(recording.transcriptionStatus, 'failed');
+    assert.ok(recording.updatedAt.getTime() > 0);
+    assert.equal(recordingNeedsRefresh(recording), false);
+    assert.deepEqual(recording.fullTranscript, ['Saved transcript']);
+    assert.equal(recording.summary, 'Saved summary');
+    assert.equal(state.calls.length, 0);
+});
+
+test('a stale slot cannot fail a newer recording attempt', async () => {
+    const { database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    const oldJobId = `old:${recording._id}`;
+    await enqueueTranscription('owner', recording._id.toString(), {}, oldJobId, false, db);
+    Object.assign(database.collection('integration_jobs').values[0], { state: 'running', attemptId: 'old-attempt', leaseUntil: new Date(0) });
+    Object.assign(recording, { transcriptionStatus: 'processing', transcriptionJobId: 'new-job', transcriptionAttemptId: 'new-attempt',
+        processingStatus: { stage: 'transcription', state: 'running' }, updatedAt: new Date(1234) });
+    recording.transcriptionQueuedJobId = oldJobId;
+    const snapshot = copy(recording);
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId: oldJobId, attemptId: 'old-attempt', until: new Date(0) });
+
+    await processTranscriptionJobs(0, db);
+
+    delete snapshot.transcriptionQueuedJobId;
+    assert.deepEqual(recording, snapshot, 'Only the abandoned old presentation marker may be removed');
+    assert.equal(database.collection('integration_jobs').values[0].state, 'needs_review');
+});
+
+for (const race of ['renewed', 'new_attempt', 'completed'] as const) test(`timeout recovery preserves a concurrently ${race} execution`, async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    const jobId = `manual:${recording._id}`;
+    await enqueueTranscription('owner', recording._id.toString(), {}, jobId, false, db);
+    const jobs = database.collection('integration_jobs');
+    const job = jobs.values[0];
+    Object.assign(job, { state: 'running', attemptId: 'initial-attempt', leaseUntil: new Date(0) });
+    Object.assign(recording, { transcriptionStatus: 'processing', transcriptionJobId: jobId, transcriptionAttemptId: 'initial-attempt',
+        processingStatus: { stage: 'transcription', state: 'running' }, updatedAt: new Date(0) });
+    delete recording.transcriptionQueuedJobId;
+    const slot = { _id: 'transcription', jobId, attemptId: 'initial-attempt', until: new Date(0) };
+    database.collection('transcription_dispatch').values.push(slot);
+    const originalUpdate = jobs.updateOne.bind(jobs);
+    let snapshot: Recording | undefined;
+    jobs.updateOne = async (filter, update, options) => {
+        if ((update.$set as Row)?.state === 'needs_review' && !snapshot) {
+            if (race === 'completed') {
+                Object.assign(job, { state: 'completed' });
+                Object.assign(recording, { transcriptionStatus: 'completed', processingStatus: { stage: 'completed', state: 'completed' },
+                    fullTranscript: ['Newly completed result'], updatedAt: new Date() });
+            } else {
+                Object.assign(job, { leaseUntil: new Date(Date.now() + 600_000) });
+                slot.until = new Date(Date.now() + 600_000);
+                if (race === 'new_attempt') {
+                    job.attemptId = 'new-attempt';
+                    slot.attemptId = 'new-attempt';
+                    recording.transcriptionAttemptId = 'new-attempt';
+                }
+            }
+            snapshot = copy(recording);
+        }
+        return originalUpdate(filter, update, options);
+    };
+
+    await processTranscriptionJobs(0, db);
+
+    assert.ok(snapshot);
+    assert.deepEqual(recording, snapshot);
+    assert.equal(job.state, race === 'completed' ? 'completed' : 'running');
+    assert.equal(state.calls.length, 0);
+    if (race !== 'completed') assert.equal(slot.jobId, jobId, 'A stale recovery cannot release the renewed slot');
+});
+
+function savedTranscript(recording: Row) {
+    Object.assign(recording, { transcriptionStatus: 'completed', fullTranscript: [{ speakerId: 'A', text: 'Saved source text', words: [] }],
+        summary: 'Original summary', processingStatus: { stage: 'completed', state: 'completed' },
+        transcriptionAttemptId: 'original-asr-attempt', transcriptionJobId: 'original-asr-job' });
+}
+
+test('search-only jobs are idempotent for a transcript revision and do not change transcription presentation', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    savedTranscript(recording as unknown as Row);
+    const snapshot = copy(recording);
+    const [first, duplicate] = await Promise.all([
+        enqueueSearchIndex('owner', recording._id.toString(), 'profile', db),
+        enqueueSearchIndex('owner', recording._id.toString(), 'profile', db),
+    ]);
+    assert.equal(first.jobId, duplicate.jobId);
+    assert.equal(database.collection('integration_jobs').values.length, 1);
+    assert.deepEqual(recording, snapshot);
+
+    assert.equal(await processTranscriptionJobs(1, db), 1);
+
+    const job = database.collection('integration_jobs').values[0];
+    assert.equal(job.kind, 'search_index');
+    assert.equal(job.state, 'completed');
+    assert.equal(state.calls.length, 0, 'Search indexing must never submit audio or generate a summary');
+    assert.deepEqual(recording, snapshot);
+    assert.equal(state.searchCalls.length, 1);
+    assert.equal(state.searchCalls[0].profileId, 'profile');
+    assert.equal(state.searchCalls[0].revision, job.searchTranscriptRevision);
+    assert.equal(state.searchCalls[0].execution.jobId, job._id);
+    // The runner boundary double records execution; publish its successful live
+    // index explicitly before checking completed-request idempotency.
+    recording.searchIndex = { state: 'ready', profileId: 'profile', transcriptRevision: String(job.searchTranscriptRevision),
+        generation: 'published', totalPassages: 1, completedPassages: 1 };
+    assert.equal((await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db)).state, 'completed');
+    assert.equal(await processTranscriptionJobs(1, db), 0);
+
+    recording.fullTranscript![0].text = 'Corrected source text';
+    const changed = await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db);
+    assert.notEqual(changed.jobId, first.jobId, 'Changed source text must receive fresh indexing work');
+    const nextProfile = await enqueueSearchIndex('owner', recording._id.toString(), 'new-profile', db);
+    assert.notEqual(nextProfile.jobId, changed.jobId, 'Embedding profiles have separate identities');
+});
+
+for (const liveIndex of ['other_profile', 'failed', 'other_revision', 'missing'] as const) test(`a completed indexing journal can rebuild its ${liveIndex} live index`, async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    savedTranscript(recording as unknown as Row);
+    const first = await enqueueSearchIndex('owner', recording._id.toString(), 'profile-a', db);
+    await processTranscriptionJobs(1, db);
+    const job = database.collection('integration_jobs').values[0];
+    if (liveIndex !== 'missing') recording.searchIndex = {
+        state: liveIndex === 'failed' ? 'failed' : 'ready',
+        profileId: liveIndex === 'other_profile' ? 'profile-b' : 'profile-a',
+        transcriptRevision: liveIndex === 'other_revision' ? 'older-source' : String(job.searchTranscriptRevision),
+        generation: 'current-generation', totalPassages: 1, completedPassages: 1,
+    };
+    const snapshot = copy(recording);
+
+    const rebuild = await enqueueSearchIndex('owner', recording._id.toString(), 'profile-a', db);
+
+    assert.equal(rebuild.state, 'queued');
+    assert.equal(rebuild.jobId, first.jobId);
+    assert.equal(job.state, 'pending');
+    assert.equal((job.attemptHistory as Row[])[0].state, 'completed');
+    assert.deepEqual(recording, snapshot, 'Explicit admission must not publish or alter an index itself');
+    assert.equal(state.searchCalls.length, 1, 'Enqueue does not run another provider call');
+});
+
+test('search indexing and transcription share one execution slot while retaining separate journals', async () => {
+    const { state, database, db, recordings } = setup(2);
+    savedTranscript(recordings[0]);
+    const search = await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    await enqueueTranscription('owner', recordings[1]._id.toString(), {}, `manual:${recordings[1]._id}`, false, db);
+    let entered!: () => void;
+    let finish!: () => void;
+    const running = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { finish = resolve; });
+    state.onSearchRun = async () => { entered(); await gate; };
+    const worker = processTranscriptionJobs(1, db);
+    await running;
+    assert.equal(database.collection('transcription_dispatch').values[0].jobId, search.jobId);
+    assert.equal(await processTranscriptionJobs(1, db), 0);
+    assert.equal(state.calls.length, 0);
+    finish();
+    assert.equal(await worker, 1);
+    assert.equal(await processTranscriptionJobs(1, db), 1);
+    assert.equal(state.calls.length, 1);
+    assert.equal(state.searchCalls.length, 1);
+});
+
+test('bounded search continuations retain saved work and resume with a fresh attempt in the shared slot', async () => {
+    const { state, database, db, recordings } = setup(2);
+    const source = recordings[0] as Row;
+    savedTranscript(recordings[0]);
+    const request = await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    const checkpoint = { id: 'same-funded-work', checkpoints: { 'passage-0': { state: 'completed', resultRef: 'saved-vector' } } };
+    state.onSearchRun = async () => {
+        source.searchIndexWork = copy(checkpoint);
+        return 'continue';
+    };
+
+    assert.equal(await processTranscriptionJobs(1, db), 1);
+
+    const job = database.collection('integration_jobs').values[0];
+    const firstAttempt = state.searchCalls[0].execution.attemptId;
+    assert.equal(job.state, 'pending');
+    assert.equal(job.attemptId, undefined);
+    assert.equal(job.leaseOwner, undefined);
+    assert.equal((job.leaseUntil as Date).getTime(), 0);
+    assert.equal(database.collection('transcription_dispatch').values[0].jobId, undefined);
+    assert.deepEqual(source.searchIndexWork, checkpoint);
+    assert.equal(recordings[0].transcriptionStatus, 'completed');
+    assert.equal(state.calls.length, 0);
+    await enqueueTranscription('owner', recordings[1]._id.toString(), {}, `manual:${recordings[1]._id}`, false, db);
+    let entered!: () => void;
+    let finish!: () => void;
+    const running = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { finish = resolve; });
+    state.onSearchRun = async () => {
+        assert.deepEqual(source.searchIndexWork, checkpoint, 'Continuation must reuse committed passage progress');
+        entered(); await gate;
+    };
+    const resumed = processTranscriptionJobs(1, db);
+    await running;
+    assert.equal(state.searchCalls[1].execution.jobId, request.jobId);
+    assert.notEqual(state.searchCalls[1].execution.attemptId, firstAttempt);
+    assert.equal(await processTranscriptionJobs(1, db), 0, 'Continuation excludes concurrent ASR work');
+    assert.equal(state.calls.length, 0);
+    finish();
+    assert.equal(await resumed, 1);
+    assert.equal(job.state, 'completed');
+    assert.equal(await processTranscriptionJobs(1, db), 1);
+    assert.equal(state.calls.length, 1);
+});
+
+test('a stale search continuation cannot reset or release a newer execution attempt', async () => {
+    const { state, database, db, recordings } = setup(1);
+    savedTranscript(recordings[0]);
+    await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    state.onSearchRun = async () => {
+        const job = database.collection('integration_jobs').values[0];
+        job.attemptId = 'newer-owned-attempt';
+        database.collection('transcription_dispatch').values[0].attemptId = 'newer-owned-attempt';
+        return 'continue';
+    };
+
+    await processTranscriptionJobs(1, db);
+
+    const job = database.collection('integration_jobs').values[0];
+    assert.equal(job.state, 'running');
+    assert.equal(job.attemptId, 'newer-owned-attempt');
+    assert.equal(database.collection('transcription_dispatch').values[0].attemptId, 'newer-owned-attempt');
+    assert.equal(state.calls.length, 0);
+});
+
+test('search continuation respects the dispatcher work limit instead of looping until the archive is indexed', async () => {
+    const { state, database, db, recordings } = setup(1);
+    savedTranscript(recordings[0]);
+    await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    state.onSearchRun = async () => 'continue';
+
+    assert.equal(await processTranscriptionJobs(3, db), 3);
+
+    assert.equal(state.searchCalls.length, 3);
+    assert.equal(new Set(state.searchCalls.map(call => call.execution.attemptId)).size, 3);
+    assert.equal(database.collection('integration_jobs').values[0].state, 'pending');
+    assert.equal(state.calls.length, 0);
+});
+
+test('an uncertain search-only attempt requires acknowledgement and never contaminates transcription retry', async () => {
+    const { state, database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    savedTranscript(recording as unknown as Row);
+    const snapshot = copy(recording);
+    const request = await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db);
+    state.onSearchRun = async () => { throw new Error('Embedding response was lost'); };
+    await processTranscriptionJobs(1, db);
+    const job = database.collection('integration_jobs').values[0];
+    assert.equal(job.state, 'needs_review');
+    assert.equal((job.processingStatus as Row).stage, 'embedding');
+    assert.deepEqual(recording, snapshot);
+    assert.equal((await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db)).state, 'needs_review');
+    assert.equal(await processTranscriptionJobs(1, db), 0);
+    assert.equal(state.searchCalls.length, 1, 'An uncertain outcome cannot automatically spend another embedding attempt');
+    const retry = await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db, true);
+    assert.equal(retry.state, 'queued');
+    assert.equal(retry.jobId, request.jobId);
+    assert.equal((job.attemptHistory as Row[])[0].state, 'needs_review');
+    await requestTranscription('owner', recording, { provider: 'gemini' }, true);
+    assert.equal(database.collection('integration_jobs').values.length, 2, 'A pending search job must not impersonate an ASR request');
+    state.onSearchRun = undefined;
+    await processTranscriptionJobs(1, db);
+    assert.equal(job.state, 'completed');
+    assert.equal(state.calls.length, 0);
+});
+
+test('a known search-only failure can be explicitly retried without ASR or recording mutations', async () => {
+    const { state, database, db, recordings } = setup(1);
+    savedTranscript(recordings[0]);
+    const snapshot = copy(recordings[0]);
+    await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    state.onSearchRun = async () => { throw new ProcessingError('Embedding quota exhausted', {
+        stage: 'embedding', state: 'failed', code: 'provider_quota', retryAction: 'resume_enrichment', providerOutcome: 'responded',
+    }); };
+    await processTranscriptionJobs(1, db);
+    const job = database.collection('integration_jobs').values[0];
+    assert.equal(job.state, 'failed');
+    assert.equal((await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db)).state, 'queued');
+    state.onSearchRun = undefined;
+    await processTranscriptionJobs(1, db);
+    assert.equal(job.state, 'completed');
+    assert.deepEqual(recordings[0], snapshot);
+    assert.equal(state.calls.length, 0);
+});
+
+test('expired search-only work with no provider checkpoint permits explicit resume without touching ASR', async () => {
+    const { state, database, db, recordings } = setup(1);
+    savedTranscript(recordings[0]);
+    const snapshot = copy(recordings[0]);
+    const request = await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    const job = database.collection('integration_jobs').values[0];
+    Object.assign(job, { state: 'running', attemptId: 'expired-search', leaseUntil: new Date(0) });
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId: request.jobId, attemptId: 'expired-search', until: new Date(0) });
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(job.state, 'failed');
+    assert.equal((job.processingStatus as Row).stage, 'embedding');
+    assert.equal((job.processingStatus as Row).providerOutcome, 'not_started');
+    assert.equal((job.processingStatus as Row).retryAction, 'resume_enrichment');
+    assert.deepEqual(recordings[0], snapshot);
+    assert.equal(database.collection('transcription_dispatch').values[0].jobId, undefined);
+    assert.equal(state.calls.length, 0);
+    assert.equal(state.searchCalls.length, 0);
+});
+
+for (const version of ['matching', 'new_profile', 'new_revision', 'new_generation'] as const) test(`expired search work updates only its ${version} index generation`, async () => {
+    const { database, db, recordings } = setup(1);
+    const recording = recordings[0] as Recording;
+    savedTranscript(recording as unknown as Row);
+    const request = await enqueueSearchIndex('owner', recording._id.toString(), 'profile', db);
+    const job = database.collection('integration_jobs').values[0];
+    const revision = String(job.searchTranscriptRevision);
+    Object.assign(job, { state: 'running', attemptId: 'expired-search', leaseUntil: new Date(0) });
+    Object.assign(recording, {
+        searchIndex: { state: 'indexing', generation: version === 'new_generation' ? 'new-generation' : 'work', profileId: 'profile', transcriptRevision: revision },
+        searchIndexWork: { id: 'work', profile: { id: version === 'new_profile' ? 'new-profile' : 'profile' }, transcriptRevision: revision },
+        updatedAt: new Date(0),
+    });
+    if (version === 'new_revision') recording.fullTranscript![0].text = 'A newer source revision';
+    const snapshot = copy(recording);
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId: request.jobId, attemptId: 'expired-search', until: new Date(0) });
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(job.state, ['matching', 'new_generation'].includes(version) ? 'failed' : 'needs_review');
+    if (version === 'matching') {
+        assert.equal(recording.searchIndex?.state, 'failed');
+        assert.ok(recording.updatedAt.getTime() > 0);
+        Object.assign(snapshot.searchIndex!, { state: 'failed' });
+        snapshot.updatedAt = recording.updatedAt;
+    }
+    assert.deepEqual(recording, snapshot, 'Search recovery may not change an unrelated generation or transcription result');
+});
+
+test('an expired search attempt with an unresolved provider response remains held for operator review', async () => {
+    const { state, database, db, recordings } = setup(1);
+    savedTranscript(recordings[0]);
+    const request = await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db);
+    const job = database.collection('integration_jobs').values[0];
+    state.searchRecoverySafe = false;
+    Object.assign(recordings[0], { searchIndexWork: { id: 'work', profile: { id: 'profile' }, transcriptRevision: job.searchTranscriptRevision,
+        checkpoints: { passage: { state: 'unknown' } } } });
+    const snapshot = copy(recordings[0]);
+    Object.assign(job, { state: 'running', attemptId: 'expired-search', leaseUntil: new Date(0) });
+    database.collection('transcription_dispatch').values.push({ _id: 'transcription', jobId: request.jobId, attemptId: 'expired-search', until: new Date(0) });
+
+    await processTranscriptionJobs(0, db);
+
+    assert.equal(job.state, 'needs_review');
+    assert.equal((job.processingStatus as Row).providerOutcome, 'unknown');
+    assert.equal((job.processingStatus as Row).retryAction, 'contact_admin');
+    assert.equal((await enqueueSearchIndex('owner', recordings[0]._id.toString(), 'profile', db)).state, 'needs_review');
+    assert.deepEqual(recordings[0], snapshot);
+    assert.equal(state.searchCalls.length, 0);
+});
+
+test('search enqueue requires an owned saved transcript', async () => {
+    const { db, recordings } = setup(1);
+    const id = recordings[0]._id.toString();
+    await assert.rejects(enqueueSearchIndex('owner', id, 'profile', db), /saved transcript/i);
+    savedTranscript(recordings[0]);
+    await assert.rejects(enqueueSearchIndex('other-owner', id, 'profile', db), /saved transcript/i);
 });

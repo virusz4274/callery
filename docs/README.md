@@ -15,6 +15,7 @@ Runtime verification and remaining deployment checks are recorded in [Releases](
 
 ## Developer Reference
 
+- [AI Agent Integration Plan](ai-agent-integration-plan.md): draft plan for public ChatGPT, remote MCP, OAuth, agent search, uploads, and other AI clients
 - [Dependency Review](dependency-review.md): current toolchain, security fixes, compatibility decisions and upgrade checks
 - [Architecture](architecture.md): system shape, async flows, security boundaries, and repository layout
 - [API Reference](api-reference.md): Server Actions, route handlers, signed upload flow, webhooks, and cron endpoints

@@ -1,57 +1,56 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { searchRecordingsAction } from '@/app/actions/search-actions';
-import type { Recording } from '@/lib/types';
-import type { SemanticFallbackReason, SemanticSearchMode } from '@/lib/db/search';
+import { useUser } from '@/lib/auth/client';
+import type { SemanticSearchMatch } from '@/lib/search/types';
 
-export function useSemanticSearch(limit: number) {
-    const [inputMode, setInputMode] = useState<'text' | 'semantic'>('text');
-    const [query, setQuery] = useState('');
-    const [submittedQuery, setSubmittedQuery] = useState('');
-    const [results, setResults] = useState<Recording[] | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-    const [engineMode, setEngineMode] = useState<SemanticSearchMode>();
-    const [fallbackReason, setFallbackReason] = useState<SemanticFallbackReason>();
-    const [isSearching, setIsSearching] = useState(false);
-    const [error, setError] = useState<string>();
-    const [hasRun, setHasRun] = useState(false);
-    const generation = useRef(0);
-    const lastRequest = useRef({ query: '', page: 1 });
-    useEffect(() => () => { generation.current++; }, []);
+type SearchFilters = { contactId?: string; startDate?: string; endDate?: string };
+type SearchState = { owner?: string; mode: 'text' | 'semantic'; query: string; submitted: string; page: number; hasRun: boolean };
+const initialState: SearchState = { mode: 'text', query: '', submitted: '', page: 1, hasRun: false };
+const noMatches: Record<string, SemanticSearchMatch[]> = {};
 
-    const run = useCallback(async (text: string, requestedPage: number) => {
-        if (!text.trim()) return;
-        const request = ++generation.current;
-        lastRequest.current = { query: text.trim(), page: requestedPage };
-        setHasRun(true); setIsSearching(true); setError(undefined);
-        try {
-            const response = await searchRecordingsAction(text.trim(), requestedPage, limit);
-            if (request !== generation.current) return;
-            if (!response.success) throw new Error(response.error || 'Search failed');
-            setSubmittedQuery(text.trim()); setPage(requestedPage); setResults(response.results);
-            setTotalCount(response.totalCount ?? response.results.length);
-            setHasMore(response.hasMore ?? false);
-            setEngineMode(response.mode); setFallbackReason(response.fallbackReason);
-        } catch (cause) {
-            if (request === generation.current) setError(cause instanceof Error ? cause.message : 'Search failed');
-        } finally {
-            if (request === generation.current) setIsSearching(false);
-        }
-    }, [limit]);
+export function useSemanticSearch(limit: number, filters: SearchFilters = {}) {
+    const { user } = useUser();
+    const owner = user?.id;
+    const [stored, setStored] = useState<SearchState>(initialState);
+    const state = stored.owner === owner ? stored : initialState;
+    const { contactId, startDate, endDate } = filters;
+    // Filter changes get a new request and page one, never display another scope's matches.
+    const scope = `${contactId || ''}:${startDate || ''}:${endDate || ''}`;
+    const [pageScope, setPageScope] = useState('');
+    const page = pageScope === scope ? state.page : 1;
+    const { data, error, isLoading, isValidating, mutate } = useSWR(
+        owner && state.mode === 'semantic' && state.submitted
+            ? ['semantic-search', owner, state.submitted, page, limit, contactId, startDate, endDate] as const : null,
+        async ([, , query, requestedPage, pageSize, contact, start, end]) => {
+            const result = await searchRecordingsAction({ query, page: requestedPage, pageSize, contactId: contact, startDate: start, endDate: end });
+            if (!result.success) throw new Error(result.error || 'Search failed');
+            return result;
+        },
+        { revalidateOnFocus: false, shouldRetryOnError: false },
+    );
+    const update = (patch: Partial<SearchState>) => setStored({ ...state, owner, ...patch });
+    const search = () => {
+        const submitted = state.query.trim();
+        if (!submitted) return;
+        if (submitted === state.submitted && page === 1 && state.mode === 'semantic') void mutate();
+        setPageScope(scope);
+        update({ mode: 'semantic', submitted, page: 1, hasRun: true });
+    };
+    const clear = () => { setStored({ ...initialState, owner, hasRun: state.hasRun }); setPageScope(''); };
 
-    const search = useCallback(() => { void run(query, 1); }, [query, run]);
-    const changePage = useCallback((next: number) => { void run(submittedQuery, next); }, [submittedQuery, run]);
-    const retry = useCallback(() => { void run(lastRequest.current.query, lastRequest.current.page); }, [run]);
-    const clear = useCallback(() => {
-        generation.current++;
-        setQuery(''); setSubmittedQuery(''); setResults(null); setTotalCount(0);
-        setPage(1); setHasMore(false); setEngineMode(undefined); setFallbackReason(undefined);
-        setIsSearching(false); setError(undefined); setInputMode('text');
-    }, []);
-
-    return { inputMode, setInputMode, query, setQuery, submittedQuery, results, totalCount,
-        page, hasMore, changePage, error, retry, engineMode, fallbackReason, isSearching, hasRun, search, clear };
+    return {
+        inputMode: state.mode, setInputMode: (mode: 'text' | 'semantic') => update({ mode }),
+        query: state.query, setQuery: (query: string) => update({ query }), submittedQuery: state.submitted,
+        results: data?.results ?? null, totalCount: data?.totalCount ?? 0,
+        matches: data?.matches ?? noMatches, coverage: data?.coverage,
+        resultLimit: data?.resultLimit,
+        page, hasMore: data?.hasMore ?? false,
+        changePage: (next: number) => { setPageScope(scope); update({ page: next }); },
+        error: error instanceof Error ? error.message : undefined,
+        retry: () => { void mutate(); }, engineMode: data?.mode, fallbackReason: data?.fallbackReason,
+        isSearching: isLoading || isValidating, hasRun: state.hasRun, search, clear,
+    };
 }

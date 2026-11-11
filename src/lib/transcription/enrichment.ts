@@ -5,7 +5,7 @@ import type { TranscriptionExecution } from './manual';
 import type { UpdateRecordingInput } from '@/lib/db/types';
 import { updateEnrichmentCheckpoint } from './execution';
 import { billingEnabled, geminiApiKey, compatTextConfig } from '@/lib/config';
-import { AI_LIMITS, AI_PROMPT_V1, AI_PROMPT_VERSION, buildSummaryPrompt, truncateUtf8 } from '@/services/ai/prompts';
+import { AI_LIMITS, AI_PROMPT_V1, AI_PROMPT_VERSION, buildSummaryPrompt } from '@/services/ai/prompts';
 import type { AiStep, AiStepContext, AiUsage } from '@/services/ai/types';
 import { resolveFundingSource } from '@/lib/stripe/funding-source';
 import { retireLegacyProcessingBudget } from '@/lib/stripe/legacy-processing-budget';
@@ -14,6 +14,8 @@ import { buildAiWorkPlan, defaultTranscriptEnvelope, fingerprint, planAiCall, pr
     type AiCallCheckpoint, type AiPlannedCall, type AiWorkPlan } from './ai-work-plan';
 import { ProcessingError, processingFailure } from './processing-errors';
 import { classifyExternalServiceError } from '@/lib/external-service-incident-classification';
+import { claimPassageAttempt, passageId, preparePassageRows, publishPassageGeneration, savedPassageResponse, savePassageResponse } from '@/lib/search/passages';
+import { validateEmbedding } from '@/lib/search/profile';
 
 const blocked = (message: string, stage: AiStep, code = 'processing_unavailable') => new ProcessingError(message,
     { stage, state: 'blocked', code, retryAction: 'resume_enrichment', providerOutcome: 'not_started' });
@@ -82,6 +84,8 @@ export async function finishTranscriptionEnrichment(owner: string, recordingId: 
     }
     const service = getAiService(acceptedPlan.aiModels.summary.provider as 'gemini' | 'openai_compat');
     const checkpoints = structuredClone(recording.aiWorkCheckpoints || {});
+    const passageRefs = new Map(acceptedPlan.embeddingPassages.map(({ passage, call }) =>
+        [call.id, passageId(owner, recordingId, acceptedPlan.id, passage.ordinal)]));
     const language = recording.languageCode || 'unknown';
     const settle = async (checkpoint: AiCallCheckpoint, outcome: 'completed' | 'unknown') => {
         if (managed) await recordExecutionOutcome(owner, acceptedPlan.parentReceiptId, checkpoint.reservationId, outcome);
@@ -91,9 +95,20 @@ export async function finishTranscriptionEnrichment(owner: string, recordingId: 
         await save({ aiWorkCheckpoints: structuredClone(checkpoints), processingStatus: { stage: checkpoint.request.step, state: 'running',
             providerOutcome: checkpoint.state === 'prepared' ? 'not_started' : checkpoint.state === 'started' ? 'unknown' : 'responded' } });
     }
-    async function run<T extends string | number[] | string[]>(request: AiPlannedCall, invoke: (context: AiStepContext) => Promise<T>): Promise<T> {
+    async function run<T extends string | string[]>(request: AiPlannedCall, invoke: (context: AiStepContext) => Promise<T>): Promise<T> {
         let checkpoint = checkpoints[request.id];
         if (checkpoint && fingerprint(checkpoint.request) !== fingerprint(request)) throw blocked('The planned AI request changed. Review its original checkpoint.', request.step, 'stale_ai_plan');
+        const externalRef = passageRefs.get(request.id);
+        if (checkpoint && externalRef) {
+            const saved = await savedPassageResponse(externalRef, owner, request, checkpoint);
+            if (saved) {
+                validateEmbedding(saved.vector!, acceptedPlan.embeddingProfile);
+                checkpoint = { ...checkpoint, resultRef: externalRef, usage: saved.response?.usage, state: 'response_saved' };
+                await persist(checkpoint); await settle(checkpoint, 'completed'); checkpoint.state = 'completed'; await persist(checkpoint);
+                return externalRef as T;
+            }
+            if (checkpoint.resultRef) throw blocked('The saved passage response is unavailable. Rebuild this recording’s search index.', 'embedding', 'search_response_unavailable');
+        }
         if (checkpoint?.result !== undefined && (checkpoint.state === 'response_saved' || checkpoint.state === 'completed')) {
             if (checkpoint.state !== 'completed') { await settle(checkpoint, 'completed'); checkpoint.state = 'completed'; await persist(checkpoint); }
             return checkpoint.result as T;
@@ -121,7 +136,7 @@ export async function finishTranscriptionEnrichment(owner: string, recordingId: 
         try {
             const result = await invoke({ recordingId, authSubject: owner, throwOnError: true, reservationId, fundingSource: acceptedPlan.fundingSource,
                 plannedRequest: request, onUsage: async value => { usage = value; responseKnown = true; } });
-            checkpoint = { ...checkpoint, state: 'response_saved', result, usage };
+            checkpoint = { ...checkpoint, state: 'response_saved', ...(externalRef ? { resultRef: result as string } : { result }), usage };
             // Payload + completed response checkpoint commit together before any
             // journal write. A crash can recover this exact result.
             await persist(checkpoint);
@@ -201,18 +216,33 @@ export async function finishTranscriptionEnrichment(owner: string, recordingId: 
         }
     }
     await save({ fullTranscript: segments, transcriptionEnrichmentSteps: { ...recording.transcriptionEnrichmentSteps, transliteration: true } });
-    if (summary) {
-        // Embeddings cover bounded summary text, never an unbounded transcript.
-        const id = 'embedding';
-        const call = checkpoints[id]?.request || await planAiCall({ id, step: 'embedding', prompt: truncateUtf8(summary, 480),
-            model: acceptedPlan.aiModels.embedding, service, maximumOutputTokens: 0, managed,
-            allowPhysicalInputBound: ['internal', 'selfhost'].includes(acceptedPlan.fundingSource), promptVersion: acceptedPlan.promptVersion });
-        const summaryEmbedding = await run<number[]>(call, async context => {
-            const result = await service.generateEmbedding(call.prompt, context);
-            if (!result.length || !result.every(Number.isFinite)) throw new Error('Embedding response had no finite numeric vector.');
-            return result;
-        });
-        await save({ summaryEmbedding, transcriptionEnrichmentSteps: { ...recording.transcriptionEnrichmentSteps, embedding: true } });
+    const searchIndex = { generation: acceptedPlan.id, transcriptRevision: revision, profileId: acceptedPlan.embeddingProfile.id,
+        state: 'indexing' as const, totalPassages: acceptedPlan.embeddingPassages.length, completedPassages: 0 };
+    await save({ searchIndex });
+    await preparePassageRows(owner, recordingId, acceptedPlan.id, revision, acceptedPlan.embeddingProfile,
+        acceptedPlan.embeddingPassages.map(item => item.passage));
+    try {
+        for (const { passage, call } of acceptedPlan.embeddingPassages) {
+            const ref = passageRefs.get(call.id)!;
+            await run<string>(call, async context => {
+                await claimPassageAttempt(ref, owner, call, checkpoints[call.id]);
+                let observedUsage: AiUsage | undefined;
+                const vector = await service.generateEmbedding(call.prompt, { ...context, onUsage: async observed => {
+                    observedUsage = observed; await context.onUsage?.(observed);
+                } });
+                validateEmbedding(vector, acceptedPlan.embeddingProfile);
+                // The receipt and payload commit together before the parent reference or journal.
+                await savePassageResponse(ref, owner, call, checkpoints[call.id], vector, observedUsage);
+                return ref;
+            });
+            searchIndex.completedPassages = passage.ordinal + 1;
+            await save({ searchIndex: { ...searchIndex } });
+        }
+        await publishPassageGeneration(owner, recordingId, acceptedPlan.id, searchIndex.totalPassages);
+        await save({ searchIndex: { ...searchIndex, state: 'ready' }, transcriptionEnrichmentSteps: { ...recording.transcriptionEnrichmentSteps, embedding: true } });
+    } catch (error) {
+        await save({ searchIndex: { ...searchIndex, state: 'failed' } }).catch(() => undefined);
+        throw error;
     }
     if (managed) {
         await closeExecutionPolicy(owner, acceptedPlan.parentReceiptId);

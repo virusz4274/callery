@@ -22,7 +22,13 @@ export function UploadPage({ bulkImportId }: { bulkImportId?: string }) {
         uploadItems,
         isUploading,
         isDragging,
-        setUploadItems,
+        clearAll,
+        ready,
+        recoveryAvailable,
+        pauseFile,
+        resumeFile,
+        cancelFile,
+        reselectFile,
         setIsDragging,
         addFiles,
         removeFile,
@@ -35,7 +41,7 @@ export function UploadPage({ bulkImportId }: { bulkImportId?: string }) {
         }
     }, [bulkImportId, isUserLoading, router, user]);
 
-    if (isUserLoading || !user) {
+    if (isUserLoading || !user || !ready) {
         return (
             <div className="flex justify-center p-8">
                 <Spinner size="lg" />
@@ -57,6 +63,7 @@ export function UploadPage({ bulkImportId }: { bulkImportId?: string }) {
                 meta={<Chip variant="soft" color="default" size="sm">{uploadItems.length} in queue</Chip>}
                 actions={<Button variant="secondary" onPress={() => router.push(bulkImportId ? '/transcription' : '/recordings')}>{bulkImportId ? 'Manage batches' : 'View recordings'}<ArrowRight className="size-4" /></Button>}
             />
+            {!recoveryAvailable && <p role="status" className="rounded-lg border border-warning/30 p-3 text-sm text-warning">Browser storage is unavailable. Keep this tab open until uploads finish; recovery after a reload is unavailable.</p>}
             {bulkImportId && (
                 <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 text-sm leading-6" role="note">
                     Imported audio stays in Waiting recordings. No AI processing starts until you start a batch. You can return another day.
@@ -86,7 +93,11 @@ export function UploadPage({ bulkImportId }: { bulkImportId?: string }) {
                         <UploadItemsCard
                             uploadItems={uploadItems}
                             isUploading={isUploading}
-                            onClearAll={() => setUploadItems([])}
+                            onClearAll={clearAll}
+                            onPauseFile={pauseFile}
+                            onResumeFile={resumeFile}
+                            onCancelFile={cancelFile}
+                            onReselectFile={reselectFile}
                             onUploadAll={handleUpload}
                             onRemoveFile={removeFile}
                             successHref={bulkImportId ? '/transcription' : undefined}

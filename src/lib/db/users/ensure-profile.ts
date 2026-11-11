@@ -60,8 +60,6 @@ export async function ensureUserProfile(
             timezone: '',
             notificationSettings: {
                 activityDigest: 'weekly',
-                ingestSuccess: true,
-                ingestFail: true,
             },
             transcriptionSettings: {
                 autoTranscribe: team.enabled ? team.transcriptionMode === 'automatic' : true,

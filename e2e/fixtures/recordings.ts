@@ -15,7 +15,7 @@ export const profile: UserResponse = {
     id: 'transcription-fixture', email: 'transcription@example.com', name: 'Transcription Fixture',
     firstName: 'Transcription', lastName: 'Fixture', phoneNumber: '', role: 'user', timezone: 'UTC',
     planKey: 'lifetime', planName: 'Lifetime', createdAt: '2026-01-01T00:00:00Z',
-    notificationSettings: { activityDigest: 'off', ingestSuccess: false, ingestFail: false },
+    notificationSettings: { activityDigest: 'off' },
     storageSettings: { deletionPolicy: 'never' }, storageUsed: 0, storageAllocation: 1024 ** 3,
     transcriptionUsed: 0, transcriptionAllocation: 3600,
     transcriptionSettings: { autoTranscribe: false, defaultProvider: 'gemini' },
@@ -51,6 +51,8 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
     }
     const transcriptionRequests: string[] = [];
     let transcribed = false;
+    const uploads = new Map<string, { id: string; state: string; fileSize: number; partSize: number; partCount: number; expiresAt: string; recordingId: string | null; transport: string; parts: { partNumber: number; size: number; etag: string }[] }>();
+    const uploadKeys = new Map<string, string>();
 
     // Intercept every API and Server Action request so no shared data or provider is touched.
     await page.route('**/*', async route => {
@@ -77,6 +79,29 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
                 }
             }
             return route.fulfill({ response, body: source });
+        }
+        if (url.pathname === '/api/uploads' || url.pathname.startsWith('/api/uploads/')) {
+            if (options.failUploads) return route.fulfill({ status: 503, headers: { 'Retry-After': '0.01' }, json: { success: false, error: { code: 'storage_unavailable', message: 'Fixture storage unavailable. Please retry.' } } });
+            const segments = url.pathname.split('/').filter(Boolean).slice(2);
+            if (!segments.length && request.method() === 'POST') {
+                const input = request.postDataJSON();
+                const key = request.headers()['idempotency-key'];
+                let id = uploadKeys.get(key);
+                if (!id) {
+                    id = `upload-${uploads.size}`; uploadKeys.set(key, id);
+                    uploads.set(id, { id, state: 'uploading', fileSize: input.fileSize, partSize: 8 * 1024 ** 2, partCount: Math.ceil(input.fileSize / (8 * 1024 ** 2)), expiresAt: new Date(Date.now() + 86400_000).toISOString(), recordingId: null, transport: 'proxy', parts: [] });
+                }
+                return route.fulfill({ json: { success: true, data: uploads.get(id) } });
+            }
+            const session = uploads.get(segments[0]);
+            if (!session) return route.fulfill({ status: 404, json: { success: false, error: { code: 'not_found', message: 'Fixture upload not found.' } } });
+            if (segments[1] === 'parts' && request.method() === 'PUT') {
+                const partNumber = Number(segments[2]);
+                session.parts = session.parts.filter(part => part.partNumber !== partNumber);
+                session.parts.push({ partNumber, size: request.postDataBuffer()?.byteLength || 0, etag: 'fixture' });
+            } else if (segments[1] === 'complete') { session.state = 'completed'; session.recordingId = 'uploaded-fixture'; }
+            else if (request.method() === 'DELETE') session.state = 'cancelled';
+            return route.fulfill({ json: { success: true, data: session } });
         }
         if (url.pathname.startsWith('/api/')) {
             if ((url.pathname === '/api/contacts' || url.pathname.startsWith('/api/contacts/')) && options.failContacts?.()) {
@@ -116,9 +141,11 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
                 result = { stats: { totalRecordings: options.recordings?.length ?? 1 } };
             } else if (action === 'getExportStatus') {
                 result = null;
-            } else if (action === 'initializeDirectUpload' && options.failUploads) {
-                result = { success: false, error: 'Fixture storage unavailable. Please retry.' };
-            } else if (action === 'fetchNotifications' || action === 'getActiveAnnouncements') {
+            } else if (action === 'listRecordingShares') {
+                result = [];
+            } else if (action === 'fetchNotifications') {
+                result = { notifications: [], unreadCount: 0, nextCursor: null };
+            } else if (action === 'getActiveAnnouncements') {
                 result = [];
             } else if (action === 'getRecordingsAction' && options.failRecordings?.()) {
                 result = { error: 'Fixture recording list unavailable' };
@@ -136,7 +163,7 @@ export async function mockRecordings(page: Page, options: { profile?: UserRespon
                 const start = ((query.page || 1) - 1) * (query.limit || 100);
                 result = { recordings: options.recordings ? matching.slice(start, start + (query.limit || 100)) : [fixtureRecording], totalCount: matching.length };
             } else if (action === 'searchRecordingsAction' && options.semanticSearch) {
-                result = await options.semanticSearch(args[0], args[1], args[2]);
+                result = await options.semanticSearch(args[0].query, args[0].page, args[0].pageSize);
             } else if (action === 'getRecordingDetailsAction') {
                 result = options.unavailable ? { error: 'Fixture unavailable' } : { recording: transcribed ? {
                     ...fixtureRecording, transcriptionStatus: 'completed', updatedAt: '2026-10-06T00:00:00Z',

@@ -12,48 +12,6 @@ function escapeHtml(value: string): string {
         .replace(/"/g, '&quot;');
 }
 
-export interface IngestSummary {
-    succeeded: number;
-    failed: number;
-    failedNames: string[];
-}
-
-/**
- * Notify a user about an upload batch, honoring their notification settings.
- * Sends at most one email per batch. Never throws — email must not fail uploads.
- */
-export async function notifyIngestComplete(user: User, summary: IngestSummary): Promise<void> {
-    if (!checkUserAccess(user).allowed) return;
-    const prefs = user.notificationSettings;
-    if (!prefs) return;
-
-    const wantSuccess = summary.succeeded > 0 && prefs.ingestSuccess;
-    const wantFailure = summary.failed > 0 && prefs.ingestFail;
-    if (!wantSuccess && !wantFailure) return;
-
-    try {
-        const parts: string[] = [];
-        if (wantSuccess) {
-            parts.push(`<p>${summary.succeeded} recording${summary.succeeded === 1 ? '' : 's'} uploaded successfully.</p>`);
-        }
-        if (wantFailure) {
-            const names = summary.failedNames.slice(0, 10).map(escapeHtml).join(', ');
-            const more = summary.failedNames.length > 10 ? ` and ${summary.failedNames.length - 10} more` : '';
-            parts.push(`<p>${summary.failed} file${summary.failed === 1 ? '' : 's'} failed to upload: ${names}${more}.</p>`);
-        }
-        parts.push('<p style="color:#888;font-size:12px;">You can change these notifications in Settings → Notifications.</p>');
-
-        const subject =
-            wantFailure && !wantSuccess
-                ? `VoSift: ${summary.failed} upload${summary.failed === 1 ? '' : 's'} failed`
-                : `VoSift: ${summary.succeeded} recording${summary.succeeded === 1 ? '' : 's'} uploaded`;
-
-        await sendNotificationEmail({ to: user.email, subject, html: parts.join('\n') });
-    } catch (error) {
-        logger.error('[notifications] ingest email failed:', error);
-    }
-}
-
 export interface DigestStats {
     recordings: number;
     seconds: number;
@@ -61,14 +19,15 @@ export interface DigestStats {
 }
 
 /**
- * Collect activity stats for a user since `since` (for digest emails).
+ * Collect activity stats for one user in the half-open interval [since, until).
  */
-export async function collectDigestStats(authSubject: string, since: Date): Promise<DigestStats> {
+export async function collectDigestStats(authSubject: string, since: Date, until: Date): Promise<DigestStats> {
     const db = await getMongoDb();
+    const match = { authSubject, recordedAt: { $gte: since, $lt: until } };
     const rows = await db
         .collection(Collections.RECORDINGS)
         .aggregate([
-            { $match: { authSubject, recordedAt: { $gte: since } } },
+            { $match: match },
             {
                 $group: {
                     _id: null,
@@ -82,7 +41,7 @@ export async function collectDigestStats(authSubject: string, since: Date): Prom
     const topContacts = await db
         .collection(Collections.RECORDINGS)
         .aggregate([
-            { $match: { authSubject, recordedAt: { $gte: since } } },
+            { $match: match },
             {
                 $group: {
                     _id: { $ifNull: ['$contactName', '$phoneNumber'] },
@@ -140,19 +99,21 @@ export async function sendDigestEmail(
 
 /**
  * Whether a digest is due on `now` (UTC): weekly digests go out on Mondays
- * covering the previous 7 days; monthly digests on the 1st covering the
- * previous calendar month.
+ * covering the seven days ending at the captured run time; monthly digests
+ * on the 1st cover the previous calendar month, ending at this month's start.
+ * Both intervals include their start and exclude their end.
  */
 export function digestWindow(
     preference: 'off' | 'weekly' | 'monthly',
     now: Date = new Date()
-): { period: 'weekly' | 'monthly'; since: Date } | null {
+): { period: 'weekly' | 'monthly'; since: Date; until: Date } | null {
     if (preference === 'weekly' && now.getUTCDay() === 1) {
-        return { period: 'weekly', since: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        return { period: 'weekly', since: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), until: new Date(now) };
     }
     if (preference === 'monthly' && now.getUTCDate() === 1) {
         const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-        return { period: 'monthly', since };
+        const until = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        return { period: 'monthly', since, until };
     }
     return null;
 }

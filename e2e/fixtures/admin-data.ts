@@ -4,7 +4,7 @@ export const adminProfile: UserResponse = {
     id: 'aaaaaaaaaaaaaaaaaaaaaaaa', name: 'Admin Fixture', email: 'admin@example.test', firstName: 'Admin', lastName: 'Fixture',
     phoneNumber: '', role: 'admin', timezone: 'UTC', planKey: 'standard', planName: 'Standard', createdAt: '2026-01-01T00:00:00Z',
     storageUsed: 1.25 * 1024 ** 3, storageAllocation: 2.5 * 1024 ** 3, transcriptionUsed: 90, transcriptionAllocation: 600.5,
-    notificationSettings: { activityDigest: 'off', ingestSuccess: false, ingestFail: false }, storageSettings: { deletionPolicy: 'never' },
+    notificationSettings: { activityDigest: 'off' }, storageSettings: { deletionPolicy: 'never' },
     transcriptionSettings: { autoTranscribe: false }, billingSettings: { allowOverage: false }, totalRecordings: 0,
     googleSync: { status: 'completed', hasRefreshToken: false },
 };

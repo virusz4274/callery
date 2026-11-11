@@ -39,10 +39,19 @@ test('UpdateProfileBodySchema strips unknown fields by rejecting', () => {
 
 test('UpdateProfileBodySchema accepts partial nested settings', () => {
     const result = UpdateProfileBodySchema.safeParse({
-        notificationSettings: { ingestSuccess: true },
+        notificationSettings: { activityDigest: 'weekly' },
         storageSettings: { deletionPolicy: '6m' },
     });
     assert.equal(result.success, true);
+});
+
+test('notification settings accept only the three activity digest frequencies', () => {
+    for (const activityDigest of ['off', 'weekly', 'monthly']) {
+        const result = UpdateProfileBodySchema.parse({ notificationSettings: { activityDigest } });
+        assert.deepEqual(result.notificationSettings, { activityDigest });
+    }
+    assert.equal(UpdateProfileBodySchema.safeParse({ notificationSettings: { activityDigest: 'daily' } }).success, false);
+    assert.equal(UpdateProfileBodySchema.safeParse({ notificationSettings: { activityDigest: 'weekly', processingEmail: true } }).success, false);
 });
 
 test('UpdateProfileBodySchema rejects invalid deletionPolicy', () => {

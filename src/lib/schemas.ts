@@ -41,9 +41,7 @@ export const EnsureProfileBodySchema = z.object({
 
 export const NotificationSettingsSchema = z.object({
     activityDigest: z.enum(['off', 'weekly', 'monthly']),
-    ingestSuccess: z.boolean(),
-    ingestFail: z.boolean(),
-});
+}).strict();
 
 export const TranscriptionSettingsSchema = z.object({
     autoTranscribe: z.boolean(),

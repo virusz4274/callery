@@ -6,7 +6,18 @@ import { Recording, User } from '@/lib/db/types';
 import { parseObjectId } from '@/lib/admin-auth';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import { deleteFromR2 } from '@/lib/r2';
+import { removeStoredObjects } from '@/lib/storage-cleanup';
 import { requireCurrentAdmin } from './auth';
+import { removeRecordingDerivedData } from '@/lib/db/recording-derived-data';
+
+export interface OrphanCleanupResult {
+    found: number;
+    deletedDb: number;
+    /** Acknowledged deletions of distinct keys; storage may already be absent. */
+    deletedR2: number;
+    failedCount: number;
+    remaining: number;
+}
 
 function getOrphanedRecordingsPipeline() {
     return [
@@ -33,7 +44,6 @@ function serializeRecording(rec: Recording) {
         _id: undefined,
         contactId: rec.contactId ? rec.contactId.toString() : null,
         fullTranscript: rec.fullTranscript ? JSON.parse(JSON.stringify(rec.fullTranscript)) : undefined,
-        summaryEmbedding: undefined,
         recordedAt: rec.recordedAt.toISOString(),
         createdAt: rec.createdAt.toISOString(),
         updatedAt: rec.updatedAt.toISOString(),
@@ -84,7 +94,7 @@ export async function getOrphanedRecordingsCount() {
 /**
  * Cleanup orphaned recordings (delete from DB and R2).
  */
-export async function cleanupOrphanedRecordings() {
+export async function cleanupOrphanedRecordings(): Promise<OrphanCleanupResult> {
     await requireCurrentAdmin();
 
     const db = await getMongoDb();
@@ -93,34 +103,27 @@ export async function cleanupOrphanedRecordings() {
         .aggregate(getOrphanedRecordingsPipeline())
         .toArray();
 
-    if (orphans.length === 0) {
-        return { deletedCount: 0 };
-    }
+    const keys = [...new Set(orphans.map(recording => recording.r2Key).filter(Boolean))];
+    const failedKeys = new Set(await removeStoredObjects(keys, deleteFromR2));
+    const safeIds = orphans.filter(recording => !recording.r2Key || !failedKeys.has(recording.r2Key))
+        .map(recording => recording._id);
+    const failedCount = orphans.length - safeIds.length;
+    if (failedCount) logger.warn(`[orphan-cleanup] Retained ${failedCount} recordings for storage deletion retry.`);
 
-    let deletedR2 = 0;
-    await Promise.all(
-        orphans.map(async (rec) => {
-            if (!rec.r2Key) {
-                return;
-            }
-
-            try {
-                await deleteFromR2(rec.r2Key);
-                deletedR2++;
-            } catch (error) {
-                logger.error(`Failed to delete orphan R2 file ${rec.r2Key}`, error);
-            }
-        })
-    );
-
-    const orphanIds = orphans.map((orphan) => orphan._id);
-    const deleteResult = await db.collection(Collections.RECORDINGS).deleteMany({
-        _id: { $in: orphanIds },
-    });
+    // Storage comes first. A crash or failed database write leaves the exact
+    // object references available for an idempotent retry.
+    await removeRecordingDerivedData(safeIds.map(id => id.toString()), undefined, db);
+    const deletedDb = safeIds.length ? (await db.collection(Collections.RECORDINGS).deleteMany({
+        _id: { $in: safeIds },
+    })).deletedCount : 0;
+    const remaining = await db.collection(Collections.RECORDINGS)
+        .aggregate([...getOrphanedRecordingsPipeline(), { $count: 'count' }]).toArray();
 
     return {
         found: orphans.length,
-        deletedDb: deleteResult.deletedCount,
-        deletedR2,
+        deletedDb,
+        deletedR2: keys.length - failedKeys.size,
+        failedCount,
+        remaining: remaining[0]?.count || 0,
     };
 }

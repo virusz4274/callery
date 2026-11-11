@@ -374,55 +374,67 @@ names, numbers, companies and job titles. These searches work without Search
 indexes. The recording page uses MongoDB regex queries; `/api/recordings` also
 tries the optional full-text index before regex fallback.
 
-AI search combines keyword matches with approximate vector matches from saved
-**summary** embeddings (`recordings.summaryEmbedding`), rather than embedding
-every transcript passage. It excludes archived recordings and filters by
-`authSubject`. Recordings without saved summary embeddings remain eligible for
-keyword matching but cannot match by vector similarity. Vector results are a
-bounded ranked result set; the displayed AI match count is not an exhaustive
-count of every semantically related recording.
+AI search combines lexical matches with vectors from the complete saved
+transcript, divided into overlapping passages. Each passage keeps its source
+segment references and real timestamps when available. MongoDB Vector Search
+is required for meaning-based retrieval. Atlas supplies it; self-managed search
+requires a separate `mongot` deployment, which is not bundled in Compose.
+Ordinary MongoDB continues to support explicitly labelled keyword results.
 
-MongoDB Atlas manages the search process for you. Self-managed search requires
-an additional `mongot` deployment; it is not included in this repository's
-Compose profile. See MongoDB's
-[self-managed search instructions](https://www.mongodb.com/docs/search/self-managed/current/).
+### Required passage vector index
 
-### Required vector index
+Set up the embedding provider/model before processing recordings. The default
+`gemini-embedding-001` profile uses 3072 dimensions. Set
+`SEARCH_EMBEDDING_DIMENSIONS` explicitly for a custom Gemini or compatible model.
+The document and query profiles must match: equal widths alone do not make
+models compatible. Existing deployment configuration remains operator-owned.
 
-In Atlas, open Search index management for the **database named in
-`MONGODB_URI`**, select the **`recordings` collection**, and create a
-**Vector Search** index named **`recordings_vector_search`**. Use this JSON
-definition (also printed by `pnpm run db:init`):
+In the application's MongoDB database, create a Vector Search index named
+`recording_passages_vector_search` on `recording_passages`. Use this definition
+for the default profile, replacing 3072 with your configured dimension:
 
 ```json
 {
   "fields": [
-    {
-      "type": "vector",
-      "path": "summaryEmbedding",
-      "numDimensions": 3072,
-      "similarity": "cosine"
-    },
-    { "type": "filter", "path": "authSubject" },
-    { "type": "filter", "path": "isArchived" }
+    { "type": "vector", "path": "vector", "numDimensions": 3072, "similarity": "cosine" },
+    { "type": "filter", "path": "owner" },
+    { "type": "filter", "path": "profileId" },
+    { "type": "filter", "path": "contactId" },
+    { "type": "filter", "path": "recordedAt" },
+    { "type": "filter", "path": "isArchived" },
+    { "type": "filter", "path": "published" }
   ]
 }
 ```
 
-Both filter fields are required by the app's vector query. The 3072 dimensions
-match the default `gemini-embedding-001` output; the app does not request a
-reduced output width. For another embedding model/provider, use its actual
-output width and use the same model for stored summaries and search queries.
-Equal vector widths alone do not make different models' embeddings compatible.
-See [Google's embedding guide](https://ai.google.dev/gemini-api/docs/embeddings).
+`pnpm db:init` creates ordinary indexes and prints the vector definition; it does
+not provision Mongo Search. Wait until this search index is queryable. Passage
+indexing runs as checkpointed enrichment after transcription. Saved vectors and
+provider receipts are stored outside the recording document. Partial indexing
+can resume without retranscribing audio; only complete generations are published.
+Changing the embedding profile requires regenerating matching passage vectors
+before those recordings become eligible for semantic matching.
 
-This is a `vectorSearch` index, not an ordinary `createIndex()` index or a
-full-text `search` index. Index names are fixed in the current app code.
-If creating it with `mongosh` on Atlas, use
-`db.recordings.createSearchIndex("recordings_vector_search", "vectorSearch", definition)`
-where `definition` is the JSON object above. The account creating the index
-needs the relevant Search index management permission. Refer to
-[MongoDB's createSearchIndex reference](https://www.mongodb.com/docs/manual/reference/method/db.collection.createSearchIndex/).
+For existing transcripts or an embedding-profile change, open **Recordings → AI
+search → Index saved transcripts**. Apply contact/date filters if needed, select
+**Index next … recordings**, and confirm **Start indexing**. Each approval queues
+at most 100 eligible recordings. Repeat for the remaining library; already queued
+or review-held jobs do not block later batches. The status panel shows the
+workspace queue and reports provider outcomes requiring administrator review.
+
+Reindexing calls only the configured embedding provider. It preserves audio,
+transcript text, summaries, original transcription receipts and audio usage.
+Provider charges can still apply. Jobs share the existing single-pipeline
+dispatcher and ingestion cron, retain passage checkpoints, and resume known
+failures without repeating saved responses. An unconfirmed provider call stops
+for review rather than automatically being submitted again. No database migration
+or deployment environment change is needed beyond the passage index/profile
+configuration described above.
+
+Keyword fallback paginates all matching recordings, including matches beyond 200.
+Search by meaning ranks a bounded 200-conversation candidate window and labels
+that limit; narrow contact/date filters for a larger library. Readiness checks
+validate dimensions, cosine similarity and every required scope filter.
 
 ### Optional full-text index
 
@@ -456,43 +468,33 @@ this full-text mapping.
 
 ### Verify readiness and stored embeddings
 
-Index creation is asynchronous. Wait until the vector index is ready and
-`queryable: true`. In `mongosh`, select the application's database and inspect:
+**Admin → Dashboard → Semantic search** checks the index readiness and configured
+width without making a paid provider request. `/api/health` remains a database
+connectivity check. In `mongosh`, inspect the application's database:
 
 ```javascript
-db.recordings.aggregate([
-  { $listSearchIndexes: { name: "recordings_vector_search" } }
+db.recording_passages.aggregate([
+  { $listSearchIndexes: { name: "recording_passages_vector_search" } }
 ]).toArray()
 
-db.recordings.aggregate([
-  { $match: { "summaryEmbedding.0": { $exists: true } } },
-  { $group: { _id: { $size: "$summaryEmbedding" }, recordings: { $sum: 1 } } }
+db.recording_passages.aggregate([
+  { $match: { published: true, "vector.0": { $exists: true } } },
+  { $group: { _id: { profile: "$profileId", dimensions: { $size: "$vector" } }, passages: { $sum: 1 } } }
 ]).toArray()
 ```
 
-The first query must show the correctly named, queryable index; an empty list
-means it is absent in that database/collection. The second reports stored
-embedding widths and counts without displaying transcripts. For the default
-Gemini embedding model, expect `_id: 3072`. An empty result means no saved
-embeddings are available yet. Search indexes are separate from the ordinary
-indexes returned by `getIndexes()`.
+Then test a paraphrase of a detail inside a completed recording, including a
+detail omitted from its summary. Verify its excerpt, timestamp, contact/date
+filters and the search coverage display. Index readiness alone does not measure
+retrieval quality. Query/provider failures and unavailable indexes explicitly
+report keyword mode; no relevance percentage or exhaustive semantic total is
+claimed.
 
-Then use AI search with a topic from a completed recording whose summary was
-embedded. A successful transcription alone is insufficient: the app saves a
-summary embedding only when summary generation succeeds. Creating an index
-indexes existing stored vectors; it does not generate missing embeddings.
-For interrupted AI processing, use **Resume enrichment** to continue from the
-saved transcript and successful steps. For a completed recording that needs a
-new embedding, **Transcribe again** runs a new audio transcription and the current
-summary/embedding pipeline; it can consume additional processing usage. There is
-no dedicated bulk re-embedding command in the current scripts.
-
-If an embedding request fails or MongoDB rejects the vector query, the search
-action reports keyword fallback. A missing index can instead return no vector
-results without throwing, so keyword results or a missing fallback badge do
-not prove vector search works. Verify the index explicitly. `/api/health`
-checks only MongoDB connectivity, and the admin AI status checks configuration
-without making an embedding request; neither confirms that the vector index is ready.
+Browser uploads use 8 MiB parts. A deployment using the proxied-part fallback
+must accept requests of that size; verified direct storage transfers avoid that
+app-body requirement. Bucket CORS for direct uploads must allow the app origin,
+PUT and required headers, and expose `ETag`. Upload sessions expire after 24 hours
+and use the existing ingestion cron for finalization and abandoned-part cleanup.
 
 ## Configuration boundaries
 

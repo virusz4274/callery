@@ -1,17 +1,14 @@
-import { notFound } from 'next/navigation';
-import { verifyShareToken } from '@/lib/sharing';
-import { getMongoDb, Collections } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { getSignedR2Url } from '@/lib/r2';
+import type { Metadata } from 'next';
+import { recordingShares } from '@/lib/recording-shares';
 import { RecordingContent } from '@/components/recording-view/recording-content';
 import { Logo } from '@/components/icons';
 import { ClientFormattedDate } from '@/components/client-formatted-date';
 import Link from 'next/link';
-import { Recording } from '@/lib/db/types';
 import { toPublicRecordingContent } from '@/lib/public-recording-content';
-import type { RecordingContentData } from '@/lib/recording-content-types';
-import { logger } from '@/lib/logger';
-import { getTeamSettings } from '@/lib/team-policy';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: 'no-referrer' };
 
 interface SharedPageProps {
     params: Promise<{
@@ -20,18 +17,15 @@ interface SharedPageProps {
 }
 
 export default async function SharedRecordingPage({ params }: SharedPageProps) {
-    if ((await getTeamSettings()).enabled) notFound();
     const { token } = await params;
-
-    // 1. Verify Token
-    const payload = await verifyShareToken(token);
-    if (!payload) {
+    const shared = await recordingShares.resolve(token);
+    if (!shared) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4 text-center">
                 <Logo alt="Callery" className="w-12 h-12" />
-                <h1 className="text-xl font-bold text-default-700">Link Expired or Invalid</h1>
+                <h1 className="text-xl font-bold text-default-700">Share link unavailable</h1>
                 <p className="text-default-500 max-w-md">
-                    This shared link is no longer valid. Please ask the sender to generate a new one.
+                    This link has expired, was revoked, or is no longer available. Ask the sender for a new link.
                 </p>
                 <Link href="/" className="text-primary hover:underline mt-4">
                     Go to Callery
@@ -40,35 +34,9 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
         );
     }
 
-    if (!ObjectId.isValid(payload.recordingId)) notFound();
-
-    // 2. Fetch Recording
-    const db = await getMongoDb();
-    const recording = await db.collection<Recording>(Collections.RECORDINGS).findOne({
-        _id: new ObjectId(payload.recordingId)
-    });
-
-    if (!recording) {
-        notFound();
-    }
-
-    let recordingContent: RecordingContentData;
-    try {
-        recordingContent = toPublicRecordingContent(recording, payload);
-    } catch {
-        notFound();
-    }
-    const isClip = payload.clipStartSeconds !== undefined || payload.clipEndSeconds !== undefined;
-
-    // 3. Generate Signed URL for Playback
-    let playbackUrl: string | null = null;
-    try {
-        if (!isClip) {
-            playbackUrl = await getSignedR2Url(recording.r2Key, 3600);
-        }
-    } catch (e) {
-        logger.error('Failed to generate playback URL for shared page', e);
-    }
+    const { recording, grant } = shared;
+    const recordingContent = toPublicRecordingContent(recording);
+    const playbackUrl = `/api/shares/${encodeURIComponent(token)}/audio`;
 
     return (
         <div className="min-h-screen bg-default-50 flex flex-col">
@@ -79,7 +47,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                     <span className="font-bold text-xl tracking-tight">Callery</span>
                 </Link>
                 <div className="text-xs font-mono bg-default-100 px-2 py-1 rounded text-default-500">
-                    SHARED VIEW
+                    Shared recording
                 </div>
             </header>
 
@@ -101,6 +69,7 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                                 <span>{Math.floor(recording.duration / 60)}m {recording.duration % 60}s</span>
                              </div>
                         </div>
+                        <p className="mt-3 text-xs text-muted">Available until <ClientFormattedDate date={grant.expiresAt} formatString="PPP p" />.</p>
                     </div>
 
                     {/* Content Body */}
@@ -108,9 +77,6 @@ export default async function SharedRecordingPage({ params }: SharedPageProps) {
                         <RecordingContent
                             recording={recordingContent}
                             playbackUrl={playbackUrl}
-                            clipStartSeconds={payload.clipStartSeconds}
-                            clipEndSeconds={payload.clipEndSeconds}
-                            isClipAudioRestricted={isClip}
                             // Hide transcribe button for public view
                             onTranscribe={undefined}
                         />

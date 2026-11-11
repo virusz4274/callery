@@ -18,14 +18,15 @@ import { WorkspaceStatusRail } from '@/components/workspace-status-rail';
 import { buildCurrentPath, buildLoginRedirectHref } from '@/lib/auth-redirect';
 import { publicEnv } from '@/lib/public-env';
 import { SourceLinks } from '@/components/source-links';
+import { BrowserUploadProvider } from '@/components/uploads/browser-upload-provider';
 
 type AppLayoutProps = {
   children: React.ReactNode;
 };
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
-const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance']);
-const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance', '/~offline']);
+const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance', '/account-closed']);
+const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/maintenance', '/~offline', '/account-closed']);
 const MARKETING_LAYOUT_PATHS = new Set([
   '/',
   '/pricing',
@@ -37,6 +38,10 @@ const MARKETING_LAYOUT_PATHS = new Set([
 const PROTECTED_PATH_PREFIXES = ['/recordings', '/upload', '/contacts', '/files', '/settings'];
 
 export function AppLayout({ children }: AppLayoutProps) {
+  return <BrowserUploadProvider><AppLayoutContent>{children}</AppLayoutContent></BrowserUploadProvider>;
+}
+
+function AppLayoutContent({ children }: AppLayoutProps) {
   const { toast } = useToast();
 
   const router = useRouter();

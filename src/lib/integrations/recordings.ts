@@ -39,6 +39,6 @@ export async function listRecordings(actor: ApiActor, params: URLSearchParams) {
         filter.$or = ['fileName', 'contactName', 'phoneNumber', 'summary', 'tags', 'fullTranscript.text'].map(field => ({ [field]: { $regex: expression, $options: 'i' } }));
     }
     const collection = (await integrationDb()).collection<Recording>(Collections.RECORDINGS);
-    const [recordings, totalCount] = await Promise.all([collection.find(filter, { projection: { fullTranscript: 0, summaryEmbedding: 0 } }).sort({ recordedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).toArray(), collection.countDocuments(filter)]);
+    const [recordings, totalCount] = await Promise.all([collection.find(filter, { projection: { fullTranscript: 0 } }).sort({ recordedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).toArray(), collection.countDocuments(filter)]);
     return { recordings: recordings.map(recording => recordingResponse(recording)), page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) };
 }

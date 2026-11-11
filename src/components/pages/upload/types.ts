@@ -1,9 +1,1 @@
-export interface UploadItem {
-    id: string;
-    file: File;
-    status: 'pending' | 'uploading' | 'success' | 'error';
-    error?: string;
-    fingerprint: string;
-    isDuplicate?: boolean;
-    duplicateOfId?: string;
-}
+export type { BrowserUploadItem as UploadItem } from '@/lib/browser-uploads-contract';

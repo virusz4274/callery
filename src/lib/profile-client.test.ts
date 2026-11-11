@@ -23,7 +23,7 @@ test('failed profile saves preserve the server error and do not revalidate store
 
 test('successful writes stay successful if a subsequent refresh is unavailable', async t => {
     t.mock.method(globalThis, 'fetch', async () => Response.json({ success: true }));
-    await saveUserProfile('owner', { notificationSettings: { ingestSuccess: false } }, async () => { throw new Error('offline refresh'); });
+    await saveUserProfile('owner', { notificationSettings: { activityDigest: 'off' } }, async () => { throw new Error('offline refresh'); });
 });
 
 test('different sections can save concurrently without copying unrelated profile fields', async t => {

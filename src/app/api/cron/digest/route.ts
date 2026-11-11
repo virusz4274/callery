@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
                 skipped++;
                 continue;
             }
-            const stats = await collectDigestStats(user.authSubject, window.since);
+            const stats = await collectDigestStats(user.authSubject, window.since, window.until);
             const delivered = await sendDigestEmail(user, window.period, stats);
             if (delivered) sent++;
             else skipped++;

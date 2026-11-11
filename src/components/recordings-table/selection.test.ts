@@ -68,17 +68,16 @@ test('desktop exposes working native inputs for select-all and individual rows',
     }
 });
 
-test('notification preferences render native toggle and radio inputs matching saved settings', () => {
+test('notification email preferences offer only digest frequency matching saved settings', () => {
     const html = renderToStaticMarkup(createElement(ToastProvider, null, createElement(NotificationsSettings, {
-        settings: { activityDigest: 'monthly', ingestSuccess: true, ingestFail: false },
+        settings: { activityDigest: 'monthly' },
         onSettingsChange: noop, onSave: async () => {}, isSaving: false,
     })));
     const controls = inputs(html);
     const switches = controls.filter((input) => input.includes('role="switch"'));
     const radios = controls.filter((input) => input.includes('type="radio"'));
-    assert.equal(switches.length, 2);
-    assert.equal(switches[0].includes('checked=""'), true);
-    assert.equal(switches[1].includes('checked=""'), false);
+    assert.equal(switches.length, 0);
+    assert.doesNotMatch(html, /Data processed successfully|Data processing failed/);
     assert.equal(radios.length, 3);
     assert.match(radios.find((input) => input.includes('checked=""')) || '', /value="monthly"/);
 });

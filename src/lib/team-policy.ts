@@ -70,9 +70,9 @@ export async function withTeamAccessLock<T>(work: () => Promise<T>, database?: D
     }
 }
 
-export async function assertNotLastAdmin(user: User): Promise<void> {
+export async function assertNotLastAdmin(user: User, database?: Db): Promise<void> {
     if (user.role !== 'admin' || user.disabled || user.softDelete?.isDeleted) return;
-    const db = await getMongoDb();
+    const db = database || await getMongoDb();
     const remaining = await db.collection<User>(Collections.USERS).countDocuments({
         role: 'admin', disabled: { $ne: true }, 'softDelete.isDeleted': { $ne: true },
         teamInvitationPending: { $ne: true }, _id: { $ne: user._id },
@@ -80,8 +80,8 @@ export async function assertNotLastAdmin(user: User): Promise<void> {
     if (!remaining) throw new Error('Keep at least one active administrator.');
 }
 
-export async function revokeUserSessions(subject: string): Promise<void> {
-    const db = await getMongoDb();
+export async function revokeUserSessions(subject: string, database?: Db): Promise<void> {
+    const db = database || await getMongoDb();
     const ids: (string | ObjectId)[] = [subject];
     if (ObjectId.isValid(subject)) ids.push(new ObjectId(subject));
     await db.collection('session').deleteMany({ userId: { $in: ids } });

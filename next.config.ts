@@ -78,6 +78,14 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
+        source: '/s/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
+      {
         source: '/push-sw.js',
         headers: [
           {

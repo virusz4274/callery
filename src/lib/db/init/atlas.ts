@@ -1,3 +1,6 @@
+import { embeddingProfile } from '@/lib/search/profile';
+import { passageVectorIndexDefinition } from '@/lib/search/readiness';
+import { PASSAGES_COLLECTION, PASSAGE_VECTOR_INDEX } from '@/lib/search/passages';
 import { logger } from '@/lib/logger';
 const ATLAS_SEARCH_INDEX_CONFIG = {
     mappings: {
@@ -33,25 +36,6 @@ const ATLAS_SEARCH_INDEX_CONFIG = {
     },
 };
 
-const ATLAS_VECTOR_INDEX_CONFIG = {
-    fields: [
-        {
-            numDimensions: 3072,
-            path: 'summaryEmbedding',
-            similarity: 'cosine',
-            type: 'vector',
-        },
-        {
-            path: 'authSubject',
-            type: 'filter',
-        },
-        {
-            path: 'isArchived',
-            type: 'filter',
-        },
-    ],
-};
-
 export function printAtlasIndexInstructions() {
     logger.info('');
     logger.info('📝 Note: For Atlas Search and Vector Search, create indexes manually in MongoDB Atlas UI:');
@@ -63,8 +47,9 @@ export function printAtlasIndexInstructions() {
     logger.info(JSON.stringify(ATLAS_SEARCH_INDEX_CONFIG, null, 2));
     logger.info('');
     logger.info('2. Atlas Vector Search Index (for semantic search):');
-    logger.info('   - Index name: recordings_vector_search');
-    logger.info('   - Collection: recordings');
+    logger.info(`   - Index name: ${PASSAGE_VECTOR_INDEX}`);
+    logger.info(`   - Collection: ${PASSAGES_COLLECTION}`);
     logger.info('   - JSON Configuration:');
-    logger.info(JSON.stringify(ATLAS_VECTOR_INDEX_CONFIG, null, 2));
+    try { logger.info(JSON.stringify(passageVectorIndexDefinition(embeddingProfile().dimensions), null, 2)); }
+    catch { logger.warn('Configure the embedding model and SEARCH_EMBEDDING_DIMENSIONS before creating the semantic index.'); }
 }

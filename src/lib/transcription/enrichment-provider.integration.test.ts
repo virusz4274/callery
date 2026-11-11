@@ -20,7 +20,7 @@ test('real Gemini completes bundled multilingual enrichment without expense fund
 }, async t => {
     const client = new MongoClient(process.env.VOSIFT_TEST_MONGODB_URI!, { serverSelectionTimeoutMS: 15_000 });
     const db = client.db(`vt_realai_${randomUUID().replaceAll('-', '').slice(0, 16)}`);
-    const names = ['NEXT_PUBLIC_ENABLE_BILLING', 'GOOGLE_GENERATIVE_AI_API_KEY', 'AI_PROVIDER', 'GEMINI_MODEL_SUMMARY', 'GEMINI_MODEL_TRANSLITERATION', 'GEMINI_MODEL_EMBEDDING', 'MANAGED_COST_POLICY_JSON'];
+    const names = ['NEXT_PUBLIC_ENABLE_BILLING', 'GOOGLE_GENERATIVE_AI_API_KEY', 'AI_PROVIDER', 'GEMINI_MODEL_SUMMARY', 'GEMINI_MODEL_TRANSLITERATION', 'GEMINI_MODEL_EMBEDDING', 'SEARCH_EMBEDDING_DIMENSIONS', 'MANAGED_COST_POLICY_JSON'];
     const previous = names.map(name => [name, process.env[name]] as const);
     const calls: { step: AiStep; inputTokens: number; maxOutputTokens: number; usage?: AiUsage }[] = [];
     const evidence: Record<string, unknown> = { kind: 'isolated_real_provider_acceptance', asrRequests: 0, stripeRequests: 0, calls, maximumRunUsd: 0.05,
@@ -30,7 +30,7 @@ test('real Gemini completes bundled multilingual enrichment without expense fund
     try {
         await client.connect(); connected = true;
         Object.assign(process.env, { NEXT_PUBLIC_ENABLE_BILLING: 'true', GOOGLE_GENERATIVE_AI_API_KEY: process.env.VOSIFT_TEST_GEMINI_API_KEY!,
-            AI_PROVIDER: 'gemini', GEMINI_MODEL_SUMMARY: 'gemini-3.5-flash-lite', GEMINI_MODEL_TRANSLITERATION: 'gemini-3.5-flash-lite', GEMINI_MODEL_EMBEDDING: 'gemini-embedding-001' });
+            AI_PROVIDER: 'gemini', GEMINI_MODEL_SUMMARY: 'gemini-3.5-flash-lite', GEMINI_MODEL_TRANSLITERATION: 'gemini-3.5-flash-lite', GEMINI_MODEL_EMBEDDING: 'gemini-embedding-001', SEARCH_EMBEDDING_DIMENSIONS: '3072' });
         delete process.env.MANAGED_COST_POLICY_JSON;
         hook = registerHooks({ resolve(specifier, context, next) {
             if (specifier === '@/lib/mongodb' || specifier === './mongodb' && context.parentURL?.endsWith('/processing-availability.ts')) return {
@@ -83,7 +83,9 @@ test('real Gemini completes bundled multilingual enrichment without expense fund
         await finishTranscriptionEnrichment(subject, id.toHexString());
         const completed = await db.collection<Recording>(Collections.RECORDINGS).findOne({ _id: id });
         assert.equal(completed?.transcriptionStatus, 'completed'); assert.equal(completed?.transcriptionEnrichmentPending, false);
-        assert.ok(completed?.summary?.trim()); assert.ok(completed?.summaryEmbedding?.length);
+        assert.ok(completed?.summary?.trim()); assert.equal(completed?.searchIndex?.state, 'ready');
+        const passages = await db.collection<{ vector: number[] }>('recording_passages').find({ recordingId: id.toHexString() }).toArray();
+        assert.ok(passages.length); assert.equal(passages[0].vector.length, 3072);
         assert.deepEqual(completed?.fullTranscript?.map(({ transliteratedText: _latin, ...source }) => source), recording.fullTranscript);
         assert.ok(completed?.fullTranscript?.every(segment => segment.transliteratedText?.trim()));
         assert.ok(completed?.fullTranscript?.[1].transliteratedText && /^[\x00-\x7f]+$/.test(completed.fullTranscript[1].transliteratedText));
@@ -101,7 +103,7 @@ test('real Gemini completes bundled multilingual enrichment without expense fund
             + (call.usage?.inputTokens || 0) * 0.30 + ((call.usage?.outputTokens || 0) + (call.usage?.thoughtTokens || 0)) * 2.50, 0);
         const embeddingBoundMicros = calls.filter(call => call.step === 'embedding').reduce((sum, call) => sum + call.inputTokens * 0.15, 0);
         Object.assign(evidence, { completed: true, repeatedPaidCalls: calls.length - count, summaryCharacters: completed!.summary!.length,
-            embeddingDimensions: completed!.summaryEmbedding!.length, measuredTextMicros, embeddingBoundMicros, estimatedTotalUsd: (measuredTextMicros + embeddingBoundMicros) / 1_000_000 });
+            embeddingDimensions: passages[0].vector.length, measuredTextMicros, embeddingBoundMicros, estimatedTotalUsd: (measuredTextMicros + embeddingBoundMicros) / 1_000_000 });
         t.diagnostic(JSON.stringify(evidence));
     } catch (error) {
         evidence.completed = false;

@@ -2,6 +2,7 @@ import type { Db, AnyBulkWriteOperation } from 'mongodb';
 import { Collections, getMongoDb } from '@/lib/mongodb';
 import type { Contact, Recording } from '../types';
 import { buildRecordingContactUpdate, createRecordingContactResolver } from './resolve-recording-contact';
+import { syncRecordingPassageMetadata } from '@/lib/search/passages';
 
 /** Reconcile stored caller metadata only. No filename reparsing or object-storage operations. */
 export async function reconcileRecordingContacts(
@@ -16,6 +17,7 @@ export async function reconcileRecordingContacts(
     const previous = new Map(previousContacts.filter(contact => contact.authSubject === authSubject)
         .map(contact => [contact._id.toString(), contact]));
     let writes: AnyBulkWriteOperation<Recording>[] = [];
+    const indexedChanges: Recording['_id'][] = [];
     const flush = async () => {
         if (writes.length) await collection.bulkWrite(writes, { ordered: false });
         writes = [];
@@ -31,6 +33,7 @@ export async function reconcileRecordingContacts(
             recording.contactName !== update.contactName || recording.phoneNumber !== update.phoneNumber ||
             recording.standardizedDisplayName !== update.standardizedDisplayName;
         if (!changed) continue;
+        if (recording.searchIndex) indexedChanges.push(recording._id);
         writes.push({ updateOne: {
             filter: { _id: recording._id, authSubject, updatedAt: recording.updatedAt },
             update: { $set: { ...update, updatedAt: new Date() } },
@@ -38,6 +41,7 @@ export async function reconcileRecordingContacts(
         if (writes.length >= 500) await flush();
     }
     await flush();
+    if (indexedChanges.length) for await (const recording of collection.find({ authSubject, _id: { $in: indexedChanges } })) await syncRecordingPassageMetadata(recording, database);
 
     // Include archived calls and reset zero counts, using one aggregation for the account.
     const stats = await collection.aggregate<{ _id: Contact['_id']; count: number; last: Date }>([

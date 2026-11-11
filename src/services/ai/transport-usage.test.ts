@@ -74,3 +74,20 @@ test('planned Gemini truncation records incurred usage but cannot complete a che
         plannedRequest: { version: 1, id: 'call', provider: 'gemini', model: 'test', prompt: 'exact', promptVersion: 'v1', inputTokens: 10, maxOutputTokens: 128, thinking: 'off' } }), /incomplete, or truncated/);
     assert.equal(usages.length, 1); assert.equal(usages[0].thoughtTokens, 3);
 });
+
+test('Gemini embeddings pin document/query task purpose and vector dimensions', async t => {
+    const client = getGeminiClient();
+    const embed = t.mock.method(client.models, 'embedContent', async () => ({ embeddings: [{ values: [0.25, 0.75] }] }));
+    const service = new GeminiService();
+    for (const purpose of ['document', 'query'] as const) {
+        await service.generateEmbedding('The full source passage.', { throwOnError: true, plannedRequest: {
+            version: 1, id: `embed-${purpose}`, provider: 'gemini', model: 'accepted-embedding', prompt: 'The full source passage.', promptVersion: 'search-v1',
+            inputTokens: 20, maxOutputTokens: 0, thinking: 'off', embedding: { purpose, dimensions: 2, profileId: 'profile' },
+        } });
+    }
+    const documentRequest = embed.mock.calls[0].arguments[0], queryRequest = embed.mock.calls[1].arguments[0];
+    assert.ok(documentRequest); assert.ok(queryRequest);
+    assert.equal(documentRequest.config?.taskType, 'RETRIEVAL_DOCUMENT');
+    assert.equal(queryRequest.config?.taskType, 'RETRIEVAL_QUERY');
+    assert.equal(documentRequest.config?.outputDimensionality, 2);
+});

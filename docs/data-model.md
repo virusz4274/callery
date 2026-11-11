@@ -76,8 +76,6 @@ Key nested structures:
 ```ts
 notificationSettings: {
   activityDigest: 'off' | 'weekly' | 'monthly';
-  ingestSuccess: boolean;
-  ingestFail: boolean;
 }
 
 transcriptionSettings: {
@@ -95,6 +93,22 @@ billingSettings: {
 }
 ```
 
+### `recording_shares`
+
+Full-recording grants store owner, recording ObjectId, creation/expiry dates and
+optional revocation date. Signed public tokens identify a grant; every page and
+audio request checks its live state and current account/company policy. No clip
+bounds or plaintext reusable storage URLs are stored.
+
+### `recording_passages`
+
+Derived transcript passages store owner, recording ID, generation/revision,
+ordinal, source segment/character references, optional timing, denormalized
+contact/date/archive filters, embedding profile, vector and provider response
+receipt. Only a complete current generation is published. Recording checkpoints
+reference these receipts rather than duplicating vectors. Deletion fences active
+enrichment and erases grants/passages alongside recording metadata.
+
 ### `recordings`
 
 Stores uploaded audio metadata, transcript state, embeddings, and user-facing archive state.
@@ -109,6 +123,7 @@ Important fields:
 - `recordedAt`, `createdAt`, `updatedAt`
 - `transcriptionStatus`
 - `processingStatus`, `transcriptionJobId`, `transcriptionAttemptId`
+- `transcriptionQueuedJobId` (server-only journal marker, projected as queued processing state)
 - `transcriptionEnrichmentPending`, `transcriptionEnrichmentSteps`, `transcriptionCompletionPending`
 - `aiWorkPlan`, `aiWorkCheckpoints`, `aiWorkRevision` (server-only recovery state)
 - `fullTranscript`
@@ -116,7 +131,8 @@ Important fields:
 - `transcriptionProvider`, `transcriptionModel`, `transcriptionCostMultiplier`
 - `externalTranscriptionId`
 - `transcriptionUsageReportId`, `transcriptionUsageReportedAt`
-- `summary`, `summaryEmbedding`
+- `summary`, `searchIndex` (generation, transcript revision, embedding profile, state and passage progress)
+- `searchIndexWork` (server-only embedding-only rebuild plan and response references; erased with the recording)
 - `tags`
 - `isStarred`, `isArchived`
 

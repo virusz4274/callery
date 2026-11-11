@@ -13,6 +13,7 @@ export function RecordingWorkspace({ workspace, onUpdated }: {
   if (!workspace.recording) return <WorkspaceFeedback error={workspace.error} onClose={workspace.close} onRetry={() => void workspace.retry()} />;
   return <RecordingDetailsDialog key={workspace.id} recording={workspace.recording}
     autoPlay={workspace.autoPlay}
+    initialTarget={workspace.initialTarget}
     onOpenChange={open => { if (!open) workspace.close(); }}
     onRecordingUpdated={async recording => { await workspace.update(recording); await onUpdated?.(recording); }} />;
 }

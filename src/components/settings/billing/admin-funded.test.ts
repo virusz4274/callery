@@ -13,6 +13,7 @@ function profile(patch: Partial<User> = {}) {
     return toUserResponse(userFixture({ planKey: 'internal', billingEntitlement: undefined,
         stripeCustomerId: undefined, stripeSubscriptionId: undefined, stripeSubscriptionStatus: undefined,
         googleSync: { status: 'not_connected' },
+        notificationSettings: { activityDigest: 'weekly' },
         ...patch }), 'Internal');
 }
 

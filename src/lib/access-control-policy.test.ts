@@ -12,7 +12,7 @@ function account(patch: Partial<User> = {}): User {
         _id: new ObjectId(), authSubject: 'billing-test', email: 'billing@example.com',
         firstName: '', lastName: '', name: 'Billing', phoneNumber: '', role: 'user',
         createdAt: now, updatedAt: now, planKey: 'pro', timezone: 'UTC',
-        notificationSettings: { activityDigest: 'off', ingestSuccess: false, ingestFail: false },
+        notificationSettings: { activityDigest: 'off' },
         transcriptionSettings: { autoTranscribe: false }, storageSettings: { deletionPolicy: 'never' },
         storageUsed: 10, storagePeakUsed: 10, storageAllocation: 100,
         transcriptionUsed: 10, transcriptionAllocation: 100,
