@@ -13,6 +13,7 @@ WORKDIR /app
 # (Single stage on purpose: pnpm's node_modules symlinks point into its
 # content-addressable store, so they can't be COPYed from a deps stage.)
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
+COPY website/package.json ./website/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .

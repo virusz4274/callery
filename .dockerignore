@@ -6,6 +6,7 @@ pnpm-debug.log*
 .pnpm-debug.log*
 README.md
 .next
+website/.astro
 .git
 .env*
 !.env.example

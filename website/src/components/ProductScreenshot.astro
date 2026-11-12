@@ -1,0 +1,28 @@
+---
+import { Image } from 'astro:assets';
+import upload from '../assets/screenshots/upload-queue.png';
+import library from '../assets/screenshots/library-demo.png';
+import search from '../assets/screenshots/search-delivery.png';
+import transcript from '../assets/screenshots/hero-transcript.png';
+
+// These privacy-cleaned real-app stills use fictional demonstration recordings.
+// Transcript/summary provenance is documented in website/README.md.
+const screenshots = {
+  upload: { image: upload, alt: 'Callery upload queue with three original call recording filenames', caption: 'Select original files together. Real app screen with fictional recordings.' },
+  library: { image: library, alt: 'Callery recording library with caller names, dates, and a date filter', caption: 'Browse by caller and date. Fictional calls; summary previews are editorial demo text.' },
+  search: { image: search, alt: 'Callery Text search filtered by delivery, showing one matching demonstration call', caption: 'Text search for “delivery” in the real app. Fictional call; summary preview is editorial demo text. This is not an AI search demonstration.' },
+  transcript: { image: transcript, alt: 'Callery recording detail with original audio playback and a timestamped demonstration transcript', caption: 'Read the transcript and listen back. Real app with fictional audio and a Gemini-generated transcript.' },
+};
+interface Props { kind: keyof typeof screenshots; wide?: boolean }
+const { kind, wide = false } = Astro.props;
+const screenshot = screenshots[kind];
+---
+<figure class="product-screenshot" data-product-screenshot={kind}>
+  <a href={screenshot.image.src} aria-label={`Open full-size screenshot: ${screenshot.alt}`}>
+    <Image src={screenshot.image} alt={screenshot.alt} widths={[480, 900, 1728]} sizes={wide ? '(max-width: 760px) calc(100vw - 40px), 1100px' : '(max-width: 760px) calc(100vw - 40px), 380px'} format="webp" loading="lazy" decoding="async" />
+  </a>
+  <figcaption>{screenshot.caption} <span>Open image for a closer look.</span></figcaption>
+</figure>
+<style>
+.product-screenshot{margin:0;min-width:0}.product-screenshot>a{display:block;overflow:hidden;border:1px solid #dce3ee;border-radius:10px;background:#15181c}.product-screenshot img{display:block;width:100%;height:auto}.product-screenshot figcaption{font-size:11px;line-height:1.8;color:#52637a;margin-top:13px}.product-screenshot figcaption span{display:block;color:#245be8}
+</style>

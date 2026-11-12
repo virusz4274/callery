@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#F6F8FC"/>
+  <rect x="54" y="48" width="1092" height="534" rx="26" fill="#fff"/>
+  <text x="100" y="120" font-family="sans-serif" font-size="30" font-weight="700" fill="#245BE8">Callery</text>
+  <text x="100" y="228" font-family="sans-serif" font-size="50" font-weight="700" fill="#152541">Organize your</text>
+  <text x="100" y="290" font-family="sans-serif" font-size="50" font-weight="700" fill="#152541">call recordings.</text>
+  <text x="100" y="352" font-family="sans-serif" font-size="50" font-weight="700" fill="#152541">Find what was said.</text>
+  <text x="100" y="420" font-family="sans-serif" font-size="22" fill="#52637A">Original files. Familiar names.</text>
+  <text x="100" y="452" font-family="sans-serif" font-size="22" fill="#52637A">Conversations you can find again.</text>
+  <rect x="690" y="108" width="364" height="74" rx="12" fill="#F6F8FC"/>
+  <text x="714" y="151" font-family="sans-serif" font-size="18" fill="#52637A">Call Alex_261107_103000.m4a</text>
+  <path d="M872 198V236" stroke="#245BE8" stroke-width="3"/>
+  <rect x="658" y="252" width="428" height="232" rx="18" fill="#EAF0FF"/>
+  <circle cx="700" cy="297" r="15" fill="#245BE8"/>
+  <text x="732" y="304" font-family="sans-serif" font-size="23" font-weight="700" fill="#152541">Alex</text>
+  <text x="692" y="351" font-family="sans-serif" font-size="18" fill="#52637A">7 November · 10:30 am</text>
+  <path d="M692 374H1052" stroke="#CCD8EF"/>
+  <text x="692" y="415" font-family="sans-serif" font-size="20" fill="#152541">Find the conversation.</text>
+  <text x="692" y="449" font-family="sans-serif" font-size="20" fill="#152541">Return to the original audio.</text>
+  <text x="100" y="522" font-family="sans-serif" font-size="17" fill="#52637A">Compatible phone recordings · Browser app</text>
+</svg>

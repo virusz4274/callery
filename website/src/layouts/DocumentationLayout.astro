@@ -1,0 +1,113 @@
+---
+import type { MarkdownHeading } from 'astro';
+import SiteLayout from './SiteLayout.astro';
+import { documentationGroups, documentationPages, type DocumentationPage } from '../lib/documentation';
+import { siteConfig, siteUrl } from '../lib/site';
+
+interface Props {
+  page: DocumentationPage;
+  headings: MarkdownHeading[];
+}
+
+const { page, headings } = Astro.props;
+const tableOfContents = headings.filter(({ depth }) => depth === 2 || depth === 3);
+const showTableOfContents = tableOfContents.length >= 5;
+const pageUrl = siteUrl(`/docs/${page.slug}`);
+const sourceUrl = `${siteConfig.repositoryUrl}/blob/main/docs/${page.slug}.md`;
+const schema = [
+  {
+    '@type': 'TechArticle',
+    '@id': `${pageUrl}#article`,
+    headline: page.title,
+    description: page.description,
+    url: pageUrl,
+    mainEntityOfPage: pageUrl,
+    inLanguage: 'en',
+    articleSection: page.group,
+    isPartOf: { '@id': siteUrl('/docs#documentation') },
+    publisher: { '@id': siteUrl('/#organization') },
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Documentation', item: siteUrl('/docs') },
+      { '@type': 'ListItem', position: 3, name: page.title, item: pageUrl },
+    ],
+  },
+];
+---
+
+<SiteLayout title={page.title} description={page.description} type="article" schema={schema}>
+  <div class="container documentation-shell">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span aria-hidden="true">/</span>
+      <a href="/docs">Documentation</a><span aria-hidden="true">/</span>
+      <span aria-current="page">{page.title}</span>
+    </nav>
+    <div class="documentation-columns">
+      <aside class="documentation-sidebar">
+        <nav class="desktop-doc-navigation" aria-label="Documentation">
+          <a class="documentation-home" href="/docs">All documentation</a>
+          {documentationGroups.map((group) => (
+            <section class="documentation-nav-group">
+              <h2>{group}</h2>
+              <ul>
+                {documentationPages.filter((entry) => entry.group === group).map((entry) => (
+                  <li><a href={`/docs/${entry.slug}`} aria-current={entry.slug === page.slug ? 'page' : undefined}>{entry.title}</a></li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </nav>
+        <details class="mobile-doc-navigation">
+          <summary>Browse documentation</summary>
+          <nav aria-label="Documentation">
+            <a class="documentation-home" href="/docs">All documentation</a>
+            {documentationGroups.map((group) => (
+              <section class="documentation-nav-group">
+                <h2>{group}</h2>
+                <ul>
+                  {documentationPages.filter((entry) => entry.group === group).map((entry) => (
+                    <li><a href={`/docs/${entry.slug}`} aria-current={entry.slug === page.slug ? 'page' : undefined}>{entry.title}</a></li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </nav>
+        </details>
+      </aside>
+      <article class="documentation-article" aria-label={page.title}>
+        <div class="documentation-toolbar"><span>{page.group}</span><a href={sourceUrl}>View source on GitHub</a></div>
+        {showTableOfContents && (
+          <details class="documentation-toc">
+            <summary>On this page</summary>
+            <nav aria-label="On this page">
+              <ul>{tableOfContents.map(({ depth, slug, text }) => <li class:list={{ 'subsection-link': depth === 3 }}><a href={`#${slug}`}>{text}</a></li>)}</ul>
+            </nav>
+          </details>
+        )}
+        <div class="prose documentation-body"><slot /></div>
+        <footer class="documentation-help">
+          <p>Need help applying this guide?</p>
+          <a class="text-link" href="/support">Find support</a>
+          <a href="/docs">Browse all documentation</a>
+        </footer>
+      </article>
+    </div>
+  </div>
+</SiteLayout>
+
+<script>
+  // Make wide examples and reference tables reachable for keyboard scrolling.
+  for (const element of document.querySelectorAll<HTMLElement>('.documentation-body pre, .documentation-body table')) {
+    element.tabIndex = 0;
+    if (element.tagName === 'PRE') element.setAttribute('aria-label', 'Code example');
+  }
+</script>
+
+<style>
+  .documentation-shell{padding-top:38px;padding-bottom:100px}.documentation-shell>.breadcrumb{margin-bottom:35px}.documentation-columns{display:grid;grid-template-columns:220px minmax(0,1fr);gap:62px;align-items:start}.documentation-sidebar{position:sticky;top:118px;max-height:calc(100vh - 145px);overflow-y:auto;padding-right:12px}.documentation-home{display:inline-block;font-size:13px;font-weight:750;text-decoration:none;margin-bottom:26px;color:var(--ink)}.documentation-home:hover{color:var(--blue)}.documentation-nav-group{margin-bottom:29px}.documentation-nav-group:last-child{margin-bottom:0}.documentation-nav-group h2{font-size:12px;font-weight:750;letter-spacing:0;line-height:1.5;margin-bottom:10px}.documentation-nav-group ul{list-style:none;padding:0;margin:0}.documentation-nav-group li+li{margin-top:3px}.documentation-nav-group a{display:block;font-size:12px;line-height:1.65;text-decoration:none;color:var(--muted);padding:7px 12px;border-left:2px solid transparent}.documentation-nav-group a:hover{color:var(--blue);background:var(--archive)}.documentation-nav-group a[aria-current]{color:var(--blue);border-color:var(--blue);background:var(--blue-light);font-weight:750}.mobile-doc-navigation{display:none}.documentation-article{min-width:0;max-width:850px}.documentation-toolbar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:11px;line-height:1.7;color:var(--muted);margin-bottom:22px}.documentation-toolbar>span{font-weight:700;color:var(--blue)}.documentation-toolbar a:hover{color:var(--blue)}.documentation-toc{border-block:1px solid var(--line);margin-bottom:30px;font-size:13px}.documentation-toc summary{padding:14px 2px;font-weight:700}.documentation-toc nav{padding-bottom:20px}.documentation-toc ul{list-style:none;margin:0;padding:0 0 0 19px}.documentation-toc li{padding-block:5px;line-height:1.65}.documentation-toc .subsection-link{padding-left:18px}.documentation-toc a{color:var(--muted);text-decoration:none}.documentation-toc a:hover{color:var(--blue);text-decoration:underline}.documentation-body{font-size:15px;line-height:1.9}.documentation-body :global(h1){font-size:clamp(34px,4.1vw,54px);max-width:24ch;margin-bottom:29px;line-height:1.14}.documentation-body :global(h2){font-size:27px;line-height:1.3;margin-top:47px;scroll-margin-top:115px}.documentation-body :global(h3){font-size:20px;line-height:1.4;scroll-margin-top:115px}.documentation-body :global(h4){font-size:17px;line-height:1.5;scroll-margin-top:115px}.documentation-body :global(p),.documentation-body :global(ul),.documentation-body :global(ol){max-width:76ch}.documentation-body :global(pre){max-width:100%;font-size:13px;line-height:1.8;overscroll-behavior-x:contain}.documentation-body :global(pre code){font-size:1em;overflow-wrap:normal;white-space:pre}.documentation-body :global(table){max-width:100%;line-height:1.75;overscroll-behavior-x:contain}.documentation-body :global(th){white-space:nowrap}.documentation-body :global(td){min-width:130px}.documentation-body :global(hr){border:0;border-top:1px solid var(--line);margin-block:40px}.documentation-body :global(pre:focus-visible),.documentation-body :global(table:focus-visible){outline:3px solid var(--blue);outline-offset:4px}.documentation-help{display:flex;flex-wrap:wrap;gap:10px 23px;border-top:1px solid var(--line);margin-top:55px;padding-top:25px;font-size:12px}.documentation-help p{width:100%;margin:0;font-size:13px;font-weight:700;color:var(--ink)}.documentation-help>a:last-child{color:var(--muted)}
+  @media(max-width:1100px){.documentation-columns{grid-template-columns:190px minmax(0,1fr);gap:35px}.documentation-sidebar{padding-right:2px}.documentation-body :global(h1){font-size:42px}}
+  @media(max-width:800px){.documentation-shell{padding-top:27px;padding-bottom:65px}.documentation-shell>.breadcrumb{margin-bottom:24px}.documentation-columns{grid-template-columns:1fr;gap:27px}.documentation-sidebar{position:static;max-height:none;padding:0}.desktop-doc-navigation{display:none}.mobile-doc-navigation{display:block;border:1px solid var(--line);border-radius:8px;background:var(--archive)}.mobile-doc-navigation summary{padding:13px 17px;font-size:13px;font-weight:750}.mobile-doc-navigation nav{border-top:1px solid var(--line);padding:19px 17px 23px;background:var(--white);border-radius:0 0 8px 8px}.documentation-nav-group{margin-bottom:20px}.documentation-nav-group a{font-size:13px;padding-block:8px}.documentation-toolbar{margin-bottom:18px}.documentation-body{font-size:14px}.documentation-body :global(h1){font-size:clamp(33px,7vw,44px);margin-bottom:24px}.documentation-body :global(h2){font-size:25px;margin-top:38px;scroll-margin-top:95px}.documentation-body :global(h3){font-size:20px;scroll-margin-top:95px}.documentation-body :global(pre){font-size:12px;padding:17px}.documentation-toc{margin-bottom:27px}.documentation-help{margin-top:40px}}
+</style>

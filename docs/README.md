@@ -1,6 +1,11 @@
 # Documentation Index
 
 This folder contains the maintained documentation for the current Callery codebase.
+
+- [Website deployment and domain split](website-deployment.md): Astro marketing site, device guides, static pricing publication, Cloudflare Pages, and app-origin cutover.
+
+The public website renders nine curated documents directly from this folder under `/docs`: user guide, setup guide, small-team setup, transcription batches, integration API, MCP platforms, API reference, recording filenames, and releases. Other engineering notes and operator runbooks remain in the repository.
+
 The maintained guides were checked against repository source on 2026-11-03.
 Runtime verification and remaining deployment checks are recorded in [Releases](releases.md).
 

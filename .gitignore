@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/website/node_modules/
+/website/.astro/
+/website/dist/
+/website/.wrangler/
+/.wrangler/
 # This project uses pnpm; ignore other lockfiles if accidentally generated
 package-lock.json
 yarn.lock

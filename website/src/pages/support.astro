@@ -1,0 +1,26 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { appUrl, siteConfig } from '../lib/site';
+---
+<SiteLayout title="Help with your call recording archive" description={siteConfig.comingSoon ? 'Find original recording folders, check phone compatibility, and get help with self-hosting Callery. Managed hosting is launching soon.' : 'Find import guides, contact managed Callery support, and get help with self-hosting or recording compatibility.'}>
+  <article class="container reading-page prose">
+    <header class="page-heading">
+      <h1>Keep your archive moving.</h1>
+      <p>{siteConfig.comingSoon ? 'Find your original recording folder, check compatibility, or get help with a self-hosted instance.' : 'Find your original recording folder, check an import, or get help with your account.'}</p>
+    </header>
+    {siteConfig.comingSoon ? <><h2>Managed hosting is launching soon</h2><p>Signup and managed account support are not open yet. You can watch the demo, read the recording guides, or run Callery yourself.</p><p class="actions"><a class="button" href={siteConfig.demoUrl}>Watch the demo</a><a class="button button-secondary" href="/self-host">Explore self-hosting</a></p></> : <><h2>Using managed Callery?</h2><p>Send an account, billing, or import question through the app's support form. The form opens on the app so the request can stay with your account context.</p><p><a class="button" href={appUrl('/support')}>Contact support in the app</a></p></>}
+    <h2>Using your archive</h2>
+    <p>The <a href="/docs/user-guide">user guide</a> covers uploads, search, transcripts, sharing, and account settings. For a large collection, see <a href="/docs/transcription-batches">transcription batches</a> before starting processing.</p>
+    <h2>Finding recordings on your phone</h2>
+    <p>Start with the <a href="/guides">recording guides</a>. Callery’s archive workflow requires original recordings accessible in your phone’s file manager and copied in bulk with filenames intact. Google Phone’s individual sharing workflow is unsupported. Check the <a href="/phone-compatibility">compatibility page</a> for dialer, file-access, and filename requirements.</p>
+    <h2>Running your own instance?</h2>
+    <p>The maintained setup documentation covers storage, processing services, and recovery. For a reproducible software problem, open a GitHub issue with the app version and steps to reproduce it.</p>
+    <ul>
+      <li><a href="/docs/setup-guide">Self-hosting setup guide</a></li>
+      <li><a href="/docs/small-team-setup">Small team setup and recovery</a></li>
+      <li><a href={`${siteConfig.repositoryUrl}/issues`}>GitHub issues</a></li>
+      <li><a href={`${siteConfig.repositoryUrl}/blob/main/SECURITY.md`}>Security reporting</a></li>
+    </ul>
+    <aside class="note"><p>Keep recordings, transcripts, private contact details, and credentials out of public issues. Describe the problem without attaching personal call audio.</p></aside>
+  </article>
+</SiteLayout>

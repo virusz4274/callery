@@ -1,13 +1,22 @@
+packages:
+  - website
 allowBuilds:
   '@google/genai': true
   esbuild: true
   protobufjs: true
   unrs-resolver: true
   workerd: true
+minimumReleaseAgeExclude:
+  - '@astrojs/internal-helpers@0.13.2'
+  - '@astrojs/markdown-satteri@0.4.9'
+  - '@astrojs/runtime@0.1.1'
+  - '@astrojs/vite-plugin-astro@0.1.2'
+  - astro@7.4.11
 overrides:
   # Security backports for SDKs which still pin older transitive versions.
   'fflate@<0.7.5': ^0.7.5
   'source-map-js@<1.2.2': ^1.2.2
+  'fast-uri@<3.1.9': ^3.1.9
 peerDependencyRules:
   allowedVersions:
     # @eslint/compat adapts these rules to ESLint 10; see eslint.config.mjs.

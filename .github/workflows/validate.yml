@@ -39,6 +39,26 @@ jobs:
           GITLEAKS_BIN: ${{ runner.temp }}/gitleaks/gitleaks
         run: node scripts/scan-secrets.mjs
 
+  website:
+    needs: secrets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Check and build the static website without deployment secrets
+        run: |
+          corepack enable pnpm
+          corepack prepare pnpm@12.14.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm website:check
+          pnpm website:build
+
   acceptance:
     needs: secrets
     runs-on: ubuntu-24.04
@@ -89,7 +109,7 @@ jobs:
 
   source-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [secrets, acceptance, workers-compatibility]
+    needs: [secrets, website, acceptance, workers-compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

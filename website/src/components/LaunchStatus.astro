@@ -1,0 +1,8 @@
+---
+interface Props { small?: boolean }
+const { small = false } = Astro.props;
+---
+<span class:list={['button', 'launch-status', { 'button-small': small }]} data-launch-status>Launching soon</span>
+<style>
+.launch-status,.launch-status:hover{background:var(--blue);cursor:default}
+</style>

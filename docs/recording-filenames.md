@@ -5,6 +5,21 @@ Web and mobile direct uploads share `prepareUploadContext` and the filename pars
 validated caller metadata. Completion retains the signed timestamp and storage key.
 Original filenames are stored unchanged. Existing recordings are not migrated.
 
+## Archive requirements
+
+Callery’s supported bulk archive workflow starts with original recordings that
+the user can see in a phone file manager and copy together without renaming.
+Samsung Phone’s documented folder is `Internal storage/Recordings/Call` on
+supported setups. Other OEM dialers require a check on the actual firmware.
+See the [device compatibility guide](https://getcallery.com/phone-compatibility).
+
+Individual exports from Google Phone are not a supported archive workflow.
+Google documents in-app sharing, not a bulk original-folder export or a stable
+caller/date filename contract. Callery has no access to the dialer’s private
+call log and cannot recover metadata absent from the copied filename. Accepting
+an audio upload is separate from successfully organizing it by caller and call
+date; the fallback below does not establish device compatibility.
+
 ## Recognized patterns
 
 The extension is ignored for metadata recognition; it is checked separately by the
@@ -14,7 +29,7 @@ of every model, firmware version, or dialer shipped by a brand.
 | Recorder | Filename stem | Metadata |
 | --- | --- | --- |
 | Samsung | `Call <caller>_YYMMDD_HHMMSS` or `Call recording <caller>_YYMMDD_HHMMSS` | Name or phone, local call timestamp |
-| Older MIUI | `<call label>@<phone>_YYYYMMDDHHMMSS` | Phone, local call timestamp; recognized localized labels are discarded |
+| Xiaomi dialer (MIUI; HyperOS when the filename matches) | `<call label>@<phone>_YYYYMMDDHHMMSS` | Phone, local call timestamp; recognized localized labels are discarded |
 | Huawei | `<name>@<phone>_YYYYMMDDHHMMSS` | Name and phone, local call timestamp; phone takes priority for contact matching |
 | ColorOS | `<caller>-YYMMDDHHmm` | Name or phone, local call timestamp with minute precision |
 | GrapheneOS | `CallRecord_YYYYMMDD-HHMMSS_<phone>` | Phone, local call timestamp |
@@ -26,6 +41,31 @@ of every model, firmware version, or dialer shipped by a brand.
 ASUS's older date/name layouts, arbitrary BCR custom templates, and unverified
 Google Phone, Vivo/iQOO, Cube ACR, and other dialer variants are not guessed.
 Apple-specific patterns are outside this change.
+
+## Xiaomi dialer on HyperOS
+
+HyperOS is included for compatible Xiaomi, Redmi, and POCO setups using Xiaomi's
+own dialer. Some regional builds ship with Google Phone but can use Xiaomi's
+dialer when the firmware includes and supports it. See the
+[HyperOS dialer setup guide](https://getcallery.com/guides/enable-call-recording-xiaomi-hyperos)
+for available settings and model-scoped community restoration reports. The guide
+restores only verified firmware system packages. Missing required packages or a
+failed restoration mean incompatible current firmware for that setup; external
+APKs, root, and firmware changes are outside the supported guide. Its
+[AI-assisted instructions](https://getcallery.com/guides/set-up-call-recording-with-ai)
+use the same limits.
+
+Support depends on the active dialer and its original files. A HyperOS recording
+matching the Xiaomi layout above already uses the same parser as MIUI; there is
+no separate OS check. The layout evidence is from older MIUI, so this does not
+claim that every HyperOS build generates it. An unfamiliar HyperOS filename needs
+a sample check before automatic caller/date recognition can be established.
+
+On a compatible Xiaomi dialer setup, check the existing
+`Internal storage/MIUI/sound_recorder/call_rec/` folder, copy a few original files
+without renaming them, and verify caller, call date, and playback in Callery.
+Changing the default dialer alone does not prove recording or folder access,
+and it does not migrate recordings previously made in Google Phone.
 
 ## Validation and fallback
 
@@ -68,3 +108,6 @@ add these extensions to the upload allowlist.
 - [ASUS filename changes](https://zentalk.asus.com/t5/zenfone-9/call-recording-saved-records/m-p/168838)
 - [OPPO ColorOS 6.1 guide: Audio Manager](https://ipics.oppo.com/oppo_nl/answer/ColorOS_6.1_User_Guide%281%29.pdf)
 - [Older localized MIUI example](https://forums.xiaomi-miui.gr/bugtracker/index.php/Issue/294-%CE%91%CE%BD%CF%84%CE%B9%CE%B3%CF%81%CE%B1%CF%86%CE%AE-%CE%B1%CF%81%CF%87%CE%B5%CE%AF%CF%89%CE%BD-%CE%B7%CF%87%CE%BF%CE%B3%CF%81%CE%AC%CF%86%CE%B9%CF%83%CE%B7%CF%82-%CE%BA%CE%BB%CE%AE%CF%83%CE%B7%CF%82/)
+- [Xiaomi's system-file locations, including the OEM call-recording folder](https://www.mi.com/sg/support/article/KA-07847/)
+- [First-hand HyperOS recording setup on listed China firmware builds](https://cyrusyip.org/en/posts/2023/11/27/miui-call-recording/)
+- [Community-reported HyperOS Xiaomi dialer restoration](https://www.reddit.com/r/HyperOS/comments/1k7ztyg/)

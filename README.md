@@ -1,6 +1,16 @@
 # Callery
 
-A web application for managing, transcribing, and organizing phone call recordings.
+A web application for organizing and searching existing phone call recordings. Import supported Samsung and Android audio files, browse conversations by contact and date, and optionally transcribe them. Use Callery in a browser on Windows, Mac, or mobile.
+
+The archive workflow requires original recordings accessible in your phone’s file
+manager, copied in bulk with their filenames unchanged. Samsung Phone commonly
+saves these in `Internal storage/Recordings/Call`. Other OEM dialers require a
+device-specific file-access and filename check. Google Phone’s individual Share
+workflow is unsupported for this archive: Callery cannot retrieve private dialer
+files or restore caller/date information missing from a filename. See the
+[phone compatibility guide](https://getcallery.com/phone-compatibility).
+
+The public website, phone guides, documentation, and legal pages are a separate static Astro package in [`website/`](website/README.md). The repository-root Next.js app owns accounts, recording storage, checkout, and integrations. See [website deployment and the domain split](docs/website-deployment.md) for main-domain/app-subdomain setup.
 
 [![Watch the Callery product demo on YouTube](https://i.ytimg.com/vi/Z4hJoVGuXgw/maxresdefault.jpg)](https://www.youtube.com/watch?v=Z4hJoVGuXgw)
 

@@ -13,6 +13,7 @@ const config = [
     },
     {
         ignores: [
+            "website/",
             "public/",
             ".next/",
             ".open-next/",

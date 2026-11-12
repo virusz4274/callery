@@ -1,0 +1,16 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { siteConfig } from '../lib/site';
+---
+<SiteLayout title="Product updates" description="Read Callery release notes for recording archives, transcription, contacts, and search.">
+  <article class="container reading-page prose">
+    <header class="page-heading"><h1>Product updates</h1><p>Release notes for your call archive.</p></header>
+    <section aria-labelledby="release-v010">
+      <p><time datetime="2026-02-02">February 2, 2026</time> · Beta</p>
+      <h2 id="release-v010">v0.1.0</h2>
+      <p>The first public beta of Callery brings call recording archives, transcription, and search together.</p>
+      <ul><li>Call recording archive and transcription</li><li>Contact management</li><li>Semantic search</li><li>Basic file management</li></ul>
+    </section>
+    <p><a href={`${siteConfig.repositoryUrl}/releases`}>View source releases on GitHub</a></p>
+  </article>
+</SiteLayout>

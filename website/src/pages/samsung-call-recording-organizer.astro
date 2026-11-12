@@ -1,0 +1,28 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import LaunchStatus from '../components/LaunchStatus.astro';
+import { appUrl, siteConfig } from '../lib/site';
+---
+<SiteLayout title="Samsung call recording organizer for your computer" description="Organize existing Samsung call recordings by contact and date. Keep original audio, add transcripts, and find old conversations in Callery on your PC or Mac.">
+  <article class="container reading-page prose">
+    <header class="page-heading">
+      <h1>Give your Samsung call recordings a history you can browse.</h1>
+      <p>Move from a folder of audio filenames to conversations organized by contact and date. Open Callery in your PC or Mac browser to listen, review transcripts, and find the details you remember.</p>
+    </header>
+    <div class="actions">{siteConfig.comingSoon ? <LaunchStatus /> : <a class="button" href={appUrl('/signup')}>Create your account</a>}<a class="text-link" href="/guides/find-and-export-samsung-call-recordings">Find your recordings first</a></div>
+    <h2>Copy Internal storage → Recordings → Call</h2>
+    <p>On a supported Samsung Phone recording setup, open My Files → Internal storage → Recordings → Call. Copy the folder or select its files together, using USB file transfer or a file-manager copy. Preserve the original filenames and keep a separate backup. You do not need to share each recording through Phone or Voice Recorder.</p>
+    <p>MP3, WAV, M4A, MP4, and WebM uploads are supported. Callery runs in the browser; you do not need a native Windows or Mac installer.</p>
+    <h2>Keep the caller and date when the filename includes them</h2>
+    <p>Callery recognizes documented Samsung filename layouts containing a caller and local timestamp. It retains the original filename and uses validated details to organize your archive.</p>
+    <p>Test a few unchanged files before importing the full collection. An unfamiliar filename can upload but may produce an unknown caller and the upload time, which does not give you the intended organized call history.</p>
+    <h2>Find the conversation, then return to the audio</h2>
+    <p>Browse by contact and date, listen to the original recording, and optionally create a transcript and summary. Search by meaning is available when the instance has a compatible processing and search setup. Transcription is not required to organize or play your calls.</p>
+    <p><a href="/search-call-recordings">Learn how to search inside call recordings</a>, check transcript coverage, and return to the original audio.</p>
+    <h2>Keep your way out</h2>
+    <p>Export original audio, available transcripts, metadata, and a browser viewer. Keep independent backups of important recordings alongside your Callery archive.</p>
+    <h2>Check the workflow for your phone</h2>
+    <p>Recording availability and folder locations depend on software and region. Start with the <a href="/guides/find-and-export-samsung-call-recordings">Samsung folder-copy guide</a> and <a href="/phone-compatibility">phone compatibility information</a>. Google Phone’s individual sharing workflow is unsupported for Callery’s bulk archive, even on a Galaxy phone.</p>
+    <p>Want to run the archive yourself? <a href="/self-host">Read about self-hosting Callery</a>.</p>
+  </article>
+</SiteLayout>

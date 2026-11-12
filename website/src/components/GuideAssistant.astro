@@ -1,0 +1,67 @@
+---
+import { buildPhoneSetupPrompt, phoneSetupAssistantPath } from '../lib/phone-setup-assistant';
+import type { PhoneSetupPromptContext } from '../lib/phone-setup-assistant';
+import { siteUrl } from '../lib/site';
+
+interface Props {
+  title: string;
+  manufacturer: string;
+  guidePath: string;
+  archiveWorkflow: PhoneSetupPromptContext['archiveWorkflow'];
+}
+const { title, manufacturer, guidePath, archiveWorkflow } = Astro.props;
+const prompt = buildPhoneSetupPrompt({
+  title,
+  manufacturer,
+  guideUrl: siteUrl(guidePath),
+  assistantGuideUrl: siteUrl(phoneSetupAssistantPath),
+  archiveWorkflow,
+});
+---
+<aside class="guide-assistant" data-guide-assistant aria-label="Read with an AI assistant">
+  <h2>Read it yourself, or ask an AI assistant</h2>
+  <p>Use ChatGPT, Gemini, Claude, or Codex with web search to research your exact phone. Fill in the bracketed model, region, software build, and dialer details before or after copying. The prompt asks for sources and compares applicable routes before setup.</p>
+  <div class="assistant-actions">
+    <button type="button" class="button button-secondary" data-copy-prompt>Copy AI instructions</button>
+    <a class="text-link" href={phoneSetupAssistantPath}>Read the AI setup guide</a>
+  </div>
+  <p class="copy-status" data-copy-status role="status" aria-live="polite"></p>
+  <details data-prompt-details>
+    <summary>View and copy the instructions</summary>
+    <label class="prompt-label">Edit your phone details, then copy these instructions into your chat
+      <textarea data-assistant-prompt rows="14" spellcheck="false">{prompt}</textarea>
+    </label>
+  </details>
+</aside>
+
+<script>
+  function bindGuideAssistants() {
+    document.querySelectorAll<HTMLElement>('[data-guide-assistant]').forEach(container => {
+      if (container.dataset.copyBound) return;
+      const button = container.querySelector<HTMLButtonElement>('[data-copy-prompt]');
+      const prompt = container.querySelector<HTMLTextAreaElement>('[data-assistant-prompt]');
+      const details = container.querySelector<HTMLDetailsElement>('[data-prompt-details]');
+      const status = container.querySelector<HTMLElement>('[data-copy-status]');
+      if (!button || !prompt || !details || !status) return;
+      container.dataset.copyBound = 'true';
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(prompt.value);
+          status.textContent = 'Copied. Paste the instructions into your AI chat.';
+        } catch {
+          details.open = true;
+          prompt.focus();
+          prompt.select();
+          status.textContent = 'Copy the selected instructions and paste them into your AI chat.';
+        }
+      });
+    });
+  }
+  bindGuideAssistants();
+  document.addEventListener('astro:page-load', bindGuideAssistants);
+</script>
+
+<style>
+  .guide-assistant{border:1px solid #c6d6f6;border-radius:10px;background:#f8faff;padding:22px 24px;margin:0 0 25px}.guide-assistant h2{font-size:20px;line-height:1.5;margin:0 0 10px}.guide-assistant>p{font-size:13px;line-height:1.9;margin:0 0 17px}.assistant-actions{display:flex;align-items:center;flex-wrap:wrap;gap:15px 22px}.assistant-actions .button{font-size:12px;min-height:44px;padding:11px 16px;cursor:pointer}.assistant-actions .text-link{font-size:12px}.guide-assistant .copy-status{font-size:12px;margin:12px 0 0;min-height:1.9em}.guide-assistant details{margin-top:5px;border-top:1px solid #dce3ee;padding-top:13px}.guide-assistant summary{font-size:12px;font-weight:650;cursor:pointer}.prompt-label{display:block;font-size:12px;line-height:1.8;margin-top:15px}.prompt-label textarea{display:block;width:100%;min-height:240px;max-height:480px;resize:vertical;margin-top:9px;padding:13px;border:1px solid #c6d6f6;border-radius:7px;background:#fff;color:#152541;font:11px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace}.prompt-label textarea:focus-visible,.guide-assistant summary:focus-visible{outline:2px solid #245be8;outline-offset:3px}
+  @media(max-width:760px){.guide-assistant{padding:19px 17px}.guide-assistant h2{font-size:19px}.assistant-actions{align-items:flex-start;flex-direction:column;gap:13px}}
+</style>

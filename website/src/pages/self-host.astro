@@ -1,0 +1,36 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import LaunchStatus from '../components/LaunchStatus.astro';
+import { appUrl, siteConfig } from '../lib/site';
+---
+<SiteLayout title="Self-host your call recording archive" description="Run Callery on your own infrastructure with your own database, audio storage, and processing services. Free under AGPL-3.0.">
+  <article class="container reading-page prose">
+    <header class="page-heading">
+      <h1>Your recordings, on your infrastructure.</h1>
+      <p>Callery is free to self-host under AGPL-3.0. You operate the database, private audio storage, email, and any processing services you enable.</p>
+    </header>
+    <p><a class="button" href="/docs/setup-guide">Read the setup guide</a></p>
+    <h2>What you need</h2>
+    <ul>
+      <li>A server with Node.js 24.22.0 or later and pnpm 12.14.0, or Docker with Compose.</li>
+      <li>MongoDB for accounts, recording details, transcripts, and settings.</li>
+      <li>Private S3-compatible object storage for the audio.</li>
+      <li>SMTP or Resend for account verification and password recovery.</li>
+    </ul>
+    <p>The maintained setup guide covers native Node and Docker Compose deployments. It also explains browser-reachable storage, HTTPS, scheduled jobs, backups, and recovery.</p>
+    <h2>Choose whether to process your recordings</h2>
+    <p>Organizing recordings and listening to the audio do not require transcription. For transcripts and AI features, configure a supported hosted provider or operate compatible local services.</p>
+    <p>Self-hosting the app does not automatically keep every processing operation on your server. Hosted transcription and AI providers receive the audio or text needed for their work. The setup guide includes a Whisper-compatible transcription server and Ollama configuration when you want to operate those services yourself.</p>
+    <p>Search by meaning also requires a compatible MongoDB Search setup. The bundled basic MongoDB deployment supports the documented keyword fallback; it does not create a vector-search service.</p>
+    <h2>Personal and company archives</h2>
+    <p>Self-hosting supports personal accounts and a separately configured company archive with employee invitations. {siteConfig.comingSoon ? 'Managed Callery is launching soon.' : 'Managed Callery plans are for individual accounts.'}</p>
+    <h2>Keep a recovery plan</h2>
+    <p>Back up the database and object storage together, keep secrets securely, and test restoration. Downloading an archive through Callery is useful for your recordings, but it does not replace a deployment backup.</p>
+    <p><a href="/docs/small-team-setup">Small team setup and recovery</a></p>
+    <p><a href="/docs/releases">Release and deployment boundaries</a></p>
+    <aside class="note">
+      <h2>Prefer managed hosting?</h2>
+      {siteConfig.comingSoon ? <><p>Managed Callery is launching soon. Watch the demo to see how the app organizes recordings, or use the setup guide to run your own instance now.</p><LaunchStatus /><p><a class="text-link" href={siteConfig.demoUrl}>Watch the demo</a></p></> : <><p>Managed hosting handles the platform setup for you. Create an account in the app and choose the plan and processing you need.</p><a class="text-link" href={appUrl('/signup')}>Create your account</a></>}
+    </aside>
+  </article>
+</SiteLayout>

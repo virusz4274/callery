@@ -1,0 +1,101 @@
+---
+import '../styles/global.css';
+import { appUrl, siteConfig, siteUrl, serializeJsonLd } from '../lib/site';
+import LaunchStatus from '../components/LaunchStatus.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  type?: 'website' | 'article';
+  schema?: Record<string, unknown> | Record<string, unknown>[];
+  noIndex?: boolean;
+  guideCategory?: 'setup' | 'import';
+}
+const { title, description, type = 'website', schema = [], noIndex = false, guideCategory } = Astro.props;
+const pagePath = Astro.url.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/$/, '') || '/';
+const canonical = siteUrl(pagePath);
+const activeNavigation = guideCategory === 'setup' ? '/call-recording' : guideCategory === 'import' ? '/guides' : pagePath;
+const pageTitle = `${title} | Callery`;
+const nodes = [
+  { '@type': 'Organization', '@id': siteUrl('/#organization'), name: 'Callery', url: siteUrl('/'), logo: siteUrl('/brand/callery-logo.png'), sameAs: [siteConfig.repositoryUrl] },
+  { '@type': 'WebSite', '@id': siteUrl('/#website'), name: 'Callery', url: siteUrl('/'), publisher: { '@id': siteUrl('/#organization') } },
+  ...(Array.isArray(schema) ? schema : [schema]),
+];
+const navigation = [
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/call-recording', label: 'Call recording setup' },
+  { href: '/guides', label: 'Import guides' },
+];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={siteConfig.indexable && !noIndex ? 'index, follow, max-image-preview:large' : 'noindex, nofollow'} />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="Callery" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content={siteUrl('/social-preview.png')} />
+    <meta property="og:image:alt" content="Callery — Organize your call recordings. Find what was said." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={siteUrl('/social-preview.png')} />
+    <script type="application/ld+json" set:html={serializeJsonLd({ '@context': 'https://schema.org', '@graph': nodes })} />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="/" aria-label="Callery home"><img src="/brand/callery-logo.png" width="36" height="36" alt="" />Callery</a>
+        <nav class="desktop-navigation" aria-label="Main navigation">
+          {navigation.map(link => <a href={link.href} aria-current={activeNavigation === link.href ? 'page' : undefined}>{link.label}</a>)}
+        </nav>
+        <div class="header-actions">{siteConfig.comingSoon ? <LaunchStatus small /> : <><a class="login-link" href={appUrl('/login')}>Log in</a><a class="button button-small" href={appUrl('/signup')}>Get started</a></>}</div>
+        <details class="mobile-navigation">
+          <summary aria-label="Open navigation"><span></span><span></span><span></span></summary>
+          <nav aria-label="Mobile navigation">
+            {navigation.map(link => <a href={link.href} aria-current={activeNavigation === link.href ? 'page' : undefined}>{link.label}</a>)}
+            <a href="/phone-compatibility">Phone compatibility</a>
+            <a href="/docs">Documentation</a>
+            <a href="/self-host">Self-hosting</a>
+            {!siteConfig.comingSoon && <a href={appUrl('/login')}>Log in</a>}
+          </nav>
+        </details>
+      </div>
+    </header>
+    <main id="main-content" tabindex="-1"><slot /></main>
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-top">
+          <div class="footer-about"><a class="brand" href="/"><img src="/brand/callery-logo.png" width="32" height="32" alt="" />Callery</a><p>Your calls hold a lot.<br />Keep the parts that matter close.</p></div>
+          <nav aria-label="Product"><h2>Callery</h2><a href="/pricing">Plans and pricing</a><a href="/phone-compatibility">Phone compatibility</a><a href="/self-host">Self-hosting</a><a href="/changelog">Updates</a></nav>
+          <nav aria-label="Resources"><h2>Resources</h2><a href="/call-recording">Call recording setup</a><a href="/guides">Import guides</a><a href="/docs">Documentation</a><a href="/developers">Developers</a><a href="/support">Help and support</a><a href={siteConfig.repositoryUrl}>Source on GitHub</a></nav>
+          <nav aria-label="Legal"><h2>Information</h2><a href="/privacy-policy">Privacy policy</a><a href="/terms-of-service">Terms of service</a><a href={`${siteConfig.repositoryUrl}/blob/main/LICENSE`}>AGPL-3.0 license</a></nav>
+        </div>
+        <div class="footer-bottom"><span>Callery. A home for your recorded conversations.</span><span>{siteConfig.comingSoon ? 'Managed hosting is launching soon. Free to self-host now.' : 'Managed for you. Open source, too.'}</span></div>
+      </div>
+    </footer>
+    <script>
+      document.querySelectorAll<HTMLDetailsElement>('.mobile-navigation').forEach(menu => {
+        menu.addEventListener('keydown', event => {
+          if (event.key === 'Escape') { menu.open = false; menu.querySelector('summary')?.focus(); }
+        });
+        menu.querySelectorAll('a').forEach(link => link.addEventListener('click', () => { menu.open = false; }));
+      });
+    </script>
+  </body>
+</html>
+<style>
+@media(min-width:761px) and (max-width:1080px){.desktop-navigation,.login-link{display:none}.header-actions{margin-left:auto}.mobile-navigation{display:block}.mobile-navigation summary{width:36px;height:40px;list-style:none;display:flex;flex-direction:column;justify-content:center;gap:5px;padding:6px}.mobile-navigation summary::-webkit-details-marker{display:none}.mobile-navigation summary span{height:2px;width:22px;background:#152541;display:block}.mobile-navigation[open] nav{position:absolute;top:85px;left:0;right:0;background:#fff;border-bottom:1px solid #dce3ee;padding:16px 28px 24px;display:grid}.mobile-navigation nav a{padding:11px 0;text-decoration:none;font-size:15px}}
+</style>

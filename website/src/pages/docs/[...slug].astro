@@ -1,0 +1,31 @@
+---
+import type { MarkdownInstance } from 'astro';
+import DocumentationLayout from '../../layouts/DocumentationLayout.astro';
+import { documentationPages, type DocumentationPage } from '../../lib/documentation';
+
+const documents = import.meta.glob<MarkdownInstance<Record<string, unknown>>>(
+  '../../../../docs/{user-guide,setup-guide,small-team-setup,transcription-batches,integration-api,mcp-platforms,api-reference,recording-filenames,releases}.md',
+  { eager: true },
+);
+
+export function getStaticPaths() {
+  return documentationPages.map((page) => ({
+    params: { slug: page.slug },
+    props: { page },
+  }));
+}
+
+interface Props {
+  page: DocumentationPage;
+}
+
+const { page } = Astro.props;
+const document = documents[`../../../../docs/${page.slug}.md`];
+if (!document) throw new Error(`Missing public documentation source: ${page.slug}.md`);
+const { Content } = document;
+const headings = document.getHeadings();
+---
+
+<DocumentationLayout page={page} headings={headings}>
+  <Content />
+</DocumentationLayout>

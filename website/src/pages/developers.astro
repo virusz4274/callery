@@ -1,0 +1,29 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { appUrl, siteConfig } from '../lib/site';
+---
+<SiteLayout title="Developer documentation and integrations" description="Connect sync clients, CRMs, and AI assistants to Callery through the recording API, scoped access, OAuth, and MCP.">
+  <article class="container reading-page prose">
+    <header class="page-heading">
+      <h1>Connect the tools around your call archive.</h1>
+      <p>Use Callery's API to upload existing recordings, retrieve transcripts, and search conversations. Compatible AI assistants can connect through MCP with user-approved access.</p>
+    </header>
+    <p class="actions"><a class="button" href="/docs/integration-api">Read the integration guide</a> {siteConfig.comingSoon ? <a class="button button-secondary" href="/docs/api-reference">Read the API reference</a> : <a class="button button-secondary" href={appUrl('/api/v1/openapi.json')}>Open the live OpenAPI schema</a>}</p>
+    <h2>Upload clients and CRMs</h2>
+    <p>Scoped credentials let an integration upload audio and call metadata. Clients discover the deployment's capabilities before choosing an upload method, then finalize uploads and poll for processing results.</p>
+    <p><a href="/docs/integration-api#resumable-direct-uploads">Upload and recovery documentation</a></p>
+    <h2>Transcripts and search</h2>
+    <p>Find recordings using text, contact, and date filters, retrieve transcript pages, and return links to the relevant conversation. Opening those links still requires the appropriate Callery access.</p>
+    <p><a href="/docs/integration-api#search-recordings-and-read-transcript-pages">Search and retrieval documentation</a></p>
+    <h2>AI assistants</h2>
+    <p>The remote MCP endpoint supports compatible clients. OAuth presents the user's Callery sign-in and consent flow. Read, upload, download, and transcription permissions are separate.</p>
+    <p><a href="/docs/mcp-platforms">ChatGPT, Claude, Gemini, and compatible client setup</a></p>
+    <h2>Use the right instance</h2>
+    <p>{siteConfig.comingSoon ? 'Managed Callery is launching soon. On a self-hosted instance, use ' : 'The live OpenAPI schema describes the managed app linked from this website. If you self-host, use '}<code>/api/v1/openapi.json</code> on your own instance and manage credentials in that instance's <strong>Settings → Integrations</strong>.</p>
+    <ul>
+      {!siteConfig.comingSoon && <><li><a href={appUrl('/api/v1/openapi.json')}>Managed app OpenAPI reference</a></li><li><a href={appUrl('/settings?tab=integrations')}>Manage API keys and connected apps</a></li></>}
+      {siteConfig.comingSoon && <li><a href="/docs/setup-guide">Set up your own Callery instance</a></li>}
+      <li><a href="/docs/api-reference">API reference and application boundaries</a></li>
+    </ul>
+  </article>
+</SiteLayout>

@@ -29,6 +29,38 @@ The web app works on desktop/mobile browsers and as a PWA. Native Android work i
 
 The primary upload flow lives on `/upload`.
 
+### Prepare the original recording files
+
+For the organized bulk archive, use a supported dialer that saves original call
+recordings in storage visible to your phone’s file manager. Copy the files
+together without renaming them and keep a separate backup. On supported Samsung
+Phone setups, start at **My Files → Internal storage → Recordings → Call**.
+Xiaomi, OnePlus, OPPO, realme, and vivo/iQOO OEM options depend on the exact
+model, firmware, region, file access, and filename layout; a recording button
+alone is insufficient. The same brand can require different dialer methods.
+
+Google Phone’s individual Share workflow is unsupported for this archive.
+Callery cannot read private dialer storage, import the dialer’s private call log,
+or reconstruct caller/date details missing from shared filenames. Switching to
+a supported OEM dialer affects future recordings; it does not migrate old ones.
+Check the [phone compatibility guide](https://getcallery.com/phone-compatibility)
+and try a few original files before importing a whole collection. Each device
+guide includes copyable instructions for ChatGPT, Gemini, Claude, or Codex and the
+[AI setup limits](https://getcallery.com/guides/set-up-call-recording-with-ai): no
+root, external APKs, or firmware changes; stop an attempted route when its required
+OEM apps are missing or restoration fails. Research another route only when the
+matching guide permits it and its evidence applies to the device. The dialer
+writes originals into shared storage, the file
+manager uses normal permissions to copy them, and Callery's browser file picker
+reads the selected files without unrestricted phone-storage write access.
+
+Automatic caller and date recognition depends on the original filename; see the
+[recognized layouts](recording-filenames.md). An unfamiliar supported audio file
+can still upload, but its unknown caller and upload time do not provide the
+intended contact-and-date archive.
+
+### Transfer and resume uploads
+
 Uploads use a resumable session lasting 24 hours. The queue shows byte progress,
 expiry and per-file status. Pause keeps completed parts; cancel discards the
 unfinished upload. Two files can transfer concurrently, with four part transfers

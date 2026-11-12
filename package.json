@@ -9,6 +9,13 @@
   },
   "type": "module",
   "scripts": {
+    "website:dev": "pnpm --filter @callery/website dev",
+    "website:check": "pnpm --filter @callery/website check && pnpm --filter @callery/website test",
+    "website:build": "pnpm --filter @callery/website build",
+    "website:build:production": "pnpm --filter @callery/website build:production",
+    "website:deploy:production": "pnpm website:build:production && wrangler pages deploy website/dist --project-name callery-website --branch main",
+    "website:preview": "pnpm --filter @callery/website preview",
+    "website:sync-pricing": "tsx scripts/sync-website-pricing.ts",
     "dev": "next dev --turbopack -p 9000",
     "build": "next build --webpack",
     "postbuild": "node scripts/prepare-standalone.mjs && node scripts/verify-pwa.mjs",
