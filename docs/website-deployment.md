@@ -53,13 +53,29 @@ The sync endpoint is read-only. It does not modify Stripe or the database. It is
 
 Repeat this workflow whenever public pricing changes. In `open`, the website's buttons open live app pricing, rather than sending saved Stripe IDs to checkout. Availability can change after a snapshot was published; the app remains authoritative for a purchase. Keep `coming-soon` until the app is ready rather than exposing unavailable signup routes.
 
-## App deployment boundary
+## Configure app links
 
-This static-site release does not deploy or migrate the repository-root app,
-change its existing URLs, or provision database, storage, authentication, email,
-or payment services. The future managed app at `https://app.getcallery.com`
-requires a separate reviewed deployment before opening managed signup. Preserve
-the shared self-host deployment's saved configuration and running processes.
+The app's existing `NEXT_PUBLIC_APP_URL` continues to mean the app origin. Do not point it at the marketing domain. Authentication, OAuth, provider callbacks, API resources, emails, share links, PWA installation, and push belong to that origin.
+
+The optional `NEXT_PUBLIC_MARKETING_URL` points from the app to the main website. When configured with a distinct valid origin, legal, update, and documentation links lead to fixed website paths. Legacy GET/HEAD requests to `/privacy-policy`, `/terms-of-service`, `/changelog`, and `/developers` redirect there without copying app query parameters. Those information pages are removed from the app. Unconfigured instances return 404 for the legal/update routes and send `/developers` to the GitHub integration guide; documentation links also fall back to GitHub.
+
+The website publishes nine curated documents under `/docs`, including the integration API, MCP connection guide, and API reference. Internal engineering notes and operator runbooks remain on GitHub. Each app instance keeps its live `/api/v1/openapi.json` contract and credential settings, since those describe and control that deployment. Managed `/pricing` and `/support` remain in the app for checkout and support submission. The app root opens the recording workspace and all app pages remain non-indexable.
+
+The existing app site profile contains support/sales mailboxes under `callery.com`. Verify ownership and delivery of the final contact addresses before a commercial launch; buying a different domain does not make those mailboxes valid. The static website does not publish those unverified addresses and links to app support only in the `open` launch stage.
+
+Public `NEXT_PUBLIC_*` values are compiled into the app's browser bundle. Supply the intended values through the existing native or Docker build configuration and rebuild the relevant deployment. Do not edit an existing deployment's `.env` merely to test the website.
+
+## Production app on Workers
+
+`pnpm build:vinext:production` applies the public production profile to a Vinext build. It selects Worker `callery`, custom domain `app.getcallery.com`, `NEXT_PUBLIC_APP_URL=https://app.getcallery.com`, `NEXT_PUBLIC_MARKETING_URL=https://getcallery.com`, and managed billing. Generic Vinext and Node commands retain their existing deployment behavior.
+
+The matching `pnpm deploy:vinext:production` command uses the same profile. Configure the intended Cloudflare account and the deployment's runtime settings in the provider before invoking it. This command publishes the application and domain; it is not a local preview. A successful bundle does not close the runtime acceptance gaps in [the Workers guide](cloudflare-workers.md).
+
+Run the production app commands from an isolated source checkout without `.env` or `.dev.vars` files and supply reviewed production settings explicitly. The wrapper refuses a checkout containing deployment files before starting the build or deployment; it does not read or change their contents. This prevents automatic loading of the shared self-host configuration into a production build.
+
+The production Worker declares secret slots for MongoDB, Better Auth, S3/R2 access, Resend, Stripe, and cron authorization. Supply values only through Cloudflare's secret store. Supply nonsecret settings such as the storage endpoint/bucket, verified sender, and provider/model choices through deployment configuration. Add feature-specific secret bindings when enabling Google Contacts, transcription, push, or other integrations. Do not copy the shared self-host test credentials into production or generate replacement encryption/signing keys for an existing archive.
+
+Provider callback registrations use the app origin: Google sign-in `/api/auth/callback/google`, Google Contacts `/api/auth/google/callback`, and the configured webhook routes. Register exact URLs with the relevant provider before offering those integrations. Production database, storage, email, payment configuration, and authenticated Workers acceptance are required before routing real app traffic.
 
 ## Domain cutover
 

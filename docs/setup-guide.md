@@ -194,9 +194,11 @@ Auth notes:
 
 ### External API and MCP connections
 
-The public `/developers` hub is available on both managed and self-hosted
-instances. New mobile and CRM clients use `/api/v1` with a named API key or an
-OAuth access token for that API resource. AI clients use `/mcp/v1`; their OAuth
+The public website publishes the [integration API](integration-api.md) and
+[AI assistant connection instructions](mcp-platforms.md). Each app instance exposes
+its live contract at `/api/v1/openapi.json` and credential controls in
+**Settings → Integrations**. New mobile and CRM clients use `/api/v1` with a named
+API key or an OAuth access token for that API resource. AI clients use `/mcp/v1`; their OAuth
 resource must match that full public URL. Do not change the saved public origin
 to a server listening address while configuring either integration.
 
@@ -243,17 +245,23 @@ Billing notes:
     processing pause remain enforced. Monitor costs/alerts in provider dashboards;
     pricing and profitability are business decisions outside runtime billing.
 
-Public pages follow the billing flag as well. When billing is off or unset, `/`
-opens `/recordings` (preserving query parameters), with the usual login flow for
-signed-out visitors. Pricing, changelog, Terms and Privacy pages return 404 and
-their navigation links are hidden. Support links and `/support` lead to
+The static website owns marketing, guides, developer documentation, changelog and
+legal pages. Set the optional `NEXT_PUBLIC_MARKETING_URL` to that website's public
+origin before building to enable external links and redirects for legacy
+informational GET/HEAD routes. Without it, documentation links use the GitHub
+guides, legacy `/developers` GET/HEAD requests redirect to the integration guide
+on GitHub, and removed legal/changelog routes return 404.
+
+The app's `/` always opens `/recordings` (preserving query parameters), with the
+usual login flow for signed-out visitors. Its sitemap is empty, crawling is
+disallowed, and all app page metadata requests no indexing. Pricing and support
+remain part of the managed app when `NEXT_PUBLIC_ENABLE_BILLING=true`. When billing
+is off or unset, pricing returns 404, and support links and `/support` lead to
 [GitHub Issues](https://github.com/virusz4274/callery/issues), where users can review
-existing issues or raise a new one. `POST /api/support` returns 403 with `error`
-and `supportUrl` without storing a message or sending email. The sitemap is empty,
-crawling is disallowed, and page metadata requests no indexing. Setting
-`NEXT_PUBLIC_ENABLE_BILLING=true` restores the managed public pages and support form.
-As with other `NEXT_PUBLIC_*` settings, rebuild production browser bundles after
-changing this flag. There is no separate deployment-mode setting.
+existing issues or raise a new one. In that mode, `POST /api/support` returns 403 with `error`
+and `supportUrl` without storing a message or sending email. Rebuild production
+browser bundles after changing either public setting. There is no separate
+deployment-mode setting.
 
 ## Storage recipes
 

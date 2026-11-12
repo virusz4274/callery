@@ -3,7 +3,8 @@
 Callery uses Server Actions for most authenticated product behavior and route handlers for auth, webhooks, billing, mobile sync, support, and scheduled jobs.
 
 This is the internal application reference. Third-party/mobile/CRM developers
-should start at the public `/developers` hub and [Integration API](integration-api.md).
+should start with the website's [Integration API](integration-api.md) and
+[AI assistant connection instructions](mcp-platforms.md).
 The deployed machine-readable contract is `/api/v1/openapi.json`; private browser
 routes and Server Actions below are not public integration endpoints.
 

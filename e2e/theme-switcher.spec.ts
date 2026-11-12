@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockRecordings } from './fixtures/recordings';
 
 async function openThemePage(page: Page) {
-  if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true') await page.goto('/');
+  if (process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true') await page.goto('/support');
   else await mockRecordings(page, { open: false });
 }
 

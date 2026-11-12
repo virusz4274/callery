@@ -13,24 +13,28 @@ export type PublicPlan = {
     usagePricing?: UsagePricePresentation;
 };
 
-async function publicPlan(entry: CatalogPlanEntry, db: Awaited<ReturnType<typeof getMongoDb>>): Promise<PublicPlan> {
+async function publicPlan(entry: CatalogPlanEntry, db: Awaited<ReturnType<typeof getMongoDb>>, strict: boolean): Promise<PublicPlan> {
     const plan = entry.plan;
     const usagePricing = usagePricePresentation(plan.interval === 'lifetime' ? 'lifetime' : 'recurring', entry.usageTariffs);
     let purchasable = false;
     try { await assertPublishedPlan(plan, db); purchasable = usagePricing.ready; }
-    catch { /* Reviewed prices remain visible while cost or acceptance evidence needs attention. */ }
+    catch (error) {
+        // Static publication must not turn an incomplete read into a new snapshot.
+        if (strict) throw error;
+        /* Interactive prices remain visible while cost or acceptance evidence needs attention. */
+    }
     return { id: plan._id.toString(), key: plan.key, name: plan.name, description: plan.description || '', price: plan.price,
         currency: plan.currency, interval: plan.interval, features: plan.features, stripePriceId: plan.stripePriceId,
         isPurchasable: purchasable, catalogVersion: entry.catalogVersion, storageBytes: plan.limits.storage,
         weightedMinutes: plan.limits.transcription / 60, usagePricing };
 }
 
-export async function getPublishedPlans(): Promise<PublicPlan[]> {
+export async function getPublishedPlans(strict = false): Promise<PublicPlan[]> {
     if (!billingEnabled()) return [];
     const db = await getMongoDb(), bundle = await getActiveCatalogBundle(db);
     if (!bundle) return [];
     return Promise.all(bundle.plans.filter(entry => entry.plan.isActive && !entry.plan.isDefault && !entry.plan.archivedAt)
-        .sort((a, b) => a.plan.price - b.plan.price || a.plan.name.localeCompare(b.plan.name)).map(entry => publicPlan(entry, db)));
+        .sort((a, b) => a.plan.price - b.plan.price || a.plan.name.localeCompare(b.plan.name)).map(entry => publicPlan(entry, db, strict)));
 }
 
 export async function getUpgradeablePlans(): Promise<PublicPlan[]> {

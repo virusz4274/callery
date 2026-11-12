@@ -8,7 +8,15 @@ Only the latest tagged release is targeted for security fixes. This is a beta pr
 
 ## Retained history
 
-The operator has stated that credentials formerly present in Git history were revoked. History is retained. Revocation is not evidence that every historical credential has been identified: the full-history audit must still run before a public release.
+The operator has stated that credentials formerly present in Git history were revoked. History is retained. Revocation is not evidence that every historical credential has been identified: a full-history audit and review of its findings are required before a public release.
+
+### Audit on 2026-11-12
+
+Pinned Gitleaks 8.30.1 found **zero current-source findings** across 1,071 tracked and untracked nonignored files. The saved deployment `.env` is ignored and untracked; credential fields in `.env.example` are empty. One synthetic authorization placeholder in a source comment was rewritten as prose without changing runtime behavior.
+
+The retained-history audit covered all 496 locally stored commits, including 18 reflog-only commits. It reported 92 occurrences representing 25 distinct rule/value fingerprints: 19 potentially sensitive credentials, four intended public client configuration values, and two synthetic placeholders. Findings include API tokens and private-key material. Provider-side revocation and client-key restrictions were not independently verified. This audit does not cover unfetched remote branches or establish that historical credentials are safe to reuse.
+
+The historical secret gate therefore remains failing until the findings are individually reviewed and any sensitive credentials are confirmed revoked. No historical findings were automatically acknowledged, no history was rewritten, and no replacement credentials were generated. Raw reports and the temporary scanner were deleted; retained audit evidence contains only redacted fingerprints and locations.
 
 CI uses pinned Gitleaks to scan current tracked files, untracked nonignored files, and all reachable Git history. Ignored deployment environment files are excluded from the current-tree scan. The wrapper emits only locations and SHA-256 fingerprints; raw reports exist briefly in a private temporary directory and are deleted. Historical exceptions may contain only fingerprints of findings individually confirmed revoked by the operator. They never exempt the current source tree. Review new findings before adding a baseline; do not automatically accept all findings to make CI green.
 

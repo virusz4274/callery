@@ -2,6 +2,7 @@
 // Keep this module independent of server configuration and its secret variables.
 export const publicEnv = {
     get NEXT_PUBLIC_APP_URL() { return process.env.NEXT_PUBLIC_APP_URL || ''; },
+    get NEXT_PUBLIC_MARKETING_URL() { return process.env.NEXT_PUBLIC_MARKETING_URL || ''; },
     get NODE_ENV() { return process.env.NODE_ENV; },
     get NEXT_PUBLIC_VAPID_PUBLIC_KEY() { return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''; },
     get NEXT_PUBLIC_GOOGLE_CLIENT_ID() { return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''; },

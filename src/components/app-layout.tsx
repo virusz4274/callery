@@ -27,14 +27,6 @@ type AppLayoutProps = {
 const AUTH_PATHS = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
 const MAINTENANCE_ALLOWED_PATHS = new Set(['/login', '/maintenance', '/account-closed']);
 const MINIMAL_LAYOUT_PATHS = new Set([...AUTH_PATHS, '/oauth/login', '/oauth/consent', '/maintenance', '/~offline', '/account-closed']);
-const MARKETING_LAYOUT_PATHS = new Set([
-  '/',
-  '/pricing',
-  '/support',
-  '/changelog',
-  '/privacy-policy',
-  '/terms-of-service',
-]);
 const PROTECTED_PATH_PREFIXES = ['/recordings', '/upload', '/contacts', '/files', '/settings'];
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -139,7 +131,6 @@ function AppLayoutContent({ children }: AppLayoutProps) {
 
   const showHamburger = publicEnv.NEXT_PUBLIC_SHOW_MOBILE_BURGER_MENU;
   const isMinimalLayoutRoute = MINIMAL_LAYOUT_PATHS.has(pathname);
-  const isMarketingLayoutRoute = MARKETING_LAYOUT_PATHS.has(pathname);
   const isProtectedProductRoute = PROTECTED_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
@@ -149,7 +140,7 @@ function AppLayoutContent({ children }: AppLayoutProps) {
   const showDesktopSidebar = showProductChrome && !pathname.startsWith('/admin');
   const showBottomNav = showProductChrome && isMobile && !showHamburger && !pathname.startsWith('/admin');
   const showInstallPrompt = showProductChrome && !pathname.startsWith('/admin');
-  const mainClassName = isMinimalLayoutRoute || isMarketingLayoutRoute
+  const mainClassName = isMinimalLayoutRoute
     ? 'flex flex-1 flex-col'
     : `flex min-w-0 flex-1 flex-col gap-4 px-3 py-4 md:gap-6 md:px-8 md:py-8 ${
         showBottomNav

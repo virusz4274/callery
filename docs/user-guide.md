@@ -223,8 +223,10 @@ tokens for clients, displays each new secret once, and lets you rotate or revoke
 tokens separately. Connected OAuth apps are listed with their permissions and
 can be disconnected independently. AI search results link back to Callery for
 playback; opening a link still requires an authorized Callery session. The public
-`/developers` page links [integration setup](integration-api.md), the live OpenAPI
-reference, and [AI assistant connection instructions](mcp-platforms.md).
+website publishes [integration setup](integration-api.md) and
+[AI assistant connection instructions](mcp-platforms.md). Each app instance exposes
+its live OpenAPI reference at `/api/v1/openapi.json`; manage credentials in
+**Settings → Integrations**.
 
 ### Closing a personal account
 

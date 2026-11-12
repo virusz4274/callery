@@ -8,6 +8,8 @@ The October 18 update refreshed 33 direct packages and the Cloudflare Vite beta 
 
 ## Compatibility choices
 
+- The independent `website/` workspace uses Astro 7.4.11, `@astrojs/check` 0.9.12, `@astrojs/sitemap` 3.7.4, and locally served Manrope 5.3.0. It shares the pinned pnpm lockfile and the intentional TypeScript compiler API alias; its checks are separate from the Next.js app. App typechecking excludes the website, and the Docker dependency stage includes both workspace manifests.
+
 - Node's type declarations stay on the Node **24** release line (24.19.2) to match the selected runtime, rather than following a registry tag targeting a different Node major.
 - The `typescript` alias supplies the JavaScript compiler API (`@typescript/typescript6`) required by Next.js and the lint parser. The `@typescript/native` alias supplies the TypeScript **7** command-line compiler. Both are intentional; replacing the API package with TypeScript 7 breaks tools that require `typescript/lib/typescript.js`.
 - ESLint 10 uses the current TypeScript parser across JavaScript/TypeScript files because Next's bundled Babel parser lacks ESLint 10's `ScopeManager.addGlobals` method. `@eslint/compat` adapts React/import/accessibility rules that still use removed context methods. The three peer-version rules in `pnpm-workspace.yaml` apply specifically to those adapted plugins.
@@ -30,7 +32,7 @@ a narrow override for older versions; see the
 
 The old Cloudflare tooling selected sharp 0.35.4, affected by [GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w). The coordinated Cloudflare update selects Miniflare 5.20261012.1-beta and sharp 0.35.5, resolving this finding without another override.
 
-The current graph retains narrow overrides for fflate 0.7.5 and source-map-js 1.2.2. The former UUID/gaxios 6 and gRPC overrides no longer match any locked package and have been removed.
+The current graph retains narrow overrides for fflate 0.7.5, source-map-js 1.2.2, and fast-uri 3.1.9. The fast-uri override removes the affected transitive version shared by existing app tooling and Astro's content checker. The former UUID/gaxios 6 and gRPC overrides no longer match any locked package and have been removed.
 
 GitHub withdrew [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) on 2026-10-23 because it is not a practically exploitable vulnerability. There is no newer upstream `braces` release containing our optional depth guards. The cleanup removes that local hardening patch and the audit's special source-hash exception; all registry findings now fail the audit normally.
 
@@ -51,9 +53,16 @@ pnpm build:vinext
 
 `pnpm run audit` and `pnpm run audit:prod` validate the registry response and fail on every reported advisory. They contain no patch exceptions or severity allowances. Bare `pnpm audit` exposes the raw registry scan.
 
-The 2026-11-01 cleanup leaves package versions unchanged. A current full registry audit reports 19 unresolved findings (five high, twelve moderate and two low) affecting zod, undici, nodemailer, fast-uri, qs, minimatch and glob. The audit remains failing until those dependencies are remediated and verified; the historical green results below do not certify the current graph.
+The 2026-11-12 website split resolves the four fast-uri findings with the narrow override above. A full registry audit still reports 15 pre-existing findings affecting zod, undici, nodemailer, qs, minimatch, and glob; none of the remaining advisory paths belong to the website workspace. The audit remains failing until those dependencies are remediated and verified; the historical green results below do not certify the current graph.
 
 Runtime verification uses a source copy without deployment `.env` files, disposable MongoDB and a memory-only S3 fixture on separate loopback ports. Integration suites use process-only `VOSIFT_TEST_MONGODB_URI`, `VOSIFT_TEST_STORAGE_ENDPOINT`, `VOSIFT_TEST_API_BASE_URL` and `VOSIFT_TEST_API_MONGODB_URI` settings. Browser tests use `TEST_BASE_URL` and `TEST_ACTION_MANIFEST_PATH` for that production build. Live Google OAuth, Stripe, SMTP and a deployed Worker require separate verification; Docker container startup also requires Docker Engine.
+
+## Website split verification — 2026-11-12
+
+- Astro checks and six pricing/publication tests pass. The static output contains 15 pages, valid JSON-LD, sitemap/robots rules, and 390 checked internal links and assets. An unpublished Vivo fixture stays out of routes and the sitemap; indexable builds require matching real pricing. Desktop and 360px mobile browser review passed.
+- App lint, unit tests, dependency/release/runtime checks, and peer validation pass. Isolated self-hosted Next.js, managed Next.js, and vinext builds pass; Next builds also pass PWA verification. Twenty production HTTP assertions cover redirects, query values, indexing, developer/support pages, legal fallbacks, and unavailable pricing.
+- A clean frozen-lockfile installation with the Docker dependency-stage manifest set passes. Docker Engine is unavailable, so full container acceptance was not run. No deployment environment files or user-owned processes were changed.
+- The full registry audit still fails on the 15 pre-existing findings documented above. No advisory exceptions were added, and no remaining advisory path belongs to the website workspace.
 
 ## Verification — 2026-11-03
 

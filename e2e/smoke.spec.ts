@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { publicSitePolicy } from '../src/lib/public-site-policy';
 
 function uniqueEmail() {
   return `e2e.${Date.now()}.${Math.random().toString(36).slice(2, 8)}@example.com`;
@@ -41,21 +42,13 @@ const protectedRouteExpectations = [
   },
 ];
 
-test('public pages load', async ({ page }) => {
-  test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Managed public pages require billing.');
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Find the details in your recorded calls.');
-  await expect(page.getByRole('link', { name: 'Start free trial', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('figure', { name: 'Example call', exact: true })).toBeVisible();
-  await expect(page.locator('body')).not.toContainText('The homepage now leads with');
-  await expect(page.locator('body')).not.toContainText('capability story');
-
+test('public account services load', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute('content', /noindex/);
+  if (!publicSitePolicy().managedEnabled) return;
   await page.goto('/pricing');
-  await expect(page.locator('body')).toContainText('Pricing');
-  await expect(page.getByRole('table', { name: 'Compare Callery plans', exact: true })).toBeVisible();
-  await expect(page.locator('body')).toContainText('Storage');
-  await expect(page.locator('body')).not.toContainText('The page now shows the whole ladder at once');
-
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('A plan for your growing call archive.');
   await page.goto('/support');
   await expect(page.getByRole('heading', { name: 'Send a message', exact: true })).toBeVisible();
 });
@@ -113,7 +106,7 @@ test('mobile login shows email sign-in without an extra reveal', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/login?redirect=%2Fupload');
 
-  await expect(page.getByRole('link', { name: /Back to site/i })).toHaveCount(process.env.NEXT_PUBLIC_ENABLE_BILLING === 'true' ? 1 : 0);
+  await expect(page.getByRole('link', { name: /Back to site/i })).toHaveCount(publicSitePolicy().marketingHref ? 1 : 0);
   const capabilities = await page.request.get('/api/auth/capabilities');
   if ((await capabilities.json()).googleEnabled) {
     await expect(page.getByRole('button', { name: /Sign in with Google/i })).toBeVisible();
@@ -253,7 +246,6 @@ test('authenticated user journey works', async ({ page }) => {
 
     await page.goto('/pricing');
     await expect(page.locator('body')).toContainText('Pricing');
-    await expect(page.locator('body')).toContainText('Compare what changes');
-    await expect(page.locator('body')).toContainText('Hosting');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('A plan for your growing call archive.');
   });
 });

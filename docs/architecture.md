@@ -2,9 +2,12 @@
 
 Callery is a Next.js 16 App Router application for ingesting, organizing, transcribing, searching, exporting, and sharing recorded conversations.
 
+Its public website is an independent static Astro package in `website/`, served at `https://getcallery.com` by Cloudflare Pages. The Next.js app uses `https://app.getcallery.com` and keeps authentication, recordings, billing, support submissions, APIs, and PWA behavior on that origin; production app services can be provisioned separately. Website pricing uses a validated snapshot of the app's read-only published catalog; checkout resolves live terms in the app. See [website deployment](website-deployment.md) for configuration and publication.
+
 ## Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS v4, HeroUI v3
+- Marketing and phone guides: Astro 7 static HTML, Markdown content collections, structured data, and a separate build
 - Auth: Better Auth + MongoDB for managed and self-hosted deployments, with shared client/server hooks
 - Database: MongoDB
 - Storage: private S3-compatible storage, including Cloudflare R2, AWS S3, and MinIO

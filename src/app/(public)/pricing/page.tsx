@@ -7,7 +7,7 @@ import { publicSitePolicy } from '@/lib/public-site-policy';
 import {
   buildOfferSchemas,
   buildSoftwareApplicationSchema,
-  createMarketingMetadata,
+  createAppPageMetadata,
   jsonLdGraph,
   siteSeoConfig,
 } from '@/lib/seo';
@@ -15,7 +15,7 @@ import styles from '@/components/marketing/pricing.module.css';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = createMarketingMetadata({
+export const metadata: Metadata = createAppPageMetadata({
   config: siteSeoConfig,
   title: 'Plans and pricing',
   description: 'Compare Callery plans for your recorded calls. See included storage, transcription, and clear usage pricing.',
@@ -24,7 +24,7 @@ export const metadata: Metadata = createMarketingMetadata({
 });
 
 export default async function PricingPage() {
-  if (!publicSitePolicy().marketingEnabled) notFound();
+  if (!publicSitePolicy().managedEnabled) notFound();
   const pricing = await getMarketingPricing();
   const jsonLd = jsonLdGraph(buildSoftwareApplicationSchema(siteSeoConfig, {
     name: `${siteSeoConfig.siteName} pricing`,

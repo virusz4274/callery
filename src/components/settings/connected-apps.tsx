@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { documentationHref } from '@/lib/public-site-policy';
 import useSWR from 'swr';
 import { Button, Card, Chip, Spinner } from '@heroui/react';
 import { Link2 } from 'lucide-react';
@@ -51,6 +52,6 @@ export function ConnectedApps() {
             {!connection.revokedAt && <Button size="sm" variant="danger-soft" isDisabled={busy !== null} isPending={busy === connection.id} onPress={() => { void disconnect(connection); }}>Disconnect app</Button>}
         </div>)}
         {loadError && <Button size="sm" variant="secondary" onPress={() => { void mutate(); }}>Retry loading</Button>}
-        <a className="text-sm text-accent underline" href="/developers">Connection and API documentation</a>
+        <a className="text-sm text-accent underline" href={documentationHref('integration-api')}>Connection and API documentation</a>
     </Card.Content></Card>;
 }

@@ -11,10 +11,10 @@ for (const theme of ['light', 'dark']) {
             await page.setViewportSize({ width, height: 900 });
             await page.addInitScript(value => localStorage.setItem('theme', value), theme);
             const unexpected = await mockRecordings(page, { url: '/support', open: false });
-            for (const route of ['/support', '/changelog', '/privacy-policy', '/terms-of-service', '/pricing']) {
+            for (const route of ['/support', '/pricing']) {
                 await page.goto(route);
                 await expect(page.locator('main h1')).toBeVisible();
-                await expect(page.locator('main [data-slot="card"]').first()).toBeVisible();
+                if (route === '/support') await expect(page.locator('main [data-slot="card"]').first()).toBeVisible();
                 await expect(page.locator('main a button')).toHaveCount(0);
                 expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
                 expect(await page.locator('main').evaluate(main => [...main.querySelectorAll('*')].some(element => getComputedStyle(element).backgroundImage.includes('radial-gradient')))).toBe(false);

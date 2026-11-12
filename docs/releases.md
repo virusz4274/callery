@@ -8,7 +8,7 @@ There is no generic pull-only app image. Next.js inlines `NEXT_PUBLIC_*` values,
 
 `.github/workflows/validate.yml` runs on PRs, main, version tags and manual dispatch. Actions are pinned to verified commit IDs. Node is selected from `.nvmrc` and pnpm from `packageManager`; dependencies use the frozen lockfile. There are no provider credentials or deployment secrets in workflow inputs.
 
-Repository rules must require the secret-scan and both acceptance matrix checks before merging. Adding a workflow does not itself enable branch protection. Enable GitHub private vulnerability reporting before directing security reports there.
+Repository rules must require the secret-scan, website and both acceptance matrix checks before merging. The website job runs `pnpm website:check` and `pnpm website:build` without deployment secrets. Adding a workflow does not itself enable branch protection. Enable GitHub private vulnerability reporting before directing security reports there.
 
 1. Pinned Gitleaks scans tracked files, untracked nonignored files, and complete reachable history. Ignored deployment configuration is excluded from the current-tree scan. Only reviewed, operator-confirmed revoked historical fingerprints may be acknowledged; current source has no such exception. Unknown findings fail the gate. See [SECURITY.md](../SECURITY.md).
 2. A billing-off/on matrix runs `scripts/ci-acceptance.mjs`. It snapshots source without deployment environment files, generates fixture-only configuration in a new temporary directory, and assigns a unique Compose project, volumes and available loopback ports. It builds the real production Dockerfile and optional storage source images, initializes MongoDB and storage, starts Mailpit, waits for health, and sets all network-suite variables.
@@ -39,7 +39,7 @@ Bundled MinIO is optional compatibility storage and an acceptance fixture, with 
 
 ## Versioned source release
 
-On a `v<package.json version>` tag, the workflow creates a **draft** GitHub release with a source archive and SHA-256 checksum only after secret review, both acceptance matrix profiles and the Workers compatibility job succeed. That compatibility job runs the lifecycle tests and vinext build; it does not deploy or certify a Worker. An operator reviews and publishes the draft. The workflow does not deploy the managed service or change a self-host installation.
+On a `v<package.json version>` tag, the workflow creates a **draft** GitHub release with a source archive and SHA-256 checksum only after secret review, website validation, both acceptance matrix profiles and the Workers compatibility job succeed. That compatibility job runs the lifecycle tests and vinext build; it does not deploy or certify a Worker. An operator reviews and publishes the draft. The workflow does not deploy the managed service or change a self-host installation.
 
 Before publishing, run the real provider acceptance separately: selected email provider to an operator-controlled mailbox; Google OAuth callbacks if offered; Stripe test-mode subscription/Lifetime, payment failures, webhook retries and metering as documented in [billing](billing.md). Fixtures prove application contracts but cannot prove a real account/domain/product was configured correctly. Do not enable live money collection until that Stripe checklist passes.
 

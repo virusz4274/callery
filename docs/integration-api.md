@@ -1,11 +1,12 @@
 # Recording integration API
 
-Connect a sync client, CRM, or other trusted tool to any Vosift instance using its
+Connect a sync client, CRM, or other trusted tool to any Callery instance using its
 public server URL and a named API token from **Settings → Integrations**. No Android
 client is included. The machine-readable contract is `GET /api/v1/openapi.json`.
 
-The public **`/developers`** page links this guide, the current instance's live
-OpenAPI contract, credential settings, and [AI assistant setup](mcp-platforms.md).
+The public website publishes this guide and [AI assistant setup](mcp-platforms.md).
+Each app instance exposes its live OpenAPI contract at `/api/v1/openapi.json`;
+manage credentials in **Settings → Integrations**.
 This is the external contract for native/mobile apps, phone CRMs, sync clients,
 and other services. Internal Server Actions and cookie-authenticated browser
 upload routes are not replacements for `/api/v1`.
@@ -19,7 +20,7 @@ upload a file.
 ## Credentials and permissions
 
 Send `Authorization: Bearer <token>` on authenticated `/api/v1` requests. Never send
-the Vosift token to a returned storage URL. Tokens default to 90 days; users can
+the Callery token to a returned storage URL. Tokens default to 90 days; users can
 choose a date or no expiration. The secret is displayed once and only its hash is
 stored. Rotation immediately invalidates the previous credential while preserving
 the integration identity and upload sessions. Revocation prevents further API
@@ -355,7 +356,7 @@ apply.
 ## Self-hosting and operations
 
 - Keep `NEXT_PUBLIC_APP_URL` set to the public instance origin. The future client
-  accepts that URL; no Vosift cloud host is hard-coded. Preserve existing OAuth,
+  accepts that URL; no Callery cloud host is hard-coded. Preserve existing OAuth,
   webhook, and deployment URLs when configuring clients.
 - Storage supports R2, MinIO, and S3-compatible backends with multipart create,
   list, complete, abort, head, get, and copy operations. `S3_PUBLIC_ENDPOINT` must

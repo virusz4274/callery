@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 import NotFound from './not-found';
 
-export const metadata: Metadata = { title: '404 - Page Not Found' };
+export const metadata: Metadata = {
+    title: '404 - Page Not Found',
+    robots: { index: false, follow: false },
+};
 
 export default function GlobalNotFound() {
     return (

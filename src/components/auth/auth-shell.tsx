@@ -17,6 +17,7 @@ type AuthShellProps = {
 };
 
 export function AuthShell({ title, description, children, footer }: AuthShellProps) {
+    const { marketingHref } = publicSitePolicy();
     return (
         <div className="min-h-dvh bg-background text-foreground">
             <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
@@ -24,9 +25,9 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
                     <Link href="/" className="inline-flex min-h-11 items-center gap-2.5 text-lg font-semibold tracking-tight">
                         <Logo className="size-7" />Callery
                     </Link>
-                    {publicSitePolicy().marketingEnabled && <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-muted transition-colors hover:text-foreground">
+                    {marketingHref && <a href={marketingHref} className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-muted transition-colors hover:text-foreground">
                         <ArrowLeft className="size-4" aria-hidden="true" />Back to site
-                    </Link>}
+                    </a>}
                 </div>
                 <main className="flex flex-1 items-start justify-center py-6 md:py-12">
                     <Card className="w-full max-w-md gap-0 rounded-2xl border border-border bg-surface p-0 shadow-surface">

@@ -74,13 +74,13 @@ test('More tools opens destinations and marks the current settings page', async 
     await more.click();
     await expect(dialog.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
     expect(documentNavigations).toBe(0);
-    const { marketingEnabled, supportHref } = publicSitePolicy();
-    if (!marketingEnabled) {
+    const { managedEnabled, supportHref } = publicSitePolicy();
+    if (!managedEnabled) {
         await page.route(supportHref, route => route.fulfill({ contentType: 'text/html', body: '<h1>GitHub Issues</h1>' }));
     }
     await dialog.getByRole('link', { name: 'Help & support', exact: true }).click();
-    await expect(page).toHaveURL(marketingEnabled ? /\/support$/ : supportHref);
-    await expect(page.getByRole('heading', { name: marketingEnabled ? 'Get help keeping your call archive moving.' : 'GitHub Issues', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(managedEnabled ? /\/support$/ : supportHref);
+    await expect(page.getByRole('heading', { name: managedEnabled ? 'Get help keeping your call archive moving.' : 'GitHub Issues', exact: true })).toBeVisible();
     await expect(dialog).toHaveCount(0);
     await page.goBack();
     await expect(page).toHaveURL(/\/settings$/);

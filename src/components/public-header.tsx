@@ -5,19 +5,18 @@ import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/icons';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { cn } from '@/lib/utils';
-import { publicSitePolicy } from '@/lib/public-site-policy';
-
-const marketingLinks = [
-  { href: '/', label: 'Overview' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/support', label: 'Support' },
-  { href: '/changelog', label: 'Updates' },
-];
+import { documentationHref, publicSitePolicy } from '@/lib/public-site-policy';
 
 export function PublicHeader() {
   const pathname = usePathname();
-  const { marketingEnabled, supportHref } = publicSitePolicy();
-  const links = (marketingEnabled ? marketingLinks : [{ href: supportHref, label: 'Support' }]).map((item) => (
+  const { managedEnabled, supportHref, marketingHref } = publicSitePolicy();
+  const appLinks = [
+    ...(managedEnabled ? [{ href: '/pricing', label: 'Pricing' }] : []),
+    { href: documentationHref('integration-api'), label: 'Documentation' },
+    { href: supportHref, label: 'Support' },
+    ...(marketingHref ? [{ href: marketingHref, label: 'Website' }] : []),
+  ];
+  const links = appLinks.map((item) => (
     <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}
       className={cn('inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors',
         pathname === item.href ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-surface-secondary hover:text-foreground')}>
@@ -37,10 +36,10 @@ export function PublicHeader() {
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeSwitcher />
           <Link href="/login" className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-secondary sm:inline-flex">Log in</Link>
-          <Link href="/signup" className="button button--primary button--sm px-4">{marketingEnabled ? 'Start free' : 'Sign up'}</Link>
+          <Link href="/signup" className="button button--primary button--sm px-4">Sign up</Link>
         </div>
       </div>
-      <nav aria-label="Mobile site navigation" className="flex justify-center gap-1 border-t border-border px-3 py-1 md:hidden">{links}</nav>
+      <nav aria-label="Mobile site navigation" className="flex flex-wrap justify-center gap-1 border-t border-border px-3 py-1 md:hidden">{links}</nav>
     </header>
   );
 }

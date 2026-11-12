@@ -17,7 +17,7 @@ import { isAuthorizedCronRequest } from '@/lib/cron-auth';
  * - Vercel Cron (via vercel.json)
  * - Docker cron job
  * - External scheduler (cron-job.org, AWS EventBridge, etc.)
- * - Manual: curl -X GET http://localhost:9000/api/cron/cleanup-recordings -H "Authorization: Bearer YOUR_SECRET"
+ * - Manual: request this endpoint using the configured cron authorization header.
  */
 export async function GET(request: NextRequest) {
     if (!isAuthorizedCronRequest(request.headers.get('authorization'), env.CRON_SECRET)) {

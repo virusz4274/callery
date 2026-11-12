@@ -8,6 +8,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Public repository and production domains
+
+- This is the public, open-source `virusz4274/callery` repository. Treat every tracked file, commit, build artifact, screenshot, and published log as publicly readable.
+- Never commit credentials, filled deployment environment files, private keys, service-account files, authentication/session tokens, signed storage URLs, customer audio, or transcripts. Use provider secret stores or ignored local configuration. Keep committed examples synthetic and clearly identified.
+- Before claiming the repository is free of exposed credentials, run the pinned current-source and retained-history audit in `scripts/scan-secrets.mjs`. Report only redacted locations and fingerprints. A clean current tree does not establish that historical credentials were revoked; never invent revocation status or automatically acknowledge historical findings.
+- The production website is `https://getcallery.com`; the production app is `https://app.getcallery.com`. Keep these public origins in the committed production profile and deployment settings. API keys and other runtime credentials must never be placed in that profile or exposed through `NEXT_PUBLIC_*` / `PUBLIC_*` variables.
+- The website deploys to the `callery-website` Cloudflare Pages project. It needs no app database or API credentials. The future production app is a separate deployment; publishing website content does not authorize provisioning or migrating app services.
+- The production domains do not replace this checkout's shared self-host test origin. Preserve the test environment and existing processes under the rules below.
+
 ## Preserve the self-host test environment
 
 - Treat existing `.env` and `.env.*` files as user-owned deployment configuration. A request to change code, fix a bug, build, or run tests does not authorize editing them. Edit only fields the user explicitly requests; do not create an overriding `.env.local` or `.env.development*` to bypass this rule.

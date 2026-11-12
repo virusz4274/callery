@@ -2,7 +2,7 @@
 'use client';
 
 import { Modal, Button, Link } from '@heroui/react';
-import { publicSitePolicy } from '@/lib/public-site-policy';
+import { marketingPageHref } from '@/lib/public-site-policy';
 
 interface GoogleConnectDialogProps {
     onOpenChange: (open: boolean) => void;
@@ -10,6 +10,7 @@ interface GoogleConnectDialogProps {
 }
 
 export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDialogProps) {
+    const privacyHref = marketingPageHref('/privacy-policy');
     return (
         <Modal isOpen onOpenChange={onOpenChange}>
             <Button className="hidden" aria-hidden="true" />
@@ -33,8 +34,8 @@ export function GoogleConnectDialog({ onOpenChange, onConfirm }: GoogleConnectDi
                                     </ul>
                                 </div>
                                 <p className="text-xs text-default-400">
-                                    {publicSitePolicy().marketingEnabled ? <>By clicking continue, you agree to our{' '}
-                                    <Link href="/privacy-policy" className="underline text-small">Privacy Policy</Link>
+                                    {privacyHref ? <>By clicking continue, you agree to our{' '}
+                                    <Link href={privacyHref} className="underline text-small">Privacy Policy</Link>
                                     {' '}regarding contact data usage.</> : 'Continuing allows this instance to access and sync your Google contact names, phone numbers, and primary email addresses to identify callers.'}
                                 </p>
                             </div>

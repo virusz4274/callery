@@ -278,6 +278,7 @@ export const serverEnv = {
     get VERCEL_ENV() { return process.env.VERCEL_ENV || ''; },
     get NODE_ENV() { return publicEnv.NODE_ENV || 'development'; },
     get NEXT_PUBLIC_APP_URL() { return publicEnv.NEXT_PUBLIC_APP_URL || 'http://localhost:9000'; },
+    get NEXT_PUBLIC_MARKETING_URL() { return publicEnv.NEXT_PUBLIC_MARKETING_URL; },
     get MONGODB_URI() { return process.env.MONGODB_URI || ''; },
     get MONGODB_DNS_SERVERS() { return process.env.MONGODB_DNS_SERVERS; },
     get MONGODB_CONNECTION_MODE() { return (process.env.MONGODB_CONNECTION_MODE || 'default') as 'default' | 'fallback-first'; },

@@ -31,7 +31,7 @@ const supportMessageSchema = z.object({
 
 export async function POST(request: NextRequest) {
     const policy = publicSitePolicy();
-    if (!policy.marketingEnabled) {
+    if (!policy.managedEnabled) {
         return NextResponse.json(
             { error: 'Support requests for self-hosted instances belong on GitHub Issues.', supportUrl: policy.supportHref },
             { status: 403 },

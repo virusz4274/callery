@@ -1,39 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { absoluteUrl, siteOrigin } from '@/lib/seo';
-import { publicSitePolicy } from '@/lib/public-site-policy';
 
 export default function robots(): MetadataRoute.Robots {
-  if (!publicSitePolicy().marketingEnabled) {
-    return { rules: { userAgent: '*', disallow: '/' } };
-  }
-  return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/oauth/',
-          '/mcp/',
-          '/recordings/',
-          '/contacts/',
-          '/files/',
-          '/settings/',
-          '/upload/',
-          '/login',
-          '/signup',
-          '/forgot-password',
-          '/reset-password',
-          '/account-closed',
-          '/maintenance',
-          '/android-sync',
-          '/~offline',
-          '/s/',
-        ],
-      },
-    ],
-    host: siteOrigin,
-    sitemap: absoluteUrl('/sitemap.xml'),
-  };
+  return { rules: { userAgent: '*', disallow: '/' } };
 }

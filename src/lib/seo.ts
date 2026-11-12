@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import type { MarketingPricing } from '@/lib/marketing-pricing';
 import { getConfiguredPublicAppOrigin } from '@/lib/public-url';
 import { siteProfile } from '@/lib/site-profile';
-import { publicSitePolicy } from '@/lib/public-site-policy';
 
 export const siteOrigin = getConfiguredPublicAppOrigin();
 
@@ -20,25 +19,12 @@ export type SiteSeoConfig = {
 
 type SchemaNode = Record<string, unknown>;
 
-type MarketingMetadataInput = {
+type AppPageMetadataInput = {
   title: string;
   description: string;
   path: string;
   keywords?: string[];
   type?: 'website' | 'article';
-  noIndex?: boolean;
-};
-
-const defaultRobots = {
-  index: true,
-  follow: true,
-  googleBot: {
-    index: true,
-    follow: true,
-    'max-snippet': -1,
-    'max-image-preview': 'large' as const,
-    'max-video-preview': -1,
-  },
 };
 
 export const siteSeoConfig: SiteSeoConfig = {
@@ -49,9 +35,7 @@ export const siteSeoConfig: SiteSeoConfig = {
 export function createSiteMetadata(config: SiteSeoConfig): Metadata {
   return {
     metadataBase: new URL(config.siteOrigin),
-    ...(!publicSitePolicy().marketingEnabled && {
-      robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
-    }),
+    robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
     title: {
       default: `${config.siteName}: ${config.siteTagline}`,
       template: `%s | ${config.siteName}`,
@@ -118,28 +102,19 @@ export function absoluteUrl(
   return new URL(pathname, origin).toString();
 }
 
-export function createMarketingMetadata({
+export function createAppPageMetadata({
   config,
   title,
   description,
   path,
   keywords = [],
   type = 'website',
-  noIndex = false,
-}: MarketingMetadataInput & { config: SiteSeoConfig }): Metadata {
-  const robots = (noIndex || !publicSitePolicy().marketingEnabled)
-    ? {
-        index: false,
-        follow: false,
-        googleBot: {
-          index: false,
-          follow: false,
-          'max-snippet': 0,
-          'max-image-preview': 'none' as const,
-          'max-video-preview': 0,
-        },
-      }
-    : defaultRobots;
+}: AppPageMetadataInput & { config: SiteSeoConfig }): Metadata {
+  const robots = {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  };
 
   return {
     metadataBase: new URL(config.siteOrigin),

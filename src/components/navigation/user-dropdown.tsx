@@ -4,7 +4,7 @@ import { Dropdown, Avatar } from '@heroui/react';
 import { Settings, LogOut, HelpCircle, FileText, Shield } from 'lucide-react';
 import type { AppUser as User } from '@/lib/auth/types';
 import type { User as UserProfile } from '@/lib/types';
-import { publicSitePolicy } from '@/lib/public-site-policy';
+import { marketingPageHref, publicSitePolicy } from '@/lib/public-site-policy';
 
 interface UserDropdownProps {
     user: User;
@@ -13,7 +13,9 @@ interface UserDropdownProps {
 }
 
 export function UserDropdown({ user, onLogout }: UserDropdownProps) {
-    const { marketingEnabled, supportHref } = publicSitePolicy();
+    const { supportHref } = publicSitePolicy();
+    const termsHref = marketingPageHref('/terms-of-service');
+    const privacyHref = marketingPageHref('/privacy-policy');
     return (
         <Dropdown>
             <Dropdown.Trigger aria-label="Open account menu" className="flex size-11 cursor-pointer items-center justify-center rounded-full">
@@ -43,13 +45,13 @@ export function UserDropdown({ user, onLogout }: UserDropdownProps) {
                             <p>Help & Feedback</p>
                         </div>
                     </Dropdown.Item>
-                    {marketingEnabled && <Dropdown.Item key="terms" href="/terms-of-service" textValue="Terms">
+                    {termsHref && <Dropdown.Item key="terms" href={termsHref} textValue="Terms">
                         <div className="flex items-center gap-2">
                             <Shield className="h-4 w-4" />
                             <p>Terms of Service</p>
                         </div>
                     </Dropdown.Item>}
-                    {marketingEnabled && <Dropdown.Item key="privacy" href="/privacy-policy" textValue="Privacy">
+                    {privacyHref && <Dropdown.Item key="privacy" href={privacyHref} textValue="Privacy">
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <p>Privacy Policy</p>

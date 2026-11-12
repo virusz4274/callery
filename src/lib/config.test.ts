@@ -101,11 +101,13 @@ test('legacy env is the canonical lazy configuration and needs no unrelated inte
         MONGODB_URI: undefined, SMTP_HOST: undefined, SMTP_PORT: 'invalid',
         R2_ENDPOINT: undefined, STRIPE_SECRET_KEY: undefined,
         NEXT_PUBLIC_APP_URL: 'https://configured.invalid', NEXT_PUBLIC_ENABLE_BILLING: 'false',
+        NEXT_PUBLIC_MARKETING_URL: 'https://website.invalid',
     }, async () => {
         const { serverEnv, billingEnabled, smtpConfig, mongoUri } = await import('./config');
         const { env } = await import('./env');
         assert.equal(env, serverEnv, 'Compatibility imports must share one set of defaults and validation.');
         assert.equal(env.NEXT_PUBLIC_APP_URL, 'https://configured.invalid');
+        assert.equal(env.NEXT_PUBLIC_MARKETING_URL, 'https://website.invalid');
         assert.equal(billingEnabled(), false);
         assert.equal(env.STRIPE_SECRET_KEY, '');
         assert.throws(mongoUri, /Missing MONGODB_URI/);

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { SupportFormCard } from '@/components/pages/support-form-card';
 import styles from '@/components/marketing/information-pages.module.css';
+import { documentationHref } from '@/lib/public-site-policy';
 
 type SupportPageProps = {
   supportEmail: string;
@@ -28,10 +29,10 @@ export function SupportPage({ supportEmail }: SupportPageProps) {
           <span>Plans and billing</span>
           <span>Compare plans, storage, and transcription allowances.</span>
         </Link>
-        <Link href="/changelog" className={styles.helpLink}>
+        <a href={documentationHref('releases')} className={styles.helpLink}>
           <span>Product updates</span>
           <span>Read the latest Callery release notes.</span>
-        </Link>
+        </a>
       </nav>
     </div>
   );

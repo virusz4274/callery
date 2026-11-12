@@ -26,6 +26,7 @@ FROM source AS builder
 # database, storage, auth secrets and provider keys are supplied at runtime.
 ARG NEXT_PUBLIC_ENABLE_BILLING=false
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_MARKETING_URL
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ARG NEXT_PUBLIC_GOOGLE_REDIRECT_URI
 ARG NEXT_PUBLIC_SENTRY_DSN

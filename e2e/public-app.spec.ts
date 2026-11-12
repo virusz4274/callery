@@ -1,6 +1,8 @@
 import { expect, test, type Page, type Request } from '@playwright/test';
+import { documentationHref, marketingPageHref, publicSitePolicy } from '../src/lib/public-site-policy';
 
-const marketingRoutes = ['/', '/pricing', '/support', '/changelog', '/privacy-policy', '/terms-of-service'];
+const { marketingHref } = publicSitePolicy();
+const appPublicRoutes = ['/pricing', '/support'];
 const leakedCopy = /\bsandbox\b|\bvosift\b|run pricing setup|\blanes?\b|\brollout\b|the homepage now|capability story|the page now shows/i;
 const backendError = 'Sandbox VoSift internal_catalog_fixture: secret implementation detail';
 const supportMessage = {
@@ -14,7 +16,7 @@ const supportMessage = {
 test.use({ serviceWorkers: 'block' });
 test.setTimeout(120_000);
 test.beforeEach(async ({ page }) => {
-  test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Marketing pages require the managed deployment policy.');
+  test.skip(process.env.NEXT_PUBLIC_ENABLE_BILLING !== 'true', 'Account services require the managed deployment policy.');
   // No test in this suite can submit a message or start a real checkout.
   await page.route('**/api/support', route => route.fulfill({ status: 500, json: { error: backendError } }));
   await page.route('**/api/stripe/checkout', route => route.fulfill({ status: 500, json: { error: backendError } }));
@@ -48,7 +50,7 @@ for (const width of [360, 768, 1440]) {
       await page.emulateMedia({ colorScheme });
       await page.addInitScript(() => localStorage.setItem('theme', 'system'));
 
-      for (const route of marketingRoutes) {
+      for (const route of appPublicRoutes) {
         await test.step(route, async () => {
           const response = await page.goto(route);
           expect(response?.status()).toBe(200);
@@ -61,9 +63,12 @@ for (const width of [360, 768, 1440]) {
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 
           const footer = page.getByRole('contentinfo');
-          await expect(footer.getByRole('link', { name: 'Privacy', exact: true })).toHaveAttribute('href', '/privacy-policy');
-          await expect(footer.getByRole('link', { name: 'Terms', exact: true })).toHaveAttribute('href', '/terms-of-service');
-          await expect(footer.getByRole('link', { name: 'Updates', exact: true })).toHaveAttribute('href', '/changelog');
+          for (const [name, path] of [['Privacy', '/privacy-policy'], ['Terms', '/terms-of-service'], ['Updates', '/changelog']] as const) {
+            const link = footer.getByRole('link', { name, exact: true });
+            await expect(link).toHaveCount(marketingHref ? 1 : 0);
+            if (marketingHref) await expect(link).toHaveAttribute('href', marketingPageHref(path)!);
+          }
+          await expect(footer.getByRole('link', { name: 'Documentation', exact: true })).toHaveAttribute('href', documentationHref('integration-api'));
           await expect(footer.getByRole('link', { name: /self.host/i })).toBeVisible();
 
           const publicMetadata = await page.locator('head').evaluate(head => [
@@ -76,6 +81,7 @@ for (const width of [360, 768, 1440]) {
           ].filter(Boolean).join(' '));
           expect(publicMetadata).not.toMatch(leakedCopy);
           expect(publicMetadata).toContain('Callery');
+          await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute('content', /noindex/);
 
           const structuredCopy = await page.locator('script[type="application/ld+json"]').evaluateAll(scripts => {
             const copy: string[] = [];
@@ -97,27 +103,10 @@ for (const width of [360, 768, 1440]) {
   }
 }
 
-test('home explains existing recordings with a static, clearly labeled example', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Find the details in your recorded calls.');
-  await expect(page.getByRole('link', { name: 'Start free trial', exact: true }).first()).toHaveAttribute('href', '/signup');
-  const howItWorks = page.getByRole('link', { name: 'See how it works', exact: true });
-  await expect(howItWorks).toHaveAttribute('href', '#how-it-works');
-  await howItWorks.click();
-  await expect(page.locator('#how-it-works')).toBeInViewport();
-  const example = page.getByRole('figure', { name: 'Example call', exact: true });
-  await expect(example).toBeVisible();
-  await expect(example).toContainText(/delivery/i);
-  await expect(example).toContainText(/summary/i);
-  await expect(example).toContainText(/transcript/i);
-  await expect(example.locator('button, input, textarea, select, audio[controls], [role="button"], [role="searchbox"]')).toHaveCount(0);
-  await expect(page.getByRole('table', { name: /compare/i })).toHaveCount(0);
-});
-
 test('desktop navigation and theme choices work with the keyboard', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/');
+  await page.goto('/support');
   const navigation = page.getByRole('navigation', { name: 'Main navigation', exact: true });
   const pricing = navigation.getByRole('link', { name: 'Pricing', exact: true });
   await pricing.focus();
@@ -140,42 +129,14 @@ test('desktop navigation and theme choices work with the keyboard', async ({ pag
   await expect(page.locator('html')).toHaveClass(/\blight\b/);
 });
 
-test('mobile navigation opens, closes with Escape, and follows links', async ({ page }) => {
+test('mobile app navigation follows pricing without a marketing menu', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto('/');
-  // The footer theme control is rendered only after client hydration completes.
-  await expect(page.getByRole('button', { name: 'Theme mode', exact: true })).toBeVisible();
-  const menu = page.getByRole('button', { name: 'Site menu', exact: true });
-  await menu.focus();
-  await page.keyboard.press('Enter');
-  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await page.goto('/support');
   const navigation = page.getByRole('navigation', { name: 'Mobile site navigation', exact: true });
   await expect(navigation).toBeVisible();
-  await expect(navigation.getByRole('link', { name: 'Log in', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(menu).toHaveAttribute('aria-expanded', 'false');
-  await expect(menu).toBeFocused();
-  await page.keyboard.press('Enter');
   await navigation.getByRole('link', { name: 'Pricing', exact: true }).click();
   await expect(page).toHaveURL(/\/pricing$/);
-  await expect(menu).toHaveAttribute('aria-expanded', 'false');
 });
-
-for (const route of ['/privacy-policy', '/terms-of-service']) {
-  test(`${route} contents links point to readable sections`, async ({ page }) => {
-    await page.goto(route);
-    const links = page.getByRole('main').locator('a[href^="#"]');
-    expect(await links.count()).toBeGreaterThan(0);
-    for (const link of await links.all()) {
-      const href = await link.getAttribute('href');
-      const id = decodeURIComponent(href!.slice(1));
-      expect(await page.evaluate(sectionId => Boolean(document.getElementById(sectionId)), id)).toBe(true);
-    }
-    const first = links.first();
-    await first.click();
-    expect(new URL(page.url()).hash).toBe(await first.getAttribute('href'));
-  });
-}
 
 test('support validates before sending and retains its empty spam trap', async ({ page }) => {
   let submitted = false;
@@ -222,7 +183,7 @@ for (const outcome of ['unauthorized', 'error', 'success'] as const) {
     await page.goto('/pricing');
     await expect(page.getByRole('button', { name: 'Theme mode', exact: true })).toBeVisible();
     const choose = page.getByRole('button', { name: /^Choose (Standard|Pro|Lifetime)$/ }).first();
-    test.skip(await choose.count() === 0, 'The published catalog has no purchasable marketing offer.');
+    test.skip(await choose.count() === 0, 'The published catalog has no purchasable published offer.');
     const planKey = await choose.locator('xpath=ancestor::article').getAttribute('data-plan-key');
     expect(['standard', 'pro', 'lifetime']).toContain(planKey);
     let checkoutRequest: Request | undefined;

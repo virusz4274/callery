@@ -29,10 +29,11 @@ export const navigationConfig = {
         { href: '/admin/settings', name: 'Settings', icon: Settings },
     ],
     get public() {
-        return publicSitePolicy().marketingEnabled ? [
-            { href: '/#features', name: 'Features', icon: Sparkles },
-            { href: '/#pricing', name: 'Pricing', icon: CreditCard },
-        ] : [];
+        const { managedEnabled, marketingHref } = publicSitePolicy();
+        return [
+            ...(marketingHref ? [{ href: marketingHref, name: 'Website', icon: Sparkles }] : []),
+            ...(managedEnabled ? [{ href: '/pricing', name: 'Pricing', icon: CreditCard }] : []),
+        ];
     },
     adminLink: { href: '/admin', name: 'Admin', icon: Shield },
 };

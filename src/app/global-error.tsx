@@ -20,6 +20,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
+      <head><meta name="robots" content="noindex, nofollow" /></head>
       <body className="bg-background text-foreground">
         <div className="relative min-h-dvh overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
 

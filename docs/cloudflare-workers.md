@@ -8,9 +8,20 @@ pnpm build:vinext
 pnpm start:vinext
 ```
 
+For Callery's managed deployment, `deployment/production.json` records the website
+`https://getcallery.com` and app `https://app.getcallery.com`.
+`pnpm build:vinext:production` selects those public origins, managed billing, Worker
+`callery`, and its `app.getcallery.com` custom domain. The corresponding
+`pnpm deploy:vinext:production` publishes that profile after runtime configuration
+and acceptance. Run these production commands from an isolated source checkout
+without `.env` or `.dev.vars` files, supplying reviewed production settings
+explicitly. The wrapper refuses a checkout containing those deployment files
+so the build cannot silently load shared self-host settings. The generic commands above preserve the existing development and
+self-host build configuration. The shared test deployment's `.env` is unchanged.
+
 The 2026-10-18 package update uses vinext 1.2.1, its Cloudflare adapter 1.1.1, Vite 8.3.4, the Cloudflare Vite plugin 2.0.0-beta.v.1 and `cf` 1.0.0-beta.18. Both the production build and local workerd preview were exercised. Auth uses Better Auth and MongoDB in every deployment; a successful bundle does not establish production readiness.
 
-`cloudflare.config.ts` defines the Worker and `nodejs_compat`. Its runtime secret slots are currently commented examples: declare the required `bindings.secret()` entries (including MongoDB and Better Auth) and supply their values through the provider's secret store before deployment. Node's deployment `.env` is not automatically the Worker's environment. Match the configured email provider to its required bindings. Public settings must match the chosen auth/billing profile at build time, including the saved public HTTPS origin. Workers still need reachable MongoDB and S3-compatible storage.
+`cloudflare.config.ts` defines the Worker and `nodejs_compat`. The production profile declares its required `bindings.secret()` entries; the generic profile keeps commented examples. Supply their values through the provider's secret store before deployment, and add bindings for enabled optional integrations. Node's deployment `.env` is not automatically the Worker's environment. Match the configured email provider to its required bindings. Public settings must match the chosen auth/billing profile at build time, including the saved public HTTPS origin. Workers still need reachable MongoDB and S3-compatible storage.
 
 `vite.config.ts` strips Next's standalone setting and prebundles storage SDKs in development. Its brand-image plugin embeds the existing PNG as a data URL during the Vite build: static assets do not appear under `/bundle/public`, so the Node module's eager filesystem read previously prevented dynamic Worker routes from starting. The Next.js image module remains unchanged. The current bundler handles the MongoDB URL parser without local tr46 patches or punycode aliases; isolated dev checks cover the actual dependency graph and Unicode domain conversion. Keep the storage SDK prebundling and brand-image embedding, which address separate runtime requirements.
 
